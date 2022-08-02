@@ -43,8 +43,10 @@ address_city   string -- rarely PHI (small #counts)
 )
 LOCATION 's3://cumulus/codebook/patient'
 
+drop   table if exists codebook_encounter;
+
 CREATE EXTERNAL TABLE
-codebook_encounters (
+codebook_encounter (
     patient_uuid   string,  -- FK codebook_patient
     encounter_uuid string,  -- PK codebook_encounters
     encounter_num string, -- PHI encounter number
@@ -53,12 +55,14 @@ codebook_encounters (
 )
 LOCATION 's3://cumulus/codebook/encounter'
 
+drop   table if exists codebook_docref;
+
 CREATE EXTERNAL TABLE
-codebook_notes (
+codebook_docref (
     patient_uuid    string,  -- FK codebook_patient
     encounter_uuid  string,  -- PK codebook_encounters
     docref_uuid     string,   -- Random ID generation (https://docs.python.org/3/library/uuid.html)
     encounter_id    string,
     enct_date date
 )
-LOCATION 's3://cumulus/codebook/encounter'
+LOCATION 's3://cumulus/codebook/docref'
