@@ -1,6 +1,7 @@
 import logging
 import store
 import ctakes_client
+import codebook
 import i2b2
 
 class Task:
@@ -27,5 +28,21 @@ class TaskCTAKES(Task):
             logging.info(f'exists, skipping: {path}')
             return path
         else:
-            return store.write(path=path, topic='ctakes.json',
-                               message=ctakes_client.call_ctakes(obs.observation_blob))
+            return store.write(path=path, message=ctakes_client.call_ctakes(obs.observation_blob))
+
+
+class TaskCodebook(Task):
+
+    def cached(self, path):
+        res = store.read(path)
+        codebook.Codebook()
+
+    def publish(self, root, obs: i2b2.ObservationFact):
+
+        path = store.path_codebook(root)
+
+        if not path:
+            logging.info('creating empty codebook.json')
+            logging.info(store.write(root, codebook.Codebook().__dict__))
+
+

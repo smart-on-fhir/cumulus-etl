@@ -2,12 +2,55 @@ import uuid
 import hashlib
 import i2b2
 
+class Codebook:
+    def __init__(self):
+        self.phi = dict()
+        self.phi['patient_num'] = dict()
+
+    def patient(self, patient_num):
+        if patient_num not in self.phi['patient_num'].keys():
+            self.phi['patient_num'][patient_num] = dict()
+            self.phi['patient_num'][patient_num]['deid'] = str(uuid.uuid4())
+            self.phi['patient_num'][patient_num]['encounter_num'] = dict()
+
+    def encounter(self, patient_num, encounter_num):
+        self.patient(patient_num)
+
+        if encounter_num not in self.phi['patient_num'][patient_num]['encounter_num'].keys():
+            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num] = dict()
+            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['deid'] = str(uuid.uuid4())
+            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['note'] = dict()
+
+    def note(self, patient_num, encounter_num, note_hash, note_meta=None):
+        self.encounter(patient_num, encounter_num)
+
+        if note_hash not in self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['note'].keys():
+            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['note'][note_hash] = note_meta
+
+
+class CodebookEntry:
+    def __init__(self):
+        self.patient_num = None
+        self.patient_uuid = None
+        self.encounter_num = None
+        self.encounter_uuid = None
+
 def deid_link() -> uuid:
     """
     Randomly generate a linked Patient identifier
     :return: long universally unique ID
     """
-    return uuid.uuid4()
+    return str(uuid.uuid4())
+
+def hash_clinical_text(text:str):
+    """
+    Get "fingerprint" of clinical text to check if two inputs of the same text
+    were both sent to ctakes. This is the intent of this method.
+    :param text: clinical text
+    :return: md5 digest
+    """
+    return hashlib.md5(text.encode('utf-8')).hexdigest()
+
 
 ###############################################################################
 #
@@ -35,16 +78,6 @@ def deid_i2b2(observation:i2b2.ObservationFact) -> i2b2.ObservationFact:
     out.end_date = observation.end_date
 
     return out
-
-def hash_clinical_text(text:str):
-    """
-    Get "fingerprint" of clinical text to check if two inputs of the same text
-    were both sent to ctakes. This is the intent of this method.
-    :param text: clinical text
-    :return: md5 digest
-    """
-    return hashlib.md5(text.encode('utf-8')).hexdigest()
-
 
 ###############################################################################
 #

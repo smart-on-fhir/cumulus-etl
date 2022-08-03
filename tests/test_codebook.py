@@ -1,8 +1,42 @@
+import json
 import unittest
 import i2b2
 from etl_i2b2_ctakes import codebook
 
 class TestCodebook(unittest.TestCase):
+
+    def test_codebook_entry(self):
+        note1 = codebook.hash_clinical_text('chief complaint: patient complains of fever and chills but denies cough')
+        note2 = codebook.hash_clinical_text('discharge diagnosis: U07.1 COVID-19')
+
+        patientA = '000111'
+        encounter1 = 'ABCDEFG'
+        encounter2 = 'HIJKLMN'
+
+        patientB = '222333'
+        encounter3 = 'OPQRST'
+        encounter4 = 'UVWXYZ'
+
+        cb = codebook.Codebook()
+        #
+        cb.note(patientA, encounter1, note1)
+        cb.note(patientA, encounter1, note2)
+        cb.encounter(patientA, encounter2)
+
+        # suppress duplicates
+        cb.note(patientA, encounter1, note1)
+        cb.note(patientA, encounter1, note1)
+        cb.note(patientA, encounter1, note1)
+
+        # other patient
+        cb.encounter(patientB, encounter3)
+        cb.encounter(patientB, encounter4)
+
+        print(cb.__dict__)
+        print(json.dumps(cb.__dict__, indent=4))
+
+
+
 
     def test_deid_link(self):
         links = [codebook.deid_link() for i in range(0,100)]

@@ -1,4 +1,5 @@
 import os
+import logging
 import requests
 
 def get_url_ctakes() -> str:
@@ -13,4 +14,5 @@ def call_ctakes(sentence:str, url=get_url_ctakes()) -> dict:
     :param url: cTAKES REST server fully qualified path
     :return:
     """
+    logging.debug(url)
     return requests.post(url, data=sentence).json()

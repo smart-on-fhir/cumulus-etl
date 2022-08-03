@@ -7,6 +7,9 @@ import codebook
 def path_exists(path) -> bool:
     return os.path.exists(path)
 
+def path_codebook(root):
+    return os.path.join(root, 'codebook.json')
+
 def path_patient(root:str, observation: i2b2.ObservationFact):
     """
     :param root: directory for results
@@ -27,30 +30,28 @@ def path_note(root: str, observation: i2b2.ObservationFact):
     :return: path to note result for this patient
     """
     md5sum = codebook.hash_clinical_text(observation.observation_blob)
+    folder = os.path.join(path_patient(root, observation), md5sum)
 
-    return os.path.join(path_patient(root, observation), md5sum)
+    if not path_exists(folder): os.makedirs(folder)
 
-def write(path:str, topic:str, message:dict) -> str:
+    return os.path.join(folder, 'ctakes.json')
+
+def write(path:str, message:dict) -> str:
     """
     :param path: topic (currently filesystem path)
-    :param topic: key for the message (currently filename)
     :param message: coded message
-    :return: path to published message
+    :return: path to message
     """
-    path_topic = os.path.join(path, topic)
-    logging.debug(f'write() {path_topic}')
+    logging.debug(f'write() {path}')
 
-    if not os.path.exists(path): os.makedirs(path)
-
-    with open(path_topic, 'w') as f:
+    with open(path, 'w') as f:
         f.write(json.dumps(message, indent=4))
 
-    return path_topic
+    return path
 
-def read(path:str, topic:str) -> str:
+def read(path:str) -> str:
     """
     :param path: (currently filesystem path)
-    :param topic: key for the message (currently filename)
     :return: message: coded message
     """
     path_topic = os.path.join(path, topic)
