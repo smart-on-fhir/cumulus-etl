@@ -1,90 +1,40 @@
-import os, sys
-import json
+import sys
 from typing import List
 import logging
-import pandas
 import i2b2
 import codebook
-import ctakes_client
+import extract
+import tasks
 
-def path_for_result(out_dir:str, observation: i2b2.ObservationFact):
+def etl(notes_csv:str, out_dir:str, task= tasks.TaskCTAKES(), sample=1.0) -> List:
     """
-    :param out_dir: directory to save cTAKES result
-    :param observation:
-    :return: path to cTAKES results
-    """
-    # practical limit of number of "files" in a folder is 10,000
-    root = str(observation.patient_num)
-    if len(str(observation.patient_num)) >= 4:
-        root = root[0:4]
-
-    pat = os.path.join(out_dir, root, observation.patient_num)
-    enc = os.path.join(pat, observation.encounter_num)
-    concept = os.path.join(enc, observation.concept_cd)
-
-    if not os.path.exists(pat): os.makedirs(pat)
-    if not os.path.exists(enc): os.makedirs(enc)
-    if not os.path.exists(concept): os.makedirs(concept)
-
-    return concept
-
-def etl(notes_csv:str, out_dir:str) -> List[i2b2.ObservationFact]:
-    """
+    Inspired by "command" design pattern 
+    https://en.wikipedia.org/wiki/Command_pattern 
+    
     Extract Transform Load
-    Extract: from CSV file of Observation Fact
+    Extract: List[Observation Fact]
     Transform: real PHI identifiers to DEID fake identifiers
     Load: save JSON result
+    
     :param notes_csv: path to CSV file containing physician notes
     :param out_dir: path to directory results from cTAKES
+    :param task: Task operation to run over the collection
+    :param sample: % of rows to sample (default 100%)
     :return: list of ObservationFacts that were processed by ETL (without note text).
     """
-    logging.info(f'Reading csv {notes_csv} ...')
-    df = pandas.read_csv(notes_csv, dtype=str)
-    logging.info(f'Done reading {notes_csv} .')
+    df = extract.extract_csv(notes_csv, sample)
 
     processed = list()
 
-    count = df.shape[0]
-
     for index, row in df.iterrows():
-
-        logging.debug(f'index {index} row {row} ... ')
-
         observation = i2b2.ObservationFact(row)
 
-        current = path_for_result(out_dir, observation)
+        res = task.publish(out_dir, observation)
+        logging.info(res)
 
-        if os.path.exists(os.path.join(current, 'codebook.json')):
-            logging.info(f'codebook.json already exists for {current}')
-        else:
-            try:
-                res = ctakes_client.call_ctakes(observation.observation_blob)
-
-                with open(os.path.join(current, 'ctakes.json'), 'w') as f:
-                    f.write(json.dumps(res, indent=4))
-
-                with open(os.path.join(current, 'codebook.json'), 'w') as f:
-                   f.write(json.dumps(
-                       codebook.deid_i2b2(observation).__dict__, indent=4))
-
-                with open(os.path.join(current, 'i2b2.json'), 'w') as f:
-                    observation.observation_blob = None
-                    f.write(json.dumps(
-                        observation.__dict__, indent=4))
-
-            except Exception as e:
-                logging.error(f'During call_ctakes {e}')
-                logging.error(f'{observation}')
-
-                with open(os.path.join(current, 'error.txt'), 'w') as f:
-                    f.write(f'{e}')
-
-        if index % 100 == 0:
-            progress = float(index / count)
-            logging.info(f'total= {count}, processed={index}, progress % = {progress}')
+        processed.append(res)
 
     return processed
-
 
 def debug_mode():
     logging.basicConfig()
