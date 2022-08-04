@@ -30,10 +30,15 @@ def etl(notes_csv:str, out_dir:str, task= tasks.TaskCTAKES(), sample=1.0) -> Lis
     for index, row in df.iterrows():
         observation = i2b2.ObservationFact(row)
 
-        res = task.publish(out_dir, observation)
-        logging.info(res)
+        try:
+            res = task.publish(out_dir, observation)
+            logging.info(res)
 
-        processed.append(res)
+            processed.append(res)
+
+        except Exception as e:
+            logging.error(e)
+            tasks.TaskLogError().publish(out_dir, observation)
 
     return processed
 

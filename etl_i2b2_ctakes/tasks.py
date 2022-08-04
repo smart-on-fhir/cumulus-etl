@@ -1,8 +1,9 @@
 import logging
 import store
-import ctakes_client
+import deid
 import codebook
 import i2b2
+import ctakes
 
 class Task:
     """
@@ -22,13 +23,13 @@ class TaskCTAKES(Task):
         :param obs: patient data including note
         :return: path to ctakes.json
         """
-        path = store.path_note(root, obs)
+        path = store.path_ctakes(root, obs)
 
         if store.path_exists(path):
             logging.info(f'exists, skipping: {path}')
             return path
         else:
-            return store.write(path=path, message=ctakes_client.call_ctakes(obs.observation_blob))
+            return store.write(path=path, message=ctakes.call_ctakes(obs.observation_blob))
 
 
 class TaskCodebook(Task):
@@ -54,9 +55,50 @@ class TaskCodebook(Task):
 
         cb.docref(mrn=obs.patient_num,
                   encounter_id= obs.encounter_num,
-                  md5sum= codebook.hash_clinical_text(obs.observation_blob))
+                  md5sum= deid.hash_clinical_text(obs.observation_blob))
 
         return store.write(path, cb.__dict__)
+
+
+class TaskLogError(Task):
+
+    def publish(self, root, obs: i2b2.ObservationFact):
+        """
+        :param root: path root, currently filesystem
+        :param obs: patient data including note
+        :return: error message
+        """
+        path = store.path_error(root)
+        if not store.path_exists(path):
+            store.write(path, {'error': list()})
+
+        saved = store.read(path)
+
+        if not obs:
+            message = 'observation was null'
+        elif not isinstance(obs, dict):
+            message = f'observation was not a dictionary, got {obs}'
+        else:
+            message = obs.__dict__
+
+        saved['error'].append(message)
+
+        return message
+
+class TaskPhilter(Task):
+
+    def publish(self, root, obs: i2b2.ObservationFact):
+        logging.fatal('no implementation.')
+        redacted = deid.philter(obs.observation_blob)
+        #
+        # ...
+        #
+
+
+
+
+
+
 
 
 
