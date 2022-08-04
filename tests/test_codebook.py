@@ -32,8 +32,17 @@ class TestCodebook(unittest.TestCase):
         cb.encounter(patientB, encounter3)
         cb.encounter(patientB, encounter4)
 
-        print(cb.__dict__)
+        print('######## to_json ')
         print(json.dumps(cb.__dict__, indent=4))
+
+        to_json = cb.__dict__
+        from_json = codebook.Codebook(to_json)
+
+        print('######## from_json ')
+        print(json.dumps(from_json.__dict__, indent=4))
+
+        self.assertEqual(to_json, from_json.__dict__, 'Dictionary does not match')
+
 
 
 

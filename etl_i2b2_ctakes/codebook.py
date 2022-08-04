@@ -1,39 +1,51 @@
+import logging
 import uuid
 import hashlib
 import i2b2
 
 class Codebook:
-    def __init__(self):
-        self.phi = dict()
-        self.phi['patient_num'] = dict()
+    def __init__(self, saved=None):
+        self.mrn = dict()
+        if saved:
+            self._from_json(saved)
+
+    def _from_json(self, saved:dict):
+        for mrn in saved['mrn'].keys():
+            self.patient(mrn)['deid'] = saved['mrn'][mrn]['deid']
+
+            for enc in saved['mrn'][mrn]['encounter_num'].keys():
+                self.encounter(mrn, enc)['deid'] = saved['mrn'][mrn]['encounter_num'][enc]['deid']
+
+                for md5sum in saved['mrn'][mrn]['encounter_num'][enc]['note']:
+                    self.note(mrn, enc, md5sum)
 
     def patient(self, patient_num):
-        if patient_num not in self.phi['patient_num'].keys():
-            self.phi['patient_num'][patient_num] = dict()
-            self.phi['patient_num'][patient_num]['deid'] = str(uuid.uuid4())
-            self.phi['patient_num'][patient_num]['encounter_num'] = dict()
+        if patient_num:
+            if patient_num not in self.mrn.keys():
+                self.mrn[patient_num] = dict()
+                self.mrn[patient_num]['deid'] = str(uuid.uuid4())
+                self.mrn[patient_num]['encounter_num'] = dict()
+            return self.mrn[patient_num]
 
-    def encounter(self, patient_num, encounter_num):
+    def encounter(self, patient_num, encounter_num, period_start=None, period_end=None):
         self.patient(patient_num)
+        if encounter_num:
+            if encounter_num not in self.mrn[patient_num]['encounter_num'].keys():
+                self.mrn[patient_num]['encounter_num'][encounter_num] = dict()
+                self.mrn[patient_num]['encounter_num'][encounter_num]['deid'] = str(uuid.uuid4())
+                self.mrn[patient_num]['encounter_num'][encounter_num]['period_start'] = period_start
+                self.mrn[patient_num]['encounter_num'][encounter_num]['period_end'] = period_end
+                self.mrn[patient_num]['encounter_num'][encounter_num]['note'] = dict()
 
-        if encounter_num not in self.phi['patient_num'][patient_num]['encounter_num'].keys():
-            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num] = dict()
-            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['deid'] = str(uuid.uuid4())
-            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['note'] = dict()
+            return self.mrn[patient_num]['encounter_num'][encounter_num]
 
-    def note(self, patient_num, encounter_num, note_hash, note_meta=None):
+    def note(self, patient_num, encounter_num, md5sum):
         self.encounter(patient_num, encounter_num)
+        if md5sum:
+            if md5sum not in self.mrn[patient_num]['encounter_num'][encounter_num]['note'].keys():
+                self.mrn[patient_num]['encounter_num'][encounter_num]['note'][md5sum] = dict()
 
-        if note_hash not in self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['note'].keys():
-            self.phi['patient_num'][patient_num]['encounter_num'][encounter_num]['note'][note_hash] = note_meta
-
-
-class CodebookEntry:
-    def __init__(self):
-        self.patient_num = None
-        self.patient_uuid = None
-        self.encounter_num = None
-        self.encounter_uuid = None
+            return self.mrn[patient_num]['encounter_num'][encounter_num]['note'][md5sum]
 
 def deid_link() -> uuid:
     """

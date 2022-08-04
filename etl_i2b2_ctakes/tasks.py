@@ -45,4 +45,10 @@ class TaskCodebook(Task):
             logging.info('creating empty codebook.json')
             logging.info(store.write(root, codebook.Codebook().__dict__))
 
+        cb = codebook.Codebook(store.read(path))
+
+
+
+
+
 
