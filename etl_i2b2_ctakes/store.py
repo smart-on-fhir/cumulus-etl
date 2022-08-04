@@ -54,10 +54,9 @@ def read(path:str) -> str:
     :param path: (currently filesystem path)
     :return: message: coded message
     """
-    path_topic = os.path.join(path, topic)
-    logging.debug(f'read() {path_topic}')
+    logging.debug(f'read() {path}')
 
-    with open(path_topic, 'r') as f:
+    with open(path, 'r') as f:
         message = json.load(f)
     f.close()
     return message

@@ -19,14 +19,14 @@ class TestCodebook(unittest.TestCase):
 
         cb = codebook.Codebook()
         #
-        cb.note(patientA, encounter1, note1)
-        cb.note(patientA, encounter1, note2)
+        cb.docref(patientA, encounter1, note1)
+        cb.docref(patientA, encounter1, note2)
         cb.encounter(patientA, encounter2)
 
         # suppress duplicates
-        cb.note(patientA, encounter1, note1)
-        cb.note(patientA, encounter1, note1)
-        cb.note(patientA, encounter1, note1)
+        cb.docref(patientA, encounter1, note1)
+        cb.docref(patientA, encounter1, note1)
+        cb.docref(patientA, encounter1, note1)
 
         # other patient
         cb.encounter(patientB, encounter3)
@@ -43,13 +43,6 @@ class TestCodebook(unittest.TestCase):
 
         self.assertEqual(to_json, from_json.__dict__, 'Dictionary does not match')
 
-
-
-
-
-    def test_deid_link(self):
-        links = [codebook.deid_link() for i in range(0,100)]
-        self.assertEqual(100, len(set(links)), '100 generated links should all be unique')
 
     def test_deid_i2b2(self):
         # https://www.md5hashgenerator.com/

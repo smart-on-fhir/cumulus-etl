@@ -33,19 +33,30 @@ class TaskCTAKES(Task):
 
 class TaskCodebook(Task):
 
-    def cached(self, path):
-        res = store.read(path)
-        codebook.Codebook()
-
     def publish(self, root, obs: i2b2.ObservationFact):
-
+        """
+        :param root: path root, currently filesystem
+        :param obs: patient data including note
+        :return: path to codebook.json
+        """
         path = store.path_codebook(root)
 
-        if not path:
+        if not store.path_exists(path):
             logging.info('creating empty codebook.json')
-            logging.info(store.write(root, codebook.Codebook().__dict__))
+            logging.info(store.write(path, codebook.Codebook().__dict__))
 
         cb = codebook.Codebook(store.read(path))
+
+        cb.encounter(mrn=obs.patient_num,
+                     encounter_id= obs.encounter_num,
+                     period_start=obs.start_date,
+                     period_end=obs.end_date)
+
+        cb.docref(mrn=obs.patient_num,
+                  encounter_id= obs.encounter_num,
+                  md5sum= codebook.hash_clinical_text(obs.observation_blob))
+
+        return store.write(path, cb.__dict__)
 
 
 
