@@ -5,9 +5,9 @@ import i2b2
 import store
 import codebook
 import extract
-import tasks
+import pipeline
 
-def etl(notes_csv:str, out_dir:str, task= tasks.TaskCTAKES(), sample=1.0) -> List:
+def etl(notes_csv:str, out_dir:str, command= pipeline.PipeCTAKES(), sample=1.0) -> List:
     """
     Inspired by "command" design pattern 
     https://en.wikipedia.org/wiki/Command_pattern 
@@ -19,7 +19,7 @@ def etl(notes_csv:str, out_dir:str, task= tasks.TaskCTAKES(), sample=1.0) -> Lis
     
     :param notes_csv: path to CSV file containing physician notes
     :param out_dir: path to directory results from cTAKES
-    :param task: Task operation to run over the collection
+    :param command: Task operation to run over the collection
     :param sample: % of rows to sample (default 100%)
     :return: list of ObservationFacts that were processed by ETL (without note text).
     """
@@ -31,14 +31,14 @@ def etl(notes_csv:str, out_dir:str, task= tasks.TaskCTAKES(), sample=1.0) -> Lis
         observation = i2b2.ObservationFact(row)
 
         try:
-            res = task.publish(out_dir, observation)
+            res = command.pipe(out_dir, observation)
             logging.info(res)
 
             processed.append(res)
 
         except Exception as e:
             logging.error(e)
-            tasks.TaskLogError().publish(out_dir, observation)
+            tasks.PipeLogError().pipe(out_dir, observation)
 
     return processed
 

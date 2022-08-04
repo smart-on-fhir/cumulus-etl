@@ -66,7 +66,8 @@ class Codebook:
         self.encounter(mrn, encounter_id)
         if md5sum:
             if md5sum not in self.mrn[mrn]['encounter'][encounter_id]['docref'].keys():
-                self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum] = deid.fake_id()
+                self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum] = dict()
+                self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum]['deid'] = deid.fake_id()
 
             return self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum]
 
@@ -80,7 +81,9 @@ class Codebook:
 
             for enc in saved['mrn'][mrn]['encounter'].keys():
                 self.encounter(mrn, enc)['deid'] = saved['mrn'][mrn]['encounter'][enc]['deid']
+                self.encounter(mrn, enc)['period_start'] = saved['mrn'][mrn]['encounter'][enc]['period_start']
+                self.encounter(mrn, enc)['period_end'] = saved['mrn'][mrn]['encounter'][enc]['period_end']
 
                 for md5sum in saved['mrn'][mrn]['encounter'][enc]['docref']:
-                    self.docref(mrn, enc, md5sum)
+                    self.docref(mrn, enc, md5sum)['deid'] = saved['mrn'][mrn]['encounter'][enc]['docref'][md5sum]['deid']
 

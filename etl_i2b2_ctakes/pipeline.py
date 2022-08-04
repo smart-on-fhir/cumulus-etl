@@ -5,19 +5,19 @@ import codebook
 import i2b2
 import ctakes
 
-class Task:
+class Pipe:
     """
     'Queue system' layer inspired by RMQ which is cloud agnostic.
     SQS (simple queue service) by AWS could be easily swapped in, as could
     other Queue systems that follow the publish/consume topic pattern.
     """
-    def publish(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: i2b2.ObservationFact):
         logging.fatal('no default implementation')
 
 
-class TaskCTAKES(Task):
+class PipeCTAKES(Pipe):
 
-    def publish(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: i2b2.ObservationFact):
         """
         :param root: path root, currently filesystem
         :param obs: patient data including note
@@ -32,9 +32,9 @@ class TaskCTAKES(Task):
             return store.write(path=path, message=ctakes.call_ctakes(obs.observation_blob))
 
 
-class TaskCodebook(Task):
+class PipeCodebook(Pipe):
 
-    def publish(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: i2b2.ObservationFact):
         """
         :param root: path root, currently filesystem
         :param obs: patient data including note
@@ -60,9 +60,9 @@ class TaskCodebook(Task):
         return store.write(path, cb.__dict__)
 
 
-class TaskLogError(Task):
+class PipeLogError(Pipe):
 
-    def publish(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: i2b2.ObservationFact):
         """
         :param root: path root, currently filesystem
         :param obs: patient data including note
@@ -85,9 +85,9 @@ class TaskLogError(Task):
 
         return message
 
-class TaskPhilter(Task):
+class PipePhilter(Pipe):
 
-    def publish(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: i2b2.ObservationFact):
         logging.fatal('no implementation.')
         redacted = deid.philter(obs.observation_blob)
         #

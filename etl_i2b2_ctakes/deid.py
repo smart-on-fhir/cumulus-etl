@@ -8,7 +8,7 @@ def fake_id() -> uuid:
     Randomly generate a linked Patient identifier
     :return: long universally unique ID
     """
-    return uuid.uuid4()
+    return str(uuid.uuid4())
 
 def hash_clinical_text(text: str) -> str:
     """
