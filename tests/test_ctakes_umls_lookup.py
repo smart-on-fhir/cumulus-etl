@@ -1,7 +1,14 @@
 import unittest
+from typing import List, Dict
 import store
-from etl_i2b2_ctakes.ctakes import SemType
+from ctakes import SemType
 
+#######################################################################################################################
+#
+# JSON Responses from CTAKES REST Server
+# https://github.com/Machine-Learning-for-Medical-Language/ctakes-covid-container
+#
+#######################################################################################################################
 class Concept:
     def __init__(self, source=None):
         """
@@ -91,7 +98,6 @@ class Match:
                 'polarity': _polarity,
                 'conceptAttributes': _concepts, 'type': self.type.value}
 
-
 class CtakesJSON:
 
     def __init__(self, source=None):
@@ -99,7 +105,49 @@ class CtakesJSON:
         if source:
             self.from_json(source)
 
-    def from_json(self, source:dict) -> None:
+    def list_concept(self) -> List[Concept]:
+        concat = list()
+        for match in self.list_match():
+            concat += match.conceptAttributes
+        return concat
+
+    def list_concept_cui(self) -> List[str]:
+        return [c.cui for c in self.list_concept()]
+
+    def list_concept_tui(self) -> List[str]:
+        return [c.tui for c in self.list_concept()]
+
+    def list_concept_code(self) -> List[str]:
+        return [c.code for c in self.list_concept()]
+
+    def list_match(self) -> List[Match]:
+        concat = list()
+        for semtype, matches in self.mentions.items():
+            concat += matches
+        return concat
+
+    def list_match_text(self) -> List[str]:
+        return [m.text for m in self.list_match()]
+
+    def list_sign_symptom(self) -> List[Match]:
+        return self.mentions[SemType.SignSymptom]
+
+    def list_disease_disorder(self) -> List[Match]:
+        return self.mentions[SemType.DiseaseDisorder]
+
+    def list_medication(self) -> List[Match]:
+        return self.mentions[SemType.Medication]
+
+    def list_procedure(self) -> List[Match]:
+        return self.mentions[SemType.Procedure]
+
+    def list_anatomical_site(self) -> List[Match]:
+        return self.mentions[SemType.AnatomicalSite]
+
+    def list_identified_annotation(self) -> List[Match]:
+        return self.mentions[SemType.CustomDict]
+
+    def from_json(self, source: dict) -> None:
         for mention, match_list in source.items():
             semtype = Match.parse_mention(mention)
 
@@ -118,16 +166,21 @@ class CtakesJSON:
         return res
 
 
+
 class TestCtakesJSON(unittest.TestCase):
 
     def test(self, example='/your/path/to/ctakes.json'):
-        example = '/Users/andy/phi/i2b2/processed/1069/106912947/546a048483c86e7978f607f6c73fbe9f/ctakes.json'
 
         if store.path_exists(example):
             from_json = store.read(example)
-            to_json = CtakesJSON(from_json).to_json()
+            reader = CtakesJSON(from_json)
 
-            self.assertDictEqual(from_json, to_json, 'ctakes json did not match before/after serialization')
+            self.assertDictEqual(from_json, reader.to_json(), 'ctakes json did not match before/after serialization')
+
+            self.assertGreaterEqual(len(reader.list_match()), 1, 'response should have at least one match')
+            self.assertGreaterEqual(len(reader.list_match_text()), 1, 'response should have at least one text match')
+            self.assertGreaterEqual(len(reader.list_concept()), 1, 'response should have at least one concept')
+            self.assertGreaterEqual(len(reader.list_concept_cui()), 1, 'response should have at least one concept CUI')
 
 
 if __name__ == '__main__':
