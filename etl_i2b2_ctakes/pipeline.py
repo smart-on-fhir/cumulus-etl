@@ -14,23 +14,11 @@ class Pipe:
     def pipe(self, root, obs: i2b2.ObservationFact):
         logging.fatal('no default implementation')
 
-
-class PipeCTAKES(Pipe):
-
-    def pipe(self, root, obs: i2b2.ObservationFact):
-        """
-        :param root: path root, currently filesystem
-        :param obs: patient data including note
-        :return: path to ctakes.json
-        """
-        path = store.path_ctakes(root, obs)
-
-        if store.path_exists(path):
-            logging.info(f'exists, skipping: {path}')
-            return path
-        else:
-            return store.write(path=path, message=ctakes.call_ctakes(obs.observation_blob))
-
+#######################################################################################################################
+#
+# Codebook / DEID Commands
+#
+#######################################################################################################################
 
 class PipeCodebook(Pipe):
 
@@ -59,6 +47,21 @@ class PipeCodebook(Pipe):
 
         return store.write(path, cb.__dict__)
 
+class PipePhilter(Pipe):
+
+    def pipe(self, root, obs: i2b2.ObservationFact):
+        logging.fatal('no implementation.')
+        redacted = deid.philter(obs.observation_blob)
+        #
+        # ...
+        #
+
+
+#######################################################################################################################
+#
+# Error Logging
+#
+#######################################################################################################################
 
 class PipeLogError(Pipe):
 
@@ -85,23 +88,65 @@ class PipeLogError(Pipe):
 
         return message
 
-class PipePhilter(Pipe):
+#######################################################################################################################
+#
+# Clinical Text requests/responses
+#
+#######################################################################################################################
+
+class PipeCTAKES(Pipe):
 
     def pipe(self, root, obs: i2b2.ObservationFact):
-        logging.fatal('no implementation.')
-        redacted = deid.philter(obs.observation_blob)
-        #
-        # ...
-        #
+        """
+        :param root: path root, currently filesystem
+        :param obs: patient data including note
+        :return: path to ctakes.json
+        """
+        path = store.path_ctakes(root, obs)
 
+        if store.path_exists(path):
+            logging.info(f'exists, skipping: {path}')
+            return path
+        else:
+            return store.write(path=path, message=ctakes.call_ctakes(obs.observation_blob))
 
+class PipeBSV(Pipe):
 
+    def __init__(self, semtype=ctakes.SemType.SignSymptom):
+        """
+        :param semtype: Semantic Type to read from cTAKES JSON Result
+        """
+        self.semtype = semtype
 
+    def pipe(self, root, obs: i2b2.ObservationFact):
+        ctakes_json = store.path_ctakes(root, obs)
 
+        if store.path_exists(ctakes_json):
+            res = store.read(ctakes_json)
+            symptoms = ctakes.res_to_bsv(res, self.semtype)
 
+            if len(symptoms) > 0:
+                path = store.path_bsv_semtype(root, obs, self.semtype)
+                return ctakes.bsv_to_file(symptoms, path)
 
+class PipeConcatBSV(PipeBSV):
 
+    def __init__(self, semtype=ctakes.SemType.SignSymptom):
+        self.semtype = semtype
 
+    def pipe(self, root, obs: i2b2.ObservationFact):
+        import os
+        path = store.path_bsv_semtype(root, obs, self.semtype)
+        path_concat = os.path.join(root, f'{self.semtype}.bsv')
 
+        if store.path_exists(path):
+            with open(path, 'r') as src:
+                content = src.read()
 
+                with open(path_concat, 'a') as concat:
+                    concat.write(content)
+                    concat.write('\n')
 
+                concat.close()
+            src.close()
+            return path_concat

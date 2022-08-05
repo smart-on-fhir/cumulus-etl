@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+
+import ctakes
 import i2b2
 import deid
 import codebook
@@ -28,7 +30,7 @@ def path_codebook(root):
     """
     return os.path.join(root, 'codebook.json')
 
-def path_patient(root:str, observation: i2b2.ObservationFact):
+def path_patient_dir(root:str, observation: i2b2.ObservationFact):
     """
     :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
     :param observation: patient data
@@ -41,18 +43,25 @@ def path_patient(root:str, observation: i2b2.ObservationFact):
 
     return os.path.join(root, prefix, observation.patient_num)
 
-def path_ctakes(root: str, observation: i2b2.ObservationFact):
+def path_note_dir(root: str, observation: i2b2.ObservationFact):
     """
     :param root: directory for messages
     :param observation: patient note with encounter dates
     :return: path to ctakes.json
     """
     md5sum = deid.hash_clinical_text(observation.observation_blob)
-    folder = os.path.join(path_patient(root, observation), md5sum)
+    folder = os.path.join(path_patient_dir(root, observation), md5sum)
 
     if not path_exists(folder): os.makedirs(folder)
+    return folder
 
-    return os.path.join(folder, 'ctakes.json')
+def path_ctakes(root: str, observation: i2b2.ObservationFact):
+    """
+    :param root: directory for messages
+    :param observation: patient note with encounter dates
+    :return: path to ctakes.json
+    """
+    return os.path.join(path_note_dir(root, observation), 'ctakes.json')
 
 def path_philter(root: str, observation: i2b2.ObservationFact):
     """
@@ -60,12 +69,15 @@ def path_philter(root: str, observation: i2b2.ObservationFact):
     :param observation:
     :return: path to philter.json
     """
-    md5sum = deid.hash_clinical_text(observation.observation_blob)
-    folder = os.path.join(path_patient(root, observation), md5sum)
+    return os.path.join(path_note_dir(root, observation), 'philter.json')
 
-    if not path_exists(folder): os.makedirs(folder)
-
-    return os.path.join(folder, 'ctakes.json')
+def path_bsv_semtype(root: str, observation: i2b2.ObservationFact, semtype=ctakes.SemType.SignSymptom):
+    """
+    :param root:
+    :param observation:
+    :return: path to philter.json
+    """
+    return os.path.join(path_note_dir(root, observation), f'{semtype.name}.bsv')
 
 def write(path:str, message:dict) -> str:
     """
@@ -80,7 +92,7 @@ def write(path:str, message:dict) -> str:
 
     return path
 
-def read(path:str) -> str:
+def read(path:str) -> dict:
     """
     :param path: (currently filesystem path)
     :return: message: coded message

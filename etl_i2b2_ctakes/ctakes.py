@@ -57,25 +57,18 @@ class BSV:
         :param cui: CUI from UMLS or NA for "identified annotation"
         :param text: string representation to send to ctakes
         """
-        self.code = code
-        self.cui = cui
-        self.text = text
+        self.code = code if code else ''
+        self.cui = cui if cui else ''
+        self.text = text if text else ''
 
-def list_bsv(path:str) -> List[BSV]:
-    """
-    :param path: BSV filename to parse
-    :return: list of BSV entries
-    """
-    entries = list()
+    def __str__(self):
+        """
+        :return: CODE|CUI|STR
+        """
+        safetext = self.text.replace('\n', '').replace('\r', '')
+        return f"{self.code}|{self.cui}|{safetext}"
 
-    with open(path) as f:
-        for line in f.read().splitlines():
-            cols = line.split('|')
-            entries.append(BSV(code= cols[0], cui=cols[1], text=cols[2]))
-
-    return entries
-
-def res_to_bsv(response:dict, sem_type:SemType)-> List[BSV]:
+def res_to_bsv(response:dict, sem_type:SemType) -> List[BSV]:
     """
     :param response: cTAKES response
     :param sem_type: Semantic Type (Group)
@@ -87,3 +80,37 @@ def res_to_bsv(response:dict, sem_type:SemType)-> List[BSV]:
         for concept in atts['conceptAttributes']:
             bsv_res.append(BSV(concept['code'], concept['cui'], atts['text']))
     return bsv_res
+
+def bsv_to_str(bsv) -> str:
+    """
+    :param bsv: BSV or List[BSV]
+    :return: CODE|CUI|STR \n CODE|CUI|STR \n ...
+    """
+    if len(bsv) > 1:
+        rows = [str(r) for r in bsv]
+        return '\n'.join(rows)
+    else:
+        return str(bsv)
+
+def file_to_bsv(path:str) -> List[BSV]:
+    """
+    :param path: BSV filename to parse
+    :return: list of BSV entries
+    """
+    entries = list()
+
+    with open(path) as f:
+        for line in f.read().splitlines():
+            cols = line.split('|')
+            entries.append(BSV(code= cols[0], cui=cols[1], text=cols[2]))
+    return entries
+
+def bsv_to_file(bsv, path:str) -> str:
+    """
+    :param bsv: BSV or List[BSV]
+    :param path: save BSV to this path
+    :return: path to BSV file
+    """
+    with open(path, 'a') as f:
+        f.write(bsv_to_str(bsv))
+    return path

@@ -38,7 +38,7 @@ def etl(notes_csv:str, out_dir:str, command= pipeline.PipeCTAKES(), sample=1.0) 
 
         except Exception as e:
             logging.error(e)
-            tasks.PipeLogError().pipe(out_dir, observation)
+            pipeline.PipeLogError().pipe(out_dir, observation)
 
     return processed
 
