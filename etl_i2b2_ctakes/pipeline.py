@@ -3,7 +3,9 @@ import store
 import deid
 import codebook
 import i2b2
+import bsv
 import ctakes
+
 
 class Pipe:
     """
@@ -123,11 +125,11 @@ class PipeBSV(Pipe):
 
         if store.path_exists(ctakes_json):
             res = store.read(ctakes_json)
-            symptoms = ctakes.res_to_bsv(res, self.semtype)
+            symptoms = bsv.res_to_bsv(res, self.semtype)
 
             if len(symptoms) > 0:
                 path = store.path_bsv_semtype(root, obs, self.semtype)
-                return ctakes.bsv_to_file(symptoms, path)
+                return bsv.bsv_to_file(symptoms, path)
 
 class PipeConcatBSV(PipeBSV):
 
@@ -144,8 +146,8 @@ class PipeConcatBSV(PipeBSV):
                 content = src.read()
 
                 with open(path_concat, 'a') as concat:
-                    concat.write(content)
                     concat.write('\n')
+                    concat.write(content)
 
                 concat.close()
             src.close()
