@@ -106,6 +106,10 @@ class PipeCTAKES(Pipe):
         """
         path = store.path_ctakes(root, obs)
 
+        if len(obs.observation_blob) < 4:
+            logging.warning(f'Text was too short: {obs.observation_blob}')
+            return None
+
         if store.path_exists(path):
             logging.info(f'exists, skipping: {path}')
             return path
