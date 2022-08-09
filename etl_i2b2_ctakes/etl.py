@@ -2,12 +2,23 @@ import sys
 from typing import List
 import logging
 import i2b2
-import store
-import codebook
-import extract
+from i2b2 import extract
 import pipeline
 
-def etl(notes_csv:str, out_dir:str, command= pipeline.PipeCTAKES(), sample=1.0) -> List:
+class Job:
+    def __init__(self, inpath:str, outpath=str, command=None, sample=1.0):
+        """
+        :param inpath: input path (CSV file or other resource)
+        :param outpath: output path (folder or other resource)
+        :param command: method to run
+        :param sample: % percentage of the dataset to process
+        """
+        self.inpath = inpath
+        self.outpath = outpath
+        self.command = command
+        self.sample = sample
+
+def etl_docref(notes_path:str, out_dir:str, command= pipeline.PipeCTAKES(), sample=1.0) -> List:
     """
     Inspired by "command" design pattern 
     https://en.wikipedia.org/wiki/Command_pattern 
@@ -17,13 +28,13 @@ def etl(notes_csv:str, out_dir:str, command= pipeline.PipeCTAKES(), sample=1.0) 
     Transform: real PHI identifiers to DEID fake identifiers
     Load: save JSON result
     
-    :param notes_csv: path to CSV file containing physician notes
+    :param notes_path: path to CSV file containing physician notes
     :param out_dir: path to directory results from cTAKES
     :param command: Task operation to run over the collection
     :param sample: % of rows to sample (default 100%)
     :return: list of ObservationFacts that were processed by ETL (without note text).
     """
-    df = extract.extract_csv(notes_csv, sample)
+    df = extract.extract_csv(notes_path, sample)
 
     processed = list()
 
@@ -61,7 +72,7 @@ def main(args):
         #debug_mode()
         logging.info(f"Physician Notes CSV file: {notes_csv}")
         logging.info(f"Output Directory: {output_dir}")
-        etl(notes_csv, output_dir)
+        etl_docref(notes_csv, output_dir)
 
 
 if __name__ == '__main__':

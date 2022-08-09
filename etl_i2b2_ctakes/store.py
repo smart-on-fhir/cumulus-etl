@@ -1,7 +1,6 @@
 import os
 import json
 import logging
-
 import ctakes
 import i2b2
 import deid
@@ -71,7 +70,7 @@ def path_philter(root: str, observation: i2b2.ObservationFact):
     """
     return os.path.join(path_note_dir(root, observation), 'philter.json')
 
-def path_bsv_semtype(root: str, observation: i2b2.ObservationFact, semtype=ctakes.SemType.SignSymptom):
+def path_bsv_semtype(root: str, observation: i2b2.ObservationFact, semtype=ctakes.UmlsTypeMention.SignSymptom):
     """
     :param root:
     :param observation:

@@ -5,7 +5,7 @@ import deid
 class Codebook:
     def __init__(self, saved=None):
         """
-        Preserve  scientific accuracy of patient counting and linkage while preserving patient privacy.
+        Preserve scientific accuracy of patient counting and linkage while preserving patient privacy.
 
         Codebook replaces sensitive PHI identifiers with DEID linked identifiers.
         https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2244902

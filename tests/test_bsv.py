@@ -1,7 +1,5 @@
 import unittest
-
 import bsv
-import ctakes
 
 EXAMPLE = """
 278112009|C1314939|involvement
@@ -12,10 +10,7 @@ EXAMPLE = """
 class TestBSV(unittest.TestCase):
 
     def test_concat(self):
-        bsv.str_to_bsv_list()
-
-
-
+        self.assertTrue(False, 'bsv concat bug : some BSV output rows are twice as long as they should be. ')
 
 if __name__ == '__main__':
     unittest.main()

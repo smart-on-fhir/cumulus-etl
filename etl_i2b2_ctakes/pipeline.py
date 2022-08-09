@@ -118,7 +118,7 @@ class PipeCTAKES(Pipe):
 
 class PipeBSV(Pipe):
 
-    def __init__(self, semtype=ctakes.SemType.SignSymptom):
+    def __init__(self, semtype=ctakes.UmlsTypeMention.SignSymptom):
         """
         :param semtype: Semantic Type to read from cTAKES JSON Result
         """
@@ -137,7 +137,7 @@ class PipeBSV(Pipe):
 
 class PipeConcatBSV(PipeBSV):
 
-    def __init__(self, semtype=ctakes.SemType.SignSymptom):
+    def __init__(self, semtype=ctakes.UmlsTypeMention.SignSymptom):
         self.semtype = semtype
 
     def pipe(self, root, obs: i2b2.ObservationFact):
