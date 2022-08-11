@@ -2,3 +2,4 @@ logging
 requests
 #records
 pandas
+fhirclient

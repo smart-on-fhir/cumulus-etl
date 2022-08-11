@@ -21,9 +21,6 @@
       ]
    },
    "effectiveDateTime":"1800",
-   "encounter":{
-      "reference":"0"
-   },
    "status":"final",
    "subject":{
       "reference":"0"
