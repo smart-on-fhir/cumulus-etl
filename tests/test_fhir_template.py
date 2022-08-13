@@ -1,13 +1,10 @@
 import unittest
-import os
-import json
-from enum import Enum
-import fhir_template
-
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.observation import Observation
 from fhirclient.models.condition import Condition
+
+import fhir_template
 
 class TestResourcesFhirTemplates(unittest.TestCase):
     def test_patient(self):
@@ -48,7 +45,8 @@ class TestResourcesFhirTemplates(unittest.TestCase):
 
         https://build.fhir.org/condition-example.json.html
         """
-        expected = fhir_template.fhir_template(fhir_template.FHIRTemplate.fhir_condition_example)
+        expected = fhir_template.template(fhir_template.FHIRTemplate.fhir_condition_example)
         actual = Condition(jsondict=expected, strict=False).as_json()
         self.assertDictEqual(expected, actual)
+
 

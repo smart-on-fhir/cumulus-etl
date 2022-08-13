@@ -60,12 +60,12 @@ class PatientDimension:
     PCP_PROVIDER_ID
     """
     def __init__(self, row:dict):
-        self.patient_num = row['PATIENT_NUM']
-        self.birth_date = row['BIRTH_DATE']
-        self.death_date = row['DEATH_DATE']
-        self.sex_cd = row['SEX_CD']
-        self.race_cd = row['RACE_CD']
-        self.zip_cd = row['ZIP_CD']
+        self.patient_num = row.get('PATIENT_NUM')
+        self.birth_date = row.get('BIRTH_DATE')
+        self.death_date = row.get('DEATH_DATE')
+        self.sex_cd = row.get('SEX_CD')
+        self.race_cd = row.get('RACE_CD')
+        self.zip_cd = row.get('ZIP_CD')
 
 
 class VisitDimension:
@@ -80,9 +80,9 @@ class VisitDimension:
     VISIT_BLOB
     """
     def __init__(self, row:dict):
-        self.patient_num = row['PATIENT_NUM']
-        self.encounter_num = row['ENCOUNTER_NUM']
-        self.start_date = row['START_DATE']
-        self.end_date = row['END_DATE']
-        self.los = row['LENGTH_OF_STAY']
-
+        self.patient_num = row.get('PATIENT_NUM')
+        self.encounter_num = row.get('ENCOUNTER_NUM')
+        self.start_date = row.get('START_DATE')
+        self.end_date = row.get('END_DATE')
+        self.inout_cd = row.get('INOUT_CD')
+        self.length_of_stay = row.get('LENGTH_OF_STAY')
