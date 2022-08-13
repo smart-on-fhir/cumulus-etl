@@ -3,10 +3,12 @@ from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.observation import Observation
 from fhirclient.models.condition import Condition
+from fhirclient.models.documentreference import DocumentReference
 
 import fhir_template
 
 class TestResourcesFhirTemplates(unittest.TestCase):
+
     def test_patient(self):
         expected = fhir_template.fhir_patient()
         actual = Patient(expected).as_json()
@@ -25,6 +27,16 @@ class TestResourcesFhirTemplates(unittest.TestCase):
 
         self.assertDictEqual(expected, actual)
 
+    def ignore_test_documentreference(self):
+        """
+        Confirms fhirclient library is not able to JSON serialize
+        * indexed
+        * context/encounter
+        """
+        expected = fhir_template.fhir_documentreference()
+        actual = DocumentReference(expected, strict=False).as_json()
+
+        self.assertDictEqual(expected, actual)
 
     def ignore_test_condition(self):
         """

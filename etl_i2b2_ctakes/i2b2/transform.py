@@ -1,21 +1,24 @@
 import logging
+import base64
 
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
+from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.period import Period
 from fhirclient.models.duration import Duration
+from fhirclient.models.coding import Coding
+from fhirclient.models.extension import Extension
+
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.condition import Condition
 from fhirclient.models.observation import Observation
-from fhirclient.models.extension import Extension
-from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.documentreference import DocumentReference, DocumentReferenceContext, DocumentReferenceContent
+from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
-from fhirclient.models.coding import Coding
 
 from i2b2.i2b2_schema import PatientDimension, VisitDimension, ObservationFact
 import fhir_template
-
 
 def to_fhir_patient(patient: PatientDimension) -> Patient:
     """    
@@ -70,6 +73,28 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     encounter.period = Period({'start': visit.start_date, 'end': visit.end_date})
 
     return encounter
+
+def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
+    """
+    :param obsfact: i2b2 observation fact containing the I2b2 NOTE as OBSERVATION_BLOB
+    :return: https://www.hl7.org/fhir/documentreference.html
+    """
+    docref = DocumentReference()
+
+    docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
+    docref.context = DocumentReferenceContext()
+    docref.context.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
+
+    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)}) # i2b2 Note Type
+    docref.created = FHIRDate(obsfact.start_date)
+
+    docref.content = DocumentReferenceContent()
+    docref.content.attachment = Attachment()
+    docref.content.attachment.contentType = 'text/plain'
+    docref.content.attachment.data = base64.b64encode(str(obsfact.observation_blob).encode())
+
+    return docref
+
 
 def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     pass

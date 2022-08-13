@@ -28,13 +28,13 @@ class ObservationFact:
     TEXT_SEARCH_INDEX
     """
     def __init__(self, row:dict):
-        self.patient_num = row['PATIENT_NUM']
-        self.encounter_num = row['ENCOUNTER_NUM']
-        self.concept_cd = row['CONCEPT_CD']
-        self.start_date = row['START_DATE']
-        self.end_date = row['END_DATE']
-        self.observation_blob = row['OBSERVATION_BLOB']
-        self.tval_char = row['TVAL_CHAR']
+        self.patient_num = row.get('PATIENT_NUM')
+        self.encounter_num = row.get('ENCOUNTER_NUM')
+        self.concept_cd = row.get('CONCEPT_CD')
+        self.start_date = row.get('START_DATE')
+        self.end_date = row.get('END_DATE')
+        self.observation_blob = row.get('OBSERVATION_BLOB')
+        self.tval_char = row.get('TVAL_CHAR')
 
 class PatientDimension:
     """
