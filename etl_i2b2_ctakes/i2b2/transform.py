@@ -121,12 +121,17 @@ def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC
 
     lab_result = obsfact.tval_char
 
-    if lab_result in fhir_template.LAB_RESULT.keys():
+    if lab_result in ['Positive', 'Negative']:
         observation.valueCodeableConcept.coding[0].display = obsfact.tval_char
         observation.valueCodeableConcept.coding[0].code = fhir_template.LAB_RESULT[lab_result]
     else:
+        logging.warning(fhir_template.LAB_RESULT.keys())
+        logging.warning(f'Lab result was "{obsfact.tval_char}" for {obsfact.__dict__}')
+
         observation.valueCodeableConcept.coding[0].display = 'Absent'
         observation.valueCodeableConcept.coding[0].code = fhir_template.LAB_RESULT['Absent']
+
+    observation.effectiveDateTime = FHIRDate(obsfact.start_date)
 
     return observation
 

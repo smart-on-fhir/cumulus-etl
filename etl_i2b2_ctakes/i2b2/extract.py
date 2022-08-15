@@ -1,7 +1,7 @@
 from typing import List
 import logging
 import pandas
-from i2b2.i2b2_schema import ObservationFact, PatientDimension, VisitDimension
+from etl_i2b2_ctakes.i2b2.i2b2_schema import ObservationFact, PatientDimension, VisitDimension
 
 def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
     """

@@ -89,31 +89,29 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(str(67890), docref.context.encounter.reference)
         self.assertEqual(str('NOTE:103933779'), docref.type.text)
 
-
     def test_to_fhir_observation_lab(self):
 
         lab_i2b2 = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
             'CONCEPT_CD': 'LAB:1043473617',  # COVID19 PCR Test
-            'START_DATE': '2016-01-01',
-            'END_DATE': '2016-01-01',
+            'START_DATE': '2021-01-02',
+            'END_DATE': '2021-01-02',
             'VALTYPE_CD': 'T',
-            'TVAL_CHAR': 'Negative'
-        })
+            'TVAL_CHAR': 'Negative'})
 
         lab_fhir = T.to_fhir_observation_lab(lab_i2b2)
 
-        print(json.dumps(lab_i2b2.__dict__, indent=4))
-
-        print(json.dumps(lab_fhir.as_json(), indent=4))
+        # print(json.dumps(lab_i2b2.__dict__, indent=4))
+        # print(json.dumps(lab_fhir.as_json(), indent=4))
 
         self.assertEqual(str(12345), lab_fhir.subject.reference)
         self.assertEqual(str(67890), lab_fhir.encounter.reference)
-        #self.assertEqual(str('NOTE:1043473617'), docref.type.text)
 
         self.assertEqual('94500-6', lab_fhir.code.coding[0].code)
         self.assertEqual('http://loinc.org', lab_fhir.code.coding[0].system)
 
         self.assertEqual('260385009', lab_fhir.valueCodeableConcept.coding[0].code)
         self.assertEqual('Negative', lab_fhir.valueCodeableConcept.coding[0].display)
+
+        self.assertEqual(FHIRDate('2021-01-02').date, lab_fhir.effectiveDateTime.date)
