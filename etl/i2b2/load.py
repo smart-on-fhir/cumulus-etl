@@ -1,10 +1,9 @@
 import os
 import json
 import logging
-import ctakes
-import deid
-import codebook
-from i2b2.i2b2_schema import ObservationFact
+import etl.ctakes
+from etl.common import deid
+from etl.i2b2.schema import ObservationFact
 
 def path_exists(path) -> bool:
     """

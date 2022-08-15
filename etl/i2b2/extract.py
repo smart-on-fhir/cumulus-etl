@@ -1,18 +1,16 @@
 from typing import List
 import logging
 import pandas
-from etl.i2b2.i2b2_schema import ObservationFact, PatientDimension, VisitDimension
+from etl.common import common
+from etl.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
 def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
     """
-    :param path_csv: /path/to/file.csv
+    :param path_csv: /path/to/i2b2_formatted_file.csv
     :param sample: %percentage of file to read
     :return: pandas Dataframe
     """
-    logging.info(f'Reading csv {path_csv} ...')
-    df = pandas.read_csv(path_csv, dtype=str).sample(frac=sample)
-    logging.info(f'Done reading {path_csv} .')
-    return df
+    return common.extract_csv(path_csv, sample)
 
 def extract_csv_observation_fact(path_csv:str, sample=1.0) -> List[ObservationFact]:
     """

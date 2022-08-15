@@ -1,10 +1,9 @@
 import logging
-import store
-import deid
-import codebook
+from etl.i2b2 import load
+from etl.common import codebook, deid
 import bsv
 import ctakes
-from i2b2.i2b2_schema import ObservationFact
+from i2b2.schema import ObservationFact
 
 
 class Pipe:
@@ -30,13 +29,13 @@ class PipeCodebook(Pipe):
         :param obs: patient data including note
         :return: path to codebook.json
         """
-        path = store.path_codebook(root)
+        path = load.path_codebook(root)
 
-        if not store.path_exists(path):
+        if not load.path_exists(path):
             logging.info('creating empty codebook.json')
-            logging.info(store.write(path, codebook.Codebook().__dict__))
+            logging.info(load.write(path, codebook.Codebook().__dict__))
 
-        cb = codebook.Codebook(store.read(path))
+        cb = codebook.Codebook(load.read(path))
 
         cb.encounter(mrn=obs.patient_num,
                      encounter_id= obs.encounter_num,
@@ -47,7 +46,7 @@ class PipeCodebook(Pipe):
                   encounter_id= obs.encounter_num,
                   md5sum= deid.hash_clinical_text(obs.observation_blob))
 
-        return store.write(path, cb.__dict__)
+        return load.write(path, cb.__dict__)
 
 class PipePhilter(Pipe):
 
@@ -73,11 +72,11 @@ class PipeLogError(Pipe):
         :param obs: patient data including note
         :return: error message
         """
-        path = store.path_error(root)
-        if not store.path_exists(path):
-            store.write(path, {'error': list()})
+        path = load.path_error(root)
+        if not load.path_exists(path):
+            load.write(path, {'error': list()})
 
-        saved = store.read(path)
+        saved = load.read(path)
 
         if not obs:
             message = 'observation was null'
@@ -104,17 +103,17 @@ class PipeCTAKES(Pipe):
         :param obs: patient data including note
         :return: path to ctakes.json
         """
-        path = store.path_ctakes(root, obs)
+        path = load.path_ctakes(root, obs)
 
         if len(obs.observation_blob) < 4:
             logging.warning(f'Text was too short: {obs.observation_blob}')
             return None
 
-        if store.path_exists(path):
+        if load.path_exists(path):
             logging.info(f'exists, skipping: {path}')
             return path
         else:
-            return store.write(path=path, message=ctakes.call_ctakes(obs.observation_blob))
+            return load.write(path=path, message=ctakes.call_ctakes(obs.observation_blob))
 
 class PipeBSV(Pipe):
 
@@ -125,14 +124,14 @@ class PipeBSV(Pipe):
         self.semtype = semtype
 
     def pipe(self, root, obs: ObservationFact):
-        ctakes_json = store.path_ctakes(root, obs)
+        ctakes_json = load.path_ctakes(root, obs)
 
-        if store.path_exists(ctakes_json):
-            res = store.read(ctakes_json)
+        if load.path_exists(ctakes_json):
+            res = load.read(ctakes_json)
             symptoms = bsv.res_to_bsv(res, self.semtype)
 
             if len(symptoms) > 0:
-                path = store.path_bsv_semtype(root, obs, self.semtype)
+                path = load.path_bsv_semtype(root, obs, self.semtype)
                 return bsv.bsv_to_file(symptoms, path)
 
 class PipeConcatBSV(PipeBSV):
@@ -142,10 +141,10 @@ class PipeConcatBSV(PipeBSV):
 
     def pipe(self, root, obs: ObservationFact):
         import os
-        path = store.path_bsv_semtype(root, obs, self.semtype)
+        path = load.path_bsv_semtype(root, obs, self.semtype)
         path_concat = os.path.join(root, f'{self.semtype}.bsv')
 
-        if store.path_exists(path):
+        if load.path_exists(path):
             with open(path, 'r') as src:
                 content = src.read()
 

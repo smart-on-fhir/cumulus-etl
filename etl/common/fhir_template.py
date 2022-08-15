@@ -29,7 +29,7 @@ def template(template:FHIRTemplate) -> dict:
     :param template: FHIR resource from saved JSON definition (Note: usage will be *deprecated*)
     :return: JSON of FHIR resource
     """
-    jsonfile = os.path.join(os.path.dirname(__file__), '..', 'resources', template.value)
+    jsonfile = os.path.join(os.path.dirname(__file__), '../..', 'resources', template.value)
 
     if not os.path.exists(jsonfile):
         raise Exception(f'{jsonfile} does not exist')

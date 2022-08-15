@@ -18,8 +18,8 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from i2b2.i2b2_schema import PatientDimension, VisitDimension, ObservationFact
-import fhir_template
+from etl.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
+from etl.common import fhir_template
 
 def to_fhir_patient(patient: PatientDimension) -> Patient:
     """    
