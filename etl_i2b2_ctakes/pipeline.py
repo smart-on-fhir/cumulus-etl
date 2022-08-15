@@ -2,9 +2,9 @@ import logging
 import store
 import deid
 import codebook
-import i2b2
 import bsv
 import ctakes
+from i2b2.i2b2_schema import ObservationFact
 
 
 class Pipe:
@@ -13,7 +13,7 @@ class Pipe:
     SQS (simple queue service) by AWS could be easily swapped in, as could
     other Queue systems that follow the publish/consume topic pattern.
     """
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         logging.fatal('no default implementation')
 
 #######################################################################################################################
@@ -24,7 +24,7 @@ class Pipe:
 
 class PipeCodebook(Pipe):
 
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         """
         :param root: path root, currently filesystem
         :param obs: patient data including note
@@ -51,7 +51,7 @@ class PipeCodebook(Pipe):
 
 class PipePhilter(Pipe):
 
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         logging.fatal('no implementation.')
         redacted = deid.philter(obs.observation_blob)
         #
@@ -67,7 +67,7 @@ class PipePhilter(Pipe):
 
 class PipeLogError(Pipe):
 
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         """
         :param root: path root, currently filesystem
         :param obs: patient data including note
@@ -98,7 +98,7 @@ class PipeLogError(Pipe):
 
 class PipeCTAKES(Pipe):
 
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         """
         :param root: path root, currently filesystem
         :param obs: patient data including note
@@ -124,7 +124,7 @@ class PipeBSV(Pipe):
         """
         self.semtype = semtype
 
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         ctakes_json = store.path_ctakes(root, obs)
 
         if store.path_exists(ctakes_json):
@@ -140,7 +140,7 @@ class PipeConcatBSV(PipeBSV):
     def __init__(self, semtype=ctakes.UmlsTypeMention.SignSymptom):
         self.semtype = semtype
 
-    def pipe(self, root, obs: i2b2.ObservationFact):
+    def pipe(self, root, obs: ObservationFact):
         import os
         path = store.path_bsv_semtype(root, obs, self.semtype)
         path_concat = os.path.join(root, f'{self.semtype}.bsv')

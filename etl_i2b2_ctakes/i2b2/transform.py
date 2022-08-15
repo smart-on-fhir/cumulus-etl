@@ -4,16 +4,17 @@ import base64
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
 from fhirclient.models.duration import Duration
 from fhirclient.models.coding import Coding
 from fhirclient.models.extension import Extension
-
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.condition import Condition
 from fhirclient.models.observation import Observation
-from fhirclient.models.documentreference import DocumentReference, DocumentReferenceContext, DocumentReferenceContent
+from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.documentreference import DocumentReferenceContext, DocumentReferenceContent
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
@@ -65,7 +66,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     elif visit.inout_cd == 'Emergency':
         encounter.class_fhir.code = 'EMER'
     else:
-        logging.debug(f'skipping encounter.class_fhir.code for i2b2 INOUT_CD : {visit.inout_cd}')
+        logging.warning(f'skipping encounter.class_fhir.code for i2b2 INOUT_CD : {visit.inout_cd}')
 
     if visit.length_of_stay: # days
         encounter.length = Duration({'unit':'d', 'value':visit.length_of_stay})
@@ -80,6 +81,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     :return: https://www.hl7.org/fhir/documentreference.html
     """
     docref = DocumentReference()
+    docref.indexed = FHIRDate()
 
     docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
     docref.context = DocumentReferenceContext()
@@ -87,17 +89,94 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 
     docref.type = CodeableConcept({'text': str(obsfact.concept_cd)}) # i2b2 Note Type
     docref.created = FHIRDate(obsfact.start_date)
+    docref.status = 'superseded'
 
-    docref.content = DocumentReferenceContent()
-    docref.content.attachment = Attachment()
-    docref.content.attachment.contentType = 'text/plain'
-    docref.content.attachment.data = base64.b64encode(str(obsfact.observation_blob).encode())
+    content = DocumentReferenceContent()
+    content.attachment = Attachment()
+    content.attachment.contentType = 'text/plain'
+    content.attachment.data = str(base64.b64encode(str(obsfact.observation_blob).encode()))
+
+    docref.content = [content]
 
     return docref
 
+def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC) -> Observation:
+    """
+    :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
+    :return: https://www.hl7.org/fhir/documentreference.html
+    """
+    observation = Observation(fhir_template.fhir_observation())
+    observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
+    observation.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
 
-def to_fhir_observation(obsfact: ObservationFact) -> Observation:
-    pass
+    if obsfact.concept_cd in loinc.keys():
+        _code = loinc[obsfact.concept_cd]
+        _system = 'http://loinc.org'
+    else:
+        _code = obsfact.concept_cd
+        _system = 'https://childrenshospital.org/'
+
+    observation.code.coding[0].code = _code
+    observation.code.coding[0].system = _system
+
+    lab_result = obsfact.tval_char
+
+    if lab_result in fhir_template.LAB_RESULT.keys():
+        observation.valueCodeableConcept.coding[0].display = obsfact.tval_char
+        observation.valueCodeableConcept.coding[0].code = fhir_template.LAB_RESULT[lab_result]
+    else:
+        observation.valueCodeableConcept.coding[0].display = 'Absent'
+        observation.valueCodeableConcept.coding[0].code = fhir_template.LAB_RESULT['Absent']
+
+    return observation
+
 
 def to_fhir_condition(obsfact: ObservationFact) -> Condition:
-    pass
+    """
+    :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED diagnosis
+    :return: https://www.hl7.org/fhir/condition.html
+    """
+    condition = Condition()
+
+    condition.subject = FHIRReference({'reference': str(obsfact.patient_num)})
+    condition.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
+
+    condition.meta = Meta({'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition']})
+
+    # TODO: fhirclient out of date? Should be type CodableConcept
+    # http://terminology.hl7.org/CodeSystem/condition-clinical
+    # https://terminology.hl7.org/3.1.0/CodeSystem-condition-ver-status.html
+    condition.clinicalStatus = 'active'
+    condition.verificationStatus = 'unconfirmed'
+
+    # Category
+    category = Coding()
+    category.system = 'http://terminology.hl7.org/CodeSystem/condition-category'
+    category.code = 'encounter-diagnosis'
+    category.display = 'Encounter Diagnosis'
+
+    condition.category = [CodeableConcept()]
+    condition.category[0].coding = [category]
+
+    # Code
+    _i2b2_sys, _code = obsfact.concept_cd.split(':')
+
+    if _i2b2_sys in ['ICD10', 'ICD-10'] :
+        _i2b2_sys = 'http://hl7.org/fhir/sid/icd-10-cm'
+    elif _i2b2_sys in ['ICD9', 'ICD-9']:
+        _i2b2_sys = 'http://hl7.org/fhir/sid/icd-9-cm'
+    elif _i2b2_sys in ['SNOMED', 'SNOMED-CT', 'SNOMEDCT', 'SCT']:
+        _i2b2_sys = 'http://snomed.info/sct'
+    else:
+        logging.warning('Unknown System')
+        _i2b2_sys = '???'
+
+    code = Coding()
+    code.code = _code
+    code.system = _i2b2_sys
+
+    condition.code = CodeableConcept()
+    condition.code.coding = [code]
+
+    return condition
+

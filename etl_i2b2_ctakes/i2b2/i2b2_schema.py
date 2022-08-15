@@ -1,6 +1,7 @@
 class ObservationFact:
     """
     i2b2 ObservationFact
+    https://www.i2b2.org/software/files/PDF/current/CRC_Design.pdf
     https://www.i2b2.org/software/projects/datarepo/CRC_Design_Doc_13.pdf
 
     ENCOUNTER_NUM   -> FHIR Encounter
@@ -11,7 +12,7 @@ class ObservationFact:
     MODIFIER_CD
     INSTANCE_NUM
     VALTYPE_CD      ->
-    TVAL_CHAR       -> Labs (?)
+    TVAL_CHAR       -> Labs "Negative" or "Positive"
     NVAL_NUM
     VALUEFLAG_CD
     QUANTITY_NUM
@@ -34,7 +35,11 @@ class ObservationFact:
         self.start_date = row.get('START_DATE')
         self.end_date = row.get('END_DATE')
         self.observation_blob = row.get('OBSERVATION_BLOB')
+        #
+        self.valtype_cd = row.get('VALTYPE_CD')
         self.tval_char = row.get('TVAL_CHAR')
+        self.nval_num = row.get('NVAL_NUM')
+        self.modifier_cd = row.get('MODIFIER_CD')
 
 class PatientDimension:
     """

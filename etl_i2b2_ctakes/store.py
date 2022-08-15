@@ -2,9 +2,9 @@ import os
 import json
 import logging
 import ctakes
-import i2b2
 import deid
 import codebook
+from i2b2.i2b2_schema import ObservationFact
 
 def path_exists(path) -> bool:
     """
@@ -29,7 +29,7 @@ def path_codebook(root):
     """
     return os.path.join(root, 'codebook.json')
 
-def path_patient_dir(root:str, observation: i2b2.ObservationFact):
+def path_patient_dir(root:str, observation: ObservationFact):
     """
     :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
     :param observation: patient data
@@ -42,7 +42,7 @@ def path_patient_dir(root:str, observation: i2b2.ObservationFact):
 
     return os.path.join(root, prefix, observation.patient_num)
 
-def path_note_dir(root: str, observation: i2b2.ObservationFact):
+def path_note_dir(root: str, observation: ObservationFact):
     """
     :param root: directory for messages
     :param observation: patient note with encounter dates
@@ -54,7 +54,7 @@ def path_note_dir(root: str, observation: i2b2.ObservationFact):
     if not path_exists(folder): os.makedirs(folder)
     return folder
 
-def path_ctakes(root: str, observation: i2b2.ObservationFact):
+def path_ctakes(root: str, observation: ObservationFact):
     """
     :param root: directory for messages
     :param observation: patient note with encounter dates
@@ -62,7 +62,7 @@ def path_ctakes(root: str, observation: i2b2.ObservationFact):
     """
     return os.path.join(path_note_dir(root, observation), 'ctakes.json')
 
-def path_philter(root: str, observation: i2b2.ObservationFact):
+def path_philter(root: str, observation: ObservationFact):
     """
     :param root:
     :param observation:
@@ -70,7 +70,7 @@ def path_philter(root: str, observation: i2b2.ObservationFact):
     """
     return os.path.join(path_note_dir(root, observation), 'philter.json')
 
-def path_bsv_semtype(root: str, observation: i2b2.ObservationFact, semtype=ctakes.UmlsTypeMention.SignSymptom):
+def path_bsv_semtype(root: str, observation: ObservationFact, semtype=ctakes.UmlsTypeMention.SignSymptom):
     """
     :param root:
     :param observation:
