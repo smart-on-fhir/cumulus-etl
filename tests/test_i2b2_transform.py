@@ -10,14 +10,14 @@ from fhirclient.models.encounter import Encounter
 from fhirclient.models.observation import Observation
 from fhirclient.models.condition import Condition
 from fhirclient.models.extension import Extension
+from fhirclient.models.documentreference import DocumentReference
 
 from etl import fhir_template
 from etl.i2b2 import transform as T
 
 class TestI2b2Transform(unittest.TestCase):
 
-    def test_to_fhir_patient(self):
-
+    def example_fhir_patient(self) -> Patient:
         pat_i2b2 = T.PatientDimension({
             'PATIENT_NUM': str(12345),
             'BIRTH_DATE': '2005-06-07',
@@ -27,7 +27,10 @@ class TestI2b2Transform(unittest.TestCase):
             'ZIP_CD': '02115'
         })
 
-        subject = T.to_fhir_patient(pat_i2b2)
+        return T.to_fhir_patient(pat_i2b2)
+
+    def test_to_fhir_patient(self):
+        subject = self.example_fhir_patient()
 
         # print(json.dumps(pat_fhir.as_json(), indent=4))
 
@@ -36,7 +39,8 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('female', subject.gender)
         self.assertEqual('02115', subject.address[0].postalCode)
 
-    def test_to_fhir_encounter(self):
+
+    def example_fhir_encounter(self) -> Encounter:
 
         visit_i2b2 = T.VisitDimension({
             'ENCOUNTER_NUM': 67890,
@@ -47,14 +51,17 @@ class TestI2b2Transform(unittest.TestCase):
             'LENGTH_OF_STAY': 3
         })
 
-        encounter = T.to_fhir_encounter(visit_i2b2)
+        return T.to_fhir_encounter(visit_i2b2)
+
+    def test_to_fhir_encounter(self):
+        encounter = self.example_fhir_encounter()
         # print(json.dumps(encounter.as_json(), indent=4))
 
         self.assertEqual(str(12345), encounter.subject.reference)
         self.assertEqual(str(67890), encounter.identifier[0].value)
         self.assertEqual(3, encounter.length.value)
 
-    def test_to_fhir_condition(self):
+    def example_fhir_condition(self):
         diagnosis = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
@@ -62,26 +69,29 @@ class TestI2b2Transform(unittest.TestCase):
             'START_DATE': '2016-01-01'
         })
 
-        condition = T.to_fhir_condition(diagnosis)
+        return T.to_fhir_condition(diagnosis)
+
+    def test_to_fhir_condition(self):
+        condition = self.example_fhir_condition()
 
         # print(json.dumps(condition.as_json(), indent=4))
-
         self.assertEqual(str(12345), condition.subject.reference)
         self.assertEqual(str(67890), condition.encounter.reference)
         self.assertEqual(str('U07.1'), condition.code.coding[0].code)
         self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'), condition.code.coding[0].system)
 
-    def test_to_fhir_documentreference(self):
-
+    def example_fhir_documentreference(self) -> DocumentReference:
         note_i2b2 = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
-            'CONCEPT_CD': 'NOTE:103933779', # Admission Note Type
+            'CONCEPT_CD': 'NOTE:103933779',  # Admission Note Type
             'START_DATE': '2016-01-01',
             'OBSERVATION_BLOB': 'Chief complaint: fever and chills. Denies cough.'
         })
+        return  T.to_fhir_documentreference(note_i2b2)
 
-        docref = T.to_fhir_documentreference(note_i2b2)
+    def test_to_fhir_documentreference(self):
+        docref = self.example_fhir_documentreference()
 
         # print(json.dumps(docref.as_json(), indent=4))
 
@@ -89,8 +99,7 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(str(67890), docref.context.encounter.reference)
         self.assertEqual(str('NOTE:103933779'), docref.type.text)
 
-    def test_to_fhir_observation_lab(self):
-
+    def example_fhir_observation_lab(self):
         lab_i2b2 = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
@@ -100,7 +109,10 @@ class TestI2b2Transform(unittest.TestCase):
             'VALTYPE_CD': 'T',
             'TVAL_CHAR': 'Negative'})
 
-        lab_fhir = T.to_fhir_observation_lab(lab_i2b2)
+        return T.to_fhir_observation_lab(lab_i2b2)
+
+    def test_to_fhir_observation_lab(self):
+        lab_fhir = self.example_fhir_observation_lab()
 
         # print(json.dumps(lab_i2b2.__dict__, indent=4))
         # print(json.dumps(lab_fhir.as_json(), indent=4))

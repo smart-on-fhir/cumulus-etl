@@ -1,13 +1,13 @@
 import json
 import logging
 import unittest
-from etl import deid, codebook
+from etl import codebook
+from etl import common
 
-
-class TestCodebook(unittest.TestCase):
+class TestCodebookDB(unittest.TestCase):
 
     def test_hash_clinical_text(self):
-        actual = deid.hash_clinical_text(
+        actual = common.hash_clinical_text(
             'Chief Complaint: patient c/o difficulty breathing, fever, and swelling. Denies cough.')
 
         # https://www.md5hashgenerator.com
@@ -16,8 +16,8 @@ class TestCodebook(unittest.TestCase):
         self.assertEqual(expected, actual, f'MD5 hash did not match, expected {expected} actual {actual}')
 
     def test_codebook_entry(self):
-        note1 = deid.hash_clinical_text('chief complaint: patient complains of fever and chills but denies cough')
-        note2 = deid.hash_clinical_text('discharge diagnosis: U07.1 COVID-19')
+        note1 = common.hash_clinical_text('chief complaint: patient complains of fever and chills but denies cough')
+        note2 = common.hash_clinical_text('discharge diagnosis: U07.1 COVID-19')
 
         patientA = '000111'
         encounter1 = 'ABCDEFG'
@@ -27,7 +27,7 @@ class TestCodebook(unittest.TestCase):
         encounter3 = 'OPQRST'
         encounter4 = 'UVWXYZ'
 
-        cb = codebook.Codebook()
+        cb = codebook.CodebookDB()
         #
         cb.docref(patientA, encounter1, note1)
         cb.docref(patientA, encounter1, note2)
@@ -46,7 +46,7 @@ class TestCodebook(unittest.TestCase):
         logging.debug(json.dumps(cb.__dict__, indent=4))
 
         to_json = cb.__dict__
-        from_json = codebook.Codebook(to_json)
+        from_json = codebook.CodebookDB(to_json)
 
         logging.debug('######## from_json ')
         logging.debug(json.dumps(from_json.__dict__, indent=4))
