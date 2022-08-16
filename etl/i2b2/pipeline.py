@@ -14,6 +14,7 @@ class Pipe:
     def pipe(self, root, obs: ObservationFact):
         logging.fatal('no default implementation')
 
+
 #######################################################################################################################
 #
 # Codebook / DEID Commands
@@ -46,16 +47,6 @@ class PipeCodebook(Pipe):
                   md5sum= deid.hash_clinical_text(obs.observation_blob))
 
         return load.write(path, cb.__dict__)
-
-class PipePhilter(Pipe):
-
-    def pipe(self, root, obs: ObservationFact):
-        logging.fatal('no implementation.')
-        redacted = deid.philter(obs.observation_blob)
-        #
-        # ...
-        #
-
 
 #######################################################################################################################
 #

@@ -10,7 +10,7 @@ class TestCtakesJSON(unittest.TestCase):
             from_json = store.read(example)
             reader = CtakesJSON(from_json)
 
-            self.assertDictEqual(from_json, reader.to_json(), 'ctakes json did not match before/after serialization')
+            self.assertDictEqual(from_json, reader.as_json(), 'ctakes json did not match before/after serialization')
 
             self.assertGreaterEqual(len(reader.list_match()), 1, 'response should have at least one match')
             self.assertGreaterEqual(len(reader.list_match_text()), 1, 'response should have at least one text match')

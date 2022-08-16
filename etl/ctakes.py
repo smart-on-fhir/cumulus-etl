@@ -107,7 +107,7 @@ class MatchText:
         :param polarity: typically 0 for positive and -1 for negated
         :return: True/False
         """
-        if polarity in [0, '0', True, 'positive']:
+        if polarity in [0, 1, '0', '1', True, 'positive']:
             return True
         if polarity in [-1, '-1', False, 'negated']:
             return False
@@ -133,7 +133,7 @@ class MatchText:
 
     def to_json(self):
         _polarity = 0 if self.polarity else -1
-        _concepts = [c.to_json() for c in self.conceptAttributes]
+        _concepts = [c.as_json() for c in self.conceptAttributes]
         return {'begin': self.begin, 'end': self.end, 'text': self.text,
                 'polarity': _polarity,
                 'conceptAttributes': _concepts, 'type': self.type.value}
@@ -197,10 +197,10 @@ class CtakesJSON:
             for m in match_list:
                 self.mentions[semtype].append(MatchText(m))
 
-    def to_json(self):
+    def as_json(self):
         res = dict()
         for mention, match_list in self.mentions.items():
-            match_json = [m.to_json() for m in match_list]
+            match_json = [m.as_json() for m in match_list]
 
             res[mention.value] = match_json
         return res
