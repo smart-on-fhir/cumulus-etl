@@ -18,9 +18,8 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
+from etl import common, fhir_template
 from etl.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
-from etl import fhir_template
-
 
 def to_fhir_patient(patient: PatientDimension) -> Patient:
     """    
@@ -29,6 +28,7 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     """
     subject = Patient(fhir_template.fhir_patient())
     subject.id = patient.patient_num
+    subject.identifier = [Identifier({'value': str(patient.patient_num)})]
 
     if patient.birth_date:
         subject.birthDate = FHIRDate(patient.birth_date)
@@ -59,6 +59,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     :return: https://www.hl7.org/fhir/encounter.html
     """
     encounter = Encounter(fhir_template.fhir_encounter())
+    encounter.id = str(visit.encounter_num)
     encounter.identifier = [Identifier({'value': str(visit.encounter_num)})]
     encounter.subject = FHIRReference({'reference': visit.patient_num})
 
@@ -107,6 +108,7 @@ def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC
     :return: https://www.hl7.org/fhir/documentreference.html
     """
     observation = Observation(fhir_template.fhir_observation())
+    observation.id = common.fake_id()
     observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
     observation.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
 
@@ -140,6 +142,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     :return: https://www.hl7.org/fhir/condition.html
     """
     condition = Condition()
+    condition.id = common.fake_id()
 
     condition.subject = FHIRReference({'reference': str(obsfact.patient_num)})
     condition.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})

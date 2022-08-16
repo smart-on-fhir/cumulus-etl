@@ -1,6 +1,6 @@
 import logging
 from etl.i2b2 import load
-from etl import deid, codebook
+from etl import codebook
 from etl import bsv
 from etl import ctakes
 from etl.i2b2.schema import ObservationFact
@@ -29,13 +29,13 @@ class PipeCodebook(Pipe):
         :param obs: patient data including note
         :return: path to codebook.json
         """
-        path = load.path_codebook(root)
+        path = load.path_json(root, 'codebook.json')
 
         if not load.path_exists(path):
             logging.info('creating empty codebook.json')
-            logging.info(load.write(path, codebook.Codebook().__dict__))
+            logging.info(load.write(path, codebook.CodebookDB().__dict__))
 
-        cb = codebook.Codebook(load.read(path))
+        cb = codebook.CodebookDB(load.read(path))
 
         cb.encounter(mrn=obs.patient_num,
                      encounter_id= obs.encounter_num,

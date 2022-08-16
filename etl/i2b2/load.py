@@ -3,10 +3,7 @@ import json
 import logging
 
 from etl.store import path_exists
-from etl.store import path_error
-from etl.store import path_codebook
 
-from etl import deid
 from etl import ctakes
 from etl.i2b2.schema import ObservationFact
 

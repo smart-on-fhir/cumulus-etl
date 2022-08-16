@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+from etl.common import read, write
 
 def path_exists(path) -> bool:
     """
@@ -18,12 +19,13 @@ def path_error(root):
     """
     return os.path.join(root, 'errors.json')
 
-def path_codebook(root):
+def path_json(folder, jsonfile:str):
     """
-    :param root: codebook is stored at root of store, applies to all patients.
+    :param folder: directory
+    :param jsonfile: file to load
     :return: path to codebook.json
     """
-    return os.path.join(root, 'codebook.json')
+    return os.path.join(folder, jsonfile)
 
 def path_patient_dir(root:str, patient_id:str):
     """
@@ -58,29 +60,4 @@ def path_ctakes(root: str, patient_id: str, md5sum: str):
     :return: path to ctakes.json
     """
     return os.path.join(path_note_dir(root, patient_id, md5sum), 'ctakes.json')
-
-def write(path:str, message:dict) -> str:
-    """
-    :param path: topic (currently filesystem path)
-    :param message: coded message
-    :return: path to message
-    """
-    logging.debug(f'write() {path}')
-
-    with open(path, 'w') as f:
-        f.write(json.dumps(message, indent=4))
-
-    return path
-
-def read(path:str) -> dict:
-    """
-    :param path: (currently filesystem path)
-    :return: message: coded message
-    """
-    logging.debug(f'read() {path}')
-
-    with open(path, 'r') as f:
-        message = json.load(f)
-    f.close()
-    return message
 
