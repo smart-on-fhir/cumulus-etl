@@ -18,8 +18,9 @@ def hash_clinical_text(text: str) -> str:
     :return: md5 digest
     """
     if not isinstance(text, str):
-        logging.error(f'invalid input, expected str but type(text) = {type(text)}')
-        raise Exception(f"hash_clinical_text() : invalid input, text= {text}")
+        logging.warning(f'invalid input, expected str but type(text) = {type(text)}')
+        logging.warning(f"hash_clinical_text() : invalid input, text= {text}")
+        return None
 
     return hashlib.md5(text.encode('utf-8')).hexdigest()
 

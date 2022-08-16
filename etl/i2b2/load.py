@@ -30,6 +30,11 @@ def path_note_dir(root: str, observation: ObservationFact):
     :return: path to ctakes.json
     """
     md5sum = deid.hash_clinical_text(observation.observation_blob)
+
+    if not md5sum:
+        logging.warning('path_note_dir() is None, md5sum was empty because input text was not valid!')
+        return None
+
     folder = os.path.join(path_patient_dir(root, observation), md5sum)
 
     if not path_exists(folder): os.makedirs(folder)
@@ -41,7 +46,10 @@ def path_ctakes(root: str, observation: ObservationFact):
     :param observation: patient note with encounter dates
     :return: path to ctakes.json
     """
-    return os.path.join(path_note_dir(root, observation), 'ctakes.json')
+    path = path_note_dir(root, observation)
+    if path:
+        return os.path.join(path, 'ctakes.json')
+    return None
 
 def path_philter(root: str, observation: ObservationFact):
     """

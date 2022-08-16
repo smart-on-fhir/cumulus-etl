@@ -104,6 +104,10 @@ class PipeCTAKES(Pipe):
         """
         path = load.path_ctakes(root, obs)
 
+        if not path:
+            logging.warning(f'Text was invalid for md5sum path {obs.__dict__}')
+            return None
+
         if len(obs.observation_blob) < 4:
             logging.warning(f'Text was too short: {obs.observation_blob}')
             return None
