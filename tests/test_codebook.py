@@ -1,8 +1,8 @@
 import json
 import logging
 import unittest
-import i2b2
-from etl_i2b2_ctakes import deid, codebook
+from etl import deid, codebook
+
 
 class TestCodebook(unittest.TestCase):
 

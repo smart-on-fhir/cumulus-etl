@@ -1,8 +1,6 @@
 import os
 import json
 import logging
-from etl import deid
-from etl.i2b2.schema import ObservationFact
 
 def path_exists(path) -> bool:
     """
@@ -27,54 +25,39 @@ def path_codebook(root):
     """
     return os.path.join(root, 'codebook.json')
 
-def path_patient_dir(root:str, observation: ObservationFact):
+def path_patient_dir(root:str, patient_id:str):
     """
     :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
-    :param observation: patient data
+    :param patient_id: unique patient
     :return: path to patient *folder*
     """
     # practical limit of number of "files" in a folder is 10,000
-    prefix = str(observation.patient_num)
-    if len(str(observation.patient_num)) >= 4:
+    prefix = str(patient_id)
+    if len(str(patient_id)) >= 4:
         prefix = prefix[0:4]
 
-    return os.path.join(root, prefix, observation.patient_num)
+    return os.path.join(root, prefix, patient_id)
 
-def path_note_dir(root: str, observation: ObservationFact):
+def path_note_dir(root: str, patient_id:str, md5sum: str):
     """
     :param root: directory for messages
-    :param observation: patient note with encounter dates
-    :return: path to ctakes.json
+    :param patient_id:
+    :param md5sum: hash for note text
+    :return: notes directory
     """
-    md5sum = deid.hash_clinical_text(observation.observation_blob)
-    folder = os.path.join(path_patient_dir(root, observation), md5sum)
+    folder = os.path.join(path_patient_dir(root, patient_id), md5sum)
 
     if not path_exists(folder): os.makedirs(folder)
     return folder
 
-def path_ctakes(root: str, observation: ObservationFact):
+def path_ctakes(root: str, patient_id: str, md5sum: str):
     """
     :param root: directory for messages
-    :param observation: patient note with encounter dates
+    :param patient_id:
+    :param md5sum: hash for note text
     :return: path to ctakes.json
     """
-    return os.path.join(path_note_dir(root, observation), 'ctakes.json')
-
-def path_philter(root: str, observation: ObservationFact):
-    """
-    :param root:
-    :param observation:
-    :return: path to philter.json
-    """
-    return os.path.join(path_note_dir(root, observation), 'philter.json')
-
-def path_bsv_semtype(root: str, observation: ObservationFact, semtype=ctakes.UmlsTypeMention.SignSymptom):
-    """
-    :param root:
-    :param observation:
-    :return: path to philter.json
-    """
-    return os.path.join(path_note_dir(root, observation), f'{semtype.name}.bsv')
+    return os.path.join(path_note_dir(root, patient_id, md5sum), 'ctakes.json')
 
 def write(path:str, message:dict) -> str:
     """

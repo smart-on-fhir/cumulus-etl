@@ -5,7 +5,7 @@ from fhirclient.models.observation import Observation
 from fhirclient.models.condition import Condition
 from fhirclient.models.documentreference import DocumentReference
 
-import fhir_template
+from etl import fhir_template
 
 class TestResourcesFhirTemplates(unittest.TestCase):
 

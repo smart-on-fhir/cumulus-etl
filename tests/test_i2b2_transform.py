@@ -11,8 +11,8 @@ from fhirclient.models.observation import Observation
 from fhirclient.models.condition import Condition
 from fhirclient.models.extension import Extension
 
-import fhir_template
-from i2b2 import transform as T
+from etl import fhir_template
+from etl.i2b2 import transform as T
 
 class TestI2b2Transform(unittest.TestCase):
 

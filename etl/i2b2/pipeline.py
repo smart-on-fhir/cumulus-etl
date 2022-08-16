@@ -1,6 +1,6 @@
 import logging
 from etl.i2b2 import load
-from etl.common import codebook, deid
+from etl import deid, codebook
 import bsv
 import ctakes
 from i2b2.schema import ObservationFact

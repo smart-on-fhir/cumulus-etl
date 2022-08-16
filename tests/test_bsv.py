@@ -1,5 +1,5 @@
 import unittest
-import bsv
+from etl import bsv
 
 EXAMPLE = """
 278112009|C1314939|involvement

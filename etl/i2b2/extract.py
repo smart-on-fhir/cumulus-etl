@@ -1,7 +1,7 @@
 from typing import List
 import logging
 import pandas
-from etl.common import common
+from etl import common
 from etl.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
 def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:

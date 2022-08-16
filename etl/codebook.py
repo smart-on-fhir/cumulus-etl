@@ -1,6 +1,4 @@
-import logging
-import uuid
-import deid
+from etl import deid
 
 class Codebook:
     def __init__(self, saved=None):
