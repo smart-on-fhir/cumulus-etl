@@ -16,7 +16,3 @@ class TestCtakesJSON(unittest.TestCase):
             self.assertGreaterEqual(len(reader.list_match_text()), 1, 'response should have at least one text match')
             self.assertGreaterEqual(len(reader.list_concept()), 1, 'response should have at least one concept')
             self.assertGreaterEqual(len(reader.list_concept_cui()), 1, 'response should have at least one concept CUI')
-
-
-if __name__ == '__main__':
-    unittest.main()

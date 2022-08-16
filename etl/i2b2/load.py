@@ -1,31 +1,14 @@
 import os
 import json
 import logging
+
+from etl.store import path_exists
+from etl.store import path_error
+from etl.store import path_codebook
+
 from etl import deid
+from etl import ctakes
 from etl.i2b2.schema import ObservationFact
-
-def path_exists(path) -> bool:
-    """
-    Path exists (currently filesystem path).
-    Could be S3 path or other persistence store.
-    :param path: location of resource (directory/file)
-    :return: true/false path exists
-    """
-    return os.path.exists(path)
-
-def path_error(root):
-    """
-    :param root: errors are stored at root of store
-    :return: path to errors.json
-    """
-    return os.path.join(root, 'errors.json')
-
-def path_codebook(root):
-    """
-    :param root: codebook is stored at root of store, applies to all patients.
-    :return: path to codebook.json
-    """
-    return os.path.join(root, 'codebook.json')
 
 def path_patient_dir(root:str, observation: ObservationFact):
     """

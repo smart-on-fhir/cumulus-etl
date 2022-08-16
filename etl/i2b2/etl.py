@@ -53,14 +53,6 @@ def etl_docref(notes_path:str, out_dir:str, command= pipeline.PipeCTAKES(), samp
 
     return processed
 
-def debug_mode():
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
-
-def info_mode():
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
-
 def main(args):
     if len(args) < 2:
         print('usage')
@@ -68,8 +60,7 @@ def main(args):
     else:
         notes_csv = args[0]
         output_dir = args[1]
-        info_mode()
-        #debug_mode()
+
         logging.info(f"Physician Notes CSV file: {notes_csv}")
         logging.info(f"Output Directory: {output_dir}")
         etl_docref(notes_csv, output_dir)

@@ -2,6 +2,14 @@ import logging
 import json
 import pandas
 
+def debug_mode():
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.DEBUG)
+
+def info_mode():
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.INFO)
+
 def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
     """
     :param path_csv: /path/to/file.csv

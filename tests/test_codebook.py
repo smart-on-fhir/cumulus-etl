@@ -52,7 +52,3 @@ class TestCodebook(unittest.TestCase):
         logging.debug(json.dumps(from_json.__dict__, indent=4))
 
         self.assertEqual(to_json, from_json.__dict__, 'Codebooks do not match before/after reloading.')
-
-
-if __name__ == '__main__':
-    unittest.main()

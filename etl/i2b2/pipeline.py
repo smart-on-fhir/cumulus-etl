@@ -1,10 +1,9 @@
 import logging
 from etl.i2b2 import load
 from etl import deid, codebook
-import bsv
-import ctakes
-from i2b2.schema import ObservationFact
-
+from etl import bsv
+from etl import ctakes
+from etl.i2b2.schema import ObservationFact
 
 class Pipe:
     """
