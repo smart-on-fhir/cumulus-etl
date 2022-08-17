@@ -7,7 +7,7 @@ class TestCtakesJSON(unittest.TestCase):
     def test(self, example='/your/path/to/ctakes.json'):
 
         if store.path_exists(example):
-            from_json = store.read(example)
+            from_json = store.read_json(example)
             reader = CtakesJSON(from_json)
 
             self.assertDictEqual(from_json, reader.as_json(), 'ctakes json did not match before/after serialization')

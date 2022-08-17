@@ -25,11 +25,11 @@ from etl.common import fake_id, hash_clinical_text
 
 class Codebook:
 
-    def __init__(self, db= None):
+    def __init__(self, saved= None):
         """
-        :param db: saved codebook or None (initialize empty)
+        :param saved: saved codebook or None (initialize empty)
         """
-        self.db = db if db else CodebookDB()
+        self.db = CodebookDB(saved)
 
     def fhir_patient(self, patient: Patient) -> Patient:
         mrn = patient.identifier[0].value
@@ -44,7 +44,7 @@ class Codebook:
         mrn = encounter.subject.reference
         encounter.subject.reference = self.db.patient(mrn)['deid']
 
-        deid = self.db.encounter(mrn, encounter.id)['deid']
+        deid = self.db.encounter(mrn, encounter.id, encounter.period.start, encounter.period.end)['deid']
         encounter.id = deid
         encounter.identifier[0].value = deid
 
@@ -66,11 +66,18 @@ class Codebook:
 
         observation.id = common.fake_id()
         observation.subject.reference = self.db.patient(mrn)['deid']
-        observation.context.encounter.reference = self.db.encounter(mrn, observation.context.encounter.reference)['deid']
+        observation.context.reference = self.db.encounter(mrn, observation.context.reference)['deid']
 
         return observation
 
     def fhir_documentreference(self, docref: DocumentReference) -> DocumentReference:
+        mrn = docref.subject.reference
+        docref.subject.reference = self.db.patient(mrn)['deid']
+
+        docref.id = common.fake_id()
+        docref.subject.reference = self.db.patient(mrn)['deid']
+        docref.context.encounter.reference = self.db.encounter(mrn, docref.context.encounter.reference)['deid']
+
         return docref
 
 #######################################################################################################################
@@ -96,7 +103,12 @@ class CodebookDB:
         """
         self.mrn = dict()
         if saved:
-            self._load_saved(saved)
+            if isinstance(saved, str):
+                self._load_saved(common.read_json(saved))
+            if isinstance(saved, dict):
+                self._load_saved(saved)
+            if isinstance(saved, CodebookDB):
+                self.mrn = saved.mrn
 
     def patient(self, mrn) -> dict:
         """
@@ -126,9 +138,12 @@ class CodebookDB:
             if encounter_id not in self.mrn[mrn]['encounter'].keys():
                 self.mrn[mrn]['encounter'][encounter_id] = dict()
                 self.mrn[mrn]['encounter'][encounter_id]['deid'] = common.fake_id()
-                self.mrn[mrn]['encounter'][encounter_id]['period_start'] = period_start
-                self.mrn[mrn]['encounter'][encounter_id]['period_end'] = period_end
                 self.mrn[mrn]['encounter'][encounter_id]['docref'] = dict()
+
+                if period_start:
+                    self.mrn[mrn]['encounter'][encounter_id]['period_start'] = period_start
+                if period_end:
+                    self.mrn[mrn]['encounter'][encounter_id]['period_end'] = period_end
 
             return self.mrn[mrn]['encounter'][encounter_id]
 
@@ -163,6 +178,15 @@ class CodebookDB:
 
                 for md5sum in saved['mrn'][mrn]['encounter'][enc]['docref']:
                     self.docref(mrn, enc, md5sum)['deid'] = saved['mrn'][mrn]['encounter'][enc]['docref'][md5sum]['deid']
+
+    def save(self, path):
+        """
+        Save the CodebookDB database as JSON
+        :param path: /path/to/codebook.json
+        :return: /path/to/codebook.json
+        """
+        return common.write_json(path, self.mrn)
+
 
 
 

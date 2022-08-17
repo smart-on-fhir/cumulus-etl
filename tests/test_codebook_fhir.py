@@ -49,6 +49,10 @@ class TestCodebookFHIR(unittest.TestCase):
 
         print_json(encounter)
 
+        lookup = codebook.db.encounter(mrn,encounter.id)
+
+        self.assertEqual('2016-01-01', lookup, 'codebook period_start?')
+
         self.assertTrue(mrn in codebook.db.mrn.keys())
         self.assertEqual(encounter.id, codebook.db.encounter('12345', '67890')['deid'])
 
@@ -80,17 +84,17 @@ class TestCodebookFHIR(unittest.TestCase):
         print_json(observation)
 
         self.assertEqual('12345', observation.subject.reference)
-        self.assertEqual('67890', observation.encounter.reference)
+        self.assertEqual('67890', observation.context.reference)
 
         mrn = observation.subject.reference
-        visit = observation.encounter.reference
+        visit = observation.context.reference
 
         codebook = Codebook()
         #
         observation = codebook.fhir_observation(observation)
 
         self.assertEqual(observation.subject.reference, codebook.db.patient(mrn)['deid'])
-        self.assertEqual(observation.encounter.reference, codebook.db.encounter(mrn, visit)['deid'])
+        self.assertEqual(observation.context.reference, codebook.db.encounter(mrn, visit)['deid'])
 
         print_json(observation)
 
@@ -109,7 +113,9 @@ class TestCodebookFHIR(unittest.TestCase):
 
         codebook = Codebook()
         #
-        docref = codebook.fhir_observation(docref)
+        docref = codebook.fhir_documentreference(docref)
+
+        # self.assertEqual('2016-01-01', docref.context.encounter) TODO: docref date?
 
         self.assertEqual(docref.subject.reference, codebook.db.patient(mrn)['deid'])
         self.assertEqual(docref.context.encounter.reference, codebook.db.encounter(mrn, visit)['deid'])

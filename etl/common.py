@@ -6,6 +6,29 @@ import hashlib
 
 #######################################################################################################################
 #
+# fhirclient imports
+#
+#######################################################################################################################
+
+from fhirclient.models.identifier import Identifier
+from fhirclient.models.fhirreference import FHIRReference
+from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.meta import Meta
+from fhirclient.models.period import Period
+from fhirclient.models.duration import Duration
+from fhirclient.models.coding import Coding
+from fhirclient.models.extension import Extension
+from fhirclient.models.patient import Patient
+from fhirclient.models.encounter import Encounter
+from fhirclient.models.condition import Condition
+from fhirclient.models.observation import Observation
+from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.documentreference import DocumentReferenceContext, DocumentReferenceContent
+from fhirclient.models.attachment import Attachment
+from fhirclient.models.codeableconcept import CodeableConcept
+
+#######################################################################################################################
+#
 # Helper Functions: Pandas / CSV / SQL
 #
 #######################################################################################################################
@@ -54,7 +77,7 @@ def hash_clinical_text(text: str) -> str:
 #
 #######################################################################################################################
 
-def write(path:str, message:dict) -> str:
+def write_json(path:str, message:dict) -> str:
     """
     :param path: topic (currently filesystem path)
     :param message: coded message
@@ -67,7 +90,7 @@ def write(path:str, message:dict) -> str:
 
     return path
 
-def read(path:str) -> dict:
+def read_json(path:str) -> dict:
     """
     :param path: (currently filesystem path)
     :return: message: coded message

@@ -2,6 +2,7 @@ import unittest
 import os
 import json
 import base64
+from datetime import date
 from enum import Enum
 
 from fhirclient.models.fhirdate import FHIRDate
@@ -14,6 +15,7 @@ from fhirclient.models.documentreference import DocumentReference
 
 from etl import fhir_template
 from etl.i2b2 import transform as T
+
 
 class TestI2b2Transform(unittest.TestCase):
 
@@ -59,6 +61,8 @@ class TestI2b2Transform(unittest.TestCase):
 
         self.assertEqual(str(12345), encounter.subject.reference)
         self.assertEqual(str(67890), encounter.identifier[0].value)
+        self.assertEqual('2016-01-01', encounter.period.start.isostring)
+        self.assertEqual('2016-01-04', encounter.period.end.isostring)
         self.assertEqual(3, encounter.length.value)
 
     def example_fhir_condition(self):
@@ -88,7 +92,7 @@ class TestI2b2Transform(unittest.TestCase):
             'START_DATE': '2016-01-01',
             'OBSERVATION_BLOB': 'Chief complaint: fever and chills. Denies cough.'
         })
-        return  T.to_fhir_documentreference(note_i2b2)
+        return T.to_fhir_documentreference(note_i2b2)
 
     def test_to_fhir_documentreference(self):
         docref = self.example_fhir_documentreference()
@@ -118,7 +122,7 @@ class TestI2b2Transform(unittest.TestCase):
         # print(json.dumps(lab_fhir.as_json(), indent=4))
 
         self.assertEqual(str(12345), lab_fhir.subject.reference)
-        self.assertEqual(str(67890), lab_fhir.encounter.reference)
+        self.assertEqual(str(67890), lab_fhir.context.reference)
 
         self.assertEqual('94500-6', lab_fhir.code.coding[0].code)
         self.assertEqual('http://loinc.org', lab_fhir.code.coding[0].system)
@@ -127,3 +131,24 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('Negative', lab_fhir.valueCodeableConcept.coding[0].display)
 
         self.assertEqual(FHIRDate('2021-01-02').date, lab_fhir.effectiveDateTime.date)
+
+    def test_parse_fhir_date(self):
+
+        timestamp = '2020-01-02 12:00:00.000'
+        timestamp = timestamp[:10]
+
+        self.assertEqual('2020-01-02', FHIRDate(timestamp).isostring)
+
+        timestamp = '2020-01-02 12:00:00.000'
+
+        self.assertEqual('2020-01-02', T.parse_fhir_date(timestamp).isostring)
+
+        timezone = '2020-01-02T16:00:00+00:00'
+
+        self.assertEqual('2020-01-02', T.parse_fhir_date(timezone).isostring)
+
+        datepart = '2020-01-02'
+
+        self.assertEqual('2020-01-02', T.parse_fhir_date(datepart).isostring)
+
+
