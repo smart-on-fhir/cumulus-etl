@@ -56,7 +56,7 @@ class Codebook:
 
         condition.id = common.fake_id()
         condition.subject.reference = self.db.patient(mrn)['deid']
-        condition.encounter.reference = self.db.encounter(mrn, condition.encounter.reference)['deid']
+        condition.context.reference = self.db.encounter(mrn, condition.context.reference)['deid']
 
         return condition
 
@@ -141,9 +141,15 @@ class CodebookDB:
                 self.mrn[mrn]['encounter'][encounter_id]['docref'] = dict()
 
                 if period_start:
-                    self.mrn[mrn]['encounter'][encounter_id]['period_start'] = period_start
+                    if isinstance(period_start, FHIRDate):
+                        period_start = period_start.isostring
+
                 if period_end:
-                    self.mrn[mrn]['encounter'][encounter_id]['period_end'] = period_end
+                    if isinstance(period_end, FHIRDate):
+                        period_end = period_end.isostring
+
+                self.mrn[mrn]['encounter'][encounter_id]['period_start'] = period_start
+                self.mrn[mrn]['encounter'][encounter_id]['period_end'] = period_end
 
             return self.mrn[mrn]['encounter'][encounter_id]
 
@@ -185,7 +191,7 @@ class CodebookDB:
         :param path: /path/to/codebook.json
         :return: /path/to/codebook.json
         """
-        return common.write_json(path, self.mrn)
+        return common.write_json(path, self.__dict__)
 
 
 

@@ -1,69 +1,356 @@
+import os
 import sys
 from typing import List
 import logging
-import i2b2
-from i2b2 import extract
-import pipeline
 
-class Job:
-    def __init__(self, inpath:str, outpath=str, command=None, sample=1.0):
+from etl import common, store, ctakes
+from etl import i2b2
+from etl.codebook import Codebook
+
+#######################################################################################################################
+#
+# CSV FILES
+#
+#######################################################################################################################
+
+_inpath = '/Users/andy/phi/i2b2/'
+_outpath = '/Users/andy/phi/i2b2/processed/'
+_codebook_json = _outpath + 'codebook.json'
+
+_notes_csv = _inpath + 'NOTE_COHORT_202202062242.csv'
+_lab_csv = _inpath + 'LAB_COHORT_202202062349.csv'
+_patient_csv = _inpath + 'PATIENT_DIMENSION_202202280957.csv'
+_visit_csv = _inpath + 'visit_dim_20220302.csv'
+_diag_csv = _inpath + '*_Diagnosis.csv'
+
+#######################################################################################################################
+#
+# Job Defition and result summary
+#
+#######################################################################################################################
+
+class JobConfig:
+    def __init__(self, dir_input, dir_output, label=None):
+        self.dir_input = dir_input
+        self.dir_output = dir_output
+        self.timestamp = common.timestamp_datetime()
+        self.hostname = common.gethostname()
+        self.ctakes = ctakes.get_url_ctakes()
+        self.label = label if label else common.timestamp_date()
+
+    def dir_output_patient(self, mrn:str) -> str:
+        return store.path_patient_dir(self.dir_output, mrn)
+
+    def dir_output_encounter(self, mrn:str, encounter_id) -> str:
+        return store.path_encounter_dir(self.dir_output, mrn, encounter_id)
+
+    def path_codebook(self) -> str:
+        return store.path_json(self.dir_output, 'codebook.json')
+
+    def list_csv(self, folder) -> list:
+        return common.list_csv(os.path.join(self.dir_input, folder))
+
+    def list_csv_patient(self) -> list:
+        return self.list_csv('csv_patient')
+
+    def list_csv_visit(self) -> list:
+        return self.list_csv('csv_visit')
+
+    def list_csv_lab(self) -> list:
+        return self.list_csv('csv_lab')
+
+    def list_csv_diagnosis(self) -> list:
+        return self.list_csv('csv_diagnosis')
+
+    def list_csv_notes(self) -> list:
+        return self.list_csv('csv_note')
+
+    def as_json(self):
+        return {'dir_input': self.dir_input,
+                'dir_output': self.dir_output,
+                'label': self.label,
+                'codebook': self.path_codebook(),
+                'list_csv_patient': self.list_csv_patient(),
+                'list_csv_visit': self.list_csv_visit(),
+                'list_csv_lab': self.list_csv_lab(),
+                'list_csv_notes': self.list_csv_notes(),
+                'list_csv_diagnosis': self.list_csv_diagnosis()}
+
+
+class JobSummary:
+    def __init__(self, label=None):
+        self.label = label
+        self.csv = list()
+        self.attempt = list()
+        self.success = list()
+        self.failed = list()
+        self.timestamp = common.timestamp_datetime()
+        self.hostname = common.gethostname()
+
+    def progress(self, show_every=1000*10) -> float:
         """
-        :param inpath: input path (CSV file or other resource)
-        :param outpath: output path (folder or other resource)
-        :param command: method to run
-        :param sample: % percentage of the dataset to process
+        :param show_every: print success rate
+        :return: % progress
         """
-        self.inpath = inpath
-        self.outpath = outpath
-        self.command = command
-        self.sample = sample
+        if self.inputsize > 0:
+            prct = float(len(self.attempt)) / float(self.inputsize)
+            if 0 == len(self.attempt) % show_every:
+                print(f'attempt = {len(self.attempt)} progress % {prct}')
+            if self.inputsize == len(self.attempt):
+                print(f'attempt = {len(self.attempt)} complete.')
 
-def etl_docref(notes_path:str, out_dir:str, command= pipeline.PipeCTAKES(), sample=1.0) -> List:
-    """
-    Inspired by "command" design pattern 
-    https://en.wikipedia.org/wiki/Command_pattern 
-    
-    Extract Transform Load
-    Extract: List[Observation Fact]
-    Transform: real PHI identifiers to DEID fake identifiers
-    Load: save JSON result
-    
-    :param notes_path: path to CSV file containing physician notes
-    :param out_dir: path to directory results from cTAKES
-    :param command: Task operation to run over the collection
-    :param sample: % of rows to sample (default 100%)
-    :return: list of ObservationFacts that were processed by ETL (without note text).
-    """
-    df = extract.extract_csv(notes_path, sample)
+            return prct
 
-    processed = list()
+    def success_rate(self, show_every=1000*10) -> float:
+        """
+        :param show_every: print success rate
+        :return: % success rate
+        """
+        prct = float(len(self.success)) / float(len(self.attempt))
 
-    for index, row in df.iterrows():
-        observation = i2b2.ObservationFact(row)
+        if 0 == len(self.attempt) % show_every:
+            print(f'success = {len(self.success)} rate % {prct}')
 
-        try:
-            res = command.pipe(out_dir, observation)
-            logging.info(res)
+        return prct
 
-            processed.append(res)
+    def as_json(self):
+        return {'csv': self.csv,
+                'label': self.label,
+                'attempt': len(self.attempt),
+                'success': self.success,
+                'failed' : self.failed,
+                'success_rate': self.success_rate(),
+                'timestamp': self.timestamp,
+                'hostname': self.hostname}
 
-        except Exception as e:
-            logging.error(e)
-            pipeline.PipeLogError().pipe(out_dir, observation)
+#######################################################################################################################
+#
+# FHIR Patient
+#
+#######################################################################################################################
 
-    return processed
+def etl_patient(config: JobConfig) -> JobSummary:
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary(config.label)
+
+    for i2b2_csv in config.list_csv_patient():
+        i2b2_list = i2b2.extract.extract_csv_patient(i2b2_csv)
+
+        job.csv.append(i2b2_csv)
+
+        print('######################################################################################################')
+        print(f'etl_patient() {i2b2_csv} #records = {len(i2b2_list)}')
+
+        for i2b2_patient in i2b2_list:
+            try:
+                job.attempt.append(i2b2_patient)
+
+                subject = i2b2.transform.to_fhir_patient(i2b2_patient)
+
+                path = store.path_json(config.dir_output_patient(subject.id), 'fhir_patient.json')
+
+                deid = codebook.fhir_patient(subject)
+
+                job.success.append(store.write_json(path, deid.as_json()))
+                job.success_rate()
+
+            except Exception as e:
+                logging.error(f'ETL exception {e}')
+                common.error_fhir(subject)
+                raise
+    codebook.db.save(config.path_codebook())
+    return job
+
+#######################################################################################################################
+#
+# FHIR Encounter
+#
+#######################################################################################################################
+
+def etl_encounter(config:JobConfig) -> JobSummary:
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary(config.label)
+
+    for i2b2_csv in config.list_csv_visit():
+        i2b2_list = i2b2.extract.extract_csv_visits(i2b2_csv)
+
+        job.csv.append(i2b2_csv)
+
+        print('######################################################################################################')
+        print(f'etl_encounter() {i2b2_csv} #records = {len(i2b2_list)}')
+
+        for i2b2_visit in i2b2_list:
+            try:
+                job.attempt.append(i2b2_visit)
+
+                encounter = i2b2.transform.to_fhir_encounter(i2b2_visit)
+
+                mrn = encounter.subject.reference
+                path = store.path_json(config.dir_output_encounter(mrn, encounter.id), 'fhir_patient.json')
+
+                deid = codebook.fhir_encounter(encounter)
+
+                job.success.append(store.write_json(path, deid.as_json()))
+                job.success_rate()
+
+            except Exception as e:
+                logging.error(f'ETL exception {e}')
+                common.error_fhir(encounter)
+                raise
+
+    codebook.db.save(config.path_codebook())
+    return job
+
+#######################################################################################################################
+#
+# FHIR Observation (Lab Result)
+#
+#######################################################################################################################
+
+def etl_lab(config:JobConfig) -> JobSummary:
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary(config.label)
+
+    for i2b2_csv in config.list_csv_lab():
+        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
+
+        job.csv.append(i2b2_csv)
+
+        print('######################################################################################################')
+        print(f'etl_lab() {i2b2_csv} #records = {len(i2b2_list)}')
+
+        for i2b2_lab in i2b2_list:
+            try:
+                job.attempt.append(i2b2_lab)
+
+                lab = i2b2.transform.to_fhir_observation_lab(i2b2_lab)
+
+                mrn = lab.subject.reference
+                enc = lab.context.reference
+
+                deid = codebook.fhir_observation(lab)
+
+                path = store.path_json(config.dir_output_encounter(mrn, enc), f'fhir_lab_{deid.id}.json')
+
+                job.success.append(store.write_json(path, deid.as_json()))
+                job.success_rate()
+
+            except Exception as e:
+                logging.error(f'ETL exception {e}')
+                common.error_fhir(lab)
+                raise
+
+    codebook.db.save(config.path_codebook())
+    return job
+
+#######################################################################################################################
+#
+# FHIR DocumentReference
+#
+#######################################################################################################################
+
+def etl_notes(config:JobConfig) -> JobSummary:
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary(config.label)
+
+    for i2b2_csv in config.list_csv_notes():
+        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
+
+        job.csv.append(i2b2_csv)
+
+        print('######################################################################################################')
+        print(f'etl_notes() {i2b2_csv} #records = {len(i2b2_list)}')
+
+        for physician_note in i2b2_list:
+            try:
+                job.attempt.append(physician_note)
+
+                docref = i2b2.transform.to_fhir_documentreference(physician_note)
+
+                mrn = docref.subject.reference
+                enc = docref.context.encounter.reference
+
+                deid = codebook.fhir_documentreference(docref)
+
+                path = store.path_json(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
+
+                job.success.append(store.write_json(path, deid.as_json()))
+                job.success_rate()
+
+            except Exception as e:
+                logging.error(f'ETL exception {e}')
+                common.error_fhir(docref)
+                raise
+
+    codebook.db.save(config.path_codebook())
+    return job
+
+
+#######################################################################################################################
+#
+# FHIR Condition
+#
+#######################################################################################################################
+
+def etl_diagnosis(config:JobConfig) -> JobSummary:
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary(config.label)
+
+    for i2b2_csv in config.list_csv_diagnosis():
+        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
+
+        job.csv.append(i2b2_csv)
+
+        print('######################################################################################################')
+        print(f'etl_diagnosis() {i2b2_csv} #records = {len(i2b2_list)}')
+
+        for i2b2_observation in i2b2_list:
+            try:
+                job.attempt.append(i2b2_observation)
+
+                condition = i2b2.transform.to_fhir_condition(i2b2_observation)
+
+                mrn = condition.subject.reference
+                enc = condition.context.reference
+
+                deid = codebook.fhir_condition(condition)
+
+                path = store.path_json(config.dir_output_encounter(mrn, enc), f'fhir_condition_{deid.id}.json')
+
+                job.success.append(store.write_json(path, deid.as_json()))
+                job.success_rate()
+
+            except Exception as e:
+                logging.error(f'ETL exception {e}')
+                common.error_fhir(condition)
+                raise
+
+    codebook.db.save(config.path_codebook())
+    return job
+
+#######################################################################################################################
+#
+# Main
+#
+#######################################################################################################################
 
 def main(args):
     if len(args) < 2:
         print('usage')
-        print('example: /my/i2b2/observation_fact/notes.csv /my/i2b2/observation_fact/output/')
+        print('example: /my/i2b2/input /my/i2b2/processed')
     else:
-        notes_csv = args[0]
-        output_dir = args[1]
+        dir_input = args[0]
+        dir_output = args[1]
 
-        logging.info(f"Physician Notes CSV file: {notes_csv}")
-        logging.info(f"Output Directory: {output_dir}")
-        etl_docref(notes_csv, output_dir)
+        logging.info(f"Input Directory: {dir_input}")
+        logging.info(f"Output Directory: {dir_output}")
+
+        JobConfig(dir_input, dir_output)
 
 
 if __name__ == '__main__':

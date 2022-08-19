@@ -25,6 +25,9 @@ def path_json(folder, jsonfile:str):
     :param jsonfile: file to load
     :return: path to codebook.json
     """
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     return os.path.join(folder, jsonfile)
 
 def path_patient_dir(root:str, patient_id:str):
@@ -39,6 +42,15 @@ def path_patient_dir(root:str, patient_id:str):
         prefix = prefix[0:4]
 
     return os.path.join(root, prefix, patient_id)
+
+def path_encounter_dir(root:str, patient_id:str, encounter_id:str):
+    """
+    :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
+    :param patient_id: unique patient
+    :param encounter_id: unique encounter
+    :return: path to encounter *folder*
+    """
+    return os.path.join(path_patient_dir(root, patient_id), encounter_id)
 
 def path_note_dir(root: str, patient_id:str, md5sum: str):
     """

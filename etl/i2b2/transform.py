@@ -100,11 +100,11 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
+    # TODO: Content Warning: Philter DEID should be used on all notes that are sent to Cumulus.
     content = DocumentReferenceContent()
     content.attachment = Attachment()
     content.attachment.contentType = 'text/plain'
-    content.attachment.data = str(base64.b64encode(str(obsfact.observation_blob).encode()))
-
+    # content.attachment.data = str(base64.b64encode(str(obsfact.observation_blob).encode()))
     docref.content = [content]
 
     return docref
@@ -153,7 +153,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition.id = common.fake_id()
 
     condition.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    condition.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
+    condition.context = FHIRReference({'reference': str(obsfact.encounter_num)})
 
     condition.meta = Meta({'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition']})
 

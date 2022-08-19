@@ -41,6 +41,9 @@ class ObservationFact:
         self.nval_num = row.get('NVAL_NUM')
         self.modifier_cd = row.get('MODIFIER_CD')
 
+    def as_json(self):
+        return self.__dict__
+
 class PatientDimension:
     """
     PATIENT_NUM
@@ -72,6 +75,8 @@ class PatientDimension:
         self.race_cd = row.get('RACE_CD')
         self.zip_cd = row.get('ZIP_CD')
 
+    def as_json(self):
+        return self.__dict__
 
 class VisitDimension:
     """
@@ -91,3 +96,6 @@ class VisitDimension:
         self.end_date = row.get('END_DATE')
         self.inout_cd = row.get('INOUT_CD')
         self.length_of_stay = row.get('LENGTH_OF_STAY')
+
+    def as_json(self):
+        return self.__dict__

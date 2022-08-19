@@ -1,15 +1,18 @@
+import os
 import logging
 import json
 import pandas
 import uuid
 import hashlib
+from datetime import datetime, date
+from socket import gethostname
 
 #######################################################################################################################
 #
 # fhirclient imports
 #
 #######################################################################################################################
-
+from fhirclient.models.resource import Resource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
@@ -32,6 +35,17 @@ from fhirclient.models.codeableconcept import CodeableConcept
 # Helper Functions: Pandas / CSV / SQL
 #
 #######################################################################################################################
+def list_csv(folder: str, mask='.csv') -> list:
+    """
+    :param folder: folder to select files from
+    :param mask: csv is typical
+    :return:
+    """
+    match = list()
+    for file in os.listdir(folder):
+        if file.endswith(mask):
+            match.append(os.path.join(folder, file))
+    return match
 
 def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
     """
@@ -119,3 +133,30 @@ def debug_mode():
 def warn_mode():
     logging.basicConfig()
     logging.getLogger().setLevel(logging.WARN)
+
+def error_fhir(fhir_resource):
+    if isinstance(fhir_resource, Resource):
+        logging.error(json.dumps(fhir_resource.as_json(), indent=4))
+    else:
+        logging.error(f'expected FHIR Resource got {type(fhir_resource)}')
+
+def print_fhir(fhir_resource):
+    print('#######################################################')
+    print(json.dumps(fhir_resource.as_json(), indent=4))
+
+#######################################################################################################################
+#
+# Helper Functions: Timedatestamp
+#
+#######################################################################################################################
+def timestamp_date() -> str:
+    """
+    :return: MMMM-DD-YYY
+    """
+    return datetime.now().strftime("%Y-%m-%d")
+
+def timestamp_datetime() ->str:
+    """
+    :return: MMMM-DD-YYY hh:mm:ss
+    """
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
