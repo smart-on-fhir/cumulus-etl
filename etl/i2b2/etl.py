@@ -1,27 +1,12 @@
 import os
 import sys
+import json
 from typing import List
 import logging
 
 from etl import common, store, ctakes
 from etl import i2b2
 from etl.codebook import Codebook
-
-#######################################################################################################################
-#
-# CSV FILES
-#
-#######################################################################################################################
-
-_inpath = '/Users/andy/phi/i2b2/'
-_outpath = '/Users/andy/phi/i2b2/processed/'
-_codebook_json = _outpath + 'codebook.json'
-
-_notes_csv = _inpath + 'NOTE_COHORT_202202062242.csv'
-_lab_csv = _inpath + 'LAB_COHORT_202202062349.csv'
-_patient_csv = _inpath + 'PATIENT_DIMENSION_202202280957.csv'
-_visit_csv = _inpath + 'visit_dim_20220302.csv'
-_diag_csv = _inpath + '*_Diagnosis.csv'
 
 #######################################################################################################################
 #
@@ -75,7 +60,6 @@ class JobConfig:
                 'list_csv_lab': self.list_csv_lab(),
                 'list_csv_notes': self.list_csv_notes(),
                 'list_csv_diagnosis': self.list_csv_diagnosis()}
-
 
 class JobSummary:
     def __init__(self, label=None):
@@ -168,7 +152,7 @@ def etl_patient(config: JobConfig) -> JobSummary:
 #
 #######################################################################################################################
 
-def etl_encounter(config:JobConfig) -> JobSummary:
+def etl_visit(config:JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
 
     job = JobSummary(config.label)
@@ -196,9 +180,9 @@ def etl_encounter(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
+                job.failed.append(i2b2_visit)
                 logging.error(f'ETL exception {e}')
                 common.error_fhir(encounter)
-                raise
 
     codebook.db.save(config.path_codebook())
     return job
@@ -239,6 +223,7 @@ def etl_lab(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
+                job.failed.append(i2b2_lab)
                 logging.error(f'ETL exception {e}')
                 common.error_fhir(lab)
                 raise
@@ -263,13 +248,13 @@ def etl_notes(config:JobConfig) -> JobSummary:
         job.csv.append(i2b2_csv)
 
         print('######################################################################################################')
-        print(f'etl_notes() {i2b2_csv} #records = {len(i2b2_list)}')
+        print(f'etl_notes() {i2b2_csv} #physican notes = {len(i2b2_list)}')
 
-        for physician_note in i2b2_list:
+        for i2b2_physician_note in i2b2_list:
             try:
-                job.attempt.append(physician_note)
+                job.attempt.append(i2b2_physician_note)
 
-                docref = i2b2.transform.to_fhir_documentreference(physician_note)
+                docref = i2b2.transform.to_fhir_documentreference(i2b2_physician_note)
 
                 mrn = docref.subject.reference
                 enc = docref.context.encounter.reference
@@ -282,9 +267,9 @@ def etl_notes(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
+                job.failed.append(i2b2_physician_note)
                 logging.error(f'ETL exception {e}')
                 common.error_fhir(docref)
-                raise
 
     codebook.db.save(config.path_codebook())
     return job
@@ -326,6 +311,7 @@ def etl_diagnosis(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
+                job.failed.append(i2b2_observation)
                 logging.error(f'ETL exception {e}')
                 common.error_fhir(condition)
                 raise
@@ -350,8 +336,14 @@ def main(args):
         logging.info(f"Input Directory: {dir_input}")
         logging.info(f"Output Directory: {dir_output}")
 
-        JobConfig(dir_input, dir_output)
+        config = JobConfig(dir_input, dir_output)
+        print(json.dumps(config.as_json(), indent=4))
 
+        i2b2.etl.etl_patient()
+        i2b2.etl.etl_visit()
+        i2b2.etl.etl_lab()
+        i2b2.etl.etl_notes()
+        i2b2.etl.etl_diagnosis()
 
 if __name__ == '__main__':
     main(sys.argv[1:])

@@ -1,12 +1,9 @@
 import unittest
 import json
 from uuid import UUID
+from etl.common import print_fhir
 from etl.codebook import Codebook, CodebookDB
 from tests.test_i2b2_transform import TestI2b2Transform
-
-def print_json(fhir_resource):
-    print('#######################################################')
-    print(json.dumps(fhir_resource.as_json(), indent=4))
 
 class TestCodebookFHIR(unittest.TestCase):
 
@@ -19,7 +16,7 @@ class TestCodebookFHIR(unittest.TestCase):
         #
         self.assertEqual(0, len(codebook.db.mrn.keys()), 'codebook should be empty')
 
-        print_json(patient)
+        print_fhir(patient)
 
         patient = codebook.fhir_patient(patient)
 
@@ -36,22 +33,19 @@ class TestCodebookFHIR(unittest.TestCase):
     def test_encounter(self):
         encounter = TestI2b2Transform().example_fhir_encounter()
 
-        print_json(encounter)
-
         self.assertEqual('12345', encounter.subject.reference)
         self.assertEqual('67890', str(encounter.id))
 
         mrn = encounter.subject.reference
+        visit = encounter.id
 
         codebook = Codebook()
         #
         encounter = codebook.fhir_encounter(encounter)
 
-        print_json(encounter)
-
-        lookup = codebook.db.encounter(mrn,encounter.id)
-
-        self.assertEqual('2016-01-01', lookup, 'codebook period_start?')
+        self.assertEqual('2016-01-01',
+                         codebook.db.mrn[mrn]['encounter'][visit]['period_start'],
+                         'codebook period_start did not match')
 
         self.assertTrue(mrn in codebook.db.mrn.keys())
         self.assertEqual(encounter.id, codebook.db.encounter('12345', '67890')['deid'])
@@ -59,7 +53,7 @@ class TestCodebookFHIR(unittest.TestCase):
     def test_condition(self):
         condition = TestI2b2Transform().example_fhir_condition()
 
-        print_json(condition)
+        print_fhir(condition)
 
         self.assertEqual('12345', condition.subject.reference)
         self.assertEqual('67890', condition.encounter.reference)
@@ -74,14 +68,14 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(condition.subject.reference, codebook.db.patient(mrn)['deid'])
         self.assertEqual(condition.encounter.reference, codebook.db.encounter(mrn, visit)['deid'])
 
-        print_json(condition)
+        print_fhir(condition)
 
         UUID(condition.id)
 
     def test_observation(self):
         observation = TestI2b2Transform().example_fhir_observation_lab()
 
-        print_json(observation)
+        print_fhir(observation)
 
         self.assertEqual('12345', observation.subject.reference)
         self.assertEqual('67890', observation.context.reference)
@@ -96,14 +90,14 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(observation.subject.reference, codebook.db.patient(mrn)['deid'])
         self.assertEqual(observation.context.reference, codebook.db.encounter(mrn, visit)['deid'])
 
-        print_json(observation)
+        print_fhir(observation)
 
         UUID(observation.id)
 
     def test_documentreference(self):
         docref = TestI2b2Transform().example_fhir_documentreference()
 
-        print_json(docref)
+        print_fhir(docref)
 
         self.assertEqual('12345', docref.subject.reference)
         self.assertEqual('67890', docref.context.encounter.reference)
@@ -120,7 +114,7 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(docref.subject.reference, codebook.db.patient(mrn)['deid'])
         self.assertEqual(docref.context.encounter.reference, codebook.db.encounter(mrn, visit)['deid'])
 
-        print_json(docref)
+        print_fhir(docref)
 
         UUID(docref.id)
 
