@@ -155,8 +155,15 @@ def timestamp_date() -> str:
     """
     return datetime.now().strftime("%Y-%m-%d")
 
-def timestamp_datetime() ->str:
+def timestamp_datetime() -> str:
     """
     :return: MMMM-DD-YYY hh:mm:ss
     """
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def timestamp() -> str:
+    """
+    Human readable without escape characters on filesystem path
+    :return: MMMM-DD-YYY__hh.mm.ss
+    """
+    return datetime.now().strftime("%Y-%m-%d__%H.%M.%S")

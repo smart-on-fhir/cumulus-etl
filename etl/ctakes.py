@@ -75,7 +75,7 @@ class UmlsConcept:
         self.cui = source.get('cui')
         self.tui = source.get('tui')
 
-    def to_json(self) -> dict:
+    def as_json(self) -> dict:
         return {'code':self.code, 'cui':self.cui, 'codingScheme': self.codingScheme,  'tui': self.tui}
 
 
@@ -130,8 +130,7 @@ class MatchText:
         for c in source.get('conceptAttributes'):
             self.conceptAttributes.append(UmlsConcept(c))
 
-
-    def to_json(self):
+    def as_json(self):
         _polarity = 0 if self.polarity else -1
         _concepts = [c.as_json() for c in self.conceptAttributes]
         return {'begin': self.begin, 'end': self.end, 'text': self.text,

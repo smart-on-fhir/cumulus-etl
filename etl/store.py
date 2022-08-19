@@ -30,6 +30,18 @@ def path_json(folder, jsonfile:str):
 
     return os.path.join(folder, jsonfile)
 
+def path_root(root:str, folder=None):
+    """
+    Alias for os.path.join - useful when this moves to S3
+    :param root: root directory
+    :param folder: folder optional
+    :return: root directory
+    """
+    if folder:
+        return os.path.join(root, folder)
+    else:
+        return os.path.join(root)
+
 def path_patient_dir(root:str, patient_id:str):
     """
     :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
