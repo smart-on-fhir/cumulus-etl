@@ -1,5 +1,6 @@
 import os
-from etl import common, store, ctakes
+from etl import common, store
+from etl.ctakes import ctakes_client
 
 #######################################################################################################################
 #
@@ -13,7 +14,7 @@ class JobConfig:
         self.dir_output = dir_output
         self.timestamp = common.timestamp()
         self.hostname = common.gethostname()
-        self.ctakes = ctakes.get_url_ctakes()
+        self.ctakes = ctakes_client.get_url_ctakes()
 
     def path_codebook(self) -> str:
         return store.path_json(self.dir_output, 'codebook.json')
@@ -68,20 +69,6 @@ class JobSummary:
         self.failed = list()
         self.timestamp = common.timestamp_datetime()
         self.hostname = common.gethostname()
-
-    def deprecated_progress(self, show_every=1000*10) -> float:
-        """
-        :param show_every: print success rate
-        :return: % progress
-        """
-        if self.inputsize > 0:
-            prct = float(len(self.attempt)) / float(self.inputsize)
-            if 0 == len(self.attempt) % show_every:
-                print(f'attempt = {len(self.attempt)} progress % {prct}')
-            if self.inputsize == len(self.attempt):
-                print(f'attempt = {len(self.attempt)} complete.')
-
-            return prct
 
     def success_rate(self, show_every=1000*10) -> float:
         """
