@@ -1,30 +1,5 @@
-import os
-import logging
-import requests
-from typing import List, Dict
+from typing import List
 from enum import Enum
-
-#######################################################################################################################
-#
-# HTTP Client for CTAKES REST
-#
-#######################################################################################################################
-
-def get_url_ctakes() -> str:
-    """
-    :return: CTAKES_URL_REST env variable or default using localhost
-    """
-    return os.environ.get('CTAKES_URL_REST', 'http://localhost:8080/ctakes-web-rest/service/analyze')
-
-def call_ctakes(sentence:str, url=get_url_ctakes()) -> dict:
-    """
-    :param sentence: clinical text to send to cTAKES
-    :param url: cTAKES REST server fully qualified path
-    :return:
-    """
-    logging.debug(url)
-    return requests.post(url, data=sentence).json()
-
 
 #######################################################################################################################
 #
@@ -82,7 +57,6 @@ class UmlsConcept:
 #######################################################################################################################
 #
 # JSON Responses from CTAKES REST Server
-# https://github.com/Machine-Learning-for-Medical-Language/ctakes-covid-container
 #
 #######################################################################################################################
 
@@ -137,6 +111,11 @@ class MatchText:
                 'polarity': _polarity,
                 'conceptAttributes': _concepts, 'type': self.type.value}
 
+#######################################################################################################################
+#
+# Ctakes JSON contain "MatchText" with list of "UmlsConcept"
+#
+#######################################################################################################################
 class CtakesJSON:
 
     def __init__(self, source=None):
@@ -203,4 +182,3 @@ class CtakesJSON:
 
             res[mention.value] = match_json
         return res
-

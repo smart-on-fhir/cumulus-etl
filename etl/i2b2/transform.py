@@ -1,3 +1,4 @@
+import enum
 import logging
 import math
 import base64
@@ -20,6 +21,7 @@ from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
 from etl import common, fhir_template
+from etl.ctakes.ctakes_json import CtakesJSON
 from etl.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 #######################################################################################################################
@@ -109,16 +111,25 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 
     return docref
 
+def to_fhir_observation(obsfact: ObservationFact) -> Observation:
+    """
+    :param obsfact: base "FHIR Observation" from base "I2B2 ObservationFact"
+    :return: https://www.hl7.org/fhir/observation.html
+    """
+    observation = Observation()
+    observation.id = common.fake_id()
+    observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
+    observation.context = FHIRReference({'reference': str(obsfact.encounter_num)})
+    observation.effectiveDateTime = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
+
+    return observation
+
 def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC) -> Observation:
     """
     :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
-    :return: https://www.hl7.org/fhir/documentreference.html
+    :return: https://www.hl7.org/fhir/observation.html
     """
-    observation = Observation(fhir_template.fhir_observation())
-    observation.id = common.fake_id()
-    observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    #observation.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
-    observation.context = FHIRReference({'reference': str(obsfact.encounter_num)})
+    observation = to_fhir_observation(obsfact)
 
     if obsfact.concept_cd in loinc.keys():
         _code = loinc[obsfact.concept_cd]
@@ -127,22 +138,33 @@ def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC
         _code = obsfact.concept_cd
         _system = 'https://childrenshospital.org/'
 
-    observation.code.coding[0].code = _code
-    observation.code.coding[0].system = _system
+    observation.code = CodeableConcept()
+    observation.code.coding = [Coding({'code': _code, 'system': _system})]
 
+    # lab result
     lab_result = obsfact.tval_char
 
-    if lab_result in fhir_template.LAB_RESULT.keys():
-        observation.valueCodeableConcept.coding[0].display = obsfact.tval_char
-        observation.valueCodeableConcept.coding[0].code = fhir_template.LAB_RESULT[lab_result]
-    else:
-        observation.valueCodeableConcept.coding[0].display = 'Absent'
-        observation.valueCodeableConcept.coding[0].code = fhir_template.LAB_RESULT['Absent']
+    concept = CodeableConcept()
 
-    observation.effectiveDateTime = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
+    if lab_result in fhir_template.LAB_RESULT.keys():
+        concept.coding = [Coding({'code': fhir_template.LAB_RESULT[lab_result],
+                                  'display': obsfact.tval_char})]
+    else:
+        concept.coding = [Coding({'code': fhir_template.LAB_RESULT['Absent'],
+                                  'display': 'Absent'})]
+
+    observation.valueCodeableConcept = concept
 
     return observation
 
+def to_fhir_observation_note(obsfact: ObservationFact, ctakes_json:CtakesJSON) -> Observation:
+    """
+    :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
+    :return: https://www.hl7.org/fhir/documentreference.html
+    """
+    observation = to_fhir_observation(obsfact)
+
+    return observation
 
 def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     """
@@ -193,6 +215,8 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition.code.coding = [code]
 
     return condition
+
+# http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position
 
 
 #######################################################################################################################

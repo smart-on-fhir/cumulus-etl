@@ -3,7 +3,7 @@ import json
 import logging
 from typing import List
 
-from etl import common, store, ctakes
+from etl import common, store
 from etl import i2b2
 from etl.i2b2.config import JobConfig, JobSummary
 from etl.codebook import Codebook
@@ -42,8 +42,9 @@ def etl_patient(config: JobConfig) -> JobSummary:
 
             except Exception as e:
                 logging.error(f'ETL exception {e}')
-                common.error_fhir(subject)
-                raise
+                job.failed.append(i2b2_patient.as_json())
+
+
     codebook.db.save(config.path_codebook())
     return job
 
@@ -81,9 +82,8 @@ def etl_visit(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
-                job.failed.append(i2b2_visit)
                 logging.error(f'ETL exception {e}')
-                common.error_fhir(encounter)
+                job.failed.append(i2b2_visit.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
@@ -124,10 +124,8 @@ def etl_lab(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
-                job.failed.append(i2b2_lab)
                 logging.error(f'ETL exception {e}')
-                common.error_fhir(lab)
-                raise
+                job.failed.append(i2b2_lab.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
@@ -168,10 +166,8 @@ def etl_diagnosis(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
-                job.failed.append(i2b2_observation)
                 logging.error(f'ETL exception {e}')
-                common.error_fhir(condition)
-                raise
+                job.failed.append(i2b2_observation.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
@@ -212,9 +208,8 @@ def etl_notes(config:JobConfig) -> JobSummary:
                 job.success_rate()
 
             except Exception as e:
-                job.failed.append(i2b2_physician_note)
                 logging.error(f'ETL exception {e}')
-                common.error_fhir(docref)
+                job.failed.append(i2b2_physician_note.as_json())
 
     codebook.db.save(config.path_codebook())
     return job

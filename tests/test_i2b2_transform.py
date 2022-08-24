@@ -80,7 +80,7 @@ class TestI2b2Transform(unittest.TestCase):
 
         # print(json.dumps(condition.as_json(), indent=4))
         self.assertEqual(str(12345), condition.subject.reference)
-        self.assertEqual(str(67890), condition.encounter.reference)
+        self.assertEqual(str(67890), condition.context.reference)
         self.assertEqual(str('U07.1'), condition.code.coding[0].code)
         self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'), condition.code.coding[0].system)
 
