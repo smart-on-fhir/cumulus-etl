@@ -228,41 +228,34 @@ def etl_notes_nlp(config:JobConfig) -> JobSummary:
         print('######################################################################################################')
         print(f'etl_notes_nlp() {i2b2_csv} #physican notes = {len(i2b2_list)}')
 
-        bash = list()
-
         for i2b2_physician_note in i2b2_list:
             try:
                 job.attempt.append(i2b2_physician_note)
 
+                note_text = i2b2_physician_note.observation_blob
+                md5sum = common.hash_clinical_text(note_text)
+
                 mrn = i2b2_physician_note.patient_num
                 enc = i2b2_physician_note.encounter_num
 
-                text = i2b2_physician_note.observation_blob
-                md5sum = common.hash_clinical_text(text)
+                folder = config.dir_output_encounter(mrn, enc)
+                os.makedirs(folder, exist_ok=True)
 
-                path_old = os.path.join(config.dir_output_patient(mrn), md5sum, f'ctakes.json')
-                path_new = os.path.join(config.dir_output_encounter(mrn, enc), f'ctakes_{md5sum}.json')
+                path_text = os.path.join(folder, f'physician_note_{md5sum}.txt')
+                path_ctakes = os.path.join(folder, f'ctakes_{md5sum}.json')
 
-                if len(text) > 10:
-                    if not os.path.exists(path_old):
-                        print(i2b2_physician_note.as_json())
-                        raise Exception(f'{path_old}')
+                if len(note_text) > 10:
+                    if not os.path.exists(path_text):
+                        store.write_text(path_text, note_text)
+                    if not os.path.exists(path_ctakes):
+                        logging.warning('cTAKES response not found')
 
-                    os.makedirs(config.dir_output_encounter(mrn, enc), exist_ok=True)
-                    bash.append(f'cp {path_old} {path_new}')
-
-                #path_text = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
-                #path_json = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
-
-                job.success.append(path_old)
+                job.success.append(path_text)
                 job.success_rate()
 
             except Exception as e:
                 logging.error(f'ETL exception {e}')
                 job.failed.append(i2b2_physician_note.as_json())
-
-        with open(i2b2_csv + '_bash.sh', 'w') as f:
-            f.write('\n'.join(bash))
 
     codebook.db.save(config.path_codebook())
     return job

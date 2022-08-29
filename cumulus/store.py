@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from cumulus.common import read_json, write_json
+from cumulus.common import read_json, write_json, write_text
 
 def path_exists(path) -> bool:
     """

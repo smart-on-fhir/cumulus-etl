@@ -109,9 +109,32 @@ def hash_clinical_text(text: str) -> str:
 
 #######################################################################################################################
 #
-# Helper Functions: read/write JSON with logging messages
+# Helper Functions: read/write text and JSON with logging messages
 #
 #######################################################################################################################
+def read_text(path:str) -> str:
+    """
+    :param path: (currently filesystem path)
+    :return: message: coded message
+    """
+    logging.debug(f'read_text() {path}')
+
+    with open(path, 'r') as f:
+        message = f.read(f)
+        f.close()
+    return message
+
+def write_text(path:str, message:str) -> str:
+    """
+    :param path: topic (currently filesystem path)
+    :param message: contents, usually "physician note" text
+    :return: path to message
+    """
+    logging.debug(f'write_text() {path}')
+
+    with open(path, 'w') as f:
+        f.write(message)
+    return path
 
 def write_json(path:str, message:dict) -> str:
     """
@@ -119,11 +142,10 @@ def write_json(path:str, message:dict) -> str:
     :param message: coded message
     :return: path to message
     """
-    logging.debug(f'write() {path}')
+    logging.debug(f'write_json() {path}')
 
     with open(path, 'w') as f:
         f.write(json.dumps(message, indent=4))
-
     return path
 
 def read_json(path:str) -> dict:
@@ -135,7 +157,7 @@ def read_json(path:str) -> dict:
 
     with open(path, 'r') as f:
         message = json.load(f)
-    f.close()
+        f.close()
     return message
 
 #######################################################################################################################
