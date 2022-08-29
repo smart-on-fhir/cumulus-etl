@@ -1,8 +1,8 @@
 import json
 import logging
 import unittest
-from etl import codebook
-from etl import common
+from cumulus import codebook
+from cumulus import common
 
 class TestCodebookDB(unittest.TestCase):
 

@@ -1,6 +1,6 @@
 import unittest
-from etl import store
-from etl.ctakes import CtakesJSON
+from cumulus import store
+from cumulus.ctakes import CtakesJSON
 
 class TestCtakesJSON(unittest.TestCase):
 

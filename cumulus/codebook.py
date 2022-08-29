@@ -20,8 +20,8 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from etl import common
-from etl.common import fake_id, hash_clinical_text
+from cumulus import common
+from cumulus.common import fake_id, hash_clinical_text
 
 class Codebook:
 

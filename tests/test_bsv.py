@@ -1,5 +1,5 @@
 import unittest
-from etl import bsv
+from cumulus import bsv
 
 EXAMPLE = """
 278112009|C1314939|involvement

@@ -13,8 +13,8 @@ from fhirclient.models.condition import Condition
 from fhirclient.models.extension import Extension
 from fhirclient.models.documentreference import DocumentReference
 
-from etl import fhir_template
-from etl.i2b2 import transform as T
+from cumulus import fhir_template
+from cumulus.i2b2 import transform as T
 
 
 class TestI2b2Transform(unittest.TestCase):

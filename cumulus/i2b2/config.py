@@ -1,6 +1,6 @@
 import os
-from etl import common, store
-from etl.ctakes import ctakes_client
+from cumulus import common, store
+from cumulus.ctakes import ctakes_client
 
 #######################################################################################################################
 #

@@ -1,8 +1,8 @@
 import unittest
 import json
 from uuid import UUID
-from etl.common import print_fhir
-from etl.codebook import Codebook, CodebookDB
+from cumulus.common import print_fhir
+from cumulus.codebook import Codebook, CodebookDB
 from tests.test_i2b2_transform import TestI2b2Transform
 
 class TestCodebookFHIR(unittest.TestCase):

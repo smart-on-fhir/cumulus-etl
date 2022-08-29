@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from etl.common import read_json, write_json
+from cumulus.common import read_json, write_json
 
 def path_exists(path) -> bool:
     """

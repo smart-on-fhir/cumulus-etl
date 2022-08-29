@@ -3,10 +3,10 @@ import json
 import logging
 from typing import List
 
-from etl import common, store
-from etl import i2b2
-from etl.i2b2.config import JobConfig, JobSummary
-from etl.codebook import Codebook
+from cumulus import common, store
+from cumulus import i2b2
+from cumulus.i2b2.config import JobConfig, JobSummary
+from cumulus.codebook import Codebook
 
 #######################################################################################################################
 #
