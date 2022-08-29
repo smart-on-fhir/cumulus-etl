@@ -102,7 +102,7 @@ class CodebookDB:
         :param saved: load from file (optional)
         """
         self.mrn = dict()
-        if saved:
+        if saved is not None:
             if isinstance(saved, str):
                 self._load_saved(common.read_json(saved))
             if isinstance(saved, dict):
@@ -191,8 +191,19 @@ class CodebookDB:
         :param path: /path/to/codebook.json
         :return: /path/to/codebook.json
         """
+        logging.info(f'Saving codebook to : {path}')
         return common.write_json(path, self.__dict__)
 
+    def delete(self, path):
+        """
+        DELETE the CodebookDB database
+        :param path: /path/to/codebook.json
+        :return: /path/to/codebook.json
+        """
+        logging.warning(f'DELETE codebook from : {path}')
+        import os
+        os.remove(path)
+        return path
 
 
 

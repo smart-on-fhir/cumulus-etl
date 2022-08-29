@@ -51,6 +51,24 @@ def list_csv(folder: str, mask='.csv') -> list:
             match.append(os.path.join(folder, file))
     return match
 
+def find_by_name(folder, path_contains='filemask', progress_bar=1000) -> list:
+    """
+    :param folder: root folder where JSON files are stored
+    :param startswith: ctakes.json default, or other file pattern.
+    :param progress_bar: show progress status for every ### files found
+    :return:
+    """
+    found = list()
+    for dirpath, dirs, files in os.walk(folder):
+        for filename in files:
+            path = os.path.join(dirpath,filename)
+            if path_contains in path:
+                found.append(path)
+                if 0 == len(found) % 1000:
+                    print(f'found: {len(found)}')
+                    print(path)
+    return found
+
 def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
     """
     :param path_csv: /path/to/file.csv

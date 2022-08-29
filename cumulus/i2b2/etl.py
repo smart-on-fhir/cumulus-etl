@@ -6,7 +6,7 @@ from typing import List
 from cumulus import common, store
 from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
-from cumulus.codebook import Codebook
+from cumulus.codebook import Codebook, CodebookDB
 
 #######################################################################################################################
 #
@@ -228,6 +228,8 @@ def etl_notes_nlp(config:JobConfig) -> JobSummary:
         print('######################################################################################################')
         print(f'etl_notes_nlp() {i2b2_csv} #physican notes = {len(i2b2_list)}')
 
+        bash = list()
+
         for i2b2_physician_note in i2b2_list:
             try:
                 job.attempt.append(i2b2_physician_note)
@@ -238,15 +240,16 @@ def etl_notes_nlp(config:JobConfig) -> JobSummary:
                 text = i2b2_physician_note.observation_blob
                 md5sum = common.hash_clinical_text(text)
 
-                path_old = os.path.join(config.dir_output, mrn, md5sum, f'ctakes.json')
-                path_new = os.path.join(config.dir_output, mrn, enc, f'ctakes_{md5sum}.json')
+                path_old = os.path.join(config.dir_output_patient(mrn), md5sum, f'ctakes.json')
+                path_new = os.path.join(config.dir_output_encounter(mrn, enc), f'ctakes_{md5sum}.json')
 
                 if len(text) > 10:
                     if not os.path.exists(path_old):
                         print(i2b2_physician_note.as_json())
                         raise Exception(f'{path_old}')
-                    print(f'cp {path_old} {path_new}')
 
+                    os.makedirs(config.dir_output_encounter(mrn, enc), exist_ok=True)
+                    bash.append(f'cp {path_old} {path_new}')
 
                 #path_text = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
                 #path_json = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
@@ -257,6 +260,9 @@ def etl_notes_nlp(config:JobConfig) -> JobSummary:
             except Exception as e:
                 logging.error(f'ETL exception {e}')
                 job.failed.append(i2b2_physician_note.as_json())
+
+        with open(i2b2_csv + '_bash.sh', 'w') as f:
+            f.write('\n'.join(bash))
 
     codebook.db.save(config.path_codebook())
     return job
@@ -278,12 +284,12 @@ def etl_job(config:JobConfig) -> List[JobSummary]:
     summary_list = list()
 
     task_list = [
-        i2b2.etl.etl_patient,
-        i2b2.etl.etl_visit,
+        #i2b2.etl.etl_patient,
+        #i2b2.etl.etl_visit,
         # i2b2.etl.etl_lab,
         # i2b2.etl.etl_notes,
         i2b2.etl.etl_notes_nlp,
-        i2b2.etl.etl_diagnosis,
+        #i2b2.etl.etl_diagnosis,
     ]
 
     for task in task_list:
