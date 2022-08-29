@@ -19,7 +19,7 @@ def path_error(root):
     """
     return os.path.join(root, 'errors.json')
 
-def path_json(folder, jsonfile:str):
+def path_file(folder, jsonfile:str):
     """
     :param folder: directory
     :param jsonfile: file to load
