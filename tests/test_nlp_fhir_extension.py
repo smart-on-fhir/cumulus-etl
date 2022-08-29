@@ -1,6 +1,6 @@
 import unittest
 from cumulus import common
-from cumulus.ctakes import ctakes_fhir
+from cumulus.deprecated import ctakes_fhir
 
 class TestNlpExtension(unittest.TestCase):
 

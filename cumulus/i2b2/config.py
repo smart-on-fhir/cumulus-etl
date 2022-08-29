@@ -1,6 +1,6 @@
 import os
 from cumulus import common, store
-from cumulus.ctakes import ctakes_client
+from ctakes import ctakes_client
 
 #######################################################################################################################
 #
