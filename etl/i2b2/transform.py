@@ -130,6 +130,7 @@ def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC
     :return: https://www.hl7.org/fhir/observation.html
     """
     observation = to_fhir_observation(obsfact)
+    observation.status = 'final'
 
     if obsfact.concept_cd in loinc.keys():
         _code = loinc[obsfact.concept_cd]

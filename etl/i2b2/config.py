@@ -17,16 +17,19 @@ class JobConfig:
         self.ctakes = ctakes_client.get_url_ctakes()
 
     def path_codebook(self) -> str:
-        return store.path_json(self.dir_output, 'codebook.json')
+        return store.path_file(self.dir_output, 'codebook.json')
 
     def path_config(self) -> str:
-        return store.path_json(self.dir_output_config(), 'job_config.json')
+        return store.path_file(self.dir_output_config(), 'job_config.json')
 
     def dir_output_config(self):
         return store.path_root(self.dir_output, f'JobConfig_{self.timestamp}')
 
     def dir_output_patient(self, mrn:str) -> str:
         return store.path_patient_dir(self.dir_output, mrn)
+
+    def dir_output_note(self, mrn, md5sum:str) -> str:
+        return store.path_note_dir(self.dir_output, mrn, md5sum)
 
     def dir_output_encounter(self, mrn:str, encounter_id) -> str:
         return store.path_encounter_dir(self.dir_output, mrn, encounter_id)

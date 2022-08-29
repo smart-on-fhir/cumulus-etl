@@ -41,6 +41,10 @@ def list_csv(folder: str, mask='.csv') -> list:
     :param mask: csv is typical
     :return:
     """
+    if not os.path.exists(folder):
+        logging.warning(f'list_csv() does not exist: folder:{folder}, mask={mask}')
+        return list()
+
     match = list()
     for file in os.listdir(folder):
         if file.endswith(mask):

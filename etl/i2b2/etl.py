@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import json
 import logging
 from typing import List
@@ -33,7 +33,7 @@ def etl_patient(config: JobConfig) -> JobSummary:
 
                 subject = i2b2.transform.to_fhir_patient(i2b2_patient)
 
-                path = store.path_json(config.dir_output_patient(subject.id), 'fhir_patient.json')
+                path = store.path_file(config.dir_output_patient(subject.id), 'fhir_patient.json')
 
                 deid = codebook.fhir_patient(subject)
 
@@ -74,7 +74,7 @@ def etl_visit(config:JobConfig) -> JobSummary:
                 encounter = i2b2.transform.to_fhir_encounter(i2b2_visit)
 
                 mrn = encounter.subject.reference
-                path = store.path_json(config.dir_output_encounter(mrn, encounter.id), 'fhir_patient.json')
+                path = store.path_file(config.dir_output_encounter(mrn, encounter.id), 'fhir_patient.json')
 
                 deid = codebook.fhir_encounter(encounter)
 
@@ -118,7 +118,7 @@ def etl_lab(config:JobConfig) -> JobSummary:
 
                 deid = codebook.fhir_observation(lab)
 
-                path = store.path_json(config.dir_output_encounter(mrn, enc), f'fhir_lab_{deid.id}.json')
+                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_lab_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
@@ -160,7 +160,7 @@ def etl_diagnosis(config:JobConfig) -> JobSummary:
 
                 deid = codebook.fhir_condition(condition)
 
-                path = store.path_json(config.dir_output_encounter(mrn, enc), f'fhir_condition_{deid.id}.json')
+                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_condition_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
@@ -202,9 +202,56 @@ def etl_notes(config:JobConfig) -> JobSummary:
 
                 deid = codebook.fhir_documentreference(docref)
 
-                path = store.path_json(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
+                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
+                job.success_rate()
+
+            except Exception as e:
+                logging.error(f'ETL exception {e}')
+                job.failed.append(i2b2_physician_note.as_json())
+
+    codebook.db.save(config.path_codebook())
+    return job
+
+
+def etl_notes_nlp(config:JobConfig) -> JobSummary:
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary('etl_notes_nlp')
+
+    for i2b2_csv in config.list_csv_notes():
+        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
+
+        job.csv.append(i2b2_csv)
+
+        print('######################################################################################################')
+        print(f'etl_notes_nlp() {i2b2_csv} #physican notes = {len(i2b2_list)}')
+
+        for i2b2_physician_note in i2b2_list:
+            try:
+                job.attempt.append(i2b2_physician_note)
+
+                mrn = i2b2_physician_note.patient_num
+                enc = i2b2_physician_note.encounter_num
+
+                text = i2b2_physician_note.observation_blob
+                md5sum = common.hash_clinical_text(text)
+
+                path_old = os.path.join(config.dir_output, mrn, md5sum, f'ctakes.json')
+                path_new = os.path.join(config.dir_output, mrn, enc, f'ctakes_{md5sum}.json')
+
+                if len(text) > 10:
+                    if not os.path.exists(path_old):
+                        print(i2b2_physician_note.as_json())
+                        raise Exception(f'{path_old}')
+                    print(f'cp {path_old} {path_new}')
+
+
+                #path_text = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
+                #path_json = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
+
+                job.success.append(path_old)
                 job.success_rate()
 
             except Exception as e:
@@ -233,8 +280,9 @@ def etl_job(config:JobConfig) -> List[JobSummary]:
     task_list = [
         i2b2.etl.etl_patient,
         i2b2.etl.etl_visit,
-        i2b2.etl.etl_lab,
-        i2b2.etl.etl_notes,
+        # i2b2.etl.etl_lab,
+        # i2b2.etl.etl_notes,
+        i2b2.etl.etl_notes_nlp,
         i2b2.etl.etl_diagnosis,
     ]
 
@@ -242,7 +290,7 @@ def etl_job(config:JobConfig) -> List[JobSummary]:
         summary = task(config)
         summary_list.append(summary)
 
-        path = store.path_json(config.dir_output_config(), f'{summary.label}.json')
+        path = store.path_file(config.dir_output_config(), f'{summary.label}.json')
         store.write_json(path, summary.as_json())
 
     return summary_list
