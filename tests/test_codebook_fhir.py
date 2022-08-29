@@ -56,17 +56,17 @@ class TestCodebookFHIR(unittest.TestCase):
         print_fhir(condition)
 
         self.assertEqual('12345', condition.subject.reference)
-        self.assertEqual('67890', condition.encounter.reference)
+        self.assertEqual('67890', condition.context.reference)
 
         mrn = condition.subject.reference
-        visit = condition.encounter.reference
+        visit = condition.context.reference
 
         codebook = Codebook()
         #
         condition = codebook.fhir_condition(condition)
 
         self.assertEqual(condition.subject.reference, codebook.db.patient(mrn)['deid'])
-        self.assertEqual(condition.encounter.reference, codebook.db.encounter(mrn, visit)['deid'])
+        self.assertEqual(condition.context.reference, codebook.db.encounter(mrn, visit)['deid'])
 
         print_fhir(condition)
 
