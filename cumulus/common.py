@@ -120,7 +120,7 @@ def read_text(path:str) -> str:
     logging.debug(f'read_text() {path}')
 
     with open(path, 'r') as f:
-        message = f.read(f)
+        message = f.read()
         f.close()
     return message
 
