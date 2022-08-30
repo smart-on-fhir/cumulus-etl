@@ -4,10 +4,12 @@ from ctakes.ctakes_json import MatchText, UmlsConcept, CtakesJSON, UmlsTypeMenti
 
 COVID_SYMPTOMS_BSV = os.path.join(os.getcwd(), '../resources/covid_symptoms.bsv')
 
-class DocAnnot:
+class LabelStudio:
     def __init__(self, physician_note:str, response_ctakes, filter_cui=None, filter_semtype=UmlsTypeMention.SignSymptom.value):
         """
-        Labelstudio document annotation.
+        LabelStudio document annotation.
+        https://labelstud.io/guide/tasks.html#Basic-Label-Studio-JSON-format
+
         Physician note and ctakes JSON data can be very large quickly: the design of this class optionally allows for both TXT/JSON at any time.
         Use load_lazy() when ready to process.
 
@@ -16,7 +18,8 @@ class DocAnnot:
         :param filter_cui: {cui:text} to select concepts for document level annotation
         :param filter_semtype: UMLS semantic type to filter by (select for)
         """
-        self.physician_note = physician_note
+        self.note_text = physician_note
+        self.note_file = None
         self.response_ctakes = response_ctakes
         self.filter_cui = filter_cui
         self.filter_semtype = filter_semtype
@@ -27,7 +30,8 @@ class DocAnnot:
         if physician_note and (5 < len(physician_note) < 255):
             if os.path.exists(physician_note):
                 with open(physician_note, 'r') as f:
-                    self.physician_note = f.read()
+                    self.note_text = f.read()
+                    self.note_file = physician_note
 
         # Response from Ctakes can be either typed (CtakesJSON), dict or saved file.
         if response_ctakes and isinstance(response_ctakes, str):
@@ -77,7 +81,7 @@ class DocAnnot:
         self.result.append(whole_doc)
 
     def as_json(self):
-        return {'data': {'text': self.physician_note},
+        return {'data': {'text': self.note_text, 'file': self.note_file},
                 'predictions': [{'model_version': self.model_version, 'result': self.result}]}
 
 
