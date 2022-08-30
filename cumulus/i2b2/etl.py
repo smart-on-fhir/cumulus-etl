@@ -278,12 +278,12 @@ def etl_job(config:JobConfig) -> List[JobSummary]:
     summary_list = list()
 
     task_list = [
-        #i2b2.etl.etl_patient,
-        #i2b2.etl.etl_visit,
-        # i2b2.etl.etl_lab,
-        # i2b2.etl.etl_notes,
+        i2b2.etl.etl_patient,
+        i2b2.etl.etl_visit,
+        i2b2.etl.etl_lab,
+        i2b2.etl.etl_notes,
         i2b2.etl.etl_notes_nlp,
-        #i2b2.etl.etl_diagnosis,
+        i2b2.etl.etl_diagnosis,
     ]
 
     for task in task_list:
