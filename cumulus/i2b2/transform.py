@@ -20,8 +20,9 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
+from ctakes.ctakes_json import CtakesJSON
+
 from cumulus import common, fhir_template
-from cumulus.deprecated.deprecated_ctakes_json import CtakesJSON
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 #######################################################################################################################
