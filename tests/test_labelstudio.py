@@ -2,8 +2,8 @@ import os
 import random
 import unittest
 
-from ctakes.filesystem import map_cui_pref
-from ctakes.typesystem import CtakesJSON, Polarity
+from ctakesclient.filesystem import map_cui_pref
+from ctakesclient.typesystem import CtakesJSON, Polarity
 
 from cumulus import store, common
 from cumulus.labelstudio import COVID_SYMPTOMS_BSV
