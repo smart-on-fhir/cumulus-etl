@@ -5,6 +5,7 @@ import os
 import pandas
 from typing import Callable
 
+import ctakesclient
 from cumulus import common, store
 
 
@@ -149,12 +150,31 @@ class JsonTreeStore(store.Store):
 
         path_text = os.path.join(folder, f'physician_note_{md5sum}.txt')
         path_ctakes_json = os.path.join(folder, f'ctakes_{md5sum}.json')
+        path_cnlp = os.path.join(folder, f'cnlp_{md5sum}.json')
+        ner = None  # Named Entity Recognition (cTAKES JSON response)
 
         if len(note_text) > 10:
             if not os.path.exists(path_text):
                 common.write_text(path_text, note_text)
             if not os.path.exists(path_ctakes_json):
-                logging.warning('cTAKES response not found')
+                logging.debug('ctakes.client.extract(...) ')
+                ner = ctakesclient.client.extract(note_text)
+                store.write_json(path_ctakes_json, ner.as_json())
+            if not os.path.exists(path_cnlp):
+                logging.debug('ctakes.transformer.list_polarity(...)')
+                if not ner:
+                    ner = ctakesclient.client.CtakesJSON(
+                        common.read_json(path_ctakes_json))
+
+                match_text = ner.list_match_text()
+                spans = ner.list_spans(ner.list_match())
+                polarities = ctakesclient.transformer.list_polarity(
+                    note_text, spans)
+                as_json = {'polarity': [status.name for status in polarities],
+                           'spans': spans,
+                           'match_text': match_text}
+
+                store.write_json(path_cnlp, as_json)
 
     def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
         self._write_records(job, docrefs, self._write_note)
