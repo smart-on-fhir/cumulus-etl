@@ -43,7 +43,7 @@ Load FHIR data for analysis
 
 SQL query patient populations
 ===============================================
-Use provided `Cumulus Library <https://github.com/comorbidity/library>`_ (TODO: reorganize sources)
+| Use provided `Cumulus Library <https://github.com/comorbidity/library>`_ (TODO: reorganize sources)
 * Package "public health data feeds" into well defined patient cohort
 * Simplifies FHIR data as SQL views for easier accessibility to biomedical staff.
 * Simplify common views like Patient demographics, Hospital Encounters, Condition coding, etc.
