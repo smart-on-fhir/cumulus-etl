@@ -6,6 +6,7 @@ import base64
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.range import Range
 from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
 from fhirclient.models.duration import Duration
@@ -20,7 +21,7 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from ctakes.ctakes_json import CtakesJSON
+from ctakes.client import CtakesJSON
 
 from cumulus import common, fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
@@ -293,3 +294,20 @@ def parse_fhir_date_isostring(i2b2_date_string) -> str:
     """
     parsed = parse_fhir_date(i2b2_date_string)
     return parsed.isostring if parsed else None
+
+def parse_fhir_period(start_date, end_date) -> Period:
+    if isinstance(start_date, str):
+        start_date = parse_fhir_date(start_date)
+    if isinstance(end_date, str):
+        end_date = parse_fhir_date(end_date)
+
+    p = Period()
+    p.start = start_date
+    p.end = end_date
+    return p
+
+def parse_fhir_range(low, high) -> Range:
+    r = Range()
+    r.low = low
+    r.high = high
+    return r

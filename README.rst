@@ -27,8 +27,8 @@ NLP Physician Notes
 
 DEID: Patient Privacy
 =====================
-Support `De-identification of PHI <https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/index.html>`_  (protected health information)
-* PHI: Protected Health Information) stays behind the hospital firewall.
+| Support `De-identification of PHI <https://www.hhs.gov/hipaa/for-professionals/privacy/special-topics/de-identification/index.html>`_  (protected health information)
+* PHI stays behind the hospital firewall.
 * Physician Notes are NOT shared outside hospital.
 * Encrypted patient data at rest and in transit.
 * DEID `Codebook.py <./cumulus/codebook.py>`_ replaces real patient identifiers with fake ones (`UUID <https://docs.python.org/3/library/uuid.html>`_)

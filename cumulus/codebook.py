@@ -24,7 +24,10 @@ from cumulus import common
 from cumulus.common import fake_id, hash_clinical_text
 
 class Codebook:
-
+    """
+    Codebook links real IDs (like MRN medical record number) to UUIDs. Obtaining the UUID without the codebook is safe.
+    Codebook is saved local to the hospital and NOT shared on public internet.
+    """
     def __init__(self, saved= None):
         """
         :param saved: saved codebook or None (initialize empty)

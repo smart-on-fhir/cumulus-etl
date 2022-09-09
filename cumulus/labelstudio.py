@@ -1,8 +1,37 @@
 import os
 import json
-from ctakes.ctakes_json import MatchText, UmlsConcept, CtakesJSON, UmlsTypeMention
+from cumulus import common, store
+from ctakes.typesystem import Polarity, MatchText, CtakesJSON, UmlsTypeMention
 
 COVID_SYMPTOMS_BSV = os.path.join(os.getcwd(), '../resources/covid_symptoms.bsv')
+
+#######################################################################################################################
+#
+# Helper Functions
+#
+#######################################################################################################################
+def merge_cohort(filepath) -> list:
+    if not os.path.exists(filepath):
+        raise Exception(f'not found! {filepath}')
+
+    cohort = store.read_json(filepath).get('cohort')
+
+    print(f'{filepath}')
+    print(f'cohort list # {len(cohort)}')
+    print(f'cohort set  # {len(set(cohort))}')
+
+    contents = list()
+    for f in set(cohort):
+        contents.append(store.read_json(f))
+
+    return contents
+
+
+#######################################################################################################################
+#
+# LabelStudio : Document Annotation
+#
+#######################################################################################################################
 
 class LabelStudio:
     def __init__(self, physician_note:str, response_ctakes, filter_cui=None, filter_semtype=UmlsTypeMention.SignSymptom.value):
@@ -41,16 +70,17 @@ class LabelStudio:
         elif response_ctakes and isinstance(response_ctakes, dict):
             self.response_ctakes = CtakesJSON(response_ctakes)
 
-    def load_lazy(self):
+    def load_lazy(self, polarity=Polarity.pos):
         """
         :param ctakes_said: JSON result from cTAKES
         :param cui_map: {cui:text} to select concepts for document level annotation
         :param umls_type: UMLS semantic type to filter by (select for)
+        :param polarity: default POSITIVE mentions only.
         """
         whole_doc = set()
 
         if self.response_ctakes:
-            for match in self.response_ctakes.list_match():
+            for match in self.response_ctakes.list_match(polarity):
                 for concept in match.conceptAttributes:
                     if concept.cui in self.filter_cui.keys():
                         self.add_match(match, self.filter_cui[concept.cui])

@@ -95,8 +95,9 @@ def fake_id() -> uuid:
 
 def hash_clinical_text(text: str) -> str:
     """
-    Get "fingerprint" of clinical text to check if two inputs of the same text
-    were both sent to ctakes. This is the intent of this method.
+    Get "fingerprint" of clinical text to check if two inputs refer to the same text.
+    This "filterprint" is NOT saved to the DEID system, it is used in place of a static identifier in the PHI Zone.
+
     :param text: clinical text
     :return: md5 digest
     """

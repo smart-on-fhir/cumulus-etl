@@ -7,7 +7,7 @@ from cumulus import common, store
 from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
 from cumulus.codebook import Codebook, CodebookDB
-from ctakes import ctakes_client
+import ctakes
 
 #######################################################################################################################
 #

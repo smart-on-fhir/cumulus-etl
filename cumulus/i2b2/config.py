@@ -1,6 +1,5 @@
 import os
 from cumulus import common, store
-from ctakes import ctakes_client
 
 #######################################################################################################################
 #
@@ -14,7 +13,6 @@ class JobConfig:
         self.dir_output = dir_output
         self.timestamp = common.timestamp()
         self.hostname = common.gethostname()
-        self.ctakes = ctakes_client.get_url_ctakes()
 
     def path_codebook(self) -> str:
         return store.path_file(self.dir_output, 'codebook.json')

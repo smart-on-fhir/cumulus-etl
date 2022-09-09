@@ -1,15 +1,13 @@
 import os
-import glob
-import json
 import random
 import unittest
 
-from ctakes.bsv_reader import BSV, list_bsv, bsv_to_cui_map
-from ctakes.ctakes_json import MatchText, UmlsConcept, CtakesJSON, UmlsTypeMention
+from ctakes.ctakes_bsv import map_cui_pref
+from ctakes.ctakes_json import CtakesJSON, Polarity
 
 from cumulus import store, common
 from cumulus.labelstudio import COVID_SYMPTOMS_BSV
-from cumulus.labelstudio import LabelStudio
+from cumulus.labelstudio import LabelStudio, merge_cohort
 
 class TestLabelStudio(unittest.TestCase):
 
@@ -19,7 +17,7 @@ class TestLabelStudio(unittest.TestCase):
         return ctakes_list
 
     def test_select_cohort(self, dir_processed='/opt/i2b2/processed', cohort_size=20):
-        filter_cui = bsv_to_cui_map(COVID_SYMPTOMS_BSV)
+        filter_cui = map_cui_pref(COVID_SYMPTOMS_BSV)
 
         candidates = list()
         cohort = dict()
@@ -39,7 +37,7 @@ class TestLabelStudio(unittest.TestCase):
             path_labelstudio = path_ctakes.replace('ctakes_', 'labelstudio_')
 
             if os.path.exists(path_ctakes) and os.path.exists(path_note):
-                found_cuis = reader.list_concept_cui(polarity=True)
+                found_cuis = reader.list_concept_cui(Polarity.pos)
 
                 overlap = set(filter_cui.keys()).intersection(set(found_cuis))
 
@@ -66,32 +64,63 @@ class TestLabelStudio(unittest.TestCase):
 
                                 print(f'cohort[{select_cui}]: {len(cohort[select_cui])}')
 
-                                path_cui = f'{dir_processed}/{select_cui}.json'
+                                path_cui = f'{dir_processed}/cohort/{select_cui}.json'
                                 dict_cui = {'filter': filter_cui[select_cui], 'cohort': cohort[select_cui]}
                                 store.write_json(path_cui, dict_cui)
 
-    def test_merge_cohort(self, dir_processed='/opt/i2b2/processed'):
+    def test_merge_content(self, dir_processed='/opt/i2b2/processed'):
         merged = list()
 
-        for select_cui in bsv_to_cui_map(COVID_SYMPTOMS_BSV).keys():
-            path_cui = f'{dir_processed}/{select_cui}.json'
+        for select_cui in map_cui_pref(COVID_SYMPTOMS_BSV).keys():
+            path_cui_cohort = f'{dir_processed}/cohort/{select_cui}.json'
+            path_cui_content = f'{dir_processed}/cohort/{select_cui}_content.json'
 
-            if not os.path.exists(path_cui):
-                raise Exception(f'not found! {path_cui}')
+            cui_cohort = store.read_json(path_cui_cohort).get('cohort')
 
-            found = store.read_json(path_cui)['cohort']
-            merged += found
+            cui_content = merge_cohort(path_cui_cohort)
+            store.write_json(path_cui_content, cui_content)
 
-        print(merged)
-        print(f'merged list # {len(merged)}')
-        print(f'merged set  # {len(set(merged))}')
+            merged += cui_content
 
-        contents = list()
+        store.write_json(f'{dir_processed}/cohort/labelstudio_content.json', merged)
 
-        for f in set(merged):
-            contents.append(store.read_json(f))
+    def test_merge_labels(self, dir_processed='/opt/i2b2/processed'):
+        label_cui = dict()
 
-        store.write_json(f'{dir_processed}/labelstudio_cohort.json', contents)
+        for cui, pref in map_cui_pref(COVID_SYMPTOMS_BSV).items():
+            if pref not in label_cui.values():
+                label_cui[pref] = list()
+            label_cui[pref].append(cui)
 
+        for pref in label_cui.keys():
+            label = str(pref).replace(' ', '_')
+            label_cohort = list()
+            label_content = list()
 
+            for cui in label_cui[pref]:
+                path_cui_cohort = f'{dir_processed}/cohort/{cui}.json'
+                cui_cohort = store.read_json(path_cui_cohort).get('cohort')
+
+                label_cohort += cui_cohort
+
+            for filepath in set(label_cohort):
+                label_content.append(store.read_json(filepath))
+
+            store.write_json(f'{dir_processed}/cohort/{label}.json', label_content)
+
+    def test_print_labels(self):
+        print('##############################################')
+        print('LabelStudio cui_filter')
+        print(map_cui_pref(COVID_SYMPTOMS_BSV))
+        print('##############################################')
+        print('LabelStudio labels')
+        for label in set(map_cui_pref(COVID_SYMPTOMS_BSV).values()):
+            print(label.strip())
+
+    def test_labelstudio_files_cleanup(self, dir_processed='/opt/i2b2/processed', cmd_head='rm', cmd_tail=''):
+        print(f'labelstudio_files_cleanup : {cmd_head} {dir_processed}/**/labelstudio_* {cmd_tail}')
+        bash = list()
+        for path in common.find_by_name(dir_processed, 'labelstudio_'):
+            bash.append(f'{cmd_head} {path} {cmd_tail}')
+        common.write_text(f'{dir_processed}/labelstudio_bash.sh', '\n'.join(bash))
 
