@@ -149,7 +149,7 @@ def _strip_notes_from_docref(codebook: Codebook,
 def etl_notes_meta(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_notes',
+        'etl_notes_meta',
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
