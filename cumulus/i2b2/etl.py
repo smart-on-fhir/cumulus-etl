@@ -210,7 +210,6 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 #
 ###############################################################################
 
-
 def main(args: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument('dir_input', metavar='/my/i2b2/input')

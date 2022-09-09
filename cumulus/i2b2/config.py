@@ -10,6 +10,10 @@ class JobConfig:
     """Configuration for an ETL job"""
 
     def __init__(self, dir_input, dir_output, dir_cache, config_store):
+        """
+        :param dir_input: default /opt/i2b2 with sources stored in csv_* folders  
+        :param dir_output: default /opt/i2b2/processed with outputs stored in {dir_output}/$patient/$encounter
+        """
         self.dir_input = dir_input
         self.dir_output = dir_output
         self.dir_cache = dir_cache
