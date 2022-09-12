@@ -2,13 +2,14 @@ import os
 import random
 import unittest
 
-from ctakes.ctakes_bsv import map_cui_pref
-from ctakes.ctakes_json import CtakesJSON, Polarity
+from ctakes.filesystem import map_cui_pref
+from ctakes.typesystem import CtakesJSON, Polarity
 
 from cumulus import store, common
 from cumulus.labelstudio import COVID_SYMPTOMS_BSV
 from cumulus.labelstudio import LabelStudio, merge_cohort
 
+@unittest.skip("Not yet finished and needs access to /opt/i2b2")
 class TestLabelStudio(unittest.TestCase):
 
     def test_rand_dir_processed(self, dir_processed='/opt/i2b2/processed'):

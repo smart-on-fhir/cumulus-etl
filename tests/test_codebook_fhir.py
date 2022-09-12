@@ -100,10 +100,11 @@ class TestCodebookFHIR(unittest.TestCase):
         print_fhir(docref)
 
         self.assertEqual('12345', docref.subject.reference)
-        self.assertEqual('67890', docref.context.encounter.reference)
+        self.assertEqual(1, len(docref.context.encounter))
+        self.assertEqual('67890', docref.context.encounter[0].reference)
 
         mrn = docref.subject.reference
-        visit = docref.context.encounter.reference
+        visit = docref.context.encounter[0].reference
 
         codebook = Codebook()
         #
@@ -112,7 +113,7 @@ class TestCodebookFHIR(unittest.TestCase):
         # self.assertEqual('2016-01-01', docref.context.encounter) TODO: docref date?
 
         self.assertEqual(docref.subject.reference, codebook.db.patient(mrn)['deid'])
-        self.assertEqual(docref.context.encounter.reference, codebook.db.encounter(mrn, visit)['deid'])
+        self.assertEqual(docref.context.encounter[0].reference, codebook.db.encounter(mrn, visit)['deid'])
 
         print_fhir(docref)
 

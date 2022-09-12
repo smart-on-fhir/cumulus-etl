@@ -79,7 +79,8 @@ class Codebook:
 
         docref.id = common.fake_id()
         docref.subject.reference = self.db.patient(mrn)['deid']
-        docref.context.encounter.reference = self.db.encounter(mrn, docref.context.encounter.reference)['deid']
+        for encounter in docref.context.encounter:
+            encounter.reference = self.db.encounter(mrn, encounter.reference)['deid']
 
         return docref
 
