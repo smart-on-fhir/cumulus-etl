@@ -98,7 +98,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 
     docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
     docref.context = DocumentReferenceContext()
-    docref.context.encounter = FHIRReference({'reference': str(obsfact.encounter_num)})
+    docref.context.encounter = [FHIRReference({'reference': str(obsfact.encounter_num)})]
 
     docref.type = CodeableConcept({'text': str(obsfact.concept_cd)}) # i2b2 Note Type
     docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
@@ -182,11 +182,8 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
 
     condition.meta = Meta({'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition']})
 
-    # TODO: fhirclient out of date? Should be type CodableConcept
-    # http://terminology.hl7.org/CodeSystem/condition-clinical
-    # https://terminology.hl7.org/3.1.0/CodeSystem-condition-ver-status.html
-    condition.clinicalStatus = 'active'
-    condition.verificationStatus = 'unconfirmed'
+    condition.clinicalStatus = CodeableConcept({'text': 'active'})
+    condition.verificationStatus = CodeableConcept({'text': 'unconfirmed'})
 
     # Category
     category = Coding()

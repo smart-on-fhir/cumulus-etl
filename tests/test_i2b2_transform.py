@@ -100,7 +100,8 @@ class TestI2b2Transform(unittest.TestCase):
         # print(json.dumps(docref.as_json(), indent=4))
 
         self.assertEqual(str(12345), docref.subject.reference)
-        self.assertEqual(str(67890), docref.context.encounter.reference)
+        self.assertEqual(1, len(docref.context.encounter))
+        self.assertEqual(str(67890), docref.context.encounter[0].reference)
         self.assertEqual(str('NOTE:103933779'), docref.type.text)
 
     def example_fhir_observation_lab(self):
