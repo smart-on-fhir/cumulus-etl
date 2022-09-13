@@ -1,7 +1,7 @@
 import os
 import json
 from cumulus import common, store
-from ctakes.typesystem import Polarity, MatchText, CtakesJSON, UmlsTypeMention
+from ctakesclient.typesystem import Polarity, MatchText, CtakesJSON, UmlsTypeMention
 
 COVID_SYMPTOMS_BSV = os.path.join(os.getcwd(), '../resources/covid_symptoms.bsv')
 

@@ -21,7 +21,7 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from ctakes.client import CtakesJSON
+from ctakesclient.client import CtakesJSON
 
 from cumulus import common, fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact

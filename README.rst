@@ -23,7 +23,7 @@ NLP Physician Notes
 ============================
 * Support physician notes as `FHIR DocumentReference <https://www.hl7.org/fhir/documentreference-definitions.html#DocumentReference.content.attachment>`_
 * Support `Unified Medical Language System <https://www.nlm.nih.gov/research/umls/index.html>`_ concept extraction.
-* Use the provided `cTAKES client <https://github.com/comorbidity/ctakes-client-python>`_ to query `cTAKES COVID container <https://github.com/Machine-Learning-for-Medical-Language/ctakes-covid-container>`_ and `clinical NLP Transformers <https://github.com/Machine-Learning-for-Medical-Language/cnlp_transformers#negation-api>`_
+* Use the provided `cTAKES client <https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py>`_ to query `cTAKES COVID container <https://github.com/Machine-Learning-for-Medical-Language/ctakes-covid-container>`_ and `clinical NLP Transformers <https://github.com/Machine-Learning-for-Medical-Language/cnlp_transformers#negation-api>`_
 
 DEID: Patient Privacy
 =====================
