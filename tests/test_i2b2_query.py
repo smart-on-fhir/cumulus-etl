@@ -1,5 +1,4 @@
 import unittest
-from cumulus.i2b2.oracle import query
 from cumulus.i2b2.oracle.query import *
 
 def header(text):
@@ -35,6 +34,7 @@ class TestI2b2Sql(unittest.TestCase):
         header('# observation_fact')
         pretty(sql_observation_fact() + limit(20))
         pretty(count_by_date_group(Table.observation_fact))
+        pretty(count_by_date_group(Table.observation_fact, 'UPDATE_DATE'))
 
     def test_sql_concept(self):
         header('# concept_dimension')
