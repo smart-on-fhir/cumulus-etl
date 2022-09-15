@@ -2,4 +2,4 @@
 requests
 pandas
 fhirclient
--e ../ctakes-client-python
+ctakesclient
