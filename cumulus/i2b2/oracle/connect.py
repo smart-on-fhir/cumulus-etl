@@ -1,5 +1,7 @@
 import getpass
+import logging
 import os
+import cx_Oracle
 
 def get_data_source_name() -> str:
     return os.environ.get('I2B2_SQL_DSN', None)
@@ -29,3 +31,11 @@ def get_library_path() -> str:
                         'This environment variable must be set before calling scripts.')
     else:
         return ldpath
+
+def connect() -> cx_Oracle.Connection:
+    """
+    :return: connection to oracle database
+    """
+    logging.info(f"Attempting to connect to {get_data_source_name()}")
+    cx_Oracle.init_oracle_client(lib_dir=get_library_path())
+    return cx_Oracle.connect(get_user(), get_password(), get_data_source_name())
