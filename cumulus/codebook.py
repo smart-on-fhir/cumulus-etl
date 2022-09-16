@@ -32,7 +32,10 @@ class Codebook:
         """
         :param saved: saved codebook or None (initialize empty)
         """
-        self.db = CodebookDB(saved)
+        try:
+            self.db = CodebookDB(saved)
+        except FileNotFoundError:
+            self.db = CodebookDB()
 
     def fhir_patient(self, patient: Patient) -> Patient:
         mrn = patient.identifier[0].value

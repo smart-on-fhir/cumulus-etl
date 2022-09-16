@@ -76,6 +76,9 @@ class JobSummary:
         :param show_every: print success rate
         :return: % success rate
         """
+        if not self.attempt:
+            return 1.0
+
         prct = float(len(self.success)) / float(len(self.attempt))
 
         if 0 == len(self.attempt) % show_every:
