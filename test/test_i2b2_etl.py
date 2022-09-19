@@ -45,8 +45,8 @@ class TestI2b2EtlSimple(unittest.TestCase):
         filecmp.dircmp by itself likes to only do shallow comparisons that
         notice changes like timestamps. But we want the contents themselves.
         """
-        self.assertEqual([], dircmp.left_only)
-        self.assertEqual([], dircmp.right_only)
+        self.assertEqual([], dircmp.left_only, dircmp.left)
+        self.assertEqual([], dircmp.right_only, dircmp.right)
 
         for filename in dircmp.common_files:
             left_path = os.path.join(dircmp.left, filename)
