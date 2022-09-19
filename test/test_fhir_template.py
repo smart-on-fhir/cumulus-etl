@@ -1,3 +1,5 @@
+"""Tests for loading FHIR templates"""
+
 import unittest
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
@@ -7,7 +9,9 @@ from fhirclient.models.documentreference import DocumentReference
 
 from cumulus import fhir_template
 
+
 class TestResourcesFhirTemplates(unittest.TestCase):
+    """Test case for loading FHIR templates"""
 
     def test_patient(self):
         expected = fhir_template.fhir_patient()
@@ -40,7 +44,8 @@ class TestResourcesFhirTemplates(unittest.TestCase):
 
     def ignore_test_condition(self):
         """
-        "OK" test fails verification because fhirclient __init__ does not support
+        "OK" test fails verification because fhirclient __init__ does not
+        support
         * clinicalStatus
         * verificationStatus
         in the same way as the FHIR documentation and examples.
@@ -57,8 +62,7 @@ class TestResourcesFhirTemplates(unittest.TestCase):
 
         https://build.fhir.org/condition-example.json.html
         """
-        expected = fhir_template.template(fhir_template.FHIRTemplate.fhir_condition_example)
+        expected = fhir_template.template(
+            fhir_template.FHIRTemplate.FHIR_CONDITION_EXAMPLE)
         actual = Condition(jsondict=expected, strict=False).as_json()
         self.assertDictEqual(expected, actual)
-
-

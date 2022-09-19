@@ -57,7 +57,7 @@ Regional Cluster
 * `Federalist principles for healthcare data networks <https://www.nature.com/articles/nbt.3180>`_
 
 Single hospital View
-.. image:: ./README/architecture/cumulus-arch-single-hospital.svg
+.. image:: ./docs/architecture/cumulus-arch-single-hospital.svg
 
 Regional Cluster View
-.. image:: ./README/architecture/cumulus-arch-regional-cluster.svg
+.. image:: ./docs/architecture/cumulus-arch-regional-cluster.svg

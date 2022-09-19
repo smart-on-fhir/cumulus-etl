@@ -1,23 +1,17 @@
+"""Tests for converting data models from i2b2 to FHIR"""
+
 import unittest
-import os
-import json
-import base64
-from datetime import date
-from enum import Enum
 
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
-from fhirclient.models.observation import Observation
-from fhirclient.models.condition import Condition
-from fhirclient.models.extension import Extension
 from fhirclient.models.documentreference import DocumentReference
 
-from cumulus import fhir_template
 from cumulus.i2b2 import transform as T
 
 
 class TestI2b2Transform(unittest.TestCase):
+    """Test case for converting from i2b2 to FHIR"""
 
     def example_fhir_patient(self) -> Patient:
         pat_i2b2 = T.PatientDimension({
@@ -39,8 +33,8 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(str(12345), subject.id)
         self.assertEqual('2005-06-07', subject.birthDate.isostring)
         self.assertEqual('female', subject.gender)
+        # pylint: disable-next=unsubscriptable-object
         self.assertEqual('02115', subject.address[0].postalCode)
-
 
     def example_fhir_encounter(self) -> Encounter:
 
@@ -69,7 +63,7 @@ class TestI2b2Transform(unittest.TestCase):
         diagnosis = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
-            'CONCEPT_CD': 'ICD10:U07.1', # COVID19 Diagnosis
+            'CONCEPT_CD': 'ICD10:U07.1',  # COVID19 Diagnosis
             'START_DATE': '2016-01-01'
         })
 
@@ -82,15 +76,21 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(str(12345), condition.subject.reference)
         self.assertEqual(str(67890), condition.context.reference)
         self.assertEqual(str('U07.1'), condition.code.coding[0].code)
-        self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'), condition.code.coding[0].system)
+        self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'),
+                         condition.code.coding[0].system)
 
     def example_fhir_documentreference(self) -> DocumentReference:
         note_i2b2 = T.ObservationFact({
-            'PATIENT_NUM': str(12345),
-            'ENCOUNTER_NUM': 67890,
-            'CONCEPT_CD': 'NOTE:103933779',  # Admission Note Type
-            'START_DATE': '2016-01-01',
-            'OBSERVATION_BLOB': 'Chief complaint: fever and chills. Denies cough.'
+            'PATIENT_NUM':
+                str(12345),
+            'ENCOUNTER_NUM':
+                67890,
+            'CONCEPT_CD':
+                'NOTE:103933779',  # Admission Note Type
+            'START_DATE':
+                '2016-01-01',
+            'OBSERVATION_BLOB':
+                'Chief complaint: fever and chills. Denies cough.'
         })
         return T.to_fhir_documentreference(note_i2b2)
 
@@ -112,7 +112,8 @@ class TestI2b2Transform(unittest.TestCase):
             'START_DATE': '2021-01-02',
             'END_DATE': '2021-01-02',
             'VALTYPE_CD': 'T',
-            'TVAL_CHAR': 'Negative'})
+            'TVAL_CHAR': 'Negative'
+        })
 
         return T.to_fhir_observation_lab(lab_i2b2)
 
@@ -128,10 +129,13 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('94500-6', lab_fhir.code.coding[0].code)
         self.assertEqual('http://loinc.org', lab_fhir.code.coding[0].system)
 
-        self.assertEqual('260385009', lab_fhir.valueCodeableConcept.coding[0].code)
-        self.assertEqual('Negative', lab_fhir.valueCodeableConcept.coding[0].display)
+        self.assertEqual('260385009',
+                         lab_fhir.valueCodeableConcept.coding[0].code)
+        self.assertEqual('Negative',
+                         lab_fhir.valueCodeableConcept.coding[0].display)
 
-        self.assertEqual(FHIRDate('2021-01-02').date, lab_fhir.effectiveDateTime.date)
+        self.assertEqual(
+            FHIRDate('2021-01-02').date, lab_fhir.effectiveDateTime.date)
 
     def test_parse_fhir_date(self):
 
@@ -151,5 +155,3 @@ class TestI2b2Transform(unittest.TestCase):
         datepart = '2020-01-02'
 
         self.assertEqual('2020-01-02', T.parse_fhir_date(datepart).isostring)
-
-

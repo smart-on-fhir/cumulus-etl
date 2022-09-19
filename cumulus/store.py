@@ -1,7 +1,7 @@
+"""Abstraction for where to write and read data"""
+
 import os
-import json
-import logging
-from cumulus.common import read_json, write_json, read_text, write_text
+
 
 def path_exists(path) -> bool:
     """
@@ -12,6 +12,7 @@ def path_exists(path) -> bool:
     """
     return os.path.exists(path)
 
+
 def path_error(root):
     """
     :param root: errors are stored at root of store
@@ -19,7 +20,8 @@ def path_error(root):
     """
     return os.path.join(root, 'errors.json')
 
-def path_file(folder, jsonfile:str):
+
+def path_file(folder, jsonfile: str):
     """
     :param folder: directory
     :param jsonfile: file to load
@@ -30,7 +32,8 @@ def path_file(folder, jsonfile:str):
 
     return os.path.join(folder, jsonfile)
 
-def path_root(root:str, folder=None):
+
+def path_root(root: str, folder=None):
     """
     Alias for os.path.join - useful when this moves to S3
     :param root: root directory
@@ -42,9 +45,11 @@ def path_root(root:str, folder=None):
     else:
         return os.path.join(root)
 
-def path_patient_dir(root:str, patient_id:str):
+
+def path_patient_dir(root: str, patient_id: str):
     """
-    :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
+    :param root: folder for patient specific results, note the "prefix" for
+                 CPU/MEM optimization.
     :param patient_id: unique patient
     :return: path to patient *folder*
     """
@@ -55,16 +60,19 @@ def path_patient_dir(root:str, patient_id:str):
 
     return os.path.join(root, prefix, patient_id)
 
-def path_encounter_dir(root:str, patient_id:str, encounter_id:str):
+
+def path_encounter_dir(root: str, patient_id: str, encounter_id: str):
     """
-    :param root: folder for patient specific results, note the "prefix" for CPU/MEM optimization.
+    :param root: folder for patient specific results, note the "prefix" for
+                 CPU/MEM optimization.
     :param patient_id: unique patient
     :param encounter_id: unique encounter
     :return: path to encounter *folder*
     """
     return os.path.join(path_patient_dir(root, patient_id), encounter_id)
 
-def path_note_dir(root: str, patient_id:str, md5sum: str):
+
+def path_note_dir(root: str, patient_id: str, md5sum: str):
     """
     :param root: directory for messages
     :param patient_id:
@@ -73,8 +81,10 @@ def path_note_dir(root: str, patient_id:str, md5sum: str):
     """
     folder = os.path.join(path_patient_dir(root, patient_id), md5sum)
 
-    if not path_exists(folder): os.makedirs(folder)
+    if not path_exists(folder):
+        os.makedirs(folder)
     return folder
+
 
 def path_ctakes(root: str, patient_id: str, md5sum: str):
     """
@@ -84,4 +94,3 @@ def path_ctakes(root: str, patient_id: str, md5sum: str):
     :return: path to ctakes.json
     """
     return os.path.join(path_note_dir(root, patient_id, md5sum), 'ctakes.json')
-

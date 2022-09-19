@@ -1,3 +1,5 @@
+"""Schemas for i2b2 csv files"""
+
 class ObservationFact:
     """
     i2b2 ObservationFact
@@ -28,7 +30,8 @@ class ObservationFact:
     UPLOAD_ID
     TEXT_SEARCH_INDEX
     """
-    def __init__(self, row:dict):
+
+    def __init__(self, row: dict):
         self.patient_num = row.get('PATIENT_NUM')
         self.encounter_num = row.get('ENCOUNTER_NUM')
         self.concept_cd = row.get('CONCEPT_CD')
@@ -43,6 +46,7 @@ class ObservationFact:
 
     def as_json(self):
         return self.__dict__
+
 
 class PatientDimension:
     """
@@ -67,7 +71,8 @@ class PatientDimension:
     UPLOAD_ID
     PCP_PROVIDER_ID
     """
-    def __init__(self, row:dict):
+
+    def __init__(self, row: dict):
         self.patient_num = row.get('PATIENT_NUM')
         self.birth_date = row.get('BIRTH_DATE')
         self.death_date = row.get('DEATH_DATE')
@@ -77,6 +82,7 @@ class PatientDimension:
 
     def as_json(self):
         return self.__dict__
+
 
 class VisitDimension:
     """
@@ -89,7 +95,8 @@ class VisitDimension:
     LENGTH_OF_STAY
     VISIT_BLOB
     """
-    def __init__(self, row:dict):
+
+    def __init__(self, row: dict):
         self.patient_num = row.get('PATIENT_NUM')
         self.encounter_num = row.get('ENCOUNTER_NUM')
         self.start_date = row.get('START_DATE')
