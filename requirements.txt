@@ -1,5 +1,6 @@
-# logging
-requests
-pandas
+ctakesclient
 fhirclient
--e ../ctakes-client-py
+freezegun
+# logging
+pandas
+requests

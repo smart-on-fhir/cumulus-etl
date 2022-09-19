@@ -3,7 +3,7 @@ import json
 from uuid import UUID
 from cumulus.common import print_fhir
 from cumulus.codebook import Codebook, CodebookDB
-from tests.test_i2b2_transform import TestI2b2Transform
+from .test_i2b2_transform import TestI2b2Transform
 
 class TestCodebookFHIR(unittest.TestCase):
 
