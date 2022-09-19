@@ -119,23 +119,7 @@ class TestCodebookFHIR(unittest.TestCase):
 
         UUID(docref.id)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    def test_missing_db_file(self):
+        """Ensure we gracefully handle a saved db file that doesn't exist yet"""
+        codebook = Codebook('/missing-codebook-file.json')
+        self.assertEqual({}, codebook.db.mrn)

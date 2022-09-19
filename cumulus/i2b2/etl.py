@@ -199,10 +199,13 @@ def etl_notes(config:JobConfig) -> JobSummary:
                 docref = i2b2.transform.to_fhir_documentreference(i2b2_physician_note)
 
                 mrn = docref.subject.reference
-                enc = docref.context.encounter.reference
-
                 deid = codebook.fhir_documentreference(docref)
 
+                # TODO: confirm what we should do with multiple/zero encounters
+                if len(docref.context.encounter) != 1:
+                    raise ValueError("Cumulus only supports single-encounter notes right now")
+
+                enc = docref.context.encounter[0].reference
                 path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
