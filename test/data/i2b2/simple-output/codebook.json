@@ -1,0 +1,43 @@
+{
+    "mrn": {
+        "323456": {
+            "deid": "1de9ea66-70d3-da1f-c735-df5ef7697fb9",
+            "encounter": {
+                "24": {
+                    "deid": "08f0ebd4-950c-ddd9-ce97-b5bdf073eed1",
+                    "docref": {},
+                    "period_start": "2013-03-10",
+                    "period_end": "2013-03-13"
+                },
+                "22": {
+                    "deid": "175e9941-2607-ad5f-76ab-14759da618fd",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        },
+        "334567": {
+            "deid": "118dc10e-7745-20d7-e98d-7c358a84c15c",
+            "encounter": {
+                "23": {
+                    "deid": "d30aad4b-4503-8e22-0bc4-621b94398520",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        },
+        "312345": {
+            "deid": "7442a124-4e2e-3761-aba6-01ca242780aa",
+            "encounter": {
+                "21": {
+                    "deid": "458c3cdb-2d66-5a7b-0a4a-db41ce779a93",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        }
+    }
+}

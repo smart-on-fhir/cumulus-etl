@@ -67,7 +67,7 @@ def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     return df
 
 
-def fake_id() -> uuid:
+def fake_id() -> str:
     """
     Randomly generate a linked Patient identifier
     :return: long universally unique ID

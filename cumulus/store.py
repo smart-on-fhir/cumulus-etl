@@ -2,6 +2,8 @@
 
 import os
 
+from cumulus.common import write_json, write_text  # pylint: disable=unused-import
+
 
 def path_exists(path) -> bool:
     """

@@ -1,0 +1,25 @@
+{
+    "id": "83d9fca7-16c4-0a33-acd5-1e6699f9823c",
+    "content": [
+        {
+            "attachment": {
+                "contentType": "text/plain"
+            }
+        }
+    ],
+    "context": {
+        "encounter": [
+            {
+                "reference": "d30aad4b-4503-8e22-0bc4-621b94398520"
+            }
+        ]
+    },
+    "status": "superseded",
+    "subject": {
+        "reference": "118dc10e-7745-20d7-e98d-7c358a84c15c"
+    },
+    "type": {
+        "text": "NOTE:103933779"
+    },
+    "resourceType": "DocumentReference"
+}
