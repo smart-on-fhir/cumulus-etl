@@ -1,19 +1,17 @@
-from typing import List
+"""Support for cohorts"""
 
-from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.range import Range
 from fhirclient.models.period import Period
-from fhirclient.models.duration import Duration
 
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
-from cumulus.i2b2 import etl
+
 
 class CohortSelection:
     """
     NOTE: This code is experimental/testing.
 
     QBE Query By Example style approach to cohort selection.
-    This class is used to hold selection criteria for Patient, Visits, and Observations.
+    This class is used to hold selection criteria for Patient, Visits, and
+    Observations.
 
     [USAGE]
 
@@ -30,11 +28,15 @@ class CohortSelection:
     Applies to:
     * VisitDimension.LENGTH_OF_STAY
 
-    List values should be applied to any i2b2 Concept Dimension, such as ICD10 codes
+    List values should be applied to any i2b2 Concept Dimension, such as ICD10
+    codes.
+
     Simple Example:
     ObservationFact.CONCEPT_CD = ['u07.1', 'R05.9']
     """
-    def __init__(self, patient: PatientDimension, visit: VisitDimension, observation: ObservationFact):
+
+    def __init__(self, patient: PatientDimension, visit: VisitDimension,
+                 observation: ObservationFact):
         """
         :param patient:
         :param visit:
@@ -45,14 +47,18 @@ class CohortSelection:
         self.observation = observation
 
     def as_json(self):
-        out = {'patient': self.patient.as_json(),
-               'visit': self.visit.as_json(),
-               'observation': self.observation.as_json()}
+        out = {
+            'patient': self.patient.as_json(),
+            'visit': self.visit.as_json(),
+            'observation': self.observation.as_json()
+        }
 
-        if self.patient.birth_date and isinstance(self.patient.birth_date, Period):
+        if self.patient.birth_date and isinstance(self.patient.birth_date,
+                                                  Period):
             out['patient']['birth_date'] = self.patient.birth_date.as_json()
 
-        if self.patient.death_date and isinstance(self.patient.death_date, Period):
+        if self.patient.death_date and isinstance(self.patient.death_date,
+                                                  Period):
             out['patient']['death_date'] = self.patient.death_date.as_json()
 
         if self.visit.start_date and isinstance(self.visit.start_date, Period):
@@ -62,4 +68,3 @@ class CohortSelection:
             out['visit']['end_date'] = self.visit.end_date.as_json()
 
         return out
-

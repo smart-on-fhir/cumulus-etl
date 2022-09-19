@@ -1,19 +1,22 @@
-import sys, os
+"""Load, transform, and write out i2b2 to FHIR"""
+
 import json
 import logging
+import os
+import sys
 from typing import List
 
 from cumulus import common, store
 from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
-from cumulus.codebook import Codebook, CodebookDB
-import ctakesclient
+from cumulus.codebook import Codebook
 
-#######################################################################################################################
+###############################################################################
 #
 # FHIR Patient
 #
-#######################################################################################################################
+###############################################################################
+
 
 def etl_patient(config: JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
@@ -25,7 +28,7 @@ def etl_patient(config: JobConfig) -> JobSummary:
 
         job.csv.append(i2b2_csv)
 
-        print('######################################################################################################')
+        print('###############################################################')
         print(f'etl_patient() {i2b2_csv} #records = {len(i2b2_list)}')
 
         for i2b2_patient in i2b2_list:
@@ -34,28 +37,30 @@ def etl_patient(config: JobConfig) -> JobSummary:
 
                 subject = i2b2.transform.to_fhir_patient(i2b2_patient)
 
-                path = store.path_file(config.dir_output_patient(subject.id), 'fhir_patient.json')
+                path = store.path_file(config.dir_output_patient(subject.id),
+                                       'fhir_patient.json')
 
                 deid = codebook.fhir_patient(subject)
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
 
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('ETL exception %s', e)
                 job.failed.append(i2b2_patient.as_json())
-
 
     codebook.db.save(config.path_codebook())
     return job
 
-#######################################################################################################################
+
+###############################################################################
 #
 # FHIR Encounter
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_visit(config:JobConfig) -> JobSummary:
+
+def etl_visit(config: JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
 
     job = JobSummary('etl_visit')
@@ -65,7 +70,7 @@ def etl_visit(config:JobConfig) -> JobSummary:
 
         job.csv.append(i2b2_csv)
 
-        print('######################################################################################################')
+        print('###############################################################')
         print(f'etl_encounter() {i2b2_csv} #records = {len(i2b2_list)}')
 
         for i2b2_visit in i2b2_list:
@@ -75,27 +80,31 @@ def etl_visit(config:JobConfig) -> JobSummary:
                 encounter = i2b2.transform.to_fhir_encounter(i2b2_visit)
 
                 mrn = encounter.subject.reference
-                path = store.path_file(config.dir_output_encounter(mrn, encounter.id), 'fhir_patient.json')
+                path = store.path_file(
+                    config.dir_output_encounter(mrn, encounter.id),
+                    'fhir_patient.json')
 
                 deid = codebook.fhir_encounter(encounter)
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
 
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('ETL exception %s', e)
                 job.failed.append(i2b2_visit.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
 
-#######################################################################################################################
+
+###############################################################################
 #
 # FHIR Observation (Lab Result)
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_lab(config:JobConfig) -> JobSummary:
+
+def etl_lab(config: JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
 
     job = JobSummary('etl_lab')
@@ -105,7 +114,7 @@ def etl_lab(config:JobConfig) -> JobSummary:
 
         job.csv.append(i2b2_csv)
 
-        print('######################################################################################################')
+        print('###############################################################')
         print(f'etl_lab() {i2b2_csv} #records = {len(i2b2_list)}')
 
         for i2b2_lab in i2b2_list:
@@ -119,25 +128,28 @@ def etl_lab(config:JobConfig) -> JobSummary:
 
                 deid = codebook.fhir_observation(lab)
 
-                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_lab_{deid.id}.json')
+                path = store.path_file(config.dir_output_encounter(mrn, enc),
+                                       f'fhir_lab_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
 
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('ETL exception %s', e)
                 job.failed.append(i2b2_lab.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
 
-#######################################################################################################################
+
+###############################################################################
 #
 # FHIR Condition
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_diagnosis(config:JobConfig) -> JobSummary:
+
+def etl_diagnosis(config: JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
 
     job = JobSummary('etl_diagnosis')
@@ -147,7 +159,7 @@ def etl_diagnosis(config:JobConfig) -> JobSummary:
 
         job.csv.append(i2b2_csv)
 
-        print('######################################################################################################')
+        print('###############################################################')
         print(f'etl_diagnosis() {i2b2_csv} #records = {len(i2b2_list)}')
 
         for i2b2_observation in i2b2_list:
@@ -161,25 +173,28 @@ def etl_diagnosis(config:JobConfig) -> JobSummary:
 
                 deid = codebook.fhir_condition(condition)
 
-                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_condition_{deid.id}.json')
+                path = store.path_file(config.dir_output_encounter(mrn, enc),
+                                       f'fhir_condition_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
 
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('ETL exception %s', e)
                 job.failed.append(i2b2_observation.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
 
-#######################################################################################################################
+
+###############################################################################
 #
 # FHIR DocumentReference
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_notes(config:JobConfig) -> JobSummary:
+
+def etl_notes(config: JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
 
     job = JobSummary('etl_notes')
@@ -189,37 +204,40 @@ def etl_notes(config:JobConfig) -> JobSummary:
 
         job.csv.append(i2b2_csv)
 
-        print('######################################################################################################')
+        print('###############################################################')
         print(f'etl_notes() {i2b2_csv} #physican notes = {len(i2b2_list)}')
 
         for i2b2_physician_note in i2b2_list:
             try:
                 job.attempt.append(i2b2_physician_note)
 
-                docref = i2b2.transform.to_fhir_documentreference(i2b2_physician_note)
+                docref = i2b2.transform.to_fhir_documentreference(
+                    i2b2_physician_note)
 
                 mrn = docref.subject.reference
                 deid = codebook.fhir_documentreference(docref)
 
                 # TODO: confirm what we should do with multiple/zero encounters
                 if len(docref.context.encounter) != 1:
-                    raise ValueError("Cumulus only supports single-encounter notes right now")
+                    raise ValueError('Cumulus only supports single-encounter '
+                                     'notes right now')
 
                 enc = docref.context.encounter[0].reference
-                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
+                path = store.path_file(config.dir_output_encounter(mrn, enc),
+                                       f'fhir_docref_{deid.id}.json')
 
                 job.success.append(store.write_json(path, deid.as_json()))
                 job.success_rate()
 
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('ETL exception %s', e)
                 job.failed.append(i2b2_physician_note.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
 
 
-def etl_notes_nlp(config:JobConfig) -> JobSummary:
+def etl_notes_nlp(config: JobConfig) -> JobSummary:
     codebook = Codebook(config.path_codebook())
 
     job = JobSummary('etl_notes_nlp')
@@ -229,7 +247,7 @@ def etl_notes_nlp(config:JobConfig) -> JobSummary:
 
         job.csv.append(i2b2_csv)
 
-        print('######################################################################################################')
+        print('###############################################################')
         print(f'etl_notes_nlp() {i2b2_csv} #physican notes = {len(i2b2_list)}')
 
         for i2b2_physician_note in i2b2_list:
@@ -257,28 +275,27 @@ def etl_notes_nlp(config:JobConfig) -> JobSummary:
                 job.success.append(path_text)
                 job.success_rate()
 
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
+            except Exception as e:  # pylint: disable=broad-except
+                logging.error('ETL exception %s', e)
                 job.failed.append(i2b2_physician_note.as_json())
 
     codebook.db.save(config.path_codebook())
     return job
 
 
-
-
-#######################################################################################################################
+###############################################################################
 #
 # Main Pipeline (run all tasks)
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_job(config:JobConfig) -> List[JobSummary]:
+
+def etl_job(config: JobConfig) -> List[JobSummary]:
     """
     :param config:
     :return:
     """
-    summary_list = list()
+    summary_list = []
 
     task_list = [
         i2b2.etl.etl_patient,
@@ -293,16 +310,19 @@ def etl_job(config:JobConfig) -> List[JobSummary]:
         summary = task(config)
         summary_list.append(summary)
 
-        path = store.path_file(config.dir_output_config(), f'{summary.label}.json')
+        path = store.path_file(config.dir_output_config(),
+                               f'{summary.label}.json')
         store.write_json(path, summary.as_json())
 
     return summary_list
 
-#######################################################################################################################
+
+###############################################################################
 #
 # Main
 #
-#######################################################################################################################
+###############################################################################
+
 
 def main(args):
     if len(args) < 2:
@@ -312,8 +332,8 @@ def main(args):
         dir_input = args[0]
         dir_output = args[1]
 
-        logging.info(f"Input Directory: {dir_input}")
-        logging.info(f"Output Directory: {dir_output}")
+        logging.info('Input Directory: %s', dir_input)
+        logging.info('Output Directory: %s', dir_output)
 
         config = JobConfig(dir_input, dir_output)
         print(json.dumps(config.as_json(), indent=4))
@@ -326,4 +346,3 @@ def main(args):
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-

@@ -1,10 +1,13 @@
+"""Read files into data structures"""
+
 from typing import List
 import logging
 import pandas
 from cumulus import common
 from cumulus.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
-def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
+
+def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     """
     :param path_csv: /path/to/i2b2_formatted_file.csv
     :param sample: %percentage of file to read
@@ -12,7 +15,9 @@ def extract_csv(path_csv:str, sample=1.0) -> pandas.DataFrame:
     """
     return common.extract_csv(path_csv, sample)
 
-def extract_csv_observation_fact(path_csv:str, sample=1.0) -> List[ObservationFact]:
+
+def extract_csv_observation_fact(path_csv: str,
+                                 sample=1.0) -> List[ObservationFact]:
     """
     :param path_csv: /path/to/file.csv
     :param sample: %percentage of file to read
@@ -21,14 +26,15 @@ def extract_csv_observation_fact(path_csv:str, sample=1.0) -> List[ObservationFa
     df = extract_csv(path_csv, sample)
 
     logging.info('Transforming text into List[ObservationFact]')
-    facts = list()
-    for index, row in df.iterrows():
+    facts = []
+    for _, row in df.iterrows():
         facts.append(ObservationFact(row))
 
     logging.info('Ready List[ObservationFact]')
     return facts
 
-def extract_csv_patient(path_csv:str, sample=1.0) -> List[PatientDimension]:
+
+def extract_csv_patient(path_csv: str, sample=1.0) -> List[PatientDimension]:
     """
     :param path_csv: /path/to/file.csv
     :param sample: %percentage of file to read
@@ -37,14 +43,15 @@ def extract_csv_patient(path_csv:str, sample=1.0) -> List[PatientDimension]:
     df = extract_csv(path_csv, sample)
 
     logging.info('Transforming text into List[PatientDimension]')
-    patients = list()
-    for index, row in df.iterrows():
+    patients = []
+    for _, row in df.iterrows():
         patients.append(PatientDimension(row))
 
     logging.info('Ready List[PatientDimension]')
     return patients
 
-def extract_csv_visits(path_csv:str, sample=1.0) -> List[VisitDimension]:
+
+def extract_csv_visits(path_csv: str, sample=1.0) -> List[VisitDimension]:
     """
     :param path_csv: /path/to/file.csv
     :param sample: %percentage of file to read
@@ -53,8 +60,8 @@ def extract_csv_visits(path_csv:str, sample=1.0) -> List[VisitDimension]:
     df = extract_csv(path_csv, sample)
 
     logging.info('Transforming text into List[VisitDimension]')
-    visits = list()
-    for index, row in df.iterrows():
+    visits = []
+    for _, row in df.iterrows():
         visits.append(VisitDimension(row))
 
     logging.info('Ready List[VisitDimension]')
