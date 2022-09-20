@@ -124,6 +124,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     content.attachment.contentType = 'text/plain'
     # content.attachment.data = str(base64.b64encode(str(
     #   obsfact.observation_blob).encode()))
+    content.attachment.data = obsfact.observation_blob
     docref.content = [content]
 
     return docref

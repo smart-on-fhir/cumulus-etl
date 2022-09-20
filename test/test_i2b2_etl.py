@@ -1,7 +1,6 @@
 """Tests for etl.py"""
 
 import filecmp
-import glob
 import os
 import random
 import shutil
@@ -19,17 +18,23 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
     def setUp(self):
         script_dir = os.path.dirname(__file__)
-        input_path = os.path.join(script_dir, 'data/i2b2/simple')
+        self.input_path = os.path.join(script_dir, 'data/i2b2/simple')
         self.expected_path = os.path.join(script_dir, 'data/i2b2/simple-output')
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
         self.addCleanup(shutil.rmtree, tmpdir)
 
-        self.output_path = tmpdir
+        self.output_path = os.path.join(tmpdir, 'output')
+        os.mkdir(self.output_path)
         print(f'Output path: {self.output_path}')
 
-        self.config = JobConfig(input_path, self.output_path)
+        self.cache_path = os.path.join(tmpdir, 'cache')
+        os.mkdir(self.cache_path)
+        print(f'Cache path: {self.cache_path}')
+
+        self.config = JobConfig(self.input_path, self.output_path,
+                                self.cache_path)
 
         filecmp.clear_cache()
 
@@ -40,8 +45,8 @@ class TestI2b2EtlSimple(unittest.TestCase):
         # First, copy codebook over. This will help ensure that the order of
         # calls doesn't matter as much. If *every* UUID were recorded in the
         # codebook, this is all we'd need to do.
-        shutil.copy(os.path.join(self.expected_path, 'codebook.json'),
-                    self.output_path)
+        shutil.copy(os.path.join(self.input_path, 'codebook.json'),
+                    self.cache_path)
 
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
@@ -79,11 +84,7 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
     def assert_output_equal(self):
         """Compares the etl output with the expected json structure"""
-        # Toplevel directory has a spare JobConfig folder. Ignore it.
-        ignore_files = glob.iglob(os.path.join(self.output_path, 'JobConfig_*'))
-        ignore_files = [os.path.basename(f) for f in ignore_files]
-        dircmp = filecmp.dircmp(self.expected_path, self.output_path,
-                                ignore=ignore_files)
+        dircmp = filecmp.dircmp(self.expected_path, self.output_path, ignore=[])
         self.assert_file_tree_equal(dircmp)
 
     def test_etl_job(self):

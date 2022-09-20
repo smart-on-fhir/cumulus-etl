@@ -1,5 +1,6 @@
 """Schemas for i2b2 csv files"""
 
+
 class ObservationFact:
     """
     i2b2 ObservationFact
