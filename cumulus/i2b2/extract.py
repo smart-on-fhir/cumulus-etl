@@ -16,8 +16,8 @@ def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     return common.extract_csv(path_csv, sample)
 
 
-def extract_csv_observation_fact(path_csv: str,
-                                 sample=1.0) -> List[ObservationFact]:
+def extract_csv_observation_facts(path_csv: str,
+                                  sample=1.0) -> List[ObservationFact]:
     """
     :param path_csv: /path/to/file.csv
     :param sample: %percentage of file to read
@@ -34,7 +34,7 @@ def extract_csv_observation_fact(path_csv: str,
     return facts
 
 
-def extract_csv_patient(path_csv: str, sample=1.0) -> List[PatientDimension]:
+def extract_csv_patients(path_csv: str, sample=1.0) -> List[PatientDimension]:
     """
     :param path_csv: /path/to/file.csv
     :param sample: %percentage of file to read

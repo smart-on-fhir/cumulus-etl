@@ -9,29 +9,22 @@ from cumulus import common, store
 class JobConfig:
     """Configuration for an ETL job"""
 
-    def __init__(self, dir_input, dir_output):
+    def __init__(self, dir_input, dir_output, dir_cache):
         self.dir_input = dir_input
         self.dir_output = dir_output
+        self.dir_cache = dir_cache
+        self.store = store.JsonTreeStore(dir_output)
         self.timestamp = common.timestamp()
         self.hostname = gethostname()
 
     def path_codebook(self) -> str:
-        return store.path_file(self.dir_output, 'codebook.json')
+        return store.path_file(self.dir_cache, 'codebook.json')
 
     def path_config(self) -> str:
-        return store.path_file(self.dir_output_config(), 'job_config.json')
+        return store.path_file(self.dir_cache_config(), 'job_config.json')
 
-    def dir_output_config(self):
-        return store.path_root(self.dir_output, f'JobConfig_{self.timestamp}')
-
-    def dir_output_patient(self, mrn: str) -> str:
-        return store.path_patient_dir(self.dir_output, mrn)
-
-    def dir_output_note(self, mrn, md5sum: str) -> str:
-        return store.path_note_dir(self.dir_output, mrn, md5sum)
-
-    def dir_output_encounter(self, mrn: str, encounter_id) -> str:
-        return store.path_encounter_dir(self.dir_output, mrn, encounter_id)
+    def dir_cache_config(self):
+        return store.path_root(self.dir_cache, f'JobConfig_{self.timestamp}')
 
     def list_csv(self, folder) -> list:
         return common.list_csv(os.path.join(self.dir_input, folder))
@@ -55,6 +48,7 @@ class JobConfig:
         return {
             'dir_input': self.dir_input,
             'dir_output': self.dir_output,
+            'dir_cache': self.dir_cache,
             'path': self.path_config(),
             'codebook': self.path_codebook(),
             'list_csv_patient': self.list_csv_patient(),
