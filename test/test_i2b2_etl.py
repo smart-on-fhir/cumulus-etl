@@ -4,6 +4,7 @@ import filecmp
 import glob
 import os
 import random
+import shutil
 import tempfile
 import unittest
 import uuid
@@ -21,18 +22,34 @@ class TestI2b2EtlSimple(unittest.TestCase):
         input_path = os.path.join(script_dir, 'data/i2b2/simple')
         self.expected_path = os.path.join(script_dir, 'data/i2b2/simple-output')
 
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        self.addCleanup(tmpdir.cleanup)
-        self.output_path = tmpdir.name
+        tmpdir = tempfile.mkdtemp()
+        # Comment out this next line when debugging, to persist directory
+        self.addCleanup(shutil.rmtree, tmpdir)
+
+        self.output_path = tmpdir
+        print(f'Output path: {self.output_path}')
 
         self.config = JobConfig(input_path, self.output_path)
 
         filecmp.clear_cache()
 
+        self.enforce_consistent_uuids()
+
+    def enforce_consistent_uuids(self):
+        """Make sure that UUIDs will be the same from run to run"""
+        # First, copy codebook over. This will help ensure that the order of
+        # calls doesn't matter as much. If *every* UUID were recorded in the
+        # codebook, this is all we'd need to do.
+        shutil.copy(os.path.join(self.expected_path, 'codebook.json'),
+                    self.output_path)
+
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
+        # This helps with UUIDs that don't get recorded in the codebook, like
+        # observations. But note that it's sensitive to code changes that cause
+        # a different timing of the calls to uuid4().
         rd = random.Random()
-        rd.seed(1234)
+        rd.seed(12345)
         uuid4_mock = mock.patch('cumulus.common.uuid.uuid4',
                                 new=lambda: uuid.UUID(int=rd.getrandbits(128)))
         self.addCleanup(uuid4_mock.stop)
