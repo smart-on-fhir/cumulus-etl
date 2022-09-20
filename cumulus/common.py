@@ -28,7 +28,7 @@ def list_csv(folder: str, mask='.csv') -> list:
         return []
 
     match = []
-    for file in os.listdir(folder):
+    for file in sorted(os.listdir(folder)):
         if file.endswith(mask):
             match.append(os.path.join(folder, file))
     return match
@@ -62,7 +62,9 @@ def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     :return: pandas Dataframe
     """
     logging.info('Reading csv %s ...', path_csv)
-    df = pandas.read_csv(path_csv, dtype=str).sample(frac=sample)
+    df = pandas.read_csv(path_csv, dtype=str)
+    if sample != 1.0:
+        df = df.sample(frac=sample)
     logging.info('Done reading %s .', path_csv)
     return df
 
@@ -141,6 +143,7 @@ def write_json(path: str, message: dict) -> str:
 
     with open(path, 'w', encoding='utf8') as f:
         f.write(json.dumps(message, indent=4))
+        f.write('\n')  # just for a little cleanliness
     return path
 
 

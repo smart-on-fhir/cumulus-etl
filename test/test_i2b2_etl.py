@@ -10,7 +10,6 @@ import uuid
 from unittest import mock
 
 from cumulus.i2b2 import etl
-from cumulus.i2b2.config import JobConfig
 
 
 class TestI2b2EtlSimple(unittest.TestCase):
@@ -18,8 +17,8 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
     def setUp(self):
         script_dir = os.path.dirname(__file__)
-        self.input_path = os.path.join(script_dir, 'data/i2b2/simple')
-        self.expected_path = os.path.join(script_dir, 'data/i2b2/simple-output')
+        self.data_dir = os.path.join(script_dir, 'data/i2b2/simple')
+        self.input_path = os.path.join(self.data_dir, 'input')
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
@@ -27,14 +26,11 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
         self.output_path = os.path.join(tmpdir, 'output')
         os.mkdir(self.output_path)
-        print(f'Output path: {self.output_path}')
 
         self.cache_path = os.path.join(tmpdir, 'cache')
         os.mkdir(self.cache_path)
-        print(f'Cache path: {self.cache_path}')
 
-        self.config = JobConfig(self.input_path, self.output_path,
-                                self.cache_path)
+        self.args = [self.input_path, self.output_path, self.cache_path]
 
         filecmp.clear_cache()
 
@@ -45,7 +41,7 @@ class TestI2b2EtlSimple(unittest.TestCase):
         # First, copy codebook over. This will help ensure that the order of
         # calls doesn't matter as much. If *every* UUID were recorded in the
         # codebook, this is all we'd need to do.
-        shutil.copy(os.path.join(self.input_path, 'codebook.json'),
+        shutil.copy(os.path.join(self.data_dir, 'codebook.json'),
                     self.cache_path)
 
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
@@ -82,16 +78,16 @@ class TestI2b2EtlSimple(unittest.TestCase):
         for subdircmp in dircmp.subdirs.values():
             self.assert_file_tree_equal(subdircmp)
 
-    def assert_output_equal(self):
+    def assert_output_equal(self, folder: str):
         """Compares the etl output with the expected json structure"""
-        dircmp = filecmp.dircmp(self.expected_path, self.output_path, ignore=[])
+        expected_path = os.path.join(self.data_dir, folder)
+        dircmp = filecmp.dircmp(expected_path, self.output_path, ignore=[])
         self.assert_file_tree_equal(dircmp)
 
-    def test_etl_job(self):
-        summary_list = etl.etl_job(self.config)
+    def test_etl_job_json(self):
+        etl.main(self.args)  # json is default
+        self.assert_output_equal('json-output')
 
-        # Confirm there were no failures
-        for summary in summary_list:
-            self.assertEqual([], summary.failed)
-
-        self.assert_output_equal()
+    def test_etl_job_ndjson(self):
+        etl.main(self.args + ['--format=ndjson'])
+        self.assert_output_equal('ndjson-output')

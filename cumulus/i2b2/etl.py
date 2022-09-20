@@ -1,5 +1,6 @@
 """Load, transform, and write out i2b2 to FHIR"""
 
+import argparse
 import json
 import logging
 import sys
@@ -7,7 +8,7 @@ from typing import Any, Callable, Iterable, List
 
 from fhirclient.models.documentreference import DocumentReference
 
-from cumulus import common, store
+from cumulus import common, store, store_json_tree, store_ndjson
 from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
 from cumulus.codebook import Codebook
@@ -208,27 +209,32 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 ###############################################################################
 
 
-def main(args):
-    if len(args) < 2:
-        print('usage')
-        print('example: /my/i2b2/input /my/i2b2/processed /my/i2b2/cache')
+def main(args: List[str]):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dir_input', metavar='/my/i2b2/input')
+    parser.add_argument('dir_output', metavar='/my/i2b2/processed')
+    parser.add_argument('dir_cache', metavar='/my/i2b2/cache')
+    parser.add_argument('--format', choices=['json', 'ndjson'], default='json')
+    args = parser.parse_args(args)
+
+    logging.info('Input Directory: %s', args.dir_input)
+    logging.info('Output Directory: %s', args.dir_output)
+    logging.info('Cache Directory: %s', args.dir_cache)
+
+    if args.format == 'ndjson':
+        config_store = store_ndjson.NdjsonStore(args.dir_output)
     else:
-        dir_input = args[0]
-        dir_output = args[1]
-        dir_cache = args[2]
+        config_store = store_json_tree.JsonTreeStore(args.dir_output)
 
-        logging.info('Input Directory: %s', dir_input)
-        logging.info('Output Directory: %s', dir_output)
-        logging.info('Cache Directory: %s', dir_cache)
+    config = JobConfig(args.dir_input, args.dir_output, args.dir_cache,
+                       config_store)
+    print(json.dumps(config.as_json(), indent=4))
 
-        config = JobConfig(dir_input, dir_output, dir_cache)
-        print(json.dumps(config.as_json(), indent=4))
+    common.write_json(config.path_config(), config.as_json())
 
-        common.write_json(config.path_config(), config.as_json())
-
-        for summary in etl_job(config):
-            print(json.dumps(summary.as_json(), indent=4))
+    for summary in etl_job(config):
+        print(json.dumps(summary.as_json(), indent=4))
 
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main(sys.argv)

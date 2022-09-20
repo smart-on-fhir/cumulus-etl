@@ -9,11 +9,11 @@ from cumulus import common, store
 class JobConfig:
     """Configuration for an ETL job"""
 
-    def __init__(self, dir_input, dir_output, dir_cache):
+    def __init__(self, dir_input, dir_output, dir_cache, config_store):
         self.dir_input = dir_input
         self.dir_output = dir_output
         self.dir_cache = dir_cache
-        self.store = store.JsonTreeStore(dir_output)
+        self.store = config_store
         self.timestamp = common.timestamp()
         self.hostname = gethostname()
 
@@ -55,7 +55,8 @@ class JobConfig:
             'list_csv_visit': self.list_csv_visit(),
             'list_csv_lab': self.list_csv_lab(),
             'list_csv_notes': self.list_csv_notes(),
-            'list_csv_diagnosis': self.list_csv_diagnosis()
+            'list_csv_diagnosis': self.list_csv_diagnosis(),
+            'store_class': type(self.store).__name__,
         }
 
 
