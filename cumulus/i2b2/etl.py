@@ -4,11 +4,12 @@ import argparse
 import json
 import logging
 import sys
-from typing import Any, Callable, Iterable, List
+from typing import Any, Callable, List
 
+import pandas
 from fhirclient.models.documentreference import DocumentReference
 
-from cumulus import common, store, store_json_tree, store_ndjson
+from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
 from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
 from cumulus.codebook import Codebook
@@ -35,7 +36,7 @@ def _process_job_entries(
     extract: Callable[[str], List[Any]],
     to_fhir: Callable[[Any], Any],
     deid: Callable[[Codebook, Any], Any],
-    to_store: Callable[[JobSummary, Iterable], None],
+    to_store: Callable[[JobSummary, pandas.DataFrame], None],
 ):
     codebook = Codebook(config.path_codebook())
 
@@ -48,8 +49,9 @@ def _process_job_entries(
     i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
     fhir_entries = (to_fhir(x) for x in i2b2_entries)
     deid_entries = (deid(codebook, x) for x in fhir_entries)
+    dataframe = pandas.DataFrame(x.as_json() for x in deid_entries)
 
-    to_store(job, deid_entries)
+    to_store(job, dataframe)
 
     codebook.db.save(config.path_codebook())
     return job
@@ -214,7 +216,9 @@ def main(args: List[str]):
     parser.add_argument('dir_input', metavar='/my/i2b2/input')
     parser.add_argument('dir_output', metavar='/my/i2b2/processed')
     parser.add_argument('dir_cache', metavar='/my/i2b2/cache')
-    parser.add_argument('--format', choices=['json', 'ndjson'], default='json')
+    parser.add_argument('--format',
+                        choices=['json', 'ndjson', 'parquet'],
+                        default='json')
     args = parser.parse_args(args)
 
     logging.info('Input Directory: %s', args.dir_input)
@@ -223,6 +227,8 @@ def main(args: List[str]):
 
     if args.format == 'ndjson':
         config_store = store_ndjson.NdjsonStore(args.dir_output)
+    elif args.format == 'parquet':
+        config_store = store_parquet.ParquetStore(args.dir_output)
     else:
         config_store = store_json_tree.JsonTreeStore(args.dir_output)
 
@@ -237,4 +243,4 @@ def main(args: List[str]):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    main(sys.argv[1:])

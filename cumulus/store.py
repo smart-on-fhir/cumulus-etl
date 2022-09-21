@@ -2,13 +2,8 @@
 
 import abc
 import os
-from typing import Iterable
 
-from fhirclient.models.condition import Condition
-from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.observation import Observation
-from fhirclient.models.patient import Patient
+import pandas
 
 from cumulus.common import write_json, write_text  # pylint: disable=unused-import
 
@@ -103,25 +98,25 @@ class Store(abc.ABC):
     """
 
     @abc.abstractmethod
-    def store_conditions(self, job, conditions: Iterable[Condition]) -> None:
+    def store_conditions(self, job, conditions: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod
-    def store_docrefs(self, job, docrefs: Iterable[DocumentReference]) -> None:
+    def store_docrefs(self, job, docrefs: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod
-    def store_encounters(self, job, encounters: Iterable[Encounter]) -> None:
+    def store_encounters(self, job, encounters: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod
-    def store_labs(self, job, labs: Iterable[Observation]) -> None:
+    def store_labs(self, job, labs: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod
-    def store_notes(self, job, docrefs: Iterable[DocumentReference]) -> None:
+    def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod
-    def store_patients(self, job, patients: Iterable[Patient]) -> None:
+    def store_patients(self, job, patients: pandas.DataFrame) -> None:
         pass
