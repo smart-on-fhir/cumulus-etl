@@ -14,6 +14,12 @@
                     "docref": {},
                     "period_start": null,
                     "period_end": null
+                },
+                "25": {
+                    "deid": "af1e6186-3f9a-1fa9-3c73-cfa56c84a056",
+                    "docref": {},
+                    "period_start": "2013-04-10",
+                    "period_end": "2013-04-13"
                 }
             }
         },
@@ -33,6 +39,21 @@
             "encounter": {
                 "21": {
                     "deid": "458c3cdb-2d66-5a7b-0a4a-db41ce779a93",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        },
+        "3234567": {
+            "deid": "861abd5d-c0ae-6995-27aa-e362c6c0ac72",
+            "encounter": {}
+        },
+        "3123456": {
+            "deid": "c07666e7-9ef6-62f8-8dee-ba7ec0ea7563",
+            "encounter": {
+                "212": {
+                    "deid": "4e9e5e14-a289-0d0d-81ee-8062b8b984c3",
                     "docref": {},
                     "period_start": null,
                     "period_end": null

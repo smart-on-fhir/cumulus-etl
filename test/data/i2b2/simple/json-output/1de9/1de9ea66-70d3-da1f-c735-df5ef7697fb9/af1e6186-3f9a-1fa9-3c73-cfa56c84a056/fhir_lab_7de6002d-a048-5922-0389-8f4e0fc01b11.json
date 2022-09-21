@@ -1,0 +1,25 @@
+{
+    "id": "7de6002d-a048-5922-0389-8f4e0fc01b11",
+    "code": {
+        "coding": [
+            {
+                "code": "94500-6",
+                "system": "http://loinc.org"
+            }
+        ]
+    },
+    "effectiveDateTime": "2020-03-20",
+    "status": "final",
+    "subject": {
+        "reference": "1de9ea66-70d3-da1f-c735-df5ef7697fb9"
+    },
+    "valueCodeableConcept": {
+        "coding": [
+            {
+                "code": "272519000",
+                "display": "Absent"
+            }
+        ]
+    },
+    "resourceType": "Observation"
+}

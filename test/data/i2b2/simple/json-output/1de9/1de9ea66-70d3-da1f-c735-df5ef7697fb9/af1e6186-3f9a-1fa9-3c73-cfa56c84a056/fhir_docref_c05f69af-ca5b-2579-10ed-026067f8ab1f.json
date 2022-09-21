@@ -1,0 +1,25 @@
+{
+    "id": "c05f69af-ca5b-2579-10ed-026067f8ab1f",
+    "content": [
+        {
+            "attachment": {
+                "contentType": "text/plain"
+            }
+        }
+    ],
+    "context": {
+        "encounter": [
+            {
+                "reference": "af1e6186-3f9a-1fa9-3c73-cfa56c84a056"
+            }
+        ]
+    },
+    "status": "superseded",
+    "subject": {
+        "reference": "1de9ea66-70d3-da1f-c735-df5ef7697fb9"
+    },
+    "type": {
+        "text": "NOTE:103933779"
+    },
+    "resourceType": "DocumentReference"
+}
