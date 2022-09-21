@@ -1,6 +1,0 @@
-ctakesclient
-fhirclient
-freezegun
-pandas
-pyarrow
-requests

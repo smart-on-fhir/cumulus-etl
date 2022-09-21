@@ -1,0 +1,38 @@
+[project]
+name = "cumulus"
+version = "0.0.1"
+requires-python = ">= 3.10"
+dependencies = [
+    "ctakesclient",
+    "fhirclient",
+    "pandas",
+    "pyarrow",
+]
+authors = [
+  { name="Andy McMurry, PhD", email="andrew.mcmurry@childrens.harvard.edu" },
+  { name="Michael Terry", email="michael.terry@childrens.harvard.edu" },
+]
+description = "Turns FHIR data into de-identified & aggregated records"
+readme = "README.rst"
+license = { text="Apache License 2.0" }
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["cumulus"]
+
+[project.optional-dependencies]
+tests = [
+    "freezegun",
+]
