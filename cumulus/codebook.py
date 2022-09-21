@@ -55,8 +55,8 @@ class Codebook:
 
         condition.id = common.fake_id()
         condition.subject.reference = self.db.patient(mrn)['deid']
-        condition.context.reference = self.db.encounter(
-            mrn, condition.context.reference)['deid']
+        condition.encounter.reference = self.db.encounter(
+            mrn, condition.encounter.reference)['deid']
 
         return condition
 
@@ -66,8 +66,8 @@ class Codebook:
 
         observation.id = common.fake_id()
         observation.subject.reference = self.db.patient(mrn)['deid']
-        observation.context.reference = self.db.encounter(
-            mrn, observation.context.reference)['deid']
+        observation.encounter.reference = self.db.encounter(
+            mrn, observation.encounter.reference)['deid']
 
         return observation
 

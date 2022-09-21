@@ -9,6 +9,9 @@
         ]
     },
     "effectiveDateTime": "2020-03-20",
+    "encounter": {
+        "reference": "af1e6186-3f9a-1fa9-3c73-cfa56c84a056"
+    },
     "status": "final",
     "subject": {
         "reference": "1de9ea66-70d3-da1f-c735-df5ef7697fb9"
