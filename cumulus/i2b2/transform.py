@@ -138,7 +138,7 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     observation = Observation()
     observation.id = common.fake_id()
     observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    observation.context = FHIRReference(
+    observation.encounter = FHIRReference(
         {'reference': str(obsfact.encounter_num)})
     observation.effectiveDateTime = FHIRDate(
         parse_fhir_date_isostring(obsfact.start_date))
@@ -213,7 +213,8 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition.id = common.fake_id()
 
     condition.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    condition.context = FHIRReference({'reference': str(obsfact.encounter_num)})
+    condition.encounter = FHIRReference(
+        {'reference': str(obsfact.encounter_num)})
 
     condition.meta = Meta({
         'profile': [

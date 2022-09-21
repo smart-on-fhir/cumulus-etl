@@ -27,6 +27,9 @@
             }
         ]
     },
+    "encounter": {
+        "reference": "458c3cdb-2d66-5a7b-0a4a-db41ce779a93"
+    },
     "subject": {
         "reference": "7442a124-4e2e-3761-aba6-01ca242780aa"
     },

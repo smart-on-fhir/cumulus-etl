@@ -22,7 +22,7 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        self.addCleanup(shutil.rmtree, tmpdir)
+        #self.addCleanup(shutil.rmtree, tmpdir)
 
         self.output_path = os.path.join(tmpdir, 'output')
         os.mkdir(self.output_path)

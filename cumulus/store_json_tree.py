@@ -88,7 +88,7 @@ class JsonTreeStore(store.Store):
 
     def _write_lab(self, lab):
         mrn = lab.subject.reference
-        enc = lab.context.reference
+        enc = lab.encounter.reference
         path = store.path_file(self._dir_output_encounter(mrn, enc),
                                f'fhir_lab_{lab.id}.json')
         common.write_json(path, lab.as_json())
@@ -105,7 +105,7 @@ class JsonTreeStore(store.Store):
 
     def _write_condition(self, condition):
         mrn = condition.subject.reference
-        enc = condition.context.reference
+        enc = condition.encounter.reference
         path = store.path_file(self._dir_output_encounter(mrn, enc),
                                f'fhir_condition_{condition.id}.json')
         common.write_json(path, condition.as_json())
