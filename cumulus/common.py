@@ -143,7 +143,6 @@ def write_json(path: str, message: dict) -> str:
 
     with open(path, 'w', encoding='utf8') as f:
         f.write(json.dumps(message, indent=4))
-        f.write('\n')  # just for a little cleanliness
     return path
 
 

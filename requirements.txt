@@ -1,6 +1,6 @@
 ctakesclient
 fhirclient
 freezegun
-# logging
 pandas
+pyarrow
 requests

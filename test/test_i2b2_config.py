@@ -20,7 +20,7 @@ class TestI2b2ConfigSummary(unittest.TestCase):
             'failed': [],
             'hostname': gethostname(),
             'label': 'empty',
-            'success': [],
+            'success': 0,
             'success_rate': 1.0,
             'timestamp': '2021-09-15 01:23:45',
         }

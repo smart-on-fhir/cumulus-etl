@@ -66,8 +66,8 @@ class JobSummary:
     def __init__(self, label=None):
         self.label = label
         self.csv = []
-        self.attempt = []
-        self.success = []
+        self.attempt = 0
+        self.success = 0
         self.failed = []
         self.timestamp = common.timestamp_datetime()
         self.hostname = gethostname()
@@ -80,10 +80,10 @@ class JobSummary:
         if not self.attempt:
             return 1.0
 
-        prct = float(len(self.success)) / float(len(self.attempt))
+        prct = float(self.success) / float(self.attempt)
 
-        if 0 == len(self.attempt) % show_every:
-            print(f'success = {len(self.success)} rate % {prct}')
+        if 0 == self.attempt % show_every:
+            print(f'success = {self.success} rate % {prct}')
 
         return prct
 
@@ -91,7 +91,7 @@ class JobSummary:
         return {
             'csv': self.csv,
             'label': self.label,
-            'attempt': len(self.attempt),
+            'attempt': self.attempt,
             'success': self.success,
             'failed': self.failed,
             'success_rate': self.success_rate(),

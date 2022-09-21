@@ -1,6 +1,7 @@
 """Tests for etl.py"""
 
 import filecmp
+import json
 import os
 import random
 import shutil
@@ -22,7 +23,7 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        #self.addCleanup(shutil.rmtree, tmpdir)
+        self.addCleanup(shutil.rmtree, tmpdir)
 
         self.output_path = os.path.join(tmpdir, 'output')
         os.mkdir(self.output_path)
@@ -69,11 +70,28 @@ class TestI2b2EtlSimple(unittest.TestCase):
         for filename in dircmp.common_files:
             left_path = os.path.join(dircmp.left, filename)
             right_path = os.path.join(dircmp.right, filename)
-            with open(left_path, 'r', encoding='utf8') as f:
+
+            with open(left_path, 'rb') as f:
                 left_contents = f.read()
-            with open(right_path, 'r', encoding='utf8') as f:
+            with open(right_path, 'rb') as f:
                 right_contents = f.read()
-            self.assertEqual(left_contents, right_contents, filename)
+
+            # Try to avoid comparing json files byte-for-byte. We may reasonably
+            # change formatting, or even want the test files in an
+            # easier-to-read format than the actual output files. In theory all
+            # json files are equal once parsed.
+            if filename.endswith('.json'):
+                left_json = json.loads(left_contents.decode('utf8'))
+                right_json = json.loads(right_contents.decode('utf8'))
+                self.assertEqual(left_json, right_json, filename)
+            elif filename.endswith('.ndjson'):
+                left_split = left_contents.decode('utf8').splitlines()
+                right_split = right_contents.decode('utf8').splitlines()
+                left_rows = list(map(json.loads, left_split))
+                right_rows = list(map(json.loads, right_split))
+                self.assertEqual(left_rows, right_rows, filename)
+            else:
+                self.assertEqual(left_contents, right_contents, filename)
 
         for subdircmp in dircmp.subdirs.values():
             self.assert_file_tree_equal(subdircmp)
@@ -91,3 +109,19 @@ class TestI2b2EtlSimple(unittest.TestCase):
     def test_etl_job_ndjson(self):
         etl.main(self.args + ['--format=ndjson'])
         self.assert_output_equal('ndjson-output')
+
+    def test_etl_job_parquet(self):
+        etl.main(self.args + ['--format=parquet'])
+
+        # Merely test that the files got created. It's a binary format, so
+        # diffs aren't helpful, and looks like it can differ from machine to
+        # machine. So, let's do minimal checking here.
+
+        self.assertEqual({
+            'fhir_conditions.parquet',
+            'fhir_documentreferences.parquet',
+            'fhir_encounters.parquet',
+            'fhir_labs.parquet',
+            'fhir_notes.parquet',
+            'fhir_patients.parquet',
+        }, set(os.listdir(self.output_path)))
