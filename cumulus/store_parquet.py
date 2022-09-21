@@ -19,7 +19,7 @@ class ParquetStore(store.Store):
 
         try:
             full_path = store.path_file(self.dir_output, path)
-            df.to_parquet(full_path)
+            df.to_parquet(full_path, index=False)
 
             job.success += len(df)
             job.success_rate(1)
