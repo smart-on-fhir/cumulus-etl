@@ -1,7 +1,6 @@
 """Codebook to help de-identify records"""
 
 import logging
-import os
 
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.patient import Patient
@@ -10,7 +9,7 @@ from fhirclient.models.condition import Condition
 from fhirclient.models.observation import Observation
 from fhirclient.models.documentreference import DocumentReference
 
-from cumulus import common
+from cumulus import common, store
 
 
 class Codebook:
@@ -219,21 +218,19 @@ class CodebookDB:
                     self.docref(mrn, enc, md5sum)['deid'] = saved['mrn'][mrn][
                         'encounter'][enc]['docref'][md5sum]['deid']
 
-    def save(self, path):
+    def save(self, path: str) -> None:
         """
         Save the CodebookDB database as JSON
         :param path: /path/to/codebook.json
-        :return: /path/to/codebook.json
         """
         logging.info('Saving codebook to: %s', path)
-        return common.write_json(path, self.__dict__)
+        common.write_json(path, self.__dict__)
 
-    def delete(self, path):
+    def delete(self, root: store.Root, path: str) -> None:
         """
         DELETE the CodebookDB database
+        :param root: target filesystem
         :param path: /path/to/codebook.json
-        :return: /path/to/codebook.json
         """
         logging.warning('DELETE codebook from: %s', path)
-        os.remove(path)
-        return path
+        root.rm(path)
