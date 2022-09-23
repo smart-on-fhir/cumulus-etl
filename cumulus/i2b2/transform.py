@@ -1,7 +1,6 @@
-import enum
+"""Transformations from i2b2 to FHIR"""
+
 import logging
-import math
-import base64
 
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
@@ -26,15 +25,16 @@ from ctakesclient.typesystem import CtakesJSON
 from cumulus import common, fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
-#######################################################################################################################
+###############################################################################
 #
 # Transform: to_fhir_{resource_type}
 #
-#######################################################################################################################
+###############################################################################
+
 
 def to_fhir_patient(patient: PatientDimension) -> Patient:
-    """    
-    :param patient: i2b2 Patient Dimension record 
+    """
+    :param patient: i2b2 Patient Dimension record
     :return: https://www.hl7.org/fhir/patient.html
     """
     subject = Patient(fhir_template.fhir_patient())
@@ -51,16 +51,19 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
         subject.gender = parse_gender(patient.sex_cd)
 
     if patient.zip_cd:
+        # pylint: disable-next=unsubscriptable-object
         subject.address[0].postalCode = parse_zip_code(patient.zip_cd)
 
     if patient.race_cd:
         race_code = parse_race(patient.race_cd)
         if race_code:
-            race_ext = Extension(fhir_template.extension_race(race_code, patient.race_cd))
-            subject.extension = list()
+            race_ext = Extension(
+                fhir_template.extension_race(race_code, patient.race_cd))
+            subject.extension = []
             subject.extension.append(race_ext)
 
     return subject
+
 
 def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     """
@@ -77,20 +80,28 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     elif visit.inout_cd == 'Emergency':
         encounter.class_fhir.code = 'EMER'
     else:
-        logging.warning(f'skipping encounter.class_fhir.code for i2b2 INOUT_CD : {visit.inout_cd}')
+        logging.warning(
+            'skipping encounter.class_fhir.code for i2b2 '
+            'INOUT_CD : %s', visit.inout_cd)
 
-    if visit.length_of_stay: # days
-        encounter.length = Duration({'unit':'d', 'value': parse_fhir_duration(visit.length_of_stay)})
+    if visit.length_of_stay:  # days
+        encounter.length = Duration({
+            'unit': 'd',
+            'value': parse_fhir_duration(visit.length_of_stay)
+        })
 
-    encounter.period = Period(
-        {'start': parse_fhir_date_isostring(visit.start_date),
-         'end': parse_fhir_date_isostring(visit.end_date)})
+    encounter.period = Period({
+        'start': parse_fhir_date_isostring(visit.start_date),
+        'end': parse_fhir_date_isostring(visit.end_date)
+    })
 
     return encounter
 
+
 def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     """
-    :param obsfact: i2b2 observation fact containing the I2b2 NOTE as OBSERVATION_BLOB
+    :param obsfact: i2b2 observation fact containing the I2b2 NOTE as
+                    OBSERVATION_BLOB
     :return: https://www.hl7.org/fhir/documentreference.html
     """
     docref = DocumentReference()
@@ -98,20 +109,27 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 
     docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
     docref.context = DocumentReferenceContext()
-    docref.context.encounter = [FHIRReference({'reference': str(obsfact.encounter_num)})]
+    docref.context.encounter = [
+        FHIRReference({'reference': str(obsfact.encounter_num)})
+    ]
 
-    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)}) # i2b2 Note Type
+    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)
+                                  })  # i2b2 Note Type
     docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
-    # TODO: Content Warning: Philter DEID should be used on all notes that are sent to Cumulus.
+    # TODO: Content Warning: Philter DEID should be used on all notes that are
+    #       sent to Cumulus.
     content = DocumentReferenceContent()
     content.attachment = Attachment()
     content.attachment.contentType = 'text/plain'
-    # content.attachment.data = str(base64.b64encode(str(obsfact.observation_blob).encode()))
+    # content.attachment.data = str(base64.b64encode(str(
+    #   obsfact.observation_blob).encode()))
+    content.attachment.data = obsfact.observation_blob
     docref.content = [content]
 
     return docref
+
 
 def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
@@ -121,66 +139,89 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     observation = Observation()
     observation.id = common.fake_id()
     observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    observation.context = FHIRReference({'reference': str(obsfact.encounter_num)})
-    observation.effectiveDateTime = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
+    observation.encounter = FHIRReference(
+        {'reference': str(obsfact.encounter_num)})
+    observation.effectiveDateTime = FHIRDate(
+        parse_fhir_date_isostring(obsfact.start_date))
 
     return observation
 
-def to_fhir_observation_lab(obsfact: ObservationFact, loinc= fhir_template.LOINC) -> Observation:
+
+def to_fhir_observation_lab(obsfact: ObservationFact,
+                            loinc=None) -> Observation:
     """
     :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
     :return: https://www.hl7.org/fhir/observation.html
     """
+    loinc = loinc or fhir_template.LOINC
+
     observation = to_fhir_observation(obsfact)
     observation.status = 'final'
 
     if obsfact.concept_cd in loinc.keys():
-        _code = loinc[obsfact.concept_cd]
-        _system = 'http://loinc.org'
+        obs_code = loinc[obsfact.concept_cd]
+        obs_system = 'http://loinc.org'
     else:
-        _code = obsfact.concept_cd
-        _system = 'https://childrenshospital.org/'
+        obs_code = obsfact.concept_cd
+        obs_system = 'https://childrenshospital.org/'
 
     observation.code = CodeableConcept()
-    observation.code.coding = [Coding({'code': _code, 'system': _system})]
+    observation.code.coding = [Coding({'code': obs_code, 'system': obs_system})]
 
     # lab result
     lab_result = obsfact.tval_char
 
     concept = CodeableConcept()
 
-    if lab_result in fhir_template.LAB_RESULT.keys():
-        concept.coding = [Coding({'code': fhir_template.LAB_RESULT[lab_result],
-                                  'display': obsfact.tval_char})]
+    if lab_result in fhir_template.LAB_RESULT:
+        concept.coding = [
+            Coding({
+                'code': fhir_template.LAB_RESULT[lab_result],
+                'display': obsfact.tval_char
+            })
+        ]
     else:
-        concept.coding = [Coding({'code': fhir_template.LAB_RESULT['Absent'],
-                                  'display': 'Absent'})]
+        concept.coding = [
+            Coding({
+                'code': fhir_template.LAB_RESULT['Absent'],
+                'display': 'Absent'
+            })
+        ]
 
     observation.valueCodeableConcept = concept
 
     return observation
 
-def to_fhir_observation_note(obsfact: ObservationFact, ctakes_json:CtakesJSON) -> Observation:
+
+def to_fhir_observation_note(obsfact: ObservationFact,
+                             ctakes_json: CtakesJSON) -> Observation:
     """
     :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
     :return: https://www.hl7.org/fhir/documentreference.html
     """
-    observation = to_fhir_observation(obsfact)
+    del ctakes_json
 
-    return observation
+    return to_fhir_observation(obsfact)
+
 
 def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     """
-    :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED diagnosis
+    :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED
+                    diagnosis
     :return: https://www.hl7.org/fhir/condition.html
     """
     condition = Condition()
     condition.id = common.fake_id()
 
     condition.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    condition.context = FHIRReference({'reference': str(obsfact.encounter_num)})
+    condition.encounter = FHIRReference(
+        {'reference': str(obsfact.encounter_num)})
 
-    condition.meta = Meta({'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition']})
+    condition.meta = Meta({
+        'profile': [
+            'http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition'
+        ]
+    })
 
     condition.clinicalStatus = CodeableConcept({'text': 'active'})
     condition.verificationStatus = CodeableConcept({'text': 'unconfirmed'})
@@ -195,35 +236,36 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition.category[0].coding = [category]
 
     # Code
-    _i2b2_sys, _code = obsfact.concept_cd.split(':')
+    i2b2_sys, i2b2_code = obsfact.concept_cd.split(':')
 
-    if _i2b2_sys in ['ICD10', 'ICD-10'] :
-        _i2b2_sys = 'http://hl7.org/fhir/sid/icd-10-cm'
-    elif _i2b2_sys in ['ICD9', 'ICD-9']:
-        _i2b2_sys = 'http://hl7.org/fhir/sid/icd-9-cm'
-    elif _i2b2_sys in ['SNOMED', 'SNOMED-CT', 'SNOMEDCT', 'SCT']:
-        _i2b2_sys = 'http://snomed.info/sct'
+    if i2b2_sys in ['ICD10', 'ICD-10']:
+        i2b2_sys = 'http://hl7.org/fhir/sid/icd-10-cm'
+    elif i2b2_sys in ['ICD9', 'ICD-9']:
+        i2b2_sys = 'http://hl7.org/fhir/sid/icd-9-cm'
+    elif i2b2_sys in ['SNOMED', 'SNOMED-CT', 'SNOMEDCT', 'SCT']:
+        i2b2_sys = 'http://snomed.info/sct'
     else:
         logging.warning('Unknown System')
-        _i2b2_sys = '???'
+        i2b2_sys = '???'
 
     code = Coding()
-    code.code = _code
-    code.system = _i2b2_sys
+    code.code = i2b2_code
+    code.system = i2b2_sys
 
     condition.code = CodeableConcept()
     condition.code.coding = [code]
 
     return condition
 
+
 # http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position
 
-
-#######################################################################################################################
+###############################################################################
 #
 # parse i2b2 inputs to FHIR types
 #
-#######################################################################################################################
+###############################################################################
+
 
 def parse_zip_code(i2b2_zip_code) -> str:
     """
@@ -241,11 +283,11 @@ def parse_gender(i2b2_sex_cd) -> str:
     :return: M,F,T,U, NB
     """
     if i2b2_sex_cd and isinstance(i2b2_sex_cd, str):
-        if i2b2_sex_cd in fhir_template.GENDER.keys():
+        if i2b2_sex_cd in fhir_template.GENDER:
             return fhir_template.GENDER[i2b2_sex_cd]
         else:
-            logging.warning(f'i2b2_sex_cd unknown code  {i2b2_sex_cd}')
-    logging.warning(f'i2b2_sex_cd missing: {i2b2_sex_cd}')
+            logging.warning('i2b2_sex_cd unknown code %s', i2b2_sex_cd)
+    logging.warning('i2b2_sex_cd missing: %s', i2b2_sex_cd)
 
 
 def parse_race(i2b2_race_cd) -> str:
@@ -254,7 +296,7 @@ def parse_race(i2b2_race_cd) -> str:
     :return: CDC R5 Race codes or None
     """
     if i2b2_race_cd and isinstance(i2b2_race_cd, str):
-        if i2b2_race_cd in fhir_template.RACE.keys():
+        if i2b2_race_cd in fhir_template.RACE:
             return fhir_template.RACE[i2b2_race_cd]
 
 
@@ -270,6 +312,7 @@ def parse_fhir_duration(i2b2_length_of_stay) -> float:
             return float(i2b2_length_of_stay)
         if isinstance(i2b2_length_of_stay, float):
             return i2b2_length_of_stay
+
 
 def parse_fhir_date(i2b2_date_string) -> FHIRDate:
     """
@@ -292,6 +335,7 @@ def parse_fhir_date_isostring(i2b2_date_string) -> str:
     parsed = parse_fhir_date(i2b2_date_string)
     return parsed.isostring if parsed else None
 
+
 def parse_fhir_period(start_date, end_date) -> Period:
     if isinstance(start_date, str):
         start_date = parse_fhir_date(start_date)
@@ -302,6 +346,7 @@ def parse_fhir_period(start_date, end_date) -> Period:
     p.start = start_date
     p.end = end_date
     return p
+
 
 def parse_fhir_range(low, high) -> Range:
     r = Range()

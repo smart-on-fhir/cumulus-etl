@@ -1,36 +1,35 @@
+"""ETL job config with summary"""
+
 import os
+from socket import gethostname
+
 from cumulus import common, store
 
-#######################################################################################################################
-#
-# ETL Job Config with Summary
-#
-#######################################################################################################################
 
 class JobConfig:
-    def __init__(self, dir_input, dir_output):
+    """Configuration for an ETL job"""
+
+    def __init__(self, dir_input, dir_output, dir_cache, config_store):
+        """
+        :param dir_input: default /opt/i2b2 with sources stored in csv_* folders
+        :param dir_output: default /opt/i2b2/processed with outputs stored in
+                           $dir_output/$patient/$encounter
+        """
         self.dir_input = dir_input
         self.dir_output = dir_output
+        self.dir_cache = dir_cache
+        self.store = config_store
         self.timestamp = common.timestamp()
-        self.hostname = common.gethostname()
+        self.hostname = gethostname()
 
     def path_codebook(self) -> str:
-        return store.path_file(self.dir_output, 'codebook.json')
+        return store.path_file(self.dir_cache, 'codebook.json')
 
     def path_config(self) -> str:
-        return store.path_file(self.dir_output_config(), 'job_config.json')
+        return store.path_file(self.dir_cache_config(), 'job_config.json')
 
-    def dir_output_config(self):
-        return store.path_root(self.dir_output, f'JobConfig_{self.timestamp}')
-
-    def dir_output_patient(self, mrn:str) -> str:
-        return store.path_patient_dir(self.dir_output, mrn)
-
-    def dir_output_note(self, mrn, md5sum:str) -> str:
-        return store.path_note_dir(self.dir_output, mrn, md5sum)
-
-    def dir_output_encounter(self, mrn:str, encounter_id) -> str:
-        return store.path_encounter_dir(self.dir_output, mrn, encounter_id)
+    def dir_cache_config(self):
+        return store.path_root(self.dir_cache, f'JobConfig_{self.timestamp}')
 
     def list_csv(self, folder) -> list:
         return common.list_csv(os.path.join(self.dir_input, folder))
@@ -51,44 +50,56 @@ class JobConfig:
         return self.list_csv('csv_note')
 
     def as_json(self):
-        return {'dir_input': self.dir_input,
-                'dir_output': self.dir_output,
-                'path': self.path_config(),
-                'codebook': self.path_codebook(),
-                'list_csv_patient': self.list_csv_patient(),
-                'list_csv_visit': self.list_csv_visit(),
-                'list_csv_lab': self.list_csv_lab(),
-                'list_csv_notes': self.list_csv_notes(),
-                'list_csv_diagnosis': self.list_csv_diagnosis()}
+        return {
+            'dir_input': self.dir_input,
+            'dir_output': self.dir_output,
+            'dir_cache': self.dir_cache,
+            'path': self.path_config(),
+            'codebook': self.path_codebook(),
+            'list_csv_patient': self.list_csv_patient(),
+            'list_csv_visit': self.list_csv_visit(),
+            'list_csv_lab': self.list_csv_lab(),
+            'list_csv_notes': self.list_csv_notes(),
+            'list_csv_diagnosis': self.list_csv_diagnosis(),
+            'store_class': type(self.store).__name__,
+        }
+
 
 class JobSummary:
+    """Summary of an ETL job's results"""
+
     def __init__(self, label=None):
         self.label = label
-        self.csv = list()
-        self.attempt = list()
-        self.success = list()
-        self.failed = list()
+        self.csv = []
+        self.attempt = 0
+        self.success = 0
+        self.failed = []
         self.timestamp = common.timestamp_datetime()
-        self.hostname = common.gethostname()
+        self.hostname = gethostname()
 
-    def success_rate(self, show_every=1000*10) -> float:
+    def success_rate(self, show_every=1000 * 10) -> float:
         """
         :param show_every: print success rate
         :return: % success rate
         """
-        prct = float(len(self.success)) / float(len(self.attempt))
+        if not self.attempt:
+            return 1.0
 
-        if 0 == len(self.attempt) % show_every:
-            print(f'success = {len(self.success)} rate % {prct}')
+        prct = float(self.success) / float(self.attempt)
+
+        if 0 == self.attempt % show_every:
+            print(f'success = {self.success} rate % {prct}')
 
         return prct
 
     def as_json(self):
-        return {'csv': self.csv,
-                'label': self.label,
-                'attempt': len(self.attempt),
-                'success': self.success,
-                'failed' : self.failed,
-                'success_rate': self.success_rate(),
-                'timestamp': self.timestamp,
-                'hostname': self.hostname}
+        return {
+            'csv': self.csv,
+            'label': self.label,
+            'attempt': self.attempt,
+            'success': self.success,
+            'failed': self.failed,
+            'success_rate': self.success_rate(),
+            'timestamp': self.timestamp,
+            'hostname': self.hostname
+        }

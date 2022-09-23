@@ -1,288 +1,200 @@
-import sys, os
+"""Load, transform, and write out i2b2 to FHIR"""
+
+import argparse
 import json
 import logging
-from typing import List
+import sys
+from typing import Any, Callable, List
 
-from cumulus import common, store
+import pandas
+from fhirclient.models.documentreference import DocumentReference
+
+from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
 from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
-from cumulus.codebook import Codebook, CodebookDB
-import ctakesclient as ctakes
+from cumulus.codebook import Codebook
 
-#######################################################################################################################
+###############################################################################
+#
+# Helpers
+#
+###############################################################################
+
+
+def _extract_from_files(extract: Callable[[str], List[Any]],
+                        csv_files: List[str]):
+    """Generator method that lazily loads input csv files"""
+    for csv_file in csv_files:
+        for entry in extract(csv_file):
+            yield entry
+
+
+def _process_job_entries(
+    config: JobConfig,
+    job_name: str,
+    csv_folder: str,
+    extract: Callable[[str], List[Any]],
+    to_fhir: Callable[[Any], Any],
+    deid: Callable[[Codebook, Any], Any],
+    to_store: Callable[[JobSummary, pandas.DataFrame], None],
+):
+    codebook = Codebook(config.path_codebook())
+
+    job = JobSummary(job_name)
+
+    print('###############################################################')
+    print(f'{job_name}()')
+
+    i2b2_csv_files = config.list_csv(csv_folder)
+    i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
+    fhir_entries = (to_fhir(x) for x in i2b2_entries)
+    deid_entries = (deid(codebook, x) for x in fhir_entries)
+    dataframe = pandas.DataFrame(x.as_json() for x in deid_entries)
+
+    to_store(job, dataframe)
+
+    codebook.db.save(config.path_codebook())
+    return job
+
+
+###############################################################################
 #
 # FHIR Patient
 #
-#######################################################################################################################
+###############################################################################
+
 
 def etl_patient(config: JobConfig) -> JobSummary:
-    codebook = Codebook(config.path_codebook())
-
-    job = JobSummary('etl_patient')
-
-    for i2b2_csv in config.list_csv_patient():
-        i2b2_list = i2b2.extract.extract_csv_patient(i2b2_csv)
-
-        job.csv.append(i2b2_csv)
-
-        print('######################################################################################################')
-        print(f'etl_patient() {i2b2_csv} #records = {len(i2b2_list)}')
-
-        for i2b2_patient in i2b2_list:
-            try:
-                job.attempt.append(i2b2_patient)
-
-                subject = i2b2.transform.to_fhir_patient(i2b2_patient)
-
-                path = store.path_file(config.dir_output_patient(subject.id), 'fhir_patient.json')
-
-                deid = codebook.fhir_patient(subject)
-
-                job.success.append(store.write_json(path, deid.as_json()))
-                job.success_rate()
-
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
-                job.failed.append(i2b2_patient.as_json())
+    return _process_job_entries(
+        config,
+        'etl_patient',
+        'csv_patient',
+        i2b2.extract.extract_csv_patients,
+        i2b2.transform.to_fhir_patient,
+        Codebook.fhir_patient,
+        config.store.store_patients,
+    )
 
 
-    codebook.db.save(config.path_codebook())
-    return job
-
-#######################################################################################################################
+###############################################################################
 #
 # FHIR Encounter
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_visit(config:JobConfig) -> JobSummary:
-    codebook = Codebook(config.path_codebook())
 
-    job = JobSummary('etl_visit')
+def etl_visit(config: JobConfig) -> JobSummary:
+    return _process_job_entries(
+        config,
+        'etl_visit',
+        'csv_visit',
+        i2b2.extract.extract_csv_visits,
+        i2b2.transform.to_fhir_encounter,
+        Codebook.fhir_encounter,
+        config.store.store_encounters,
+    )
 
-    for i2b2_csv in config.list_csv_visit():
-        i2b2_list = i2b2.extract.extract_csv_visits(i2b2_csv)
 
-        job.csv.append(i2b2_csv)
-
-        print('######################################################################################################')
-        print(f'etl_encounter() {i2b2_csv} #records = {len(i2b2_list)}')
-
-        for i2b2_visit in i2b2_list:
-            try:
-                job.attempt.append(i2b2_visit)
-
-                encounter = i2b2.transform.to_fhir_encounter(i2b2_visit)
-
-                mrn = encounter.subject.reference
-                path = store.path_file(config.dir_output_encounter(mrn, encounter.id), 'fhir_patient.json')
-
-                deid = codebook.fhir_encounter(encounter)
-
-                job.success.append(store.write_json(path, deid.as_json()))
-                job.success_rate()
-
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
-                job.failed.append(i2b2_visit.as_json())
-
-    codebook.db.save(config.path_codebook())
-    return job
-
-#######################################################################################################################
+###############################################################################
 #
 # FHIR Observation (Lab Result)
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_lab(config:JobConfig) -> JobSummary:
-    codebook = Codebook(config.path_codebook())
 
-    job = JobSummary('etl_lab')
+def etl_lab(config: JobConfig) -> JobSummary:
+    return _process_job_entries(
+        config,
+        'etl_lab',
+        'csv_lab',
+        i2b2.extract.extract_csv_observation_facts,
+        i2b2.transform.to_fhir_observation_lab,
+        Codebook.fhir_observation,
+        config.store.store_labs,
+    )
 
-    for i2b2_csv in config.list_csv_lab():
-        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
 
-        job.csv.append(i2b2_csv)
-
-        print('######################################################################################################')
-        print(f'etl_lab() {i2b2_csv} #records = {len(i2b2_list)}')
-
-        for i2b2_lab in i2b2_list:
-            try:
-                job.attempt.append(i2b2_lab)
-
-                lab = i2b2.transform.to_fhir_observation_lab(i2b2_lab)
-
-                mrn = lab.subject.reference
-                enc = lab.context.reference
-
-                deid = codebook.fhir_observation(lab)
-
-                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_lab_{deid.id}.json')
-
-                job.success.append(store.write_json(path, deid.as_json()))
-                job.success_rate()
-
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
-                job.failed.append(i2b2_lab.as_json())
-
-    codebook.db.save(config.path_codebook())
-    return job
-
-#######################################################################################################################
+###############################################################################
 #
 # FHIR Condition
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_diagnosis(config:JobConfig) -> JobSummary:
-    codebook = Codebook(config.path_codebook())
 
-    job = JobSummary('etl_diagnosis')
+def etl_diagnosis(config: JobConfig) -> JobSummary:
+    return _process_job_entries(
+        config,
+        'etl_diagnosis',
+        'csv_diagnosis',
+        i2b2.extract.extract_csv_observation_facts,
+        i2b2.transform.to_fhir_condition,
+        Codebook.fhir_condition,
+        config.store.store_conditions,
+    )
 
-    for i2b2_csv in config.list_csv_diagnosis():
-        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
 
-        job.csv.append(i2b2_csv)
-
-        print('######################################################################################################')
-        print(f'etl_diagnosis() {i2b2_csv} #records = {len(i2b2_list)}')
-
-        for i2b2_observation in i2b2_list:
-            try:
-                job.attempt.append(i2b2_observation)
-
-                condition = i2b2.transform.to_fhir_condition(i2b2_observation)
-
-                mrn = condition.subject.reference
-                enc = condition.context.reference
-
-                deid = codebook.fhir_condition(condition)
-
-                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_condition_{deid.id}.json')
-
-                job.success.append(store.write_json(path, deid.as_json()))
-                job.success_rate()
-
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
-                job.failed.append(i2b2_observation.as_json())
-
-    codebook.db.save(config.path_codebook())
-    return job
-
-#######################################################################################################################
+###############################################################################
 #
 # FHIR DocumentReference
 #
-#######################################################################################################################
-
-def etl_notes(config:JobConfig) -> JobSummary:
-    codebook = Codebook(config.path_codebook())
-
-    job = JobSummary('etl_notes')
-
-    for i2b2_csv in config.list_csv_notes():
-        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
-
-        job.csv.append(i2b2_csv)
-
-        print('######################################################################################################')
-        print(f'etl_notes() {i2b2_csv} #physican notes = {len(i2b2_list)}')
-
-        for i2b2_physician_note in i2b2_list:
-            try:
-                job.attempt.append(i2b2_physician_note)
-
-                docref = i2b2.transform.to_fhir_documentreference(i2b2_physician_note)
-
-                mrn = docref.subject.reference
-                enc = docref.context.encounter.reference
-
-                deid = codebook.fhir_documentreference(docref)
-
-                path = store.path_file(config.dir_output_encounter(mrn, enc), f'fhir_docref_{deid.id}.json')
-
-                job.success.append(store.write_json(path, deid.as_json()))
-                job.success_rate()
-
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
-                job.failed.append(i2b2_physician_note.as_json())
-
-    codebook.db.save(config.path_codebook())
-    return job
+###############################################################################
 
 
-def etl_notes_nlp(config:JobConfig) -> JobSummary:
-    codebook = Codebook(config.path_codebook())
+def _strip_notes_from_docref(codebook: Codebook,
+                             docref: DocumentReference) -> DocumentReference:
+    codebook.fhir_documentreference(docref)
 
-    job = JobSummary('etl_notes_nlp')
+    for content in docref.content:
+        content.attachment.data = None
 
-    for i2b2_csv in config.list_csv_notes():
-        i2b2_list = i2b2.extract.extract_csv_observation_fact(i2b2_csv)
-
-        job.csv.append(i2b2_csv)
-
-        print('######################################################################################################')
-        print(f'etl_notes_nlp() {i2b2_csv} #physican notes = {len(i2b2_list)}')
-
-        for i2b2_physician_note in i2b2_list:
-            try:
-                job.attempt.append(i2b2_physician_note)
-
-                note_text = i2b2_physician_note.observation_blob
-                md5sum = common.hash_clinical_text(note_text)
-
-                mrn = i2b2_physician_note.patient_num
-                enc = i2b2_physician_note.encounter_num
-
-                folder = config.dir_output_encounter(mrn, enc)
-                os.makedirs(folder, exist_ok=True)
-
-                path_text = os.path.join(folder, f'physician_note_{md5sum}.txt')
-                path_ctakes = os.path.join(folder, f'ctakes_{md5sum}.json')
-
-                if len(note_text) > 10:
-                    if not os.path.exists(path_text):
-                        store.write_text(path_text, note_text)
-                    if not os.path.exists(path_ctakes):
-                        logging.warning('cTAKES response not found')
-
-                job.success.append(path_text)
-                job.success_rate()
-
-            except Exception as e:
-                logging.error(f'ETL exception {e}')
-                job.failed.append(i2b2_physician_note.as_json())
-
-    codebook.db.save(config.path_codebook())
-    return job
+    return docref
 
 
+def etl_notes_meta(config: JobConfig) -> JobSummary:
+    return _process_job_entries(
+        config,
+        'etl_notes_meta',
+        'csv_note',
+        i2b2.extract.extract_csv_observation_facts,
+        i2b2.transform.to_fhir_documentreference,
+        # Make sure no notes get through as docrefs (they come via store_notes)
+        _strip_notes_from_docref,
+        config.store.store_docrefs,
+    )
 
 
-#######################################################################################################################
+def etl_notes_nlp(config: JobConfig) -> JobSummary:
+    return _process_job_entries(
+        config,
+        'etl_notes_nlp',
+        'csv_note',
+        i2b2.extract.extract_csv_observation_facts,
+        i2b2.transform.to_fhir_documentreference,
+        Codebook.fhir_documentreference,
+        config.store.store_notes,
+    )
+
+
+###############################################################################
 #
 # Main Pipeline (run all tasks)
 #
-#######################################################################################################################
+###############################################################################
 
-def etl_job(config:JobConfig) -> List[JobSummary]:
+
+def etl_job(config: JobConfig) -> List[JobSummary]:
     """
     :param config:
     :return:
     """
-    summary_list = list()
+    summary_list = []
 
     task_list = [
         i2b2.etl.etl_patient,
         i2b2.etl.etl_visit,
         i2b2.etl.etl_lab,
-        i2b2.etl.etl_notes,
-        i2b2.etl.etl_notes_nlp,
+        i2b2.etl.etl_notes_meta,
+        # i2b2.etl.etl_notes_nlp,
         i2b2.etl.etl_diagnosis,
     ]
 
@@ -290,37 +202,50 @@ def etl_job(config:JobConfig) -> List[JobSummary]:
         summary = task(config)
         summary_list.append(summary)
 
-        path = store.path_file(config.dir_output_config(), f'{summary.label}.json')
-        store.write_json(path, summary.as_json())
+        path = store.path_file(config.dir_cache_config(),
+                               f'{summary.label}.json')
+        common.write_json(path, summary.as_json())
 
     return summary_list
 
-#######################################################################################################################
+
+###############################################################################
 #
 # Main
 #
-#######################################################################################################################
+###############################################################################
 
-def main(args):
-    if len(args) < 2:
-        print('usage')
-        print('example: /my/i2b2/input /my/i2b2/processed')
+
+def main(args: List[str]):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('dir_input', metavar='/my/i2b2/input')
+    parser.add_argument('dir_output', metavar='/my/i2b2/processed')
+    parser.add_argument('dir_cache', metavar='/my/i2b2/cache')
+    parser.add_argument('--format',
+                        choices=['json', 'ndjson', 'parquet'],
+                        default='json')
+    args = parser.parse_args(args)
+
+    logging.info('Input Directory: %s', args.dir_input)
+    logging.info('Output Directory: %s', args.dir_output)
+    logging.info('Cache Directory: %s', args.dir_cache)
+
+    if args.format == 'ndjson':
+        config_store = store_ndjson.NdjsonStore(args.dir_output)
+    elif args.format == 'parquet':
+        config_store = store_parquet.ParquetStore(args.dir_output)
     else:
-        dir_input = args[0]
-        dir_output = args[1]
+        config_store = store_json_tree.JsonTreeStore(args.dir_output)
 
-        logging.info(f"Input Directory: {dir_input}")
-        logging.info(f"Output Directory: {dir_output}")
+    config = JobConfig(args.dir_input, args.dir_output, args.dir_cache,
+                       config_store)
+    print(json.dumps(config.as_json(), indent=4))
 
-        config = JobConfig(dir_input, dir_output)
-        print(json.dumps(config.as_json(), indent=4))
+    common.write_json(config.path_config(), config.as_json())
 
-        store.write_json(config.path_config(), config.as_json())
-
-        for summary in etl_job(config):
-            print(json.dumps(summary.as_json(), indent=4))
+    for summary in etl_job(config):
+        print(json.dumps(summary.as_json(), indent=4))
 
 
 if __name__ == '__main__':
     main(sys.argv[1:])
-

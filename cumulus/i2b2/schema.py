@@ -1,10 +1,16 @@
+"""Schemas for i2b2 csv files"""
+
 from enum import Enum
+
+# pylint: disable=invalid-name
+
 
 class Table(Enum):
     """
     https://www.i2b2.org/software/files/PDF/current/CRC_Design.pdf
 
-    select TABLE_NAME from all_tables where tablespace_name = 'I2B2_BLUE_TABLESPACE'
+    select TABLE_NAME from all_tables
+     where tablespace_name = 'I2B2_BLUE_TABLESPACE'
     """
     patient = 'patient_dimension'
     patient_map = 'patient_mapping'
@@ -17,9 +23,11 @@ class Table(Enum):
     mrn_patient_uuid = 'mrn_patuuid_patnum'
     mrn_patient_failed = 'mrn_patuuid_patnum_failed'
 
-#######################################################################################################################
+
+###############################################################################
 # i2b2 PatientDimension --> FHIR Patient
-#######################################################################################################################
+###############################################################################
+
 
 class PatientDimension:
     """
@@ -46,9 +54,10 @@ class PatientDimension:
         UPLOAD_ID
         PCP_PROVIDER_ID
     """
+
     def __init__(self, row=None):
         if row is None:
-            row = dict()
+            row = {}
 
         self.patient_num = row.get('PATIENT_NUM')
         self.birth_date = row.get('BIRTH_DATE')
@@ -62,9 +71,10 @@ class PatientDimension:
     def as_json(self):
         return self.__dict__
 
-#######################################################################################################################
+
+###############################################################################
 # i2b2 ProviderDimension --> FHIR Practitioner (Future)
-#######################################################################################################################
+###############################################################################
 class ProviderDimension:
     """
     desc provider_dimension
@@ -77,9 +87,10 @@ class ProviderDimension:
         UPDATE_DATE
         DOWNLOAD_DATE
     """
+
     def __init__(self, row=None):
         if row is None:
-            row = dict()
+            row = {}
 
         self.provider_path = row.get('PROVIDER_PATH')
         self.provider_id = row.get('PROVIDER_ID')
@@ -94,9 +105,10 @@ class ProviderDimension:
         return self.__dict__
 
 
-#######################################################################################################################
+###############################################################################
 # I2b2 VisitDimension --> FHIR Encounter
-#######################################################################################################################
+###############################################################################
+
 
 class VisitDimension:
     """
@@ -111,9 +123,10 @@ class VisitDimension:
         LENGTH_OF_STAY
         VISIT_BLOB
     """
+
     def __init__(self, row=None):
         if row is None:
-            row = dict()
+            row = {}
 
         self.patient_num = row.get('PATIENT_NUM')
         self.encounter_num = row.get('ENCOUNTER_NUM')
@@ -127,11 +140,13 @@ class VisitDimension:
     def as_json(self):
         return self.__dict__
 
-#######################################################################################################################
+
+###############################################################################
 #
-# I2b2 ConceptDimension --> FHIR Condition, FHIR Observation, (future: FHIR Medication, ...)
+# I2b2 ConceptDimension --> FHIR Condition, FHIR Observation,
+#                           (future: FHIR Medication, ...)
 #
-#######################################################################################################################
+###############################################################################
 class ConceptDimension:
     """
     desc concept_dimension
@@ -145,9 +160,10 @@ class ConceptDimension:
         SOURCESYSTEM_CD
         UPLOAD_ID
     """
+
     def __init__(self, row=None):
         if row is None:
-            row = dict()
+            row = {}
 
         self.concept_cd = row.get('CONCEPT_CD')
         self.name_char = row.get('NAME_CHAR')
@@ -158,11 +174,14 @@ class ConceptDimension:
 
         self.table = Table.concept
 
-#######################################################################################################################
+
+###############################################################################
 #
-# I2b2 ObservationFact --> FHIR Condition, FHIR Observation, FHIR DocumentReference
+# I2b2 ObservationFact --> FHIR Condition, FHIR Observation,
+#                          FHIR DocumentReference
 #
-#######################################################################################################################
+###############################################################################
+
 
 class ValueType(Enum):
     """
@@ -171,7 +190,8 @@ class ValueType(Enum):
         @: No Value
         N: Numeric objects such as those found in lab tests
         T: Text objects such as labels, short message, enumerated values
-        B: Raw text objects such as a doctor’s note, discharge summary, and radiology report NLP result xml objects
+        B: Raw text objects such as a doctor’s note, discharge summary, and
+           radiology report NLP result xml objects
         NLP: NLP result xml objects
     """
     no_value = '@'
@@ -180,11 +200,13 @@ class ValueType(Enum):
     physician_notes = 'B'
     NLP = 'NLP'
 
+
 class ValueEquality(Enum):
     """
     observation_fact.TVAL_CHAR
 
-        Used in conjunction with VALTYPE_CD = “T” or “N” When the VALTYPE_CD = “T”
+        Used in conjunction with VALTYPE_CD = “T” or
+        “N” When the VALTYPE_CD = “T”
         Stores the text value
 
         When VALTYPE_CD = “N”
@@ -201,14 +223,17 @@ class ValueEquality(Enum):
     greater = 'G'
     greater_equal = 'GE'
 
+
 class ValueFlagNormality(Enum):
     """
     observation_fact.VALUEFLAG_CD
 
         Used in conjunction with VALTYPE_CD = “B”, “NLP”, “N”, or “T”
-        When VALTYPE_CD = “B” or “NLP” it is used to indicate whether or not the data in the blob column is encrypted.
+        When VALTYPE_CD = “B” or “NLP” it is used to indicate whether or not
+        the data in the blob column is encrypted.
         X = Encrypted text in the blob column
-        When the VALTYPE_CD = “N” or “T” it is used to flag certain outlying or abnormal values
+        When the VALTYPE_CD = “N” or “T” it is used to flag certain outlying
+        or abnormal values
         H = High
         L = Low
         A = Abnormal
@@ -218,6 +243,7 @@ class ValueFlagNormality(Enum):
     high = 'H'
     low = 'L'
     encrypted = 'X'
+
 
 class ObservationFact:
     """
@@ -234,7 +260,8 @@ class ObservationFact:
         OBSERVATION_BLOB -> Physician Notes (usually)
         INSTANCE_NUM    -> unique ID of observation
         VALTYPE_CD      -> @see ValueType(Enum)
-        TVAL_CHAR       -> @see ValueEquality(Enum) Labs "Negative" or "Positive"
+        TVAL_CHAR       -> @see ValueEquality(Enum) Labs "Negative" or
+                           "Positive"
         NVAL_NUM        -> "numerical value" (optional)
         QUANTITY_NUM    -> "quantity value" (optional)
         UNITS_CD        -> Lab Units (primary usage)
@@ -248,7 +275,8 @@ class ObservationFact:
         UPLOAD_ID
         TEXT_SEARCH_INDEX
     """
-    def __init__(self, row:dict):
+
+    def __init__(self, row: dict):
         self.table = Table.observation_fact
         self.patient_num = row.get('PATIENT_NUM')
         self.encounter_num = row.get('ENCOUNTER_NUM')

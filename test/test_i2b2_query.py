@@ -1,15 +1,21 @@
+"""Tests for oracle queries"""
+
 import unittest
-from cumulus.i2b2.oracle.query import *
+from cumulus.i2b2.oracle.query import *  # pylint: disable=wildcard-import,unused-wildcard-importg
+
 
 def header(text):
     print('##############################################')
     print(text)
 
+
 def pretty(text):
     print('-----------------------------------------------')
     print(text)
 
+
 class TestI2b2Sql(unittest.TestCase):
+    """Test case for sql queries"""
 
     def test_count_import_date(self):
         header('# count_import_date')
