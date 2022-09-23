@@ -23,8 +23,8 @@ def list_csv(folder: str, mask='.csv') -> list:
     :return:
     """
     if not os.path.exists(folder):
-        logging.warning('list_csv() does not exist: folder:%s, mask=%s',
-                        folder, mask)
+        logging.warning('list_csv() does not exist: folder:%s, mask=%s', folder,
+                        mask)
         return []
 
     match = []

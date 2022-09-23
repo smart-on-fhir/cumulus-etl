@@ -191,8 +191,7 @@ class CodebookDB:
         if md5sum:
             if md5sum not in self.mrn[mrn]['encounter'][encounter_id][
                     'docref'].keys():
-                self.mrn[mrn]['encounter'][encounter_id]['docref'][
-                    md5sum] = {}
+                self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum] = {}
                 self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum][
                     'deid'] = common.fake_id()
 

@@ -117,10 +117,11 @@ class TestI2b2EtlSimple(unittest.TestCase):
         # diffs aren't helpful, and looks like it can differ from machine to
         # machine. So, let's do minimal checking here.
 
-        self.assertEqual({
-            'fhir_conditions.parquet',
-            'fhir_documentreferences.parquet',
-            'fhir_encounters.parquet',
-            'fhir_labs.parquet',
-            'fhir_patients.parquet',
-        }, set(os.listdir(self.output_path)))
+        self.assertEqual(
+            {
+                'fhir_conditions.parquet',
+                'fhir_documentreferences.parquet',
+                'fhir_encounters.parquet',
+                'fhir_labs.parquet',
+                'fhir_patients.parquet',
+            }, set(os.listdir(self.output_path)))

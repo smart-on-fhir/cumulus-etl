@@ -1,7 +1,7 @@
 """Tests for oracle queries"""
 
 import unittest
-from cumulus.i2b2.oracle.query import *  # pylint: disable=wildcard-import,unused-wildcard-importg
+from cumulus.i2b2.oracle.query import *  # pylint: disable=wildcard-import,unused-wildcard-import
 
 
 def header(text):

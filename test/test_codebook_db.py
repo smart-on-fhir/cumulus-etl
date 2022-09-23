@@ -13,8 +13,7 @@ class TestCodebookDB(unittest.TestCase):
     def test_hash_clinical_text(self):
         actual = common.hash_clinical_text(
             'Chief Complaint: patient c/o difficulty breathing, fever, and '
-            'swelling. Denies cough.'
-        )
+            'swelling. Denies cough.')
 
         # https://www.md5hashgenerator.com
         expected = '991ca427187c51e9b5850204cfda71a4'
@@ -26,8 +25,7 @@ class TestCodebookDB(unittest.TestCase):
     def test_codebook_entry(self):
         note1 = common.hash_clinical_text(
             'chief complaint: patient complains of fever and chills but '
-            'denies cough'
-        )
+            'denies cough')
         note2 = common.hash_clinical_text('discharge diagnosis: U07.1 COVID-19')
 
         patient1 = '000111'
