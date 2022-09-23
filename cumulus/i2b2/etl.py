@@ -146,10 +146,10 @@ def _strip_notes_from_docref(codebook: Codebook,
     return docref
 
 
-def etl_notes(config: JobConfig) -> JobSummary:
+def etl_notes_meta(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_notes',
+        'etl_notes_meta',
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
@@ -188,8 +188,8 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         i2b2.etl.etl_patient,
         i2b2.etl.etl_visit,
         i2b2.etl.etl_lab,
-        i2b2.etl.etl_notes,
-        i2b2.etl.etl_notes_nlp,
+        i2b2.etl.etl_notes_meta,
+        # i2b2.etl.etl_notes_nlp,
         i2b2.etl.etl_diagnosis,
     ]
 
@@ -209,7 +209,6 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 # Main
 #
 ###############################################################################
-
 
 def main(args: List[str]):
     parser = argparse.ArgumentParser()

@@ -122,6 +122,5 @@ class TestI2b2EtlSimple(unittest.TestCase):
             'fhir_documentreferences.parquet',
             'fhir_encounters.parquet',
             'fhir_labs.parquet',
-            'fhir_notes.parquet',
             'fhir_patients.parquet',
         }, set(os.listdir(self.output_path)))
