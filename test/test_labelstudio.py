@@ -138,10 +138,8 @@ class TestLabelStudio(unittest.TestCase):
                                        dir_processed='/opt/i2b2/processed',
                                        cmd_head='rm',
                                        cmd_tail=''):
-        print(
-            f'labelstudio_files_cleanup : {cmd_head} '
-            f'{dir_processed}/**/labelstudio_* {cmd_tail}'
-        )
+        print(f'labelstudio_files_cleanup : {cmd_head} '
+              f'{dir_processed}/**/labelstudio_* {cmd_tail}')
         bash = []
         for path in common.find_by_name(dir_processed, 'labelstudio_'):
             bash.append(f'{cmd_head} {path} {cmd_tail}')

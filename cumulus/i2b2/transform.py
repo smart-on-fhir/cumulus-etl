@@ -20,7 +20,7 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from ctakesclient.client import CtakesJSON
+from ctakesclient.typesystem import CtakesJSON
 
 from cumulus import common, fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
@@ -80,8 +80,9 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     elif visit.inout_cd == 'Emergency':
         encounter.class_fhir.code = 'EMER'
     else:
-        logging.warning('skipping encounter.class_fhir.code for i2b2 '
-                        'INOUT_CD : %s', visit.inout_cd)
+        logging.warning(
+            'skipping encounter.class_fhir.code for i2b2 '
+            'INOUT_CD : %s', visit.inout_cd)
 
     if visit.length_of_stay:  # days
         encounter.length = Duration({

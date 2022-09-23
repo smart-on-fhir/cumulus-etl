@@ -16,9 +16,7 @@ class JsonTreeStore(store.Store):
         super().__init__()
         self.dir_output = path
 
-    def _write_records(self,
-                       job,
-                       df: pandas.DataFrame,
+    def _write_records(self, job, df: pandas.DataFrame,
                        processor: Callable[[pandas.Series], None]):
         for _, record in df.iterrows():
             try:
@@ -170,9 +168,11 @@ class JsonTreeStore(store.Store):
                 spans = ner.list_spans(ner.list_match())
                 polarities = ctakesclient.transformer.list_polarity(
                     note_text, spans)
-                as_json = {'polarity': [status.name for status in polarities],
-                           'spans': spans,
-                           'match_text': match_text}
+                as_json = {
+                    'polarity': [status.name for status in polarities],
+                    'spans': spans,
+                    'match_text': match_text
+                }
 
                 store.write_json(path_cnlp, as_json)
 

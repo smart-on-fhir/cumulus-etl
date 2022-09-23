@@ -14,12 +14,12 @@ from cumulus import i2b2
 from cumulus.i2b2.config import JobConfig, JobSummary
 from cumulus.codebook import Codebook
 
-
 ###############################################################################
 #
 # Helpers
 #
 ###############################################################################
+
 
 def _extract_from_files(extract: Callable[[str], List[Any]],
                         csv_files: List[str]):
@@ -82,6 +82,7 @@ def etl_patient(config: JobConfig) -> JobSummary:
 #
 ###############################################################################
 
+
 def etl_visit(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
@@ -99,6 +100,7 @@ def etl_visit(config: JobConfig) -> JobSummary:
 # FHIR Observation (Lab Result)
 #
 ###############################################################################
+
 
 def etl_lab(config: JobConfig) -> JobSummary:
     return _process_job_entries(
@@ -118,6 +120,7 @@ def etl_lab(config: JobConfig) -> JobSummary:
 #
 ###############################################################################
 
+
 def etl_diagnosis(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
@@ -135,6 +138,7 @@ def etl_diagnosis(config: JobConfig) -> JobSummary:
 # FHIR DocumentReference
 #
 ###############################################################################
+
 
 def _strip_notes_from_docref(codebook: Codebook,
                              docref: DocumentReference) -> DocumentReference:
@@ -177,6 +181,7 @@ def etl_notes_nlp(config: JobConfig) -> JobSummary:
 #
 ###############################################################################
 
+
 def etl_job(config: JobConfig) -> List[JobSummary]:
     """
     :param config:
@@ -209,6 +214,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 # Main
 #
 ###############################################################################
+
 
 def main(args: List[str]):
     parser = argparse.ArgumentParser()
