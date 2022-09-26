@@ -2,6 +2,7 @@
 # - indent-string changed to 4 spaces (the shipped version of this config
 #   file has 2 because that's what Google uses internally, despite the
 #   public description of their style guide using 4)
+# - max-line-length changed to 120 because 80 was driving us crazy
 #
 # BELOW THIS LINE IS A COPY OF https://google.github.io/styleguide/pylintrc
 
@@ -266,7 +267,7 @@ generated-members=
 [FORMAT]
 
 # Maximum number of characters on a single line.
-max-line-length=80
+max-line-length=120
 
 # TODO(https://github.com/PyCQA/pylint/issues/3352): Direct pylint to exempt
 # lines made too long by directives to pytype.
