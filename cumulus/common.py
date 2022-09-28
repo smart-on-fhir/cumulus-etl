@@ -8,7 +8,10 @@ import uuid
 import hashlib
 from datetime import datetime
 
+import fsspec
 from fhirclient.models.resource import Resource
+
+from cumulus import store
 
 
 ###############################################################################
@@ -107,56 +110,59 @@ def hash_clinical_text(text: str) -> str:
 # Helper Functions: read/write text and JSON with logging messages
 #
 ###############################################################################
+
+def open_file(path: str, mode: str):
+    """A version of open() that handles remote access, like to S3"""
+    root = store.Root(path)
+    return fsspec.open(path, mode, encoding='utf8', **root.fsspec_options())
+
+
 def read_text(path: str) -> str:
     """
+    Reads data from the given path, in text format
     :param path: (currently filesystem path)
     :return: message: coded message
     """
     logging.debug('read_text() %s', path)
 
-    with open(path, 'r', encoding='utf8') as f:
-        message = f.read()
-        f.close()
-    return message
+    with open_file(path, 'r') as f:
+        return f.read()
 
 
-def write_text(path: str, message: str) -> str:
+def write_text(path: str, text: str) -> None:
     """
-    :param path: topic (currently filesystem path)
-    :param message: contents, usually "physician note" text
-    :return: path to message
+    Writes data to the given path, in text format
+    :param path: filesystem path
+    :param text: the text to write to disk
     """
     logging.debug('write_text() %s', path)
 
-    with open(path, 'w', encoding='utf8') as f:
-        f.write(message)
-    return path
-
-
-def write_json(path: str, message: dict) -> str:
-    """
-    :param path: topic (currently filesystem path)
-    :param message: coded message
-    :return: path to message
-    """
-    logging.debug('write_json() %s', path)
-
-    with open(path, 'w', encoding='utf8') as f:
-        f.write(json.dumps(message, indent=4))
-    return path
+    with open_file(path, 'w') as f:
+        f.write(text)
 
 
 def read_json(path: str) -> dict:
     """
-    :param path: (currently filesystem path)
+    Reads json from a file
+    :param path: filesystem path
     :return: message: coded message
     """
-    logging.debug('read() %s', path)
+    logging.debug('read_json() %s', path)
 
-    with open(path, 'r', encoding='utf8') as f:
-        message = json.load(f)
-        f.close()
-    return message
+    with open_file(path, 'r') as f:
+        return json.load(f)
+
+
+def write_json(path: str, data: dict) -> None:
+    """
+    Writes data to the given path, in json format
+    :param path: filesystem path
+    :param data: the structure to write to disk
+    """
+    logging.debug('write_json() %s', path)
+
+    with open_file(path, 'w') as f:
+        json.dump(data, f, indent=4)
 
 
 ###############################################################################

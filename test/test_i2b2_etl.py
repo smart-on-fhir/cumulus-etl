@@ -10,13 +10,19 @@ import unittest
 import uuid
 from unittest import mock
 
+import s3fs
+
 from cumulus.i2b2 import etl
+
+from .s3mock import S3Mixin
 
 
 class TestI2b2EtlSimple(unittest.TestCase):
-    """Test case for basic runs of etl methods"""
+    """Base test case for basic runs of etl methods"""
 
     def setUp(self):
+        super().setUp()
+
         script_dir = os.path.dirname(__file__)
         self.data_dir = os.path.join(script_dir, 'data/i2b2/simple')
         self.input_path = os.path.join(self.data_dir, 'input')
@@ -102,6 +108,10 @@ class TestI2b2EtlSimple(unittest.TestCase):
         dircmp = filecmp.dircmp(expected_path, self.output_path, ignore=[])
         self.assert_file_tree_equal(dircmp)
 
+
+class TestI2b2EtlFormats(TestI2b2EtlSimple):
+    """Test case for each of the formats we support"""
+
     def test_etl_job_json(self):
         etl.main(self.args)  # json is default
         self.assert_output_equal('json-output')
@@ -117,11 +127,36 @@ class TestI2b2EtlSimple(unittest.TestCase):
         # diffs aren't helpful, and looks like it can differ from machine to
         # machine. So, let's do minimal checking here.
 
+        all_files = [os.path.relpath(os.path.join(root, name), start=self.output_path)
+                     for root, dirs, files in os.walk(self.output_path)
+                     for name in files]
+
         self.assertEqual(
             {
-                'fhir_conditions.parquet',
-                'fhir_documentreferences.parquet',
-                'fhir_encounters.parquet',
-                'fhir_labs.parquet',
-                'fhir_patients.parquet',
-            }, set(os.listdir(self.output_path)))
+                'condition/fhir_conditions.parquet',
+                'documentreference/fhir_documentreferences.parquet',
+                'encounter/fhir_encounters.parquet',
+                'observation/fhir_observations.parquet',
+                'patient/fhir_patients.parquet',
+            }, set(all_files))
+
+
+class TestI2b2EtlOnS3(S3Mixin, TestI2b2EtlSimple):
+    """Test case for our support of writing to S3"""
+
+    def test_etl_job_s3(self):
+        etl.main(['--format=ndjson', self.input_path, 's3://mockbucket/root',
+                  self.cache_path])
+
+        fs = s3fs.S3FileSystem()
+        self.assertEqual([
+            'mockbucket/root/condition/fhir_conditions.ndjson',
+            'mockbucket/root/documentreference/fhir_documentreferences.ndjson',
+            'mockbucket/root/encounter/fhir_encounters.ndjson',
+            'mockbucket/root/observation/fhir_observations.ndjson',
+            'mockbucket/root/patient/fhir_patients.ndjson',
+        ], fs.find('mockbucket/root'))
+
+        # Confirm we did not accidentally create an 's3:' directory locally
+        # because we misinterpreted the s3 path as a local path
+        self.assertFalse(os.path.exists('s3:'))

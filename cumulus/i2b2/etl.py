@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import os
 import sys
 from typing import Any, Callable, List
 
@@ -72,7 +73,7 @@ def etl_patient(config: JobConfig) -> JobSummary:
         i2b2.extract.extract_csv_patients,
         i2b2.transform.to_fhir_patient,
         Codebook.fhir_patient,
-        config.store.store_patients,
+        config.format.store_patients,
     )
 
 
@@ -91,7 +92,7 @@ def etl_visit(config: JobConfig) -> JobSummary:
         i2b2.extract.extract_csv_visits,
         i2b2.transform.to_fhir_encounter,
         Codebook.fhir_encounter,
-        config.store.store_encounters,
+        config.format.store_encounters,
     )
 
 
@@ -110,7 +111,7 @@ def etl_lab(config: JobConfig) -> JobSummary:
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_observation_lab,
         Codebook.fhir_observation,
-        config.store.store_labs,
+        config.format.store_labs,
     )
 
 
@@ -129,7 +130,7 @@ def etl_diagnosis(config: JobConfig) -> JobSummary:
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_condition,
         Codebook.fhir_condition,
-        config.store.store_conditions,
+        config.format.store_conditions,
     )
 
 
@@ -159,7 +160,7 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
         i2b2.transform.to_fhir_documentreference,
         # Make sure no notes get through as docrefs (they come via store_notes)
         _strip_notes_from_docref,
-        config.store.store_docrefs,
+        config.format.store_docrefs,
     )
 
 
@@ -171,7 +172,7 @@ def etl_notes_nlp(config: JobConfig) -> JobSummary:
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
         Codebook.fhir_documentreference,
-        config.store.store_notes,
+        config.format.store_notes,
     )
 
 
@@ -202,8 +203,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         summary = task(config)
         summary_list.append(summary)
 
-        path = store.path_file(config.dir_cache_config(),
-                               f'{summary.label}.json')
+        path = os.path.join(config.dir_cache_config(), f'{summary.label}.json')
         common.write_json(path, summary.as_json())
 
     return summary_list
@@ -230,15 +230,18 @@ def main(args: List[str]):
     logging.info('Output Directory: %s', args.dir_output)
     logging.info('Cache Directory: %s', args.dir_cache)
 
-    if args.format == 'ndjson':
-        config_store = store_ndjson.NdjsonStore(args.dir_output)
-    elif args.format == 'parquet':
-        config_store = store_parquet.ParquetStore(args.dir_output)
-    else:
-        config_store = store_json_tree.JsonTreeStore(args.dir_output)
+    root_input = store.Root(args.dir_input, create=True)
+    root_output = store.Root(args.dir_output, create=True)
+    root_cache = store.Root(args.dir_cache, create=True)
 
-    config = JobConfig(args.dir_input, args.dir_output, args.dir_cache,
-                       config_store)
+    if args.format == 'ndjson':
+        config_store = store_ndjson.NdjsonFormat(root_output)
+    elif args.format == 'parquet':
+        config_store = store_parquet.ParquetFormat(root_output)
+    else:
+        config_store = store_json_tree.JsonTreeFormat(root_output)
+
+    config = JobConfig(root_input, root_cache, config_store)
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json())

@@ -8,6 +8,7 @@ dependencies = [
     "fhirclient",
     "pandas",
     "pyarrow",
+    "s3fs",
 ]
 authors = [
   { name="Andy McMurry, PhD", email="andrew.mcmurry@childrens.harvard.edu" },
@@ -36,4 +37,5 @@ packages = ["cumulus"]
 [project.optional-dependencies]
 tests = [
     "freezegun",
+    "moto[s3]",
 ]
