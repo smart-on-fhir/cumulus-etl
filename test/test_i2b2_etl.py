@@ -32,12 +32,8 @@ class TestI2b2EtlSimple(unittest.TestCase):
         self.addCleanup(shutil.rmtree, tmpdir)
 
         self.output_path = os.path.join(tmpdir, 'output')
-        os.mkdir(self.output_path)
-
-        self.cache_path = os.path.join(tmpdir, 'cache')
-        os.mkdir(self.cache_path)
-
-        self.args = [self.input_path, self.output_path, self.cache_path]
+        self.phi_path = os.path.join(tmpdir, 'phi')
+        self.args = [self.input_path, self.output_path, self.phi_path]
 
         filecmp.clear_cache()
 
@@ -48,8 +44,9 @@ class TestI2b2EtlSimple(unittest.TestCase):
         # First, copy codebook over. This will help ensure that the order of
         # calls doesn't matter as much. If *every* UUID were recorded in the
         # codebook, this is all we'd need to do.
+        os.makedirs(self.phi_path)
         shutil.copy(os.path.join(self.data_dir, 'codebook.json'),
-                    self.cache_path)
+                    self.phi_path)
 
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
@@ -104,8 +101,12 @@ class TestI2b2EtlSimple(unittest.TestCase):
 
     def assert_output_equal(self, folder: str):
         """Compares the etl output with the expected json structure"""
+        # We don't compare contents of the job config because it includes a lot of paths etc.
+        # But we can at least confirm that it was created.
+        self.assertTrue(os.path.exists(os.path.join(self.output_path, 'JobConfig')))
+
         expected_path = os.path.join(self.data_dir, folder)
-        dircmp = filecmp.dircmp(expected_path, self.output_path, ignore=[])
+        dircmp = filecmp.dircmp(expected_path, self.output_path, ignore=['JobConfig'])
         self.assert_file_tree_equal(dircmp)
 
 
@@ -131,6 +132,9 @@ class TestI2b2EtlFormats(TestI2b2EtlSimple):
                      for root, dirs, files in os.walk(self.output_path)
                      for name in files]
 
+        # Filter out job config files, we don't care about those for now
+        all_files = filter(lambda filename: 'JobConfig' not in filename, all_files)
+
         self.assertEqual(
             {
                 'condition/fhir_conditions.parquet',
@@ -146,16 +150,17 @@ class TestI2b2EtlOnS3(S3Mixin, TestI2b2EtlSimple):
 
     def test_etl_job_s3(self):
         etl.main(['--format=ndjson', self.input_path, 's3://mockbucket/root',
-                  self.cache_path])
+                  self.phi_path])
 
         fs = s3fs.S3FileSystem()
-        self.assertEqual([
+        all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
+        self.assertEqual({
             'mockbucket/root/condition/fhir_conditions.ndjson',
             'mockbucket/root/documentreference/fhir_documentreferences.ndjson',
             'mockbucket/root/encounter/fhir_encounters.ndjson',
             'mockbucket/root/observation/fhir_observations.ndjson',
             'mockbucket/root/patient/fhir_patients.ndjson',
-        ], fs.find('mockbucket/root'))
+        }, all_files)
 
         # Confirm we did not accidentally create an 's3:' directory locally
         # because we misinterpreted the s3 path as a local path

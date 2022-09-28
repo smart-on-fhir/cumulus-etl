@@ -17,7 +17,7 @@ class Root:
     Usually there are three roots in a given etl run:
     - Input folder
     - Output folder
-    - Cache folder
+    - PHI build folder (for codebook, etc.)
 
     This is mostly a coupling of a target path and the fsspec filesystem
     to use. With some useful methods mixed in.

@@ -1,12 +1,12 @@
 """Utility methods"""
 
+import datetime
 import os
 import logging
 import json
 import pandas
 import uuid
 import hashlib
-from datetime import datetime
 
 import fsspec
 from fhirclient.models.resource import Resource
@@ -214,23 +214,21 @@ def print_fhir(fhir_resource):
 # Helper Functions: Timedatestamp
 #
 ###############################################################################
-def timestamp_date() -> str:
-    """
-    :return: MMMM-DD-YYY
-    """
-    return datetime.now().strftime('%Y-%m-%d')
-
 
 def timestamp_datetime() -> str:
     """
+    Human-readable UTC date and time
     :return: MMMM-DD-YYY hh:mm:ss
     """
-    return datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
 
 
-def timestamp() -> str:
+def timestamp_filename() -> str:
     """
-    Human-readable without escape characters on filesystem path
+    Human-readable UTC date and time suitable for a filesystem path
+
+    In particular, there are no characters that need awkward escaping.
+
     :return: MMMM-DD-YYY__hh.mm.ss
     """
-    return datetime.now().strftime('%Y-%m-%d__%H.%M.%S')
+    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d__%H.%M.%S')
