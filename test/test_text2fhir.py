@@ -3,7 +3,7 @@ import os
 
 from cumulus import common
 from cumulus import text2fhir
-from ctakesclient.typesystem import CtakesJSON
+from ctakesclient.typesystem import CtakesJSON, Polarity
 
 def example_note(filename='synthea.txt') -> str:
     """
@@ -76,7 +76,7 @@ class TestText2Fhir(unittest.TestCase):
             concept = text2fhir.nlp_concept(match)
             common.print_fhir(concept)
 
-    def test_symptom(self):
+    def test_observation_symptom(self):
 
         ctakes_json = example_ctakes()
 
@@ -84,9 +84,9 @@ class TestText2Fhir(unittest.TestCase):
         encounter_id = '5678'
 
         for match in ctakes_json.list_sign_symptom():
-            symptom = text2fhir.nlp_symptom(subject_id,
-                                            encounter_id,
-                                            match)
+            symptom = text2fhir.nlp_observation(subject_id,
+                                                encounter_id,
+                                                match)
             common.print_fhir(symptom)
 
     def test_medication(self):
@@ -100,6 +100,32 @@ class TestText2Fhir(unittest.TestCase):
                                                   encounter_id,
                                                   match)
             common.print_fhir(medication)
+
+    def test_nlp_fhir(self):
+        ctakes_json = example_ctakes()
+
+        subject_id = '1234'
+        encounter_id = '5678'
+
+        for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json):
+            common.print_fhir(as_fhir)
+
+    def test_nlp_bodysite(self):
+        """
+        Optional. Demonstrate use of FHIR BodySite - can be attached to different resources.
+        This example also shows the flexibility of using nlp_concept to support additional FHIR resource types.
+
+        https://www.hl7.org/fhir/procedure-definitions.html#Procedure.bodySite
+        https://www.hl7.org/fhir/condition-definitions.html#Condition.bodySite
+        https://www.hl7.org/fhir/extension-bodysite.html
+        https://www.hl7.org/fhir/valueset-body-site.html
+        """
+        ctakes_json = example_ctakes()
+
+        for match in ctakes_json.list_anatomical_site(Polarity.pos):
+            bodysite = text2fhir.nlp_concept(match)
+
+            common.print_fhir(bodysite)
 
 
 if __name__ == '__main__':

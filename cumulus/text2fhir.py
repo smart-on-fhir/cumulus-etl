@@ -9,8 +9,14 @@ from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.extension import Extension
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.fhirreference import FHIRReference
+
+from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.observation import Observation
 from fhirclient.models.medicationstatement import MedicationStatement
+from fhirclient.models.procedure import Procedure
+from fhirclient.models.condition import Condition
+
+from ctakesclient.typesystem import CtakesJSON
 from ctakesclient.typesystem import UmlsTypeMention, UmlsConcept
 from ctakesclient.typesystem import Polarity, Span, MatchText
 
@@ -42,14 +48,16 @@ def ref_subject(subject_id:str) -> FHIRReference:
     :param subject_id: ID for patient (isa REF can be UUID)
     :return: FHIRReference as Patient/$id
     """
-    return FHIRReference({'reference': f'Patient/{subject_id}'})
+    if subject_id and len(subject_id) > 3:
+        return FHIRReference({'reference': f'Patient/{subject_id}'})
 
 def ref_encounter(encounter_id:str) -> FHIRReference:
     """
     :param encounter_id: ID for encounter (isa REF can be UUID)
     :return: FHIRReference as Encounter/$id
     """
-    return FHIRReference({'reference': f'Encounter/{encounter_id}'})
+    if encounter_id and len(encounter_id) > 3:
+        return FHIRReference({'reference': f'Encounter/{encounter_id}'})
 
 def fhir_date_now() -> FHIRDate:
     """
@@ -178,8 +186,11 @@ def nlp_date_processed(processed= fhir_date_now()) -> Extension:
 ###############################################################################
 # NLP conversion functions : simplify creation of FHIR resources for user.
 #
+#   nlp_fhir() -> List of FHIR resources
+#
 #   nlp_concept
-#   nlp_symptom
+#   nlp_condition
+#   nlp_observation
 #   nlp_medication
 #   nlp_procedure
 #
@@ -189,7 +200,7 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
     """
     NLP match --> FHIR CodeableConcept with text position
     :param match: everything needed to make CodeableConcept
-    :return: FHIR CodeableConcept
+    :return: FHIR CodeableConcept with both UMLS CUI and source vocab CODE
     """
     coded = list()
     for concept in match.conceptAttributes:
@@ -197,14 +208,38 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
         coded.append(fhir_coding(vocab=URL.umls_system.value, code=concept.cui))
     return fhir_concept(match.text, coded, nlp_text_position(match.begin, match.end))
 
-
-def nlp_symptom(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Observation:
+def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Condition:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for visit (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
     :param version: NLP Version information, if none is provided use version of ctakesclient.
-    :return: FHIR Observation for Symptom type
+    :return: FHIR Observation
+    """
+    condition = Condition()
+
+    # id linkage
+    condition.id = str(uuid.uuid4())
+    condition.subject = ref_subject(subject_id)
+    condition.encounter = ref_encounter(encounter_id)
+
+    # status is unconfirmed - NLP is not perfect.
+    status = fhir_coding('http://terminology.hl7.org/CodeSystem/condition-ver-status', 'unconfirmed')
+    condition.verificationStatus = fhir_concept(text='Unconfirmed', coded=[status])
+
+    # nlp extensions
+    condition.code = nlp_concept(nlp_match)
+    condition.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+
+    return condition
+
+def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Observation:
+    """
+    :param subject_id: ID for patient (isa REF can be UUID)
+    :param encounter_id: ID for visit (isa REF can be UUID)
+    :param nlp_match: response from cTAKES or other NLP Client
+    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :return: FHIR Observation
     """
     observation = Observation()
 
@@ -220,27 +255,79 @@ def nlp_symptom(subject_id: str, encounter_id: str, nlp_match: MatchText, versio
 
     return observation
 
-def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None):
+def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> MedicationStatement:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for encounter (isa REF can be UUID)
-    :param nlp_match:
-    :param version:
-    :return:
+    :param nlp_match: response from cTAKES or other NLP Client
+    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :return: FHIR MedicationStatement
     """
-    med = MedicationStatement()
+    medication = MedicationStatement()
 
     # id linkage
-    med.id = str(uuid.uuid4())
-    med.subject = ref_subject(subject_id)
-    med.context = ref_encounter(encounter_id)
-    med.status = 'unknown'
+    medication.id = str(uuid.uuid4())
+    medication.subject = ref_subject(subject_id)
+    medication.context = ref_encounter(encounter_id)
+    medication.status = 'unknown'
 
     # nlp extensions
-    med.medicationCodeableConcept = nlp_concept(nlp_match)
-    med.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+    medication.medicationCodeableConcept = nlp_concept(nlp_match)
+    medication.modifierExtension = nlp_modifier(nlp_match.polarity, version)
 
-    return med
+    return medication
+
+def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Procedure:
+    """
+    :param subject_id: ID for patient (isa REF can be UUID)
+    :param encounter_id: ID for encounter (isa REF can be UUID)
+    :param nlp_match: response from cTAKES or other NLP Client
+    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :return: FHIR Procedure
+    """
+    procedure = Procedure()
+
+    # id linkage
+    procedure.id = str(uuid.uuid4())
+    procedure.subject = ref_subject(subject_id)
+    procedure.encounter = ref_encounter(encounter_id)
+    procedure.status = 'unknown'
+
+    # nlp extensions
+    procedure.code = nlp_concept(nlp_match)
+    procedure.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+
+    return procedure
+
+def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON, version=None, polarity=Polarity.pos) -> List[DomainResource]:
+    """
+    FHIR Resources for a patient encounter.
+    Use this method to get FHIR Observation, Condition, MedicationStatement, and Procedures for a note that is for a
+    ** specific encounter **. Be advised that a single note can reference past medical history.
+
+    :param subject_id: ID for patient (isa REF can be UUID)
+    :param encounter_id: ID for encounter (isa REF can be UUID)
+    :param nlp_results: response from cTAKES or other NLP Client
+    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :param polarity: filter only positive mentions by default
+    :return: List of FHIR Resources (DomainResource)
+    """
+    as_fhir = list()
+
+    for match in nlp_results.list_sign_symptom(polarity):
+        as_fhir.append(nlp_observation(subject_id, encounter_id, match, version))
+
+    for match in nlp_results.list_medication(polarity):
+        as_fhir.append(nlp_medication(subject_id, encounter_id, match, version))
+
+    for match in nlp_results.list_disease_disorder(polarity):
+        as_fhir.append(nlp_condition(subject_id, encounter_id, match, version))
+
+    for match in nlp_results.list_procedure(polarity):
+        as_fhir.append(nlp_procedure(subject_id, encounter_id, match, version))
+
+    return as_fhir
+
 
 
 
