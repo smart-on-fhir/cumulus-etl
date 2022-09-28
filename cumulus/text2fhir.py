@@ -4,6 +4,7 @@ from enum import Enum
 from typing import List
 import pkg_resources
 import datetime
+
 from fhirclient.models.coding import Coding
 from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.extension import Extension
@@ -15,10 +16,12 @@ from fhirclient.models.observation import Observation
 from fhirclient.models.medicationstatement import MedicationStatement
 from fhirclient.models.procedure import Procedure
 from fhirclient.models.condition import Condition
+from fhirclient.models.bundle import Bundle, BundleEntry
 
+from ctakesclient import client
 from ctakesclient.typesystem import CtakesJSON
-from ctakesclient.typesystem import UmlsTypeMention, UmlsConcept
 from ctakesclient.typesystem import Polarity, Span, MatchText
+from ctakesclient.typesystem import UmlsTypeMention, UmlsConcept
 
 ###############################################################################
 # NLP Extensions: Enumerate URL and expected Value types
@@ -329,10 +332,23 @@ def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON, versio
     return as_fhir
 
 
+def fhir_bundle(resource_list: List[DomainResource]) -> Bundle:
+    """
+    Bundle up a NLP batch job as one collection "the FHIR way"
+    https://build.fhir.org/valueset-bundle-type.html
 
+    :param resource_list: FHIR Resources derived from an NLP process.
+    :return: FHIR Bundle that packages up the collection
+    """
+    bundle = Bundle()
+    bundle.type = 'collection'
 
+    entries = list()
+    for res in resource_list:
+        entry = BundleEntry()
+        entry.resource = res
+        entries.append(entry)
 
+    bundle.entry = entries
 
-
-
-
+    return bundle

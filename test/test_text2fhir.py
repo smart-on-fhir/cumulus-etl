@@ -107,8 +107,13 @@ class TestText2Fhir(unittest.TestCase):
         subject_id = '1234'
         encounter_id = '5678'
 
+        as_list = list()
+
         for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json):
-            common.print_fhir(as_fhir)
+            as_list.append(as_fhir)
+
+        as_bundle = text2fhir.fhir_bundle(as_list)
+        common.print_fhir(as_bundle)
 
     def test_nlp_bodysite(self):
         """

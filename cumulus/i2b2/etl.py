@@ -159,15 +159,15 @@ def etl_notes(config: JobConfig) -> JobSummary:
     )
 
 
-def etl_notes_nlp(config: JobConfig) -> JobSummary:
+def etl_notes_text2fhir(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_notes_nlp',
+        'etl_notes_text2fhir',
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.to_fhir_documentreference,
-        Codebook.fhir_documentreference,
-        config.store.store_notes,
+        i2b2.transform.to_fhir_bundle_text2fhir,
+        Codebook.fhir_documentreference, # TODO: do we need a codebook entry for the FHIR bundle?
+        config.store.store_notes, # TODO: will the store persist the FHIR Bundle?
     )
 
 
@@ -189,7 +189,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         i2b2.etl.etl_visit,
         i2b2.etl.etl_lab,
         i2b2.etl.etl_notes,
-        i2b2.etl.etl_notes_nlp,
+        i2b2.etl.etl_notes_text2fhir,
         i2b2.etl.etl_diagnosis,
     ]
 

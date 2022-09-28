@@ -15,12 +15,13 @@ from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.condition import Condition
 from fhirclient.models.observation import Observation
+from fhirclient.models.bundle import Bundle
 from fhirclient.models.documentreference import DocumentReference
 from fhirclient.models.documentreference import DocumentReferenceContext, DocumentReferenceContent
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from ctakesclient.client import CtakesJSON
+import text2fhir
 
 from cumulus import common, fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
@@ -129,6 +130,20 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 
     return docref
 
+def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> Bundle:
+    """
+    :param obsfact: Physician Note
+    :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
+    """
+    subject_id = obsfact.patient_num
+    encounter_id = obsfact.encounter_num
+    physician_note = obsfact.observation_blob
+
+    ctakes_json = text2fhir.client.extract(physician_note)
+
+    as_list = text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
+
+    return text2fhir.fhir_bundle(as_list)
 
 def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
