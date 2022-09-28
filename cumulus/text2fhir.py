@@ -1,0 +1,180 @@
+"""NLP extension using ctakes"""
+import uuid
+from enum import Enum
+from typing import List
+import pkg_resources
+import datetime
+from fhirclient.models.coding import Coding
+from fhirclient.models.codeableconcept import CodeableConcept
+from fhirclient.models.extension import Extension
+from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.fhirreference import FHIRReference
+from fhirclient.models.observation import Observation
+from ctakesclient.typesystem import UmlsTypeMention, UmlsConcept
+from ctakesclient.typesystem import Polarity, Span, MatchText
+
+class URL(Enum):
+    # pylint: disable=line-too-long
+    nlp_algorithm = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-algorithm'
+    nlp_version = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version'
+    nlp_text_position = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position'
+    nlp_date_processed = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-date-processed'
+    nlp_polarity = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity'
+    umls_system = 'http://terminology.hl7.org/CodeSystem/umls'
+
+class Value(Enum):
+    valueCodeableConcept = CodeableConcept()
+    valueDate = FHIRDate()
+    valueInteger = int()
+    valueString = str()
+    valueBoolean = None
+
+def date_now() -> FHIRDate:
+    """
+    :return: FHIRDate using local datetime.now()
+    """
+    return FHIRDate(str(datetime.datetime.now()))
+
+def nlp_algorithm(version:Extension, processed= date_now()) -> Extension:
+    """
+    :param version: version info the NLP algorithm.
+    :param processed: defines when the NLP algorithm date is effective
+    :return: Extension
+    """
+    return Extension({'url': URL.nlp_algorithm.value,
+                      'extension': [version.as_json(),
+                                    nlp_date_processed(processed).as_json()]})
+
+def nlp_date_processed(processed= date_now()) -> Extension:
+    """
+    :param processed: date processed, default is date_now()
+    :return Extension for "processedDate"
+    """
+    return Extension({'url': URL.nlp_date_processed.value,
+                      Value.valueDate.name: processed.isostring})
+
+def nlp_version(nlp_system: str, version_code: str, version_display: str) -> Extension:
+    """
+    :param nlp_system: NLP System, such as URL to denote which NLP was used.
+    :param version_code: NLP Version MACHINE readable code
+    :param version_display: NLP Version HUMAN readable display
+    :return: FHIR extension for "nlp-version"
+    """
+    _version_ = fhir_coding(nlp_system, version_code, version_display).as_json()
+
+    return Extension({'url': URL.nlp_version.value,
+                      Value.valueCodeableConcept.name: {'text': 'NLP Version', 'coding': [_version_]}})
+
+def nlp_version_client() -> Extension:
+    """
+    :return: FHIR Extension defining the default NLP Client (this program)
+    """
+    tag = 'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v1.0.3'
+    pkg = 'ctakesclient'
+    ver = pkg_resources.get_distribution(pkg).version
+    return nlp_version(tag, ver, f'{pkg}={ver}')
+
+def nlp_polarity(polarity: Polarity) -> Extension:
+    """
+    :param polarity: Positive or Negative
+    :return: FHIR Extension for "nlp-polarity"
+    """
+    positive = True if polarity == Polarity.pos else False
+
+    return Extension({'url': URL.nlp_polarity.value,
+                      Value.valueBoolean.name: positive})
+
+def nlp_text_position(pos_begin: int, pos_end: int) -> Extension:
+    """
+    FHIR Extension for the NLP Match Text position (ctakes client MatchText.pos())
+    :param pos_begin: character position START
+    :param pos_end: character position STOP
+    :return:
+    """
+    ext_begin = Extension({Value.valueInteger.name: pos_begin, 'url': 'begin'})
+    ext_end = Extension({Value.valueInteger.name: pos_end, 'url': 'end'})
+    return Extension({'url': URL.nlp_text_position.value,
+                      'extension': [ext_begin.as_json(),
+                                    ext_end.as_json()]
+    })
+
+def nlp_concept(match: MatchText) -> CodeableConcept:
+    """
+    NLP match --> FHIR CodeableConcept with text position
+    :param match: everything needed to make CodeableConcept
+    :return: FHIR CodeableConcept
+    """
+    coded = list()
+    for concept in match.conceptAttributes:
+        coded.append(fhir_coding(vocab=concept.codingScheme, code=concept.code))
+        coded.append(fhir_coding(vocab=URL.umls_system.value, code=concept.cui))
+    return fhir_concept(match.text, coded, nlp_text_position(match.begin, match.end))
+
+def fhir_concept(text:str, coded: List[Coding], extension=None) -> CodeableConcept:
+    """
+    Helper function, simplifies FHIR semantics for when to use types/json
+    :param text: NLP MatchText.text
+    :param coded: FHIR list of coded replies (from NLP)
+    :param extension: optional FHIR extension for additional metadata
+    :return: Concept including human readable 'text' and list of codes
+    """
+    as_json = [c.as_json() for c in coded]
+    concept = CodeableConcept({'text': text, 'coding': as_json})
+
+    if extension:
+        concept.extension = [extension]
+
+    return concept
+
+def fhir_coding(vocab: str, code: str, display=None) -> Coding:
+    """
+    Helper function, simplifies FHIR semantics for when to use types/json
+    :param vocab: Coding "System" is NLP Vocab, see also URL.umls_system
+    :param code: code in source vocabulary (usually a UMLS codingScheme)
+    :param display: optional string label, NLP may just use the match text label.
+    :return: FHIR Coding for the NLP coded response.
+    """
+    if display:
+        return Coding({'system': vocab, 'code': code, 'display': display})
+    else:
+        return Coding({'system': vocab, 'code': code})
+
+def to_fhir_observation_symptom(subject_id:str, encounter_id:str, effective_date: FHIRDate, nlp_match: MatchText, version=None):
+    """
+    :param subject_id: ID for patient (isa REF can be UUID)
+    :param encounter_id: ID for visit (isa REF can be UUID)
+    :param effective_date: DATE observation is "effective" usually "encounter date"
+
+    :param observation: FHIR Observation (generic)
+    :param nlp_match: response from cTAKES or other NLP Client
+    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :return: FHIR Observation for Symptom type
+    """
+    observation = Observation()
+    observation.id = str(uuid.uuid4())
+    observation.subject = FHIRReference({'reference': subject_id})
+    observation.encounter = FHIRReference({'reference': encounter_id})
+    observation.effectiveDateTime = effective_date
+
+    code_list = list()
+
+    for concept in nlp_match.conceptAttributes:
+        code_list.append(fhir_coding(vocab=concept.codingScheme, code=concept.code))
+        code_list.append(fhir_coding(vocab=URL.umls_system.value, code=concept.cui))
+
+    polarity = nlp_polarity(nlp_match.polarity)
+    position = nlp_text_position(nlp_match.begin, nlp_match.end)
+
+    observation.status = 'preliminary'
+    observation.code = fhir_concept(nlp_match.text, code_list)
+
+    #observation.code = CodeableConcept({'text': nlp_match.text, 'coding': coding, 'extension': [position]})
+
+    if version is None:
+        version = nlp_version_client()
+
+    observation.modifierExtension = [nlp_algorithm(version), polarity]
+    return observation
+
+
+

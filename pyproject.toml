@@ -9,7 +9,7 @@ dependencies = [
     "pyarrow",
 ]
 authors = [
-  { name="Andy McMurry, PhD", email="andrew.mcmurry@childrens.harvard.edu" },
+  { name="Andy McMurry", email="andymc@apache.org" },
   { name="Michael Terry", email="michael.terry@childrens.harvard.edu" },
 ]
 description = "Turns FHIR data into de-identified & aggregated records"
