@@ -1,15 +1,22 @@
 import unittest
 import os
 
-from fhirclient.models.fhirdate import FHIRDate
-
 from cumulus import common
 from cumulus import text2fhir
 from ctakesclient.typesystem import CtakesJSON
 
-def resource(filename:str):
+def example_note(filename='synthea.txt') -> str:
     """
-    Physician Note example is sourced from ctakes:
+    :param filename: default is *NOT PHI* Synthea AI generated example.
+    """
+    return common.read_text(path(filename))
+
+def example_ctakes(filename='synthea.json') -> CtakesJSON:
+    return CtakesJSON(common.read_json(path(filename)))
+
+def path(filename: str):
+    """
+    Physician Note examples is sourced from ctakes:
 
     Expose ctakesclient tests accessible to user #17
     https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/issues/17
@@ -17,12 +24,6 @@ def resource(filename:str):
     :return: /path/to/resources/filename
     """
     return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
-
-def example_nlp_response() -> CtakesJSON:
-    """
-    :return: real example of response from ctakes for a physician note
-    """
-    return CtakesJSON(common.read_json(resource('test_physician_note.json')))
 
 def example_version() -> dict:
     """
@@ -69,26 +70,36 @@ class TestText2Fhir(unittest.TestCase):
         """
         Test construction of FHIR CodeableConcept the easy way using ctakesclient helper functions
         """
-        ctakes_json = example_nlp_response()
-        for match in ctakes_json.list_sign_symptom():
+        ctakes_json = example_ctakes()
+
+        for match in ctakes_json.list_match():
             concept = text2fhir.nlp_concept(match)
             common.print_fhir(concept)
 
     def test_symptom(self):
 
-        ctakes_json = CtakesJSON(common.read_json(resource('test_physician_note.json')))
+        ctakes_json = example_ctakes()
 
-        effective_date = FHIRDate('2021-09-27')
         subject_id = '1234'
         encounter_id = '5678'
 
         for match in ctakes_json.list_sign_symptom():
-            symptom = text2fhir.to_fhir_observation_symptom(subject_id,
-                                                            encounter_id,
-                                                            effective_date,
-                                                            match)
+            symptom = text2fhir.nlp_symptom(subject_id,
+                                            encounter_id,
+                                            match)
             common.print_fhir(symptom)
 
+    def test_medication(self):
+        ctakes_json = example_ctakes()
+
+        subject_id = '1234'
+        encounter_id = '5678'
+
+        for match in ctakes_json.list_medication():
+            medication = text2fhir.nlp_medication(subject_id,
+                                                  encounter_id,
+                                                  match)
+            common.print_fhir(medication)
 
 
 if __name__ == '__main__':
