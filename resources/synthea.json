@@ -1,0 +1,2054 @@
+{
+    "MedicationMention": [
+        {
+            "begin": 442,
+            "end": 457,
+            "text": "chewable tablet",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "91058",
+                    "cui": "C0304290",
+                    "codingScheme": "RXNORM",
+                    "tui": "T122"
+                },
+                {
+                    "code": "66076007",
+                    "cui": "C0304290",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T122"
+                }
+            ],
+            "type": "MedicationMention"
+        },
+        {
+            "begin": 1098,
+            "end": 1113,
+            "text": "chewable tablet",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "91058",
+                    "cui": "C0304290",
+                    "codingScheme": "RXNORM",
+                    "tui": "T122"
+                },
+                {
+                    "code": "66076007",
+                    "cui": "C0304290",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T122"
+                }
+            ],
+            "type": "MedicationMention"
+        },
+        {
+            "begin": 1734,
+            "end": 1749,
+            "text": "chewable tablet",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "66076007",
+                    "cui": "C0304290",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T122"
+                },
+                {
+                    "code": "91058",
+                    "cui": "C0304290",
+                    "codingScheme": "RXNORM",
+                    "tui": "T122"
+                }
+            ],
+            "type": "MedicationMention"
+        },
+        {
+            "begin": 2601,
+            "end": 2614,
+            "text": "acetaminophen",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "387517004",
+                    "cui": "C0000970",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T121"
+                },
+                {
+                    "code": "90332006",
+                    "cui": "C0000970",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T121"
+                },
+                {
+                    "code": "161",
+                    "cui": "C0000970",
+                    "codingScheme": "RXNORM",
+                    "tui": "T121"
+                }
+            ],
+            "type": "MedicationMention"
+        },
+        {
+            "begin": 2622,
+            "end": 2637,
+            "text": "chewable tablet",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "66076007",
+                    "cui": "C0304290",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T122"
+                },
+                {
+                    "code": "91058",
+                    "cui": "C0304290",
+                    "codingScheme": "RXNORM",
+                    "tui": "T122"
+                }
+            ],
+            "type": "MedicationMention"
+        }
+    ],
+    "AnatomicalSiteMention": [
+        {
+            "begin": 198,
+            "end": 203,
+            "text": "wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "8205005",
+                    "cui": "C0043262",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T029"
+                }
+            ],
+            "type": "AnatomicalSiteMention"
+        },
+        {
+            "begin": 871,
+            "end": 876,
+            "text": "wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "8205005",
+                    "cui": "C0043262",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T029"
+                }
+            ],
+            "type": "AnatomicalSiteMention"
+        },
+        {
+            "begin": 1527,
+            "end": 1532,
+            "text": "wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "8205005",
+                    "cui": "C0043262",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T029"
+                }
+            ],
+            "type": "AnatomicalSiteMention"
+        },
+        {
+            "begin": 1961,
+            "end": 1965,
+            "text": "face",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "89545001",
+                    "cui": "C0015450",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T029"
+                }
+            ],
+            "type": "AnatomicalSiteMention"
+        },
+        {
+            "begin": 2527,
+            "end": 2532,
+            "text": "wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "8205005",
+                    "cui": "C0043262",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T029"
+                }
+            ],
+            "type": "AnatomicalSiteMention"
+        }
+    ],
+    "DiseaseDisorderMention": [
+        {
+            "begin": 152,
+            "end": 175,
+            "text": "acute viral pharyngitis",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "195662009",
+                    "cui": "C0396000",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 177,
+            "end": 185,
+            "text": "disorder",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "64572001",
+                    "cui": "C0012634",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 188,
+            "end": 203,
+            "text": "sprain of wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "70704007",
+                    "cui": "C0160063",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T037"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 215,
+            "end": 223,
+            "text": "covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "840539006",
+                    "cui": "C5203670",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 538,
+            "end": 547,
+            "text": "influenza",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "6142004",
+                    "cui": "C0021400",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 825,
+            "end": 848,
+            "text": "acute viral pharyngitis",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "195662009",
+                    "cui": "C0396000",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 850,
+            "end": 858,
+            "text": "disorder",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "64572001",
+                    "cui": "C0012634",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 861,
+            "end": 876,
+            "text": "sprain of wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "70704007",
+                    "cui": "C0160063",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T037"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 888,
+            "end": 896,
+            "text": "covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "840539006",
+                    "cui": "C5203670",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 1194,
+            "end": 1203,
+            "text": "influenza",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "6142004",
+                    "cui": "C0021400",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 1481,
+            "end": 1504,
+            "text": "acute viral pharyngitis",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "195662009",
+                    "cui": "C0396000",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 1506,
+            "end": 1514,
+            "text": "disorder",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "64572001",
+                    "cui": "C0012634",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 1517,
+            "end": 1532,
+            "text": "sprain of wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "70704007",
+                    "cui": "C0160063",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T037"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 1897,
+            "end": 1905,
+            "text": "covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "840539006",
+                    "cui": "C5203670",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 2029,
+            "end": 2047,
+            "text": "infectious disease",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "40733004",
+                    "cui": "C0009450",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                },
+                {
+                    "code": "189822004",
+                    "cui": "C0009450",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                },
+                {
+                    "code": "191415002",
+                    "cui": "C0009450",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 2229,
+            "end": 2252,
+            "text": "acute viral pharyngitis",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "195662009",
+                    "cui": "C0396000",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 2254,
+            "end": 2262,
+            "text": "disorder",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "64572001",
+                    "cui": "C0012634",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 2517,
+            "end": 2532,
+            "text": "sprain of wrist",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "70704007",
+                    "cui": "C0160063",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T037"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 3085,
+            "end": 3108,
+            "text": "acute viral pharyngitis",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "195662009",
+                    "cui": "C0396000",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        },
+        {
+            "begin": 3110,
+            "end": 3118,
+            "text": "disorder",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "64572001",
+                    "cui": "C0012634",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T047"
+                }
+            ],
+            "type": "DiseaseDisorderMention"
+        }
+    ],
+    "SignSymptomMention": [
+        {
+            "begin": 21,
+            "end": 30,
+            "text": "Complaint",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "409586006",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                },
+                {
+                    "code": "33962009",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 49,
+            "end": 56,
+            "text": "History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 60,
+            "end": 67,
+            "text": "Present",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "52101004",
+                    "cui": "C0150312",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 68,
+            "end": 75,
+            "text": "Illness",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "39104002",
+                    "cui": "C0221423",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 141,
+            "end": 148,
+            "text": "history",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 205,
+            "end": 223,
+            "text": "suspected covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "840544004",
+                    "cui": "C5203671",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 228,
+            "end": 242,
+            "text": "Social History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "160476009",
+                    "cui": "C0424945",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 695,
+            "end": 704,
+            "text": "Complaint",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "33962009",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                },
+                {
+                    "code": "409586006",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 723,
+            "end": 730,
+            "text": "History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 734,
+            "end": 741,
+            "text": "Present",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "52101004",
+                    "cui": "C0150312",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 742,
+            "end": 749,
+            "text": "Illness",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "39104002",
+                    "cui": "C0221423",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 814,
+            "end": 821,
+            "text": "history",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 878,
+            "end": 896,
+            "text": "suspected covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "840544004",
+                    "cui": "C5203671",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 901,
+            "end": 915,
+            "text": "Social History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "160476009",
+                    "cui": "C0424945",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1351,
+            "end": 1360,
+            "text": "Complaint",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "409586006",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                },
+                {
+                    "code": "33962009",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1379,
+            "end": 1386,
+            "text": "History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1390,
+            "end": 1397,
+            "text": "Present",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "52101004",
+                    "cui": "C0150312",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1398,
+            "end": 1405,
+            "text": "Illness",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "39104002",
+                    "cui": "C0221423",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1470,
+            "end": 1477,
+            "text": "history",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1537,
+            "end": 1551,
+            "text": "Social History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "160476009",
+                    "cui": "C0424945",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1800,
+            "end": 1814,
+            "text": "sputum finding",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "248595008",
+                    "cui": "C0425511",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1826,
+            "end": 1833,
+            "text": "fatigue",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "84229001",
+                    "cui": "C0015672",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                },
+                {
+                    "code": "248274002",
+                    "cui": "C0015672",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1845,
+            "end": 1850,
+            "text": "fever",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "386661006",
+                    "cui": "C0015967",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                },
+                {
+                    "code": "50177009",
+                    "cui": "C0015967",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1862,
+            "end": 1875,
+            "text": "loss of taste",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "36955009",
+                    "cui": "C2364111",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1887,
+            "end": 1905,
+            "text": "suspected covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "840544004",
+                    "cui": "C5203671",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 1972,
+            "end": 1980,
+            "text": "physical",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "19388002",
+                    "cui": "C0205485",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T169"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2099,
+            "end": 2108,
+            "text": "Complaint",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "409586006",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                },
+                {
+                    "code": "33962009",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2127,
+            "end": 2134,
+            "text": "History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2138,
+            "end": 2145,
+            "text": "Present",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "52101004",
+                    "cui": "C0150312",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2146,
+            "end": 2153,
+            "text": "Illness",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "39104002",
+                    "cui": "C0221423",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2218,
+            "end": 2225,
+            "text": "history",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2268,
+            "end": 2282,
+            "text": "Social History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "160476009",
+                    "cui": "C0424945",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2678,
+            "end": 2686,
+            "text": "physical",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "19388002",
+                    "cui": "C0205485",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T169"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2728,
+            "end": 2737,
+            "text": "Complaint",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "409586006",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                },
+                {
+                    "code": "33962009",
+                    "cui": "C0277786",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2756,
+            "end": 2763,
+            "text": "History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "392521001",
+                    "cui": "C0262926",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2767,
+            "end": 2774,
+            "text": "Present",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "52101004",
+                    "cui": "C0150312",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2775,
+            "end": 2782,
+            "text": "Illness",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "39104002",
+                    "cui": "C0221423",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T184"
+                }
+            ],
+            "type": "SignSymptomMention"
+        },
+        {
+            "begin": 2836,
+            "end": 2850,
+            "text": "Social History",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "160476009",
+                    "cui": "C0424945",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T033"
+                }
+            ],
+            "type": "SignSymptomMention"
+        }
+    ],
+    "IdentifiedAnnotation": [
+        {
+            "begin": 127,
+            "end": 134,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 215,
+            "end": 223,
+            "text": "covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "a0_4",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_72",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_19",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_18",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_39",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "SP_5",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_69",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 244,
+            "end": 251,
+            "text": "Patient",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 272,
+            "end": 279,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 327,
+            "end": 334,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 491,
+            "end": 498,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 538,
+            "end": 547,
+            "text": "influenza",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "DIS_38",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 605,
+            "end": 615,
+            "text": "procedures",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "BMV_98",
+                    "codingScheme": "custom",
+                    "tui": "TC0184661"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 800,
+            "end": 807,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 888,
+            "end": 896,
+            "text": "covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "a0_4",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_72",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_19",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_18",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_39",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "SP_5",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_69",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 917,
+            "end": 924,
+            "text": "Patient",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 945,
+            "end": 952,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1000,
+            "end": 1007,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1147,
+            "end": 1154,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1194,
+            "end": 1203,
+            "text": "influenza",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "DIS_38",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1261,
+            "end": 1271,
+            "text": "procedures",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "BMV_98",
+                    "codingScheme": "custom",
+                    "tui": "TC0184661"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1456,
+            "end": 1463,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1553,
+            "end": 1560,
+            "text": "Patient",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1581,
+            "end": 1588,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1636,
+            "end": 1643,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1773,
+            "end": 1780,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1800,
+            "end": 1806,
+            "text": "sputum",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "DIS_62",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1826,
+            "end": 1833,
+            "text": "fatigue",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "DIS_29",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1845,
+            "end": 1850,
+            "text": "fever",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "a0_27",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "DIS_31",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_36",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1897,
+            "end": 1905,
+            "text": "covid-19",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "a0_4",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_72",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_19",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_18",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_39",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "SP_5",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                },
+                {
+                    "code": "n/a",
+                    "cui": "a0_69",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1932,
+            "end": 1942,
+            "text": "procedures",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "BMV_98",
+                    "codingScheme": "custom",
+                    "tui": "TC0184661"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1961,
+            "end": 1970,
+            "text": "face mask",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "a0_84",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 1993,
+            "end": 2000,
+            "text": "patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2029,
+            "end": 2047,
+            "text": "infectious disease",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "DIS_37",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2204,
+            "end": 2211,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2284,
+            "end": 2291,
+            "text": "Patient",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2312,
+            "end": 2319,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2367,
+            "end": 2374,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2490,
+            "end": 2497,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2549,
+            "end": 2556,
+            "text": "patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2601,
+            "end": 2614,
+            "text": "acetaminophen",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "DIS_2",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2642,
+            "end": 2649,
+            "text": "patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2687,
+            "end": 2694,
+            "text": "therapy",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "BMV_126",
+                    "codingScheme": "custom",
+                    "tui": "TC0039798"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2852,
+            "end": 2859,
+            "text": "Patient",
+            "polarity": -1,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2880,
+            "end": 2887,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 2935,
+            "end": 2942,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        },
+        {
+            "begin": 3058,
+            "end": 3065,
+            "text": "Patient",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "n/a",
+                    "cui": "CE_64",
+                    "codingScheme": "custom",
+                    "tui": "T0NA"
+                }
+            ],
+            "type": "IdentifiedAnnotation"
+        }
+    ],
+    "ProcedureMention": [
+        {
+            "begin": 461,
+            "end": 471,
+            "text": "Assessment",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "386053000",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                },
+                {
+                    "code": "129265001",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 634,
+            "end": 659,
+            "text": "medication reconciliation",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "430193006",
+                    "cui": "C2317067",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 661,
+            "end": 670,
+            "text": "procedure",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "71388002",
+                    "cui": "C0184661",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T061"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 1117,
+            "end": 1127,
+            "text": "Assessment",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "386053000",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                },
+                {
+                    "code": "129265001",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 1290,
+            "end": 1315,
+            "text": "medication reconciliation",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "430193006",
+                    "cui": "C2317067",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 1317,
+            "end": 1326,
+            "text": "procedure",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "71388002",
+                    "cui": "C0184661",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T061"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 1753,
+            "end": 1763,
+            "text": "Assessment",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "386053000",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                },
+                {
+                    "code": "129265001",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 2470,
+            "end": 2480,
+            "text": "Assessment",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "129265001",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                },
+                {
+                    "code": "386053000",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 2678,
+            "end": 2704,
+            "text": "physical therapy procedure",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "91251008",
+                    "cui": "C0949766",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T061"
+                }
+            ],
+            "type": "ProcedureMention"
+        },
+        {
+            "begin": 3038,
+            "end": 3048,
+            "text": "Assessment",
+            "polarity": 0,
+            "conceptAttributes": [
+                {
+                    "code": "129265001",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                },
+                {
+                    "code": "386053000",
+                    "cui": "C1261322",
+                    "codingScheme": "SNOMEDCT_US",
+                    "tui": "T058"
+                }
+            ],
+            "type": "ProcedureMention"
+        }
+    ]
+}
