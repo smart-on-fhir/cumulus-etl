@@ -38,6 +38,25 @@ def example_version() -> dict:
                     "system": "https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v1.0.3"
                 }]}}
 
+def example_derivation_reference() -> dict:
+    """
+    Jamie Jones proposed example
+    """
+    return {'extension': [{'extension': [{'url': 'reference',
+                                          'valueReference': {'display': 'note',
+                                                             'reference': 'DocumentReference/episode-summary'}},
+                                         {'url': 'offset', 'valueInteger': 20},
+                                         {'url': 'length', 'valueInteger': 5},
+                                         {'url': 'algorithm', 'valueString': 'however specifically we want to log the fact that cTAKES was used'},
+                                         {'url': 'version', 'valueString': 'whatever date or number is useful here'}],
+                           'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference'}]}
+
+###############################################################################
+#
+# Unit Test : assertions and lightweight checking reading/printing FHIR types
+#
+###############################################################################
+
 class TestText2Fhir(unittest.TestCase):
 
     def test_nlp_version_client(self):
