@@ -113,5 +113,9 @@ class Format(abc.ABC):
         pass
 
     @abc.abstractmethod
+    def store_observation_list(self, job, docrefs: pandas.DataFrame) -> None:
+        pass
+
+    @abc.abstractmethod
     def store_patients(self, job, patients: pandas.DataFrame) -> None:
         pass

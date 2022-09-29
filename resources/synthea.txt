@@ -1,0 +1,168 @@
+
+2021-09-18
+
+# Chief Complaint
+No complaints.
+
+# History of Present Illness
+Alan320
+ is a 10 year-old non-hispanic white male. Patient has a history of acute viral pharyngitis (disorder), sprain of wrist, suspected covid-19.
+
+# Social History
+ Patient has never smoked.
+
+
+Patient comes from a middle socioeconomic background.
+
+Patient currently has Blue Cross Blue Shield.
+
+# Allergies
+No Known Allergies.
+
+# Medications
+acetaminophen 160 mg chewable tablet
+
+# Assessment and Plan
+
+
+## Plan
+Patient was given the following immunizations: influenza, seasonal, injectable, preservative free. 
+The following procedures were conducted:
+- medication reconciliation (procedure)
+
+
+
+2020-09-12
+
+# Chief Complaint
+No complaints.
+
+# History of Present Illness
+Alan320
+ is a 9 year-old non-hispanic white male. Patient has a history of acute viral pharyngitis (disorder), sprain of wrist, suspected covid-19.
+
+# Social History
+ Patient has never smoked.
+
+
+Patient comes from a middle socioeconomic background.
+
+Patient currently has Aetna.
+
+# Allergies
+No Known Allergies.
+
+# Medications
+acetaminophen 160 mg chewable tablet
+
+# Assessment and Plan
+
+
+## Plan
+Patient was given the following immunizations: influenza, seasonal, injectable, preservative free. 
+The following procedures were conducted:
+- medication reconciliation (procedure)
+
+
+
+2020-03-18
+
+# Chief Complaint
+No complaints.
+
+# History of Present Illness
+Alan320
+ is a 8 year-old non-hispanic white male. Patient has a history of acute viral pharyngitis (disorder), sprain of wrist.
+
+# Social History
+ Patient has never smoked.
+
+
+Patient comes from a middle socioeconomic background.
+
+Patient currently has Aetna.
+
+# Allergies
+No Known Allergies.
+
+# Medications
+acetaminophen 160 mg chewable tablet
+
+# Assessment and Plan
+Patient is presenting with sputum finding (finding), fatigue (finding), fever (finding), loss of taste (finding), suspected covid-19. 
+
+## Plan
+
+The following procedures were conducted:
+- face mask (physical object)
+The patient was placed on a careplan:
+- infectious disease care plan (record artifact)
+
+
+
+2020-03-05
+
+# Chief Complaint
+No complaints.
+
+# History of Present Illness
+Alan320
+ is a 8 year-old non-hispanic white male. Patient has a history of acute viral pharyngitis (disorder).
+
+# Social History
+ Patient has never smoked.
+
+
+Patient comes from a middle socioeconomic background.
+
+Patient currently has Aetna.
+
+# Allergies
+No Known Allergies.
+
+# Medications
+No Active Medications.
+
+# Assessment and Plan
+Patient is presenting with sprain of wrist. 
+
+## Plan
+
+The patient was prescribed the following medications:
+- acetaminophen 160 mg chewable tablet
+The patient was placed on a careplan:
+- physical therapy procedure
+
+
+
+2019-10-28
+
+# Chief Complaint
+No complaints.
+
+# History of Present Illness
+Alan320
+ is a 8 year-old non-hispanic white male.
+
+# Social History
+ Patient has never smoked.
+
+
+Patient comes from a middle socioeconomic background.
+
+Patient currently has Aetna.
+
+# Allergies
+No Known Allergies.
+
+# Medications
+No Active Medications.
+
+# Assessment and Plan
+Patient is presenting with acute viral pharyngitis (disorder). 
+
+## Plan
+
+
+
+

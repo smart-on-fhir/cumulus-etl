@@ -163,16 +163,15 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
         config.format.store_docrefs,
     )
 
-
-def etl_notes_nlp(config: JobConfig) -> JobSummary:
+def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_notes_nlp',
+        'etl_notes_text2fhir_symptoms',
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.to_fhir_documentreference,
-        Codebook.fhir_documentreference,
-        config.format.store_notes,
+        i2b2.transform.text2fhir_symptoms(),
+        Codebook.fhir_observation_list(),
+        config.format.store_observation_list(),
     )
 
 
@@ -195,7 +194,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         i2b2.etl.etl_visit,
         i2b2.etl.etl_lab,
         i2b2.etl.etl_notes_meta,
-        # i2b2.etl.etl_notes_nlp,
+        # i2b2.etl.etl_notes_text2fhir_symptoms, TODO: tests will fail currently without mock server.
         i2b2.etl.etl_diagnosis,
     ]
 
