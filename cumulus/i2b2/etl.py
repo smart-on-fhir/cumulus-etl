@@ -203,7 +203,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         summary = task(config)
         summary_list.append(summary)
 
-        path = os.path.join(config.dir_cache_config(), f'{summary.label}.json')
+        path = os.path.join(config.dir_job_config(), f'{summary.label}.json')
         common.write_json(path, summary.as_json())
 
     return summary_list
@@ -220,7 +220,7 @@ def main(args: List[str]):
     parser = argparse.ArgumentParser()
     parser.add_argument('dir_input', metavar='/my/i2b2/input')
     parser.add_argument('dir_output', metavar='/my/i2b2/processed')
-    parser.add_argument('dir_cache', metavar='/my/i2b2/cache')
+    parser.add_argument('dir_phi', metavar='/my/i2b2/phi')
     parser.add_argument('--format',
                         choices=['json', 'ndjson', 'parquet'],
                         default='json')
@@ -228,11 +228,11 @@ def main(args: List[str]):
 
     logging.info('Input Directory: %s', args.dir_input)
     logging.info('Output Directory: %s', args.dir_output)
-    logging.info('Cache Directory: %s', args.dir_cache)
+    logging.info('PHI Build Directory: %s', args.dir_phi)
 
     root_input = store.Root(args.dir_input, create=True)
     root_output = store.Root(args.dir_output, create=True)
-    root_cache = store.Root(args.dir_cache, create=True)
+    root_phi = store.Root(args.dir_phi, create=True)
 
     if args.format == 'ndjson':
         config_store = store_ndjson.NdjsonFormat(root_output)
@@ -241,7 +241,7 @@ def main(args: List[str]):
     else:
         config_store = store_json_tree.JsonTreeFormat(root_output)
 
-    config = JobConfig(root_input, root_cache, config_store)
+    config = JobConfig(root_input, root_phi, config_store)
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json())
