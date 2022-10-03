@@ -10,6 +10,7 @@ import unittest
 import uuid
 from unittest import mock
 
+import freezegun
 import s3fs
 
 from cumulus.i2b2 import etl
@@ -108,6 +109,26 @@ class TestI2b2EtlSimple(unittest.TestCase):
         expected_path = os.path.join(self.data_dir, folder)
         dircmp = filecmp.dircmp(expected_path, self.output_path, ignore=['JobConfig'])
         self.assert_file_tree_equal(dircmp)
+
+
+@freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
+class TestI2b2EtlJobConfig(TestI2b2EtlSimple):
+    """Test case for the job config logging data"""
+
+    def setUp(self):
+        super().setUp()
+        self.job_config_path = os.path.join(self.output_path, 'JobConfig/2021-09-14__21.23.45')
+
+    def read_config_file(self, name: str) -> dict:
+        full_path = os.path.join(self.job_config_path, name)
+        with open(full_path, 'r', encoding='utf8') as f:
+            return json.load(f)
+
+    def test_comment(self):
+        """Verify that a comment makes it from command line to the log file"""
+        etl.main(self.args + ['--comment=Run by foo on machine bar'])
+        config = self.read_config_file('job_config.json')
+        self.assertEqual(config['comment'], 'Run by foo on machine bar')
 
 
 class TestI2b2EtlFormats(TestI2b2EtlSimple):
