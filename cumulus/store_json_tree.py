@@ -210,5 +210,5 @@ class JsonTreeFormat(store.Format):
 
                 common.write_json(path_cnlp, as_json)
 
-    def store_observation_list(self, job, observations: pandas.DataFrame) -> None:
+    def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
         pass

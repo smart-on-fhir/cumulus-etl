@@ -3,6 +3,7 @@
 import logging
 from typing import List
 
+import ctakesclient
 from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
@@ -266,7 +267,7 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
 
     # TODO @andymc to @mterry : do you prefer method receive CtakesJSON instead?
     # Mocking test might be easier with CtakesJSON
-    ctakes_json = text2fhir.client.extract(physician_note)
+    ctakes_json = ctakesclient.client.extract(physician_note)
 
     as_list = []
     for match in ctakes_json.list_sign_symptom(polarity):
@@ -286,7 +287,7 @@ def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> List[DomainResource]:
     encounter_id = obsfact.encounter_num
     physician_note = obsfact.observation_blob
 
-    ctakes_json = text2fhir.client.extract(physician_note)
+    ctakes_json = ctakesclient.client.extract(physician_note)
 
     return text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
 

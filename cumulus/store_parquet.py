@@ -40,5 +40,5 @@ class ParquetFormat(store.Format):
     def store_docrefs(self, job, docrefs: pandas.DataFrame) -> None:
         self._write_records(job, docrefs, 'documentreference/fhir_documentreferences.parquet')
 
-    def store_observation_list(self, job, observations: pandas.DataFrame) -> None:
-        pass
+    def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
+        self._write_records(job, observations, 'symptom/fhir_symptoms.parquet')

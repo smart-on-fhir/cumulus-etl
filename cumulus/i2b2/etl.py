@@ -9,6 +9,7 @@ from typing import Any, Callable, List
 
 import pandas
 from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.resource import Resource
 
 from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
 from cumulus import i2b2
@@ -28,6 +29,15 @@ def _extract_from_files(extract: Callable[[str], List[Any]],
     for csv_file in csv_files:
         for entry in extract(csv_file):
             yield entry
+
+
+def _deid_to_json(obj):
+    """Returns a json-style structure from an object or list of objects"""
+    if isinstance(obj, Resource):
+        return obj.as_json()
+
+    # Else iterate and recurse
+    return (_deid_to_json(x) for x in obj)
 
 
 def _process_job_entries(
@@ -50,7 +60,7 @@ def _process_job_entries(
     i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
     fhir_entries = (to_fhir(x) for x in i2b2_entries)
     deid_entries = (deid(codebook, x) for x in fhir_entries)
-    dataframe = pandas.DataFrame(x.as_json() for x in deid_entries)
+    dataframe = pandas.DataFrame(_deid_to_json(x) for x in deid_entries)
 
     to_store(job, dataframe)
 
@@ -172,7 +182,7 @@ def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.text2fhir_symptoms,
         Codebook.fhir_observation_list,
-        config.format.store_observation_list,
+        config.format.store_symptoms,
     )
 
 
