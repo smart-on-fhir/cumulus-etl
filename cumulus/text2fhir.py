@@ -26,7 +26,6 @@ from ctakesclient.typesystem import UmlsTypeMention, UmlsConcept
 from cumulus.fhir_common import ref_subject, ref_encounter
 from cumulus.fhir_common import fhir_date_now
 from cumulus.fhir_common import fhir_coding, fhir_concept
-from cumulus.fhir_common import fhir_bundle
 
 ###############################################################################
 # NLP Extensions: Enumerate URL and expected Value types

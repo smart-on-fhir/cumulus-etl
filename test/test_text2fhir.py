@@ -58,12 +58,22 @@ def example_derivation_reference() -> dict:
 ###############################################################################
 
 class TestText2Fhir(unittest.TestCase):
+    """
+    Test Transformation from NLP results  to FHIR resources.
+    Test serialization to/from JSON of the different types (NLP and FHIR).
 
+    Most test methods do not test expected values yet, as the proposal for derivation reference is not finalized.
+    see @self.example_derivation_reference()
+    http://build.fhir.org/extension-derivation-reference.html
+    """
     def test_nlp_version_client(self):
         self.assertDictEqual(example_version(),
                              text2fhir.nlp_version_client().as_json())
 
     def test_nlp_algorithm(self):
+        """
+        Test the FHIR Extension for "nlp-algorithm" is the proposed format.
+        """
         ver = text2fhir.nlp_version_client()
         algo = text2fhir.nlp_algorithm(ver)
 
@@ -96,7 +106,11 @@ class TestText2Fhir(unittest.TestCase):
             common.print_fhir(concept)
 
     def test_observation_symptom(self):
-
+        """
+        Test conversion from NLP to FHIR (SignSymptomMention -> FHIR Observation).
+        Test serialization to/from JSON.
+        Does not text expected values.
+        """
         ctakes_json = example_ctakes()
 
         subject_id = '1234'
@@ -109,6 +123,11 @@ class TestText2Fhir(unittest.TestCase):
             common.print_fhir(symptom)
 
     def test_medication(self):
+        """
+        Test conversion from NLP to FHIR (MedicationMention -> FHIR MedicationStatement).
+        Test serialization to/from JSON.
+        Does not text expected values.
+        """
         ctakes_json = example_ctakes()
 
         subject_id = '1234'
@@ -121,18 +140,20 @@ class TestText2Fhir(unittest.TestCase):
             common.print_fhir(medication)
 
     def test_nlp_fhir(self):
+        """
+        Test conversion from NLP (SignSymptom, DiseaseDisorder, Medication, Procedure) to
+        FHIR (Observation, Condition, MedicationStatement, Procedure).
+
+        Test serialization to/from JSON.
+        Does not text expected values.
+        """
         ctakes_json = example_ctakes()
 
         subject_id = '1234'
         encounter_id = '5678'
 
-        as_list = list()
-
         for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json):
-            as_list.append(as_fhir)
-
-        as_bundle = text2fhir.fhir_bundle(as_list)
-        common.print_fhir(as_bundle)
+            common.print_fhir(as_fhir)
 
     def test_nlp_bodysite(self):
         """

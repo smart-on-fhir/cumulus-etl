@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional, Union
 import datetime
 
 from fhirclient.models.fhirreference import FHIRReference
@@ -9,13 +9,12 @@ from fhirclient.models.period import Period
 from fhirclient.models.range import Range
 
 from fhirclient.models.domainresource import DomainResource
-from fhirclient.models.bundle import Bundle, BundleEntry
 
 ###############################################################################
 # Standard FHIR References are ResourceType/id
 ###############################################################################
 
-def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
+def ref_resource(resource_type: str, resource_id: str) -> Optional[FHIRReference]:
     """
     Reference the FHIR proper way
     :param resource_type: Name of resource, like "Patient"
@@ -25,7 +24,7 @@ def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
     if resource_id and len(resource_id) > 3:
         return FHIRReference({'reference': f'{resource_type}/{resource_id}'})
 
-def ref_subject(subject_id: str) -> FHIRReference:
+def ref_subject(subject_id: str) -> Optional[FHIRReference]:
     """
     Patient Reference the FHIR proper way
     :param subject_id: ID for patient (isa REF can be UUID)
@@ -33,7 +32,7 @@ def ref_subject(subject_id: str) -> FHIRReference:
     """
     return ref_resource('Patient', subject_id)
 
-def ref_encounter(encounter_id:str) -> FHIRReference:
+def ref_encounter(encounter_id:str) -> Optional[FHIRReference]:
     """
     Encounter Reference the FHIR proper way
     :param encounter_id: ID for encounter (isa REF can be UUID)
@@ -75,31 +74,6 @@ def fhir_coding(vocab: str, code: str, display=None) -> Coding:
         return Coding({'system': vocab, 'code': code})
 
 ###############################################################################
-# FHIR Bundle (Use Optional)
-###############################################################################
-
-def fhir_bundle(resource_list: List[DomainResource]) -> Bundle:
-    """
-    Bundle up a NLP batch job as one collection "the FHIR way"
-    https://build.fhir.org/valueset-bundle-type.html
-
-    :param resource_list: FHIR Resources derived from an NLP process.
-    :return: FHIR Bundle that packages up the collection
-    """
-    bundle = Bundle()
-    bundle.type = 'collection'
-
-    entries = list()
-    for res in resource_list:
-        entry = BundleEntry()
-        entry.resource = res
-        entries.append(entry)
-
-    bundle.entry = entries
-
-    return bundle
-
-###############################################################################
 # FHIR Dates, Periods, and Ranges
 ###############################################################################
 
@@ -107,10 +81,9 @@ def fhir_date_now() -> FHIRDate:
     """
     :return: FHIRDate using local datetime.now()
     """
-    return FHIRDate(str(datetime.datetime.now()))
+    return FHIRDate(str(datetime.datetime.now(datetime.timezone.utc)))
 
-
-def parse_fhir_date(yyyy_mm_dd) -> FHIRDate:
+def parse_fhir_date(yyyy_mm_dd: Union[str, FHIRDate]) -> Optional[FHIRDate]:
     """
     :param yyyy_mm_dd: YEAR Month Date
     :return: FHIR Date with only the date part.

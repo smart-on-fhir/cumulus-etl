@@ -3,6 +3,7 @@
 import logging
 from typing import List
 
+from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
@@ -20,7 +21,6 @@ from fhirclient.models.documentreference import DocumentReference
 from fhirclient.models.documentreference import DocumentReferenceContext, DocumentReferenceContent
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
-from fhirclient.models.bundle import Bundle
 
 from cumulus.fhir_common import parse_fhir_date
 from cumulus.fhir_common import parse_fhir_date_isostring
@@ -277,7 +277,7 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
     return as_list
 
 
-def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> Bundle:
+def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> List[DomainResource]:
     """
     Optional usage, export everything from NLP that cumulus has a FHIR mapping for.
 
@@ -290,9 +290,7 @@ def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> Bundle:
 
     ctakes_json = text2fhir.client.extract(physician_note)
 
-    as_list = text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
-
-    return text2fhir.fhir_bundle(as_list)
+    return text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
 
 
 ###############################################################################
