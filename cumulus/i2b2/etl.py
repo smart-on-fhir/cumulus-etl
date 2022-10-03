@@ -224,6 +224,7 @@ def main(args: List[str]):
     parser.add_argument('--format',
                         choices=['json', 'ndjson', 'parquet'],
                         default='json')
+    parser.add_argument('--comment', help='add the comment to the log file')
     args = parser.parse_args(args)
 
     logging.info('Input Directory: %s', args.dir_input)
@@ -241,7 +242,7 @@ def main(args: List[str]):
     else:
         config_store = store_json_tree.JsonTreeFormat(root_output)
 
-    config = JobConfig(root_input, root_phi, config_store)
+    config = JobConfig(root_input, root_phi, config_store, comment=args.comment)
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json())

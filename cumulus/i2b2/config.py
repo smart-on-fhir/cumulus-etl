@@ -10,7 +10,7 @@ class JobConfig:
     """Configuration for an ETL job"""
 
     def __init__(self, dir_input: store.Root, dir_phi: store.Root,
-                 store_format: store.Format):
+                 store_format: store.Format, comment: str = None):
         """
         :param dir_input: sources stored in csv_* folders
         :param dir_phi: where to place PHI build artifacts like the codebook
@@ -21,6 +21,7 @@ class JobConfig:
         self.format = store_format
         self.timestamp = common.timestamp_filename()
         self.hostname = gethostname()
+        self.comment = comment or ''
 
     def path_codebook(self) -> str:
         return self.dir_phi.joinpath('codebook.json')
@@ -64,6 +65,7 @@ class JobConfig:
             'list_csv_notes': self.list_csv_notes(),
             'list_csv_diagnosis': self.list_csv_diagnosis(),
             'format': type(self.format).__name__,
+            'comment': self.comment,
         }
 
 
