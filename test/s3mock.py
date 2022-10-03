@@ -10,7 +10,14 @@ import unittest
 from typing import Callable
 from unittest.mock import MagicMock, patch
 
-import aiobotocore.awsrequest
+try:
+    import aiobotocore.awsrequest
+    _skip = False
+except ModuleNotFoundError:
+    # The version of aiobotocore for py3.6 does not have this feature, so just skip the tests
+    # Can remove this complexity once we drop py3.6 support.
+    _skip = True
+
 import aiobotocore.endpoint
 import aiohttp
 import aiohttp.client_reqrep
@@ -24,6 +31,9 @@ class S3Mixin(unittest.TestCase):
     """Subclass this to automatically support s3:// paths in your tests"""
     def setUp(self):
         super().setUp()
+
+        if _skip:
+            self.skipTest('S3 mock not supported')
 
         # Moto recommends clearing out these variables, to avoid using any
         # real credentials floating around in your environment
@@ -51,41 +61,41 @@ class S3Mixin(unittest.TestCase):
 #
 ###############################################################################
 
-class MockAWSResponse(aiobotocore.awsrequest.AioAWSResponse):
-    """Mock aws response"""
-    def __init__(self, response: botocore.awsrequest.AWSResponse):
-        super().__init__('', response.status_code, {},
-                         MockHttpClientResponse(response))
-        self._moto_response = response
-
-    # adapt async methods to use moto's response
-    async def _content_prop(self) -> bytes:
-        return self._moto_response.content
-
-    async def _text_prop(self) -> str:
-        return self._moto_response.text
-
-
-class MockHttpClientResponse(aiohttp.client_reqrep.ClientResponse):
-    """Mock http response"""
-    def __init__(self, response: botocore.awsrequest.AWSResponse):
-        # pylint: disable=super-init-not-called
-
-        async def read(self, n: int = -1) -> bytes:
-            del self, n
-            # streaming/range requests. used by s3fs
-            return response.content
-
-        self.content = MagicMock(aiohttp.StreamReader)
-        self.content.read = read
-
-    @property
-    # pylint: disable-next=invalid-overridden-method
-    def raw_headers(self) -> aiohttp.typedefs.RawHeaders:
-        return tuple()
-
-
 def patch_aiobotocore():
+    class MockAWSResponse(aiobotocore.awsrequest.AioAWSResponse):
+        """Mock aws response"""
+
+        def __init__(self, response: botocore.awsrequest.AWSResponse):
+            super().__init__('', response.status_code, {},
+                             MockHttpClientResponse(response))
+            self._moto_response = response
+
+        # adapt async methods to use moto's response
+        async def _content_prop(self) -> bytes:
+            return self._moto_response.content
+
+        async def _text_prop(self) -> str:
+            return self._moto_response.text
+
+    class MockHttpClientResponse(aiohttp.client_reqrep.ClientResponse):
+        """Mock http response"""
+
+        def __init__(self, response: botocore.awsrequest.AWSResponse):
+            # pylint: disable=super-init-not-called
+
+            async def read(self, n: int = -1) -> bytes:
+                del self, n
+                # streaming/range requests. used by s3fs
+                return response.content
+
+            self.content = MagicMock(aiohttp.StreamReader)
+            self.content.read = read
+
+        @property
+        # pylint: disable-next=invalid-overridden-method
+        def raw_headers(self) -> aiohttp.typedefs.RawHeaders:
+            return tuple()
+
     def factory(original: Callable) -> Callable:
         def patched_convert_to_response_dict(
             http_response: botocore.awsrequest.AWSResponse,

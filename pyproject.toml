@@ -1,6 +1,7 @@
 [project]
 name = "cumulus"
-requires-python = ">= 3.7"
+# We'll want to officially support 3.6 until we no longer care about CentOS 7
+requires-python = ">= 3.6"
 dependencies = [
     "ctakesclient >= 1.0.0",
     "cx-oracle",

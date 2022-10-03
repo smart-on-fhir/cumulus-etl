@@ -4,10 +4,10 @@ on: [push]
 jobs:
   unittest:
     name: unit tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04 # Can bump once we drop support for py3.6
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
 
     steps:
       - uses: actions/checkout@v3
