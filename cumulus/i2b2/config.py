@@ -9,28 +9,29 @@ from cumulus import common, store
 class JobConfig:
     """Configuration for an ETL job"""
 
-    def __init__(self, dir_input: store.Root, dir_cache: store.Root,
-                 store_format: store.Format):
+    def __init__(self, dir_input: store.Root, dir_phi: store.Root,
+                 store_format: store.Format, comment: str = None):
         """
         :param dir_input: sources stored in csv_* folders
-        :param dir_cache: where to place build artifacts like the codebook
+        :param dir_phi: where to place PHI build artifacts like the codebook
         :param store_format: where to place output files and how, like ndjson
         """
         self.dir_input = dir_input
-        self.dir_cache = dir_cache
+        self.dir_phi = dir_phi
         self.format = store_format
-        self.timestamp = common.timestamp()
+        self.timestamp = common.timestamp_filename()
         self.hostname = gethostname()
+        self.comment = comment or ''
 
     def path_codebook(self) -> str:
-        return self.dir_cache.joinpath('codebook.json')
+        return self.dir_phi.joinpath('codebook.json')
 
     def path_config(self) -> str:
-        return os.path.join(self.dir_cache_config(), 'job_config.json')
+        return os.path.join(self.dir_job_config(), 'job_config.json')
 
-    def dir_cache_config(self) -> str:
-        path = self.dir_cache.joinpath(f'JobConfig_{self.timestamp}')
-        self.dir_cache.makedirs(path)
+    def dir_job_config(self) -> str:
+        path = self.format.root.joinpath(f'JobConfig/{self.timestamp}')
+        self.format.root.makedirs(path)
         return path
 
     def list_csv(self, folder) -> list:
@@ -55,7 +56,7 @@ class JobConfig:
         return {
             'dir_input': self.dir_input.path,
             'dir_output': self.format.root.path,
-            'dir_cache': self.dir_cache.path,
+            'dir_phi': self.dir_phi.path,
             'path': self.path_config(),
             'codebook': self.path_codebook(),
             'list_csv_patient': self.list_csv_patient(),
@@ -64,6 +65,7 @@ class JobConfig:
             'list_csv_notes': self.list_csv_notes(),
             'list_csv_diagnosis': self.list_csv_diagnosis(),
             'format': type(self.format).__name__,
+            'comment': self.comment,
         }
 
 
