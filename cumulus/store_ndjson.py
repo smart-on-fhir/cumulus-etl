@@ -43,3 +43,6 @@ class NdjsonFormat(store.Format):
 
     def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
         self._write_records(job, docrefs, 'note/fhir_notes.ndjson')
+
+    def store_observation_list(self, job, observations: pandas.DataFrame) -> None:
+        pass

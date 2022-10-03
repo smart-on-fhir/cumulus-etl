@@ -212,3 +212,6 @@ class JsonTreeFormat(store.Format):
 
     def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
         self._write_records(job, docrefs, self._write_note)
+
+    def store_observation_list(self, job, observations: pandas.DataFrame) -> None:
+        pass

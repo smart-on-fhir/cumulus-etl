@@ -1,3 +1,5 @@
+"""Tests for the text2fhir NLP part of etl.py"""
+
 import unittest
 import os
 
@@ -5,14 +7,17 @@ from cumulus import common
 from cumulus import text2fhir
 from ctakesclient.typesystem import CtakesJSON, Polarity
 
+
 def example_note(filename='synthea.txt') -> str:
     """
     :param filename: default is *NOT PHI* Synthea AI generated example.
     """
     return common.read_text(path(filename))
 
+
 def example_ctakes(filename='synthea.json') -> CtakesJSON:
     return CtakesJSON(common.read_json(path(filename)))
+
 
 def path(filename: str):
     """
@@ -25,18 +30,24 @@ def path(filename: str):
     """
     return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
 
+
 def example_version() -> dict:
     """
     :return: real example of nlp-version
     """
-    return {"url": "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version",
-            "valueCodeableConcept": {
-                "text": "NLP Version",
-                "coding": [{
-                    "code": "1.0.3",
-                    "display": "ctakesclient=1.0.3",
-                    "system": "https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v1.0.3"
-                }]}}
+    system_url = 'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v1.0.3'
+    return {
+        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version',
+        'valueCodeableConcept': {
+            'text': 'NLP Version',
+            'coding': [{
+                'code': '1.0.3',
+                'display': 'ctakesclient=1.0.3',
+                'system': system_url,
+            }]
+        }
+    }
+
 
 def example_derivation_reference() -> dict:
     """
@@ -47,9 +58,11 @@ def example_derivation_reference() -> dict:
                                                              'reference': 'DocumentReference/episode-summary'}},
                                          {'url': 'offset', 'valueInteger': 20},
                                          {'url': 'length', 'valueInteger': 5},
-                                         {'url': 'algorithm', 'valueString': 'however specifically we want to log the fact that cTAKES was used'},
+                                         {'url': 'algorithm', 'valueString': 'however specifically we want to log the '
+                                                                             'fact that cTAKES was used'},
                                          {'url': 'version', 'valueString': 'whatever date or number is useful here'}],
                            'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference'}]}
+
 
 ###############################################################################
 #

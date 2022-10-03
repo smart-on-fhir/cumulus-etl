@@ -163,15 +163,16 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
         config.format.store_docrefs,
     )
 
+
 def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
         'etl_notes_text2fhir_symptoms',
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.text2fhir_symptoms(),
-        Codebook.fhir_observation_list(),
-        config.format.store_observation_list(),
+        i2b2.transform.text2fhir_symptoms,
+        Codebook.fhir_observation_list,
+        config.format.store_observation_list,
     )
 
 

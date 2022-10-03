@@ -113,7 +113,7 @@ class Format(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def store_observation_list(self, job, docrefs: pandas.DataFrame) -> None:
+    def store_observation_list(self, job, observations: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod

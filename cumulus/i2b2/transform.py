@@ -7,7 +7,6 @@ from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.range import Range
 from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
 from fhirclient.models.duration import Duration
@@ -24,7 +23,6 @@ from fhirclient.models.codeableconcept import CodeableConcept
 
 from cumulus.fhir_common import parse_fhir_date
 from cumulus.fhir_common import parse_fhir_date_isostring
-from cumulus.fhir_common import parse_fhir_range, parse_fhir_period
 
 from cumulus import common
 from cumulus import fhir_template
@@ -270,7 +268,7 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
     # Mocking test might be easier with CtakesJSON
     ctakes_json = text2fhir.client.extract(physician_note)
 
-    as_list = list()
+    as_list = []
     for match in ctakes_json.list_sign_symptom(polarity):
         as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, match))
 

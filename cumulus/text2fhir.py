@@ -1,27 +1,19 @@
 """NLP extension using ctakes"""
 import uuid
-from enum import Enum
 from typing import List
 import pkg_resources
-import datetime
 
-from fhirclient.models.coding import Coding
 from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.extension import Extension
-from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.fhirreference import FHIRReference
 
 from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.observation import Observation
 from fhirclient.models.medicationstatement import MedicationStatement
 from fhirclient.models.procedure import Procedure
 from fhirclient.models.condition import Condition
-from fhirclient.models.bundle import Bundle, BundleEntry
 
-from ctakesclient import client
 from ctakesclient.typesystem import CtakesJSON
-from ctakesclient.typesystem import Polarity, Span, MatchText
-from ctakesclient.typesystem import UmlsTypeMention, UmlsConcept
+from ctakesclient.typesystem import Polarity, MatchText
 
 from cumulus.fhir_common import ref_subject, ref_encounter
 from cumulus.fhir_common import fhir_date_now
@@ -31,21 +23,18 @@ from cumulus.fhir_common import fhir_coding, fhir_concept
 # NLP Extensions: Enumerate URL and expected Value types
 ###############################################################################
 
-class URL(Enum):
-    # pylint: disable=line-too-long
-    nlp_algorithm = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-algorithm'
-    nlp_version = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version'
-    nlp_text_position = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position'
-    nlp_date_processed = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-date-processed'
-    nlp_polarity = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity'
-    umls_system = 'http://terminology.hl7.org/CodeSystem/umls'
+NLP_ALGORITHM_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-algorithm'
+NLP_VERSION_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version'
+NLP_TEXT_POSITION_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position'
+NLP_DATE_PROCESSED_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-date-processed'
+NLP_POLARITY_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity'
+UMLS_SYSTEM_URL = 'http://terminology.hl7.org/CodeSystem/umls'
 
-class Value(Enum):
-    valueCodeableConcept = CodeableConcept()
-    valueDate = FHIRDate()
-    valueInteger = int()
-    valueString = str()
-    valueBoolean = None
+VALUE_CODEABLE_CONCEPT = 'valueCodeableConcept'
+VALUE_DATE = 'valueDate'
+VALUE_INTEGER = 'valueInteger'
+VALUE_STRING = 'valueString'
+VALUE_BOOLEAN = 'valueBoolean'
 
 ###############################################################################
 # NLP Extension methods :
@@ -66,7 +55,7 @@ def nlp_algorithm(version:Extension, processed= fhir_date_now()) -> Extension:
     :param processed: defines when the NLP algorithm date is effective
     :return: Extension
     """
-    return Extension({'url': URL.nlp_algorithm.value,
+    return Extension({'url': NLP_ALGORITHM_URL,
                       'extension': [version.as_json(),
                                     nlp_date_processed(processed).as_json()]})
 
@@ -87,10 +76,10 @@ def nlp_polarity(polarity: Polarity) -> Extension:
     :param polarity: Positive or Negative
     :return: FHIR Extension for "nlp-polarity"
     """
-    positive = True if polarity == Polarity.pos else False
+    positive = polarity == Polarity.pos
 
-    return Extension({'url': URL.nlp_polarity.value,
-                      Value.valueBoolean.name: positive})
+    return Extension({'url': NLP_POLARITY_URL,
+                      VALUE_BOOLEAN: positive})
 
 def nlp_text_position(pos_begin: int, pos_end: int) -> Extension:
     """
@@ -99,9 +88,9 @@ def nlp_text_position(pos_begin: int, pos_end: int) -> Extension:
     :param pos_end: character position STOP
     :return:
     """
-    ext_begin = Extension({Value.valueInteger.name: pos_begin, 'url': 'begin'})
-    ext_end = Extension({Value.valueInteger.name: pos_end, 'url': 'end'})
-    return Extension({'url': URL.nlp_text_position.value,
+    ext_begin = Extension({VALUE_INTEGER: pos_begin, 'url': 'begin'})
+    ext_end = Extension({VALUE_INTEGER: pos_end, 'url': 'end'})
+    return Extension({'url': NLP_TEXT_POSITION_URL,
                       'extension': [ext_begin.as_json(),
                                     ext_end.as_json()]
     })
@@ -113,10 +102,10 @@ def nlp_version(nlp_system: str, version_code: str, version_display: str) -> Ext
     :param version_display: NLP Version HUMAN readable display
     :return: FHIR extension for "nlp-version"
     """
-    _version_ = fhir_coding(nlp_system, version_code, version_display).as_json()
+    full_version = fhir_coding(nlp_system, version_code, version_display).as_json()
 
-    return Extension({'url': URL.nlp_version.value,
-                      Value.valueCodeableConcept.name: {'text': 'NLP Version', 'coding': [_version_]}})
+    return Extension({'url': NLP_VERSION_URL,
+                      VALUE_CODEABLE_CONCEPT: {'text': 'NLP Version', 'coding': [full_version]}})
 
 def nlp_version_client() -> Extension:
     """
@@ -132,8 +121,8 @@ def nlp_date_processed(processed= fhir_date_now()) -> Extension:
     :param processed: date processed, default is date_now()
     :return Extension for "processedDate"
     """
-    return Extension({'url': URL.nlp_date_processed.value,
-                      Value.valueDate.name: processed.isostring})
+    return Extension({'url': NLP_DATE_PROCESSED_URL,
+                      VALUE_DATE: processed.isostring})
 
 ###############################################################################
 # NLP conversion functions : simplify creation of FHIR resources for user.
@@ -154,10 +143,10 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
     :param match: everything needed to make CodeableConcept
     :return: FHIR CodeableConcept with both UMLS CUI and source vocab CODE
     """
-    coded = list()
+    coded = []
     for concept in match.conceptAttributes:
         coded.append(fhir_coding(vocab=concept.codingScheme, code=concept.code))
-        coded.append(fhir_coding(vocab=URL.umls_system.value, code=concept.cui))
+        coded.append(fhir_coding(vocab=UMLS_SYSTEM_URL, code=concept.cui))
     return fhir_concept(match.text, coded, nlp_text_position(match.begin, match.end))
 
 def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Condition:
@@ -251,7 +240,9 @@ def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, vers
 
     return procedure
 
-def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON, version=None, polarity=Polarity.pos) -> List[DomainResource]:
+
+def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON,
+             version=None, polarity=Polarity.pos) -> List[DomainResource]:
     """
     FHIR Resources for a patient encounter.
     Use this method to get FHIR Observation, Condition, MedicationStatement, and Procedures for a note that is for a
@@ -264,7 +255,7 @@ def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON, versio
     :param polarity: filter only positive mentions by default
     :return: List of FHIR Resources (DomainResource)
     """
-    as_fhir = list()
+    as_fhir = []
 
     for match in nlp_results.list_sign_symptom(polarity):
         as_fhir.append(nlp_observation(subject_id, encounter_id, match, version))

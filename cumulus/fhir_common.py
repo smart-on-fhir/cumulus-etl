@@ -1,3 +1,5 @@
+"""FHIR utility methods"""
+
 from typing import List, Optional, Union
 import datetime
 
@@ -8,7 +10,6 @@ from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.period import Period
 from fhirclient.models.range import Range
 
-from fhirclient.models.domainresource import DomainResource
 
 ###############################################################################
 # Standard FHIR References are ResourceType/id
@@ -73,13 +74,14 @@ def fhir_coding(vocab: str, code: str, display=None) -> Coding:
     else:
         return Coding({'system': vocab, 'code': code})
 
+
 ###############################################################################
 # FHIR Dates, Periods, and Ranges
 ###############################################################################
 
 def fhir_date_now() -> FHIRDate:
     """
-    :return: FHIRDate using local datetime.now()
+    :return: current time (UTC)
     """
     return FHIRDate(str(datetime.datetime.now(datetime.timezone.utc)))
 
@@ -103,6 +105,7 @@ def parse_fhir_date_isostring(yyyy_mm_dd) -> str:
     """
     parsed = parse_fhir_date(yyyy_mm_dd)
     return parsed.isostring if parsed else None
+
 
 def parse_fhir_period(start_date, end_date) -> Period:
     if isinstance(start_date, str):
