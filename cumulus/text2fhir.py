@@ -111,10 +111,10 @@ def nlp_version_client() -> Extension:
     """
     :return: FHIR Extension defining the default NLP Client (this program)
     """
-    tag = 'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v1.0.3'
     pkg = 'ctakesclient'
     ver = pkg_resources.get_distribution(pkg).version
-    return nlp_version(tag, ver, f'{pkg}={ver}')
+    tag = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
+    return nlp_version(tag, ver, f'{pkg}=={ver}')
 
 def nlp_date_processed(processed= fhir_date_now()) -> Extension:
     """

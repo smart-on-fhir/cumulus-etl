@@ -1,5 +1,6 @@
 """Tests for the text2fhir NLP part of etl.py"""
 
+import pkg_resources
 import unittest
 import os
 
@@ -35,14 +36,15 @@ def example_version() -> dict:
     """
     :return: real example of nlp-version
     """
-    system_url = 'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v1.0.3'
+    ver = pkg_resources.get_distribution('ctakesclient').version
+    system_url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
     return {
         'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version',
         'valueCodeableConcept': {
             'text': 'NLP Version',
             'coding': [{
-                'code': '1.0.3',
-                'display': 'ctakesclient=1.0.3',
+                'code': ver,
+                'display': f'ctakesclient=={ver}',
                 'system': system_url,
             }]
         }

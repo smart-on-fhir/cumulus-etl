@@ -109,10 +109,6 @@ class Format(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
-        pass
-
-    @abc.abstractmethod
     def store_observation_list(self, job, observations: pandas.DataFrame) -> None:
         pass
 

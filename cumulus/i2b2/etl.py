@@ -158,7 +158,7 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
-        # Make sure no notes get through as docrefs (they come via store_notes)
+        # Make sure no notes get through as docrefs (they come via other etl methods)
         _strip_notes_from_docref,
         config.format.store_docrefs,
     )
