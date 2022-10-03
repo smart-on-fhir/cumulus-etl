@@ -27,12 +27,15 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
 
+[project.scripts]
+cumulus-etl = "cumulus.etl:main_cli"
+
 [build-system]
 requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["cumulus"]
+packages = ["cumulus", "cumulus.i2b2", "cumulus.i2b2.oracle"]
 
 [project.optional-dependencies]
 tests = [

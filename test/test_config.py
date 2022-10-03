@@ -5,7 +5,7 @@ from socket import gethostname
 
 import freezegun
 
-from cumulus.i2b2 import config
+from cumulus import config
 
 
 class TestI2b2ConfigSummary(unittest.TestCase):

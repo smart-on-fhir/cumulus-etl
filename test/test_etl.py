@@ -13,7 +13,7 @@ from unittest import mock
 import freezegun
 import s3fs
 
-from cumulus.i2b2 import etl
+from cumulus import etl
 
 from .s3mock import S3Mixin
 
