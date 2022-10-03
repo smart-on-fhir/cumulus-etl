@@ -1,4 +1,4 @@
-"""Load, transform, and write out i2b2 to FHIR"""
+"""Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
 import json
@@ -12,8 +12,8 @@ from fhirclient.models.documentreference import DocumentReference
 
 from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
 from cumulus import i2b2
-from cumulus.i2b2.config import JobConfig, JobSummary
 from cumulus.codebook import Codebook
+from cumulus.config import JobConfig, JobSummary
 
 ###############################################################################
 #
@@ -191,12 +191,12 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
     summary_list = []
 
     task_list = [
-        i2b2.etl.etl_patient,
-        i2b2.etl.etl_visit,
-        i2b2.etl.etl_lab,
-        i2b2.etl.etl_notes_meta,
-        # i2b2.etl.etl_notes_nlp,
-        i2b2.etl.etl_diagnosis,
+        etl_patient,
+        etl_visit,
+        etl_lab,
+        etl_notes_meta,
+        # etl_notes_nlp,
+        etl_diagnosis,
     ]
 
     for task in task_list:
@@ -218,9 +218,9 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 
 def main(args: List[str]):
     parser = argparse.ArgumentParser()
-    parser.add_argument('dir_input', metavar='/my/i2b2/input')
-    parser.add_argument('dir_output', metavar='/my/i2b2/processed')
-    parser.add_argument('dir_phi', metavar='/my/i2b2/phi')
+    parser.add_argument('dir_input', metavar='/path/to/input')
+    parser.add_argument('dir_output', metavar='/path/to/processed')
+    parser.add_argument('dir_phi', metavar='/path/to/phi')
     parser.add_argument('--format',
                         choices=['json', 'ndjson', 'parquet'],
                         default='json')
@@ -251,5 +251,9 @@ def main(args: List[str]):
         print(json.dumps(summary.as_json(), indent=4))
 
 
-if __name__ == '__main__':
+def main_cli():
     main(sys.argv[1:])
+
+
+if __name__ == '__main__':
+    main_cli()
