@@ -1,6 +1,5 @@
 [project]
 name = "cumulus"
-version = "0.0.1"
 requires-python = ">= 3.7"
 dependencies = [
     "ctakesclient >= 1.0.0",
@@ -23,6 +22,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dynamic = ["version"]
 
 [project.urls]
 "Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
@@ -31,11 +31,16 @@ classifiers = [
 cumulus-etl = "cumulus.etl:main_cli"
 
 [build-system]
-requires = ["setuptools >= 61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
 
-[tool.setuptools]
-packages = ["cumulus", "cumulus.i2b2", "cumulus.i2b2.oracle"]
+[tool.flit.sdist]
+include = [
+    "docs/",
+    "resources/",
+    "test/",
+    "LICENSE",
+]
 
 [project.optional-dependencies]
 tests = [
