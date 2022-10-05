@@ -50,10 +50,10 @@ class Root:
         if not path.startswith(self.path):
             raise ValueError(f'Path "{path}" is not inside root "{self.path}"')
 
-    def exists(self, path: str) -> None:
+    def exists(self, path: str) -> bool:
         """Alias for os.path.exists"""
         self._confirm_in_root(path)
-        self.fs.exists(path)
+        return self.fs.exists(path)
 
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""

@@ -24,12 +24,16 @@ class Table(Enum):
     mrn_patient_failed = 'mrn_patuuid_patnum_failed'
 
 
+class Dimension:
+    """Base class for any i2b2 entry"""
+
+
 ###############################################################################
 # i2b2 PatientDimension --> FHIR Patient
 ###############################################################################
 
 
-class PatientDimension:
+class PatientDimension(Dimension):
     """
     desc patient_dimension
 
@@ -75,7 +79,7 @@ class PatientDimension:
 ###############################################################################
 # i2b2 ProviderDimension --> FHIR Practitioner (Future)
 ###############################################################################
-class ProviderDimension:
+class ProviderDimension(Dimension):
     """
     desc provider_dimension
 
@@ -110,7 +114,7 @@ class ProviderDimension:
 ###############################################################################
 
 
-class VisitDimension:
+class VisitDimension(Dimension):
     """
     desc visit_dimension
 
@@ -147,7 +151,7 @@ class VisitDimension:
 #                           (future: FHIR Medication, ...)
 #
 ###############################################################################
-class ConceptDimension:
+class ConceptDimension(Dimension):
     """
     desc concept_dimension
 
@@ -245,7 +249,7 @@ class ValueFlagNormality(Enum):
     encrypted = 'X'
 
 
-class ObservationFact:
+class ObservationFact(Dimension):
     """
     desc observation_fact
 
