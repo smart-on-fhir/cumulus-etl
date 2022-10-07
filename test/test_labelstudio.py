@@ -4,11 +4,10 @@ import os
 import random
 import unittest
 
-from ctakesclient.filesystem import map_cui_pref
+from ctakesclient.filesystem import covid_symptoms, map_cui_pref
 from ctakesclient.typesystem import CtakesJSON, Polarity
 
 from cumulus import store, common
-from cumulus.labelstudio import COVID_SYMPTOMS_BSV
 from cumulus.labelstudio import LabelStudio, merge_cohort
 
 
@@ -24,7 +23,7 @@ class TestLabelStudio(unittest.TestCase):
     def test_select_cohort(self,
                            dir_processed='/opt/i2b2/processed',
                            cohort_size=20):
-        filter_cui = map_cui_pref(COVID_SYMPTOMS_BSV)
+        filter_cui = map_cui_pref(covid_symptoms())
 
         candidates = []
         cohort = {}
@@ -87,7 +86,7 @@ class TestLabelStudio(unittest.TestCase):
     def test_merge_content(self, dir_processed='/opt/i2b2/processed'):
         merged = []
 
-        for select_cui in map_cui_pref(COVID_SYMPTOMS_BSV):
+        for select_cui in map_cui_pref(covid_symptoms()):
             cohort_dir = f'{dir_processed}/cohort'
             path_cui_cohort = f'{cohort_dir}/{select_cui}.json'
             path_cui_content = f'{cohort_dir}/{select_cui}_content.json'
@@ -103,7 +102,7 @@ class TestLabelStudio(unittest.TestCase):
     def test_merge_labels(self, dir_processed='/opt/i2b2/processed'):
         label_cui = {}
 
-        for cui, pref in map_cui_pref(COVID_SYMPTOMS_BSV).items():
+        for cui, pref in map_cui_pref(covid_symptoms()).items():
             if pref not in label_cui.values():
                 label_cui[pref] = []
             label_cui[pref].append(cui)
@@ -128,10 +127,10 @@ class TestLabelStudio(unittest.TestCase):
     def test_print_labels(self):
         print('##############################################')
         print('LabelStudio cui_filter')
-        print(map_cui_pref(COVID_SYMPTOMS_BSV))
+        print(map_cui_pref(covid_symptoms()))
         print('##############################################')
         print('LabelStudio labels')
-        for label in set(map_cui_pref(COVID_SYMPTOMS_BSV).values()):
+        for label in set(map_cui_pref(covid_symptoms()).values()):
             print(label.strip())
 
     def test_labelstudio_files_cleanup(self,

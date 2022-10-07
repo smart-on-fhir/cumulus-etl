@@ -2,7 +2,7 @@
 name = "cumulus"
 requires-python = ">= 3.7"
 dependencies = [
-    "ctakesclient >= 1.0.0",
+    "ctakesclient >= 1.2.0",
     "cx-oracle",
     "fhirclient",
     "pandas",
