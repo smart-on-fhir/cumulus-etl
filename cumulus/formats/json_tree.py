@@ -1,4 +1,4 @@
-"""An implementation of Store that writes to a directory tree"""
+"""An implementation of Format that writes to a directory tree"""
 
 import logging
 import os

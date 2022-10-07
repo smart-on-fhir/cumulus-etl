@@ -11,7 +11,7 @@ from typing import Callable, Iterable, Iterator, List, TypeVar, Union
 import pandas
 from fhirclient.models.resource import Resource
 
-from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
+from cumulus import common, formats, store
 from cumulus import i2b2
 from cumulus.codebook import Codebook
 from cumulus.config import JobConfig, JobSummary
@@ -249,11 +249,11 @@ def main(args: List[str]):
     root_phi = store.Root(args.dir_phi, create=True)
 
     if args.format == 'ndjson':
-        config_store = store_ndjson.NdjsonFormat(root_output)
+        config_store = formats.NdjsonFormat(root_output)
     elif args.format == 'parquet':
-        config_store = store_parquet.ParquetFormat(root_output)
+        config_store = formats.ParquetFormat(root_output)
     else:
-        config_store = store_json_tree.JsonTreeFormat(root_output)
+        config_store = formats.JsonTreeFormat(root_output)
 
     config = JobConfig(root_input, root_phi, config_store, comment=args.comment)
     print(json.dumps(config.as_json(), indent=4))
