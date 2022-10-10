@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import sys
-from typing import Callable, Iterable, Iterator, List, TypeVar
+from typing import Callable, Iterable, Iterator, List, TypeVar, Union
 
 import pandas
 from fhirclient.models.documentreference import DocumentReference
@@ -26,8 +26,8 @@ from cumulus.i2b2.schema import Dimension as I2b2Dimension
 AnyResource = TypeVar('AnyResource', bound=Resource)
 AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
 CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
-I2b2ToFhirCallable = Callable[[AnyDimension], Resource]
-DeidentifyCallable = Callable[[Codebook, AnyResource], Resource]
+I2b2ToFhirCallable = Callable[[AnyDimension], Union[Resource, List[Resource]]]
+DeidentifyCallable = Callable[[Codebook, Union[AnyResource, List[AnyResource]]], Resource]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame], None]
 
 
