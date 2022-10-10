@@ -109,9 +109,9 @@ class Format(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
+    def store_patients(self, job, patients: pandas.DataFrame) -> None:
         pass
 
     @abc.abstractmethod
-    def store_patients(self, job, patients: pandas.DataFrame) -> None:
+    def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
         pass

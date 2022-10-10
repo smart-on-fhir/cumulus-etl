@@ -1,11 +1,13 @@
 """Transformations from i2b2 to FHIR"""
 
 import logging
+from typing import List
 
+import ctakesclient
+from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.range import Range
 from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
 from fhirclient.models.duration import Duration
@@ -20,10 +22,15 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from ctakesclient.typesystem import CtakesJSON
+from cumulus.fhir_common import parse_fhir_date
+from cumulus.fhir_common import parse_fhir_date_isostring
 
-from cumulus import common, fhir_template
+from cumulus import common
+from cumulus import fhir_template
+
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
+
+from cumulus import text2fhir
 
 ###############################################################################
 #
@@ -97,40 +104,6 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
 
     return encounter
 
-
-def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
-    """
-    :param obsfact: i2b2 observation fact containing the I2b2 NOTE as
-                    OBSERVATION_BLOB
-    :return: https://www.hl7.org/fhir/documentreference.html
-    """
-    docref = DocumentReference()
-    docref.indexed = FHIRDate()
-
-    docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    docref.context = DocumentReferenceContext()
-    docref.context.encounter = [
-        FHIRReference({'reference': str(obsfact.encounter_num)})
-    ]
-
-    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)
-                                  })  # i2b2 Note Type
-    docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
-    docref.status = 'superseded'
-
-    # TODO: Content Warning: Philter DEID should be used on all notes that are
-    #       sent to Cumulus.
-    content = DocumentReferenceContent()
-    content.attachment = Attachment()
-    content.attachment.contentType = 'text/plain'
-    # content.attachment.data = str(base64.b64encode(str(
-    #   obsfact.observation_blob).encode()))
-    content.attachment.data = obsfact.observation_blob
-    docref.content = [content]
-
-    return docref
-
-
 def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
     :param obsfact: base "FHIR Observation" from base "I2B2 ObservationFact"
@@ -192,18 +165,6 @@ def to_fhir_observation_lab(obsfact: ObservationFact,
 
     return observation
 
-
-def to_fhir_observation_note(obsfact: ObservationFact,
-                             ctakes_json: CtakesJSON) -> Observation:
-    """
-    :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
-    :return: https://www.hl7.org/fhir/documentreference.html
-    """
-    del ctakes_json
-
-    return to_fhir_observation(obsfact)
-
-
 def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     """
     :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED
@@ -257,8 +218,79 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
 
     return condition
 
+###############################################################################
+#
+# Physician Notes and NLP
+#
+###############################################################################
+def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
+    """
+    :param obsfact: i2b2 observation fact containing the I2b2 NOTE as
+                    OBSERVATION_BLOB
+    :return: https://www.hl7.org/fhir/documentreference.html
+    """
+    docref = DocumentReference()
+    docref.indexed = FHIRDate()
 
-# http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position
+    docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
+    docref.context = DocumentReferenceContext()
+    docref.context.encounter = [
+        FHIRReference({'reference': str(obsfact.encounter_num)})
+    ]
+
+    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)
+                                  })  # i2b2 Note Type
+    docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
+    docref.status = 'superseded'
+
+    # TODO: Content Warning: Philter DEID should be used on all notes that are
+    #       sent to Cumulus.
+    content = DocumentReferenceContent()
+    content.attachment = Attachment()
+    content.attachment.contentType = 'text/plain'
+    # content.attachment.data = str(base64.b64encode(str(
+    #   obsfact.observation_blob).encode()))
+    content.attachment.data = obsfact.observation_blob
+    docref.content = [content]
+
+    return docref
+
+def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos) -> List[Observation]:
+    """
+    :param obsfact: Physician Note
+    :param polarity: default only get positive NLP mentions.
+    :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
+    """
+    subject_id = obsfact.patient_num
+    encounter_id = obsfact.encounter_num
+    physician_note = obsfact.observation_blob
+
+    # TODO @andymc to @mterry : do you prefer method receive CtakesJSON instead?
+    # Mocking test might be easier with CtakesJSON
+    ctakes_json = ctakesclient.client.extract(physician_note)
+
+    as_list = []
+    for match in ctakes_json.list_sign_symptom(polarity):
+        as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, match))
+
+    return as_list
+
+
+def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> List[DomainResource]:
+    """
+    Optional usage, export everything from NLP that cumulus has a FHIR mapping for.
+
+    :param obsfact: Physician Note
+    :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
+    """
+    subject_id = obsfact.patient_num
+    encounter_id = obsfact.encounter_num
+    physician_note = obsfact.observation_blob
+
+    ctakes_json = ctakesclient.client.extract(physician_note)
+
+    return text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
+
 
 ###############################################################################
 #
@@ -312,44 +344,3 @@ def parse_fhir_duration(i2b2_length_of_stay) -> float:
             return float(i2b2_length_of_stay)
         if isinstance(i2b2_length_of_stay, float):
             return i2b2_length_of_stay
-
-
-def parse_fhir_date(i2b2_date_string) -> FHIRDate:
-    """
-    :param i2b2_date_string:
-    :return: FHIR Date with only the date part.
-    """
-    if i2b2_date_string and isinstance(i2b2_date_string, FHIRDate):
-        return i2b2_date_string
-    if i2b2_date_string and isinstance(i2b2_date_string, str):
-        if len(i2b2_date_string) >= 10:
-            i2b2_date_string = i2b2_date_string[:10]
-            return FHIRDate(i2b2_date_string)
-
-
-def parse_fhir_date_isostring(i2b2_date_string) -> str:
-    """
-    :param i2b2_date_string:
-    :return: str version of the
-    """
-    parsed = parse_fhir_date(i2b2_date_string)
-    return parsed.isostring if parsed else None
-
-
-def parse_fhir_period(start_date, end_date) -> Period:
-    if isinstance(start_date, str):
-        start_date = parse_fhir_date(start_date)
-    if isinstance(end_date, str):
-        end_date = parse_fhir_date(end_date)
-
-    p = Period()
-    p.start = start_date
-    p.end = end_date
-    return p
-
-
-def parse_fhir_range(low, high) -> Range:
-    r = Range()
-    r.low = low
-    r.high = high
-    return r

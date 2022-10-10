@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import sys
-from typing import Callable, Iterable, Iterator, List, TypeVar
+from typing import Callable, Iterable, Iterator, List, TypeVar, Union
 
 import pandas
 from fhirclient.models.documentreference import DocumentReference
@@ -26,8 +26,8 @@ from cumulus.i2b2.schema import Dimension as I2b2Dimension
 AnyResource = TypeVar('AnyResource', bound=Resource)
 AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
 CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
-I2b2ToFhirCallable = Callable[[AnyDimension], Resource]
-DeidentifyCallable = Callable[[Codebook, AnyResource], Resource]
+I2b2ToFhirCallable = Callable[[AnyDimension], Union[Resource, List[Resource]]]
+DeidentifyCallable = Callable[[Codebook, Union[AnyResource, List[AnyResource]]], Resource]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame], None]
 
 
@@ -36,6 +36,15 @@ def _extract_from_files(extract: CsvToI2b2Callable, csv_files: Iterable[str]) ->
     for csv_file in csv_files:
         for entry in extract(csv_file):
             yield entry
+
+
+def _deid_to_json(obj):
+    """Returns a json-style structure from an object or list of objects"""
+    if isinstance(obj, Resource):
+        return obj.as_json()
+
+    # Else iterate and recurse
+    return (_deid_to_json(x) for x in obj)
 
 
 def _process_job_entries(
@@ -58,7 +67,7 @@ def _process_job_entries(
     i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
     fhir_entries = (to_fhir(x) for x in i2b2_entries)
     deid_entries = (deid(codebook, x) for x in fhir_entries)
-    dataframe = pandas.DataFrame(x.as_json() for x in deid_entries)
+    dataframe = pandas.DataFrame(_deid_to_json(x) for x in deid_entries)
 
     to_store(job, dataframe)
 
@@ -166,21 +175,21 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
-        # Make sure no notes get through as docrefs (they come via store_notes)
+        # Make sure no notes get through as docrefs (they come via other etl methods)
         _strip_notes_from_docref,
         config.format.store_docrefs,
     )
 
 
-def etl_notes_nlp(config: JobConfig) -> JobSummary:
+def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        etl_notes_nlp.__name__,
+        etl_notes_text2fhir_symptoms.__name__,
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.to_fhir_documentreference,
-        Codebook.fhir_documentreference,
-        config.format.store_notes,
+        i2b2.transform.text2fhir_symptoms,
+        Codebook.fhir_observation_list,
+        config.format.store_symptoms,
     )
 
 
@@ -203,7 +212,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         etl_visit,
         etl_lab,
         etl_notes_meta,
-        # etl_notes_nlp,
+        # etl_notes_text2fhir_symptoms, TODO: tests will fail currently without mock server.
         etl_diagnosis,
     ]
 

@@ -41,5 +41,5 @@ class NdjsonFormat(store.Format):
     def store_docrefs(self, job, docrefs: pandas.DataFrame) -> None:
         self._write_records(job, docrefs, 'documentreference/fhir_documentreferences.ndjson')
 
-    def store_notes(self, job, docrefs: pandas.DataFrame) -> None:
-        self._write_records(job, docrefs, 'note/fhir_notes.ndjson')
+    def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
+        self._write_records(job, observations, 'symptom/fhir_symptoms.ndjson')
