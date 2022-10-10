@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import sys
-from typing import Any, Callable, List
+from typing import Callable, Iterable, Iterator, List, TypeVar
 
 import pandas
 from fhirclient.models.documentreference import DocumentReference
@@ -15,6 +15,7 @@ from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
 from cumulus import i2b2
 from cumulus.codebook import Codebook
 from cumulus.config import JobConfig, JobSummary
+from cumulus.i2b2.schema import Dimension as I2b2Dimension
 
 ###############################################################################
 #
@@ -22,9 +23,15 @@ from cumulus.config import JobConfig, JobSummary
 #
 ###############################################################################
 
+AnyResource = TypeVar('AnyResource', bound=Resource)
+AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
+CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
+I2b2ToFhirCallable = Callable[[AnyDimension], Resource]
+DeidentifyCallable = Callable[[Codebook, AnyResource], Resource]
+StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame], None]
 
-def _extract_from_files(extract: Callable[[str], List[Any]],
-                        csv_files: List[str]):
+
+def _extract_from_files(extract: CsvToI2b2Callable, csv_files: Iterable[str]) -> Iterator[I2b2Dimension]:
     """Generator method that lazily loads input csv files"""
     for csv_file in csv_files:
         for entry in extract(csv_file):
@@ -44,10 +51,10 @@ def _process_job_entries(
     config: JobConfig,
     job_name: str,
     csv_folder: str,
-    extract: Callable[[str], List[Any]],
-    to_fhir: Callable[[Any], Any],
-    deid: Callable[[Codebook, Any], Any],
-    to_store: Callable[[JobSummary, pandas.DataFrame], None],
+    extract: CsvToI2b2Callable,
+    to_fhir: I2b2ToFhirCallable,
+    deid: DeidentifyCallable,
+    to_store: StoreFormatCallable,
 ):
     codebook = Codebook(config.path_codebook())
 
@@ -78,7 +85,7 @@ def _process_job_entries(
 def etl_patient(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_patient',
+        etl_patient.__name__,
         'csv_patient',
         i2b2.extract.extract_csv_patients,
         i2b2.transform.to_fhir_patient,
@@ -97,7 +104,7 @@ def etl_patient(config: JobConfig) -> JobSummary:
 def etl_visit(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_visit',
+        etl_visit.__name__,
         'csv_visit',
         i2b2.extract.extract_csv_visits,
         i2b2.transform.to_fhir_encounter,
@@ -116,7 +123,7 @@ def etl_visit(config: JobConfig) -> JobSummary:
 def etl_lab(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_lab',
+        etl_lab.__name__,
         'csv_lab',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_observation_lab,
@@ -135,7 +142,7 @@ def etl_lab(config: JobConfig) -> JobSummary:
 def etl_diagnosis(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_diagnosis',
+        etl_diagnosis.__name__,
         'csv_diagnosis',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_condition,
@@ -164,7 +171,7 @@ def _strip_notes_from_docref(codebook: Codebook,
 def etl_notes_meta(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_notes_meta',
+        etl_notes_meta.__name__,
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
@@ -177,7 +184,7 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
 def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
-        'etl_notes_text2fhir_symptoms',
+        etl_notes_text2fhir_symptoms.__name__,
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.text2fhir_symptoms,
