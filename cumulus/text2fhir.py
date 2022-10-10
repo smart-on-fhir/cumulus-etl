@@ -1,17 +1,18 @@
 """NLP extension using ctakes"""
 import uuid
 from typing import List
-import pkg_resources
 
 from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.extension import Extension
 
+from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.observation import Observation
 from fhirclient.models.medicationstatement import MedicationStatement
 from fhirclient.models.procedure import Procedure
 from fhirclient.models.condition import Condition
 
+import ctakesclient
 from ctakesclient.typesystem import CtakesJSON
 from ctakesclient.typesystem import Polarity, MatchText
 
@@ -49,12 +50,13 @@ VALUE_BOOLEAN = 'valueBoolean'
 #
 ###############################################################################
 
-def nlp_algorithm(version:Extension, processed= fhir_date_now()) -> Extension:
+def nlp_algorithm(version: Extension, processed: FHIRDate = None) -> Extension:
     """
     :param version: version info the NLP algorithm.
     :param processed: defines when the NLP algorithm date is effective
     :return: Extension
     """
+    processed = processed or fhir_date_now()
     return Extension({'url': NLP_ALGORITHM_URL,
                       'extension': [version.as_json(),
                                     nlp_date_processed(processed).as_json()]})
@@ -112,7 +114,7 @@ def nlp_version_client() -> Extension:
     :return: FHIR Extension defining the default NLP Client (this program)
     """
     pkg = 'ctakesclient'
-    ver = pkg_resources.get_distribution(pkg).version
+    ver = ctakesclient.__version__
     tag = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
     return nlp_version(tag, ver, f'{pkg}=={ver}')
 

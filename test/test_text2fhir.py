@@ -1,11 +1,12 @@
 """Tests for the text2fhir NLP part of etl.py"""
 
-import pkg_resources
 import unittest
 import os
 
 from cumulus import common
 from cumulus import text2fhir
+
+import ctakesclient
 from ctakesclient.typesystem import CtakesJSON, Polarity
 
 
@@ -36,7 +37,7 @@ def example_version() -> dict:
     """
     :return: real example of nlp-version
     """
-    ver = pkg_resources.get_distribution('ctakesclient').version
+    ver = ctakesclient.__version__
     system_url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
     return {
         'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version',

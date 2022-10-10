@@ -89,7 +89,8 @@ def fhir_date_now() -> FHIRDate:
     """
     return FHIRDate(str(datetime.datetime.now(datetime.timezone.utc)))
 
-def parse_fhir_date(yyyy_mm_dd: Union[str, FHIRDate]) -> Optional[FHIRDate]:
+
+def parse_fhir_date(yyyy_mm_dd: Union[str, FHIRDate]) -> FHIRDate:
     """
     :param yyyy_mm_dd: YEAR Month Date
     :return: FHIR Date with only the date part.
@@ -97,9 +98,9 @@ def parse_fhir_date(yyyy_mm_dd: Union[str, FHIRDate]) -> Optional[FHIRDate]:
     if yyyy_mm_dd and isinstance(yyyy_mm_dd, FHIRDate):
         return yyyy_mm_dd
     if yyyy_mm_dd and isinstance(yyyy_mm_dd, str):
-        if len(yyyy_mm_dd) >= 10:
-            yyyy_mm_dd = yyyy_mm_dd[:10]
-            return FHIRDate(yyyy_mm_dd)
+        yyyy_mm_dd = yyyy_mm_dd[:10]  # ignore the time portion
+        return FHIRDate(yyyy_mm_dd)
+    raise ValueError("date must be string or FHIRDate")
 
 
 def parse_fhir_date_isostring(yyyy_mm_dd) -> str:
@@ -108,7 +109,7 @@ def parse_fhir_date_isostring(yyyy_mm_dd) -> str:
     :return: str version of the
     """
     parsed = parse_fhir_date(yyyy_mm_dd)
-    return parsed.isostring if parsed else None
+    return parsed.isostring
 
 
 def parse_fhir_period(start_date, end_date) -> Period:
