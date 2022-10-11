@@ -2,11 +2,12 @@
 import uuid
 from typing import List
 
-from fhirclient.models.codeableconcept import CodeableConcept
-from fhirclient.models.extension import Extension
-
-from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.resource import Resource
 from fhirclient.models.domainresource import DomainResource
+from fhirclient.models.extension import Extension
+from fhirclient.models.fhirreference import FHIRReference
+
+from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.observation import Observation
 from fhirclient.models.medicationstatement import MedicationStatement
 from fhirclient.models.procedure import Procedure
@@ -16,115 +17,159 @@ import ctakesclient
 from ctakesclient.typesystem import CtakesJSON
 from ctakesclient.typesystem import Polarity, MatchText
 
-from cumulus.fhir_common import ref_subject, ref_encounter
-from cumulus.fhir_common import fhir_date_now
+from cumulus.fhir_common import ref_subject, ref_encounter, ref_document
 from cumulus.fhir_common import fhir_coding, fhir_concept
 
 ###############################################################################
-# NLP Extensions: Enumerate URL and expected Value types
+# URLs to qualify Extensions:
+#   FHIR DerivationReference
+#   SMART-on-FHIR StructureDefinition
 ###############################################################################
+FHIR_DERIVATION_REF_URL = 'http://hl7.org/fhir/StructureDefinition/derivation-reference'
 
-NLP_ALGORITHM_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-algorithm'
-NLP_VERSION_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version'
-NLP_TEXT_POSITION_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position'
-NLP_DATE_PROCESSED_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-date-processed'
+NLP_SOURCE_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source'
 NLP_POLARITY_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity'
-UMLS_SYSTEM_URL = 'http://terminology.hl7.org/CodeSystem/umls'
 
-VALUE_CODEABLE_CONCEPT = 'valueCodeableConcept'
-VALUE_DATE = 'valueDate'
-VALUE_INTEGER = 'valueInteger'
-VALUE_STRING = 'valueString'
-VALUE_BOOLEAN = 'valueBoolean'
+UMLS_SYSTEM_URL = 'http://terminology.hl7.org/CodeSystem/umls' # TODO: refactor
 
 ###############################################################################
-# NLP Extension methods :
+# Common extension helper methods
 #
-#   nlp_algorithm
-#   nlp_modifier
-#   nlp_polarity
-#   nlp_text_position
-#   nlp_version
-#   nlp_version_client
-#   nlp_date_processed
+###############################################################################
+def value_string(url: str, value: str) -> Extension:
+    """
+    :param url: either URL or simple "key"
+    :param value: valueString to associate with URL
+    :return: Extension with simple url:valueString
+    """
+    return Extension({'url': url, 'valueString': value})
+
+def value_integer(url: str, value: str) -> Extension:
+    """
+    :param url: either URL or simple "key"
+    :param value: valueInteger to associate with URL
+    :return: Extension with simple url:valueInteger
+    """
+    return Extension({'url': url, 'valueInteger': value})
+
+def value_boolean(url: str, value: bool) -> Extension:
+    """
+    :param url: either URL or simple "key"
+    :param value: valueString to associate with URL
+    :return: Extension with simple url:valueBoolean
+    """
+    return Extension({'url': url, 'valueBoolean': value})
+
+def value_reference(value: FHIRReference) -> Extension:
+    """
+    :param value: valueString to associate with URL
+    :return: Extension with reference:FHIRReference like 'Patient/123456789'
+    """
+    return Extension({'url': 'reference', 'valueReference': value})
+
+def value_list(url: str, values: List) -> Extension:
+    """
+    :param url: either URL or simple "key"
+    :param values: nested list of extensions
+    :return: Extension with nested content extension:List
+    """
+    return Extension({'url': url, 'extension': values})
+
+def as_json(resource):
+    if isinstance(resource, Resource):
+        return resource.as_json()
+    if isinstance(resource, dict):
+        return resource
+    if isinstance(resource, list):
+        cons = list()
+        for r in resource:
+            if r:
+                cons.append(as_json(r))
+        return cons
+
+###############################################################################
+# modifierExtension
+#   "nlp-source" is Required
+#   "nlp-polarity" is Optional
 #
 ###############################################################################
 
-def nlp_algorithm(version: Extension, processed: FHIRDate = None) -> Extension:
+def nlp_modifier(source=None, polarity=None) -> List[Extension]:
     """
-    :param version: version info the NLP algorithm.
-    :param processed: defines when the NLP algorithm date is effective
-    :return: Extension
-    """
-    processed = processed or fhir_date_now()
-    return Extension({'url': NLP_ALGORITHM_URL,
-                      'extension': [version.as_json(),
-                                    nlp_date_processed(processed).as_json()]})
-
-def nlp_modifier(polarity: Polarity, version=None):
-    """
+    :param source: default = "ctakesclient" with version tag.
     :param polarity: pos= concept is true, neg=concept is negated ("patient denies cough")
-    :param version: nlp-version(...)
     :return: FHIR resource.modifierExtension
     """
+    if source is None:
+        source = nlp_source()
+
+    if polarity is None:
+        return [source]
+    else:
+        return [source, nlp_polarity(polarity)]
+
+def nlp_source(algorithm=None, version=None) -> Extension:
+    """
+    :param algorithm: optional, default = "ctakesclient".
+    :param version: optional, default = "ctakesclient" version.
+    """
+    values = [nlp_algorithm(algorithm).as_json(), nlp_version(version).as_json()]
+    return value_list(NLP_SOURCE_URL, values)
+
+def nlp_algorithm(algorithm=None) -> Extension:
+    """
+    :param algorithm: optional, default = "ctakesclient".
+    """
+    if not algorithm:
+        algorithm = ctakesclient.__package__
+
+    return value_string('algorithm', algorithm)
+
+def nlp_version(version=None) -> Extension:
+    """
+    :param version: optional, default = "ctakesclient" version.
+    """
     if version is None:
-        version = nlp_version_client()
+        release = ctakesclient.__version__
+        version = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{release}'
 
-    return [nlp_algorithm(version), nlp_polarity(polarity)]
-
+    return value_string('version', version)
 
 def nlp_polarity(polarity: Polarity) -> Extension:
     """
-    :param polarity: Positive or Negative
-    :return: FHIR Extension for "nlp-polarity"
+    :param polarity: pos= concept is true, neg=concept is negated ("patient denies cough")
     """
     positive = polarity == Polarity.pos
+    return value_boolean(NLP_POLARITY_URL, positive)
 
-    return Extension({'url': NLP_POLARITY_URL,
-                      VALUE_BOOLEAN: positive})
+###############################################################################
+#  DerivationReference
+#
+#   "reference" is Required
+#   "offset" is Optional
+#   "length" is Optional
+#
+###############################################################################
+def nlp_derivation(docref_id, offset=None, length=None) -> Extension:
+    """
+    README: http://build.fhir.org/extension-derivation-reference.html
 
-def nlp_text_position(pos_begin: int, pos_end: int) -> Extension:
+    :param docref_id: ID for the DocumentReference from which NLP resource was derived.
+    :param offset: optional character *offset in document* (integer!)
+    :param offset: optional character *length from offset* of the matching text span.
+    :return: Extension for DerivationReference defining which document and text position was derived using NLP
     """
-    FHIR Extension for the NLP Match Text position (ctakes client MatchText.pos())
-    :param pos_begin: character position START
-    :param pos_end: character position STOP
-    :return:
-    """
-    ext_begin = Extension({VALUE_INTEGER: pos_begin, 'url': 'begin'})
-    ext_end = Extension({VALUE_INTEGER: pos_end, 'url': 'end'})
-    return Extension({'url': NLP_TEXT_POSITION_URL,
-                      'extension': [ext_begin.as_json(),
-                                    ext_end.as_json()]
-    })
+    values = [value_reference(ref_document(docref_id))]
 
-def nlp_version(nlp_system: str, version_code: str, version_display: str) -> Extension:
-    """
-    :param nlp_system: NLP System, such as URL to denote which NLP was used.
-    :param version_code: NLP Version MACHINE readable code
-    :param version_display: NLP Version HUMAN readable display
-    :return: FHIR extension for "nlp-version"
-    """
-    full_version = fhir_coding(nlp_system, version_code, version_display).as_json()
+    if offset:
+        values.append(value_integer('offset', offset))
 
-    return Extension({'url': NLP_VERSION_URL,
-                      VALUE_CODEABLE_CONCEPT: {'text': 'NLP Version', 'coding': [full_version]}})
+    if length:
+        values.append(value_integer('length', offset))
 
-def nlp_version_client() -> Extension:
-    """
-    :return: FHIR Extension defining the default NLP Client (this program)
-    """
-    pkg = 'ctakesclient'
-    ver = ctakesclient.__version__
-    tag = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
-    return nlp_version(tag, ver, f'{pkg}=={ver}')
+    values = [v.as_json() for v in values]
 
-def nlp_date_processed(processed= fhir_date_now()) -> Extension:
-    """
-    :param processed: date processed, default is date_now()
-    :return Extension for "processedDate"
-    """
-    return Extension({'url': NLP_DATE_PROCESSED_URL,
-                      VALUE_DATE: processed.isostring})
+    return Extension({'url': FHIR_DERIVATION_REF_URL, 'extension': values})
 
 ###############################################################################
 # NLP conversion functions : simplify creation of FHIR resources for user.
@@ -149,14 +194,15 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
     for concept in match.conceptAttributes:
         coded.append(fhir_coding(vocab=concept.codingScheme, code=concept.code))
         coded.append(fhir_coding(vocab=UMLS_SYSTEM_URL, code=concept.cui))
-    return fhir_concept(match.text, coded, nlp_text_position(match.begin, match.end))
 
-def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Condition:
+    return fhir_concept(match.text, coded)
+
+def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> Condition:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for visit (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
-    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :param source: NLP Version information, if none is provided use version of ctakesclient.
     :return: FHIR Observation
     """
     condition = Condition()
@@ -172,16 +218,16 @@ def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, vers
 
     # nlp extensions
     condition.code = nlp_concept(nlp_match)
-    condition.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+    condition.modifierExtension = nlp_modifier(source, nlp_match.polarity)
 
     return condition
 
-def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Observation:
+def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> Observation:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for visit (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
-    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :param source: NLP Version information, if none is provided use version of ctakesclient.
     :return: FHIR Observation
     """
     observation = Observation()
@@ -194,16 +240,17 @@ def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, ve
 
     # nlp extensions
     observation.code = nlp_concept(nlp_match)
-    observation.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+    observation.modifierExtension = nlp_modifier(source, nlp_match.polarity)
+    observation.extension = [nlp_derivation(encounter_id, 10, 20)]
 
     return observation
 
-def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> MedicationStatement:
+def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> MedicationStatement:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for encounter (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
-    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :param source: NLP Version information, if none is provided use version of ctakesclient.
     :return: FHIR MedicationStatement
     """
     medication = MedicationStatement()
@@ -216,16 +263,16 @@ def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, ver
 
     # nlp extensions
     medication.medicationCodeableConcept = nlp_concept(nlp_match)
-    medication.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+    medication.modifierExtension = nlp_modifier(source, nlp_match.polarity)
 
     return medication
 
-def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Procedure:
+def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> Procedure:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for encounter (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
-    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :param source: NLP Version information, if none is provided use version of ctakesclient.
     :return: FHIR Procedure
     """
     procedure = Procedure()
@@ -238,13 +285,13 @@ def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, vers
 
     # nlp extensions
     procedure.code = nlp_concept(nlp_match)
-    procedure.modifierExtension = nlp_modifier(nlp_match.polarity, version)
+    procedure.modifierExtension = nlp_modifier(source, nlp_match.polarity)
 
     return procedure
 
 
 def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON,
-             version=None, polarity=Polarity.pos) -> List[DomainResource]:
+             source=None, polarity=Polarity.pos) -> List[DomainResource]:
     """
     FHIR Resources for a patient encounter.
     Use this method to get FHIR Observation, Condition, MedicationStatement, and Procedures for a note that is for a
@@ -253,22 +300,22 @@ def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON,
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for encounter (isa REF can be UUID)
     :param nlp_results: response from cTAKES or other NLP Client
-    :param version: NLP Version information, if none is provided use version of ctakesclient.
+    :param source: NLP Version information, if none is provided use version of ctakesclient.
     :param polarity: filter only positive mentions by default
     :return: List of FHIR Resources (DomainResource)
     """
     as_fhir = []
 
     for match in nlp_results.list_sign_symptom(polarity):
-        as_fhir.append(nlp_observation(subject_id, encounter_id, match, version))
+        as_fhir.append(nlp_observation(subject_id, encounter_id, match, source))
 
     for match in nlp_results.list_medication(polarity):
-        as_fhir.append(nlp_medication(subject_id, encounter_id, match, version))
+        as_fhir.append(nlp_medication(subject_id, encounter_id, match, source))
 
     for match in nlp_results.list_disease_disorder(polarity):
-        as_fhir.append(nlp_condition(subject_id, encounter_id, match, version))
+        as_fhir.append(nlp_condition(subject_id, encounter_id, match, source))
 
     for match in nlp_results.list_procedure(polarity):
-        as_fhir.append(nlp_procedure(subject_id, encounter_id, match, version))
+        as_fhir.append(nlp_procedure(subject_id, encounter_id, match, source))
 
     return as_fhir

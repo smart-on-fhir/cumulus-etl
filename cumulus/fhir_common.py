@@ -15,7 +15,7 @@ from fhirclient.models.range import Range
 # Standard FHIR References are ResourceType/id
 ###############################################################################
 
-def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
+def ref_resource(resource_type: str, resource_id: str) -> Optional[FHIRReference]:
     """
     Reference the FHIR proper way
     :param resource_type: Name of resource, like "Patient"
@@ -26,8 +26,7 @@ def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
         raise ValueError('Missing resource ID')
     return FHIRReference({'reference': f'{resource_type}/{resource_id}'})
 
-
-def ref_subject(subject_id: str) -> FHIRReference:
+def ref_subject(subject_id: str) -> Optional[FHIRReference]:
     """
     Patient Reference the FHIR proper way
     :param subject_id: ID for patient (isa REF can be UUID)
@@ -35,8 +34,7 @@ def ref_subject(subject_id: str) -> FHIRReference:
     """
     return ref_resource('Patient', subject_id)
 
-
-def ref_encounter(encounter_id: str) -> FHIRReference:
+def ref_encounter(encounter_id: str) -> Optional[FHIRReference]:
     """
     Encounter Reference the FHIR proper way
     :param encounter_id: ID for encounter (isa REF can be UUID)
@@ -44,12 +42,19 @@ def ref_encounter(encounter_id: str) -> FHIRReference:
     """
     return ref_resource('Encounter', encounter_id)
 
+def ref_document(docref_id: str) -> Optional[FHIRReference]:
+    """
+    Encounter Reference the FHIR proper way
+    :param docref_id: ID for encounter (isa REF can be UUID)
+    :return: FHIRReference as Encounter/$id
+    """
+    return ref_resource('DocumentReference', docref_id)
 
 ###############################################################################
 # FHIR Coding and CodeableConcept
 ###############################################################################
 
-def fhir_concept(text:str, coded: List[Coding], extension=None) -> CodeableConcept:
+def fhir_concept(text: str, coded: List[Coding], extension=None) -> CodeableConcept:
     """
     Helper function, simplifies FHIR semantics for when to use types/json
     :param text: NLP MatchText.text
@@ -102,13 +107,13 @@ def parse_fhir_date(yyyy_mm_dd: Union[str, FHIRDate]) -> Optional[FHIRDate]:
         return FHIRDate(yyyy_mm_dd)
 
 
-def parse_fhir_date_isostring(yyyy_mm_dd) -> str:
+def parse_fhir_date_isostring(yyyy_mm_dd) -> Optional[str]:
     """
     :param yyyy_mm_dd:
     :return: str version of the
     """
     parsed = parse_fhir_date(yyyy_mm_dd)
-    return parsed.isostring if parsed else ''
+    return parsed.isostring if parsed else None
 
 
 def parse_fhir_period(start_date, end_date) -> Period:

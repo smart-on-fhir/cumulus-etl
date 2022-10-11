@@ -16,10 +16,8 @@ def example_note(filename='synthea.txt') -> str:
     """
     return common.read_text(path(filename))
 
-
 def example_ctakes(filename='synthea.json') -> CtakesJSON:
     return CtakesJSON(common.read_json(path(filename)))
-
 
 def path(filename: str):
     """
@@ -31,7 +29,6 @@ def path(filename: str):
     :return: /path/to/resources/filename
     """
     return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
-
 
 def example_version() -> dict:
     """
@@ -83,15 +80,16 @@ class TestText2Fhir(unittest.TestCase):
     http://build.fhir.org/extension-derivation-reference.html
     """
     def test_nlp_version_client(self):
-        self.assertDictEqual(example_version(),
-                             text2fhir.nlp_version_client().as_json())
+        common.print_fhir(text2fhir.nlp_version())
+
+        #self.assertDictEqual(example_version(),
+        #                     text2fhir.nlp_version().as_json())
 
     def test_nlp_algorithm(self):
         """
         Test the FHIR Extension for "nlp-algorithm" is the proposed format.
         """
-        ver = text2fhir.nlp_version_client()
-        algo = text2fhir.nlp_algorithm(ver)
+        algo = text2fhir.nlp_algorithm()
 
         common.print_fhir(algo)
 
@@ -107,8 +105,7 @@ class TestText2Fhir(unittest.TestCase):
         common.print_fhir(as_fhir)
 
         # with extension
-        position = text2fhir.nlp_text_position(58, 66)
-        as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2], position)
+        as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
         common.print_fhir(as_fhir)
 
     def test_nlp_concept(self):
@@ -120,6 +117,18 @@ class TestText2Fhir(unittest.TestCase):
         for match in ctakes_json.list_match():
             concept = text2fhir.nlp_concept(match)
             common.print_fhir(concept)
+
+    def test_nlp_modifier(self):
+
+        #algo = text2fhir.nlp_algorithm()
+        #ver = text2fhir.nlp_version()
+        #values = text2fhir.value_list('url-extension-example', [algo, ver])
+
+        #common.print_fhir(values)
+
+        modifier = text2fhir.nlp_modifier()
+
+        common.print_json(text2fhir.as_json(modifier))
 
     def test_observation_symptom(self):
         """

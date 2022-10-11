@@ -197,12 +197,10 @@ def error_fhir(fhir_resource):
 def print_json(jsonable):
     if isinstance(jsonable, dict):
         print(json.dumps(jsonable, indent=4))
+    if isinstance(jsonable, list):
+        print(json.dumps(jsonable, indent=4))
     if isinstance(jsonable, Resource):
         print(json.dumps(jsonable.as_json(), indent=4))
-
-    print('#######################################################')
-    print(json.dumps(json, indent=4))
-
 
 def print_fhir(fhir_resource):
     print('#######################################################')
