@@ -33,7 +33,7 @@ def get_library_path() -> str:
     """
     ldpath = os.getenv('LD_LIBRARY_PATH', None)
 
-    if ldpath is None or not 'instantclient' in ldpath:
+    if ldpath is None or 'instantclient' not in ldpath:
         raise Exception(
             'LD_LIBRARY_PATH does not exist OR does not contain a path to '
             'instantclient. '

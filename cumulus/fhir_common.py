@@ -49,7 +49,7 @@ def ref_encounter(encounter_id: str) -> FHIRReference:
 # FHIR Coding and CodeableConcept
 ###############################################################################
 
-def fhir_concept(text:str, coded: List[Coding], extension=None) -> CodeableConcept:
+def fhir_concept(text: str, coded: List[Coding], extension=None) -> CodeableConcept:
     """
     Helper function, simplifies FHIR semantics for when to use types/json
     :param text: NLP MatchText.text
@@ -64,6 +64,7 @@ def fhir_concept(text:str, coded: List[Coding], extension=None) -> CodeableConce
         concept.extension = [extension]
 
     return concept
+
 
 def fhir_coding(vocab: str, code: str, display=None) -> Coding:
     """

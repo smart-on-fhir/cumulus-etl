@@ -165,7 +165,7 @@ def count_by_date_group(tablename=Table.observation_fact,
                         column_date='import_date') -> str:
     return shorten(f"""
                     select {count_by_date(column_date, f'{column_date}_cnt')}
-                    from {tablename.value} 
-                    group by {cast_date(column_date)} 
+                    from {tablename.value}
+                    group by {cast_date(column_date)}
                     order by {cast_date(column_date)} desc
                     """)
