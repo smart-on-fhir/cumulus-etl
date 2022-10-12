@@ -54,7 +54,7 @@ class JsonTreeFormat(store.Format):
                             'fhir_patient.json')
         patient.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_patients(self, job, patients: pandas.DataFrame) -> None:
+    def store_patients(self, job, patients: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, patients, self._write_patient)
 
     ###########################################################################
@@ -80,7 +80,7 @@ class JsonTreeFormat(store.Format):
                             'fhir_encounter.json')
         encounter.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_encounters(self, job, encounters: pandas.DataFrame) -> None:
+    def store_encounters(self, job, encounters: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, encounters, self._write_encounter)
 
     ###########################################################################
@@ -96,7 +96,7 @@ class JsonTreeFormat(store.Format):
                             f'fhir_lab_{lab.id}.json')
         lab.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_labs(self, job, labs: pandas.DataFrame) -> None:
+    def store_labs(self, job, labs: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, labs, self._write_lab)
 
     ###########################################################################
@@ -112,7 +112,7 @@ class JsonTreeFormat(store.Format):
                             f'fhir_condition_{condition.id}.json')
         condition.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_conditions(self, job, conditions: pandas.DataFrame) -> None:
+    def store_conditions(self, job, conditions: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, conditions, self._write_condition)
 
     ###########################################################################
@@ -134,7 +134,7 @@ class JsonTreeFormat(store.Format):
                             f'fhir_docref_{docref.id}.json')
         docref.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_docrefs(self, job, docrefs: pandas.DataFrame) -> None:
+    def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, docrefs, self._write_docref)
 
     ###########################################################################
@@ -149,5 +149,5 @@ class JsonTreeFormat(store.Format):
         path = os.path.join(self._dir_output_encounter(mrn, enc), f'fhir_symptom_{observation.id}.json')
         observation.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
+    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, observations, self._write_symptom)

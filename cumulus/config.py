@@ -9,8 +9,14 @@ from cumulus import common, store
 class JobConfig:
     """Configuration for an ETL job"""
 
-    def __init__(self, dir_input: store.Root, dir_phi: store.Root,
-                 store_format: store.Format, comment: str = None):
+    def __init__(
+            self,
+            dir_input: store.Root,
+            dir_phi: store.Root,
+            store_format: store.Format,
+            comment: str = None,
+            batch_size: int = 1,  # this default is never really used - overridden by command line args
+    ):
         """
         :param dir_input: sources stored in csv_* folders
         :param dir_phi: where to place PHI build artifacts like the codebook
@@ -22,6 +28,7 @@ class JobConfig:
         self.timestamp = common.timestamp_filename()
         self.hostname = gethostname()
         self.comment = comment or ''
+        self.batch_size = batch_size
 
     def path_codebook(self) -> str:
         return self.dir_phi.joinpath('codebook.json')
@@ -66,6 +73,7 @@ class JobConfig:
             'list_csv_diagnosis': self.list_csv_diagnosis(),
             'format': type(self.format).__name__,
             'comment': self.comment,
+            'batch_size': self.batch_size,
         }
 
 

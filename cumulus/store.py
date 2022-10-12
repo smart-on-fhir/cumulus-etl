@@ -60,10 +60,10 @@ class Root:
         self._confirm_in_root(path)
         self.fs.makedirs(path, exist_ok=True)
 
-    def rm(self, path: str) -> None:
+    def rm(self, path: str, recursive=False) -> None:
         """Delete a file (alias for fs.rm)"""
         self._confirm_in_root(path)
-        self.fs.rm(path)
+        self.fs.rm(path, recursive=recursive)
 
     def fsspec_options(self) -> dict:
         """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
@@ -93,25 +93,25 @@ class Format(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    def store_conditions(self, job, conditions: pandas.DataFrame) -> None:
+    def store_conditions(self, job, conditions: pandas.DataFrame, batch: int) -> None:
         pass
 
     @abc.abstractmethod
-    def store_docrefs(self, job, docrefs: pandas.DataFrame) -> None:
+    def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
         pass
 
     @abc.abstractmethod
-    def store_encounters(self, job, encounters: pandas.DataFrame) -> None:
+    def store_encounters(self, job, encounters: pandas.DataFrame, batch: int) -> None:
         pass
 
     @abc.abstractmethod
-    def store_labs(self, job, labs: pandas.DataFrame) -> None:
+    def store_labs(self, job, labs: pandas.DataFrame, batch: int) -> None:
         pass
 
     @abc.abstractmethod
-    def store_patients(self, job, patients: pandas.DataFrame) -> None:
+    def store_patients(self, job, patients: pandas.DataFrame, batch: int) -> None:
         pass
 
     @abc.abstractmethod
-    def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
+    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
         pass
