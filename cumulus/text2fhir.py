@@ -198,7 +198,7 @@ def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, ve
     # id linkage
     observation.id = str(uuid.uuid4())
     observation.subject = ref_subject(subject_id)
-    observation.context = ref_encounter(encounter_id)
+    observation.encounter = ref_encounter(encounter_id)
     observation.status = 'preliminary'
 
     # nlp extensions

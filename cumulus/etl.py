@@ -8,7 +8,6 @@ import sys
 from typing import Callable, Iterable, Iterator, List, TypeVar, Union
 
 import pandas
-from fhirclient.models.documentreference import DocumentReference
 from fhirclient.models.resource import Resource
 
 from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
@@ -157,17 +156,6 @@ def etl_diagnosis(config: JobConfig) -> JobSummary:
 #
 ###############################################################################
 
-
-def _strip_notes_from_docref(codebook: Codebook,
-                             docref: DocumentReference) -> DocumentReference:
-    codebook.fhir_documentreference(docref)
-
-    for content in docref.content:
-        content.attachment.data = None
-
-    return docref
-
-
 def etl_notes_meta(config: JobConfig) -> JobSummary:
     return _process_job_entries(
         config,
@@ -175,8 +163,7 @@ def etl_notes_meta(config: JobConfig) -> JobSummary:
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
-        # Make sure no notes get through as docrefs (they come via other etl methods)
-        _strip_notes_from_docref,
+        Codebook.fhir_documentreference,
         config.format.store_docrefs,
     )
 
@@ -212,7 +199,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         etl_visit,
         etl_lab,
         etl_notes_meta,
-        # etl_notes_text2fhir_symptoms, TODO: tests will fail currently without mock server.
+        etl_notes_text2fhir_symptoms,
         etl_diagnosis,
     ]
 

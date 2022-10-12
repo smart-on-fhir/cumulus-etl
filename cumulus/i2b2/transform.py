@@ -4,7 +4,6 @@ import logging
 from typing import List
 
 import ctakesclient
-from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
@@ -253,7 +252,6 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     content.attachment.contentType = 'text/plain'
     # content.attachment.data = str(base64.b64encode(str(
     #   obsfact.observation_blob).encode()))
-    content.attachment.data = obsfact.observation_blob
     docref.content = [content]
 
     return docref
@@ -269,8 +267,6 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
     encounter_id = obsfact.encounter_num
     physician_note = obsfact.observation_blob
 
-    # TODO @andymc to @mterry : do you prefer method receive CtakesJSON instead?
-    # Mocking test might be easier with CtakesJSON
     ctakes_json = ctakesclient.client.extract(physician_note)
 
     as_list = []
@@ -280,28 +276,11 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
     return as_list
 
 
-def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> List[DomainResource]:
-    """
-    Optional usage, export everything from NLP that cumulus has a FHIR mapping for.
-
-    :param obsfact: Physician Note
-    :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
-    """
-    subject_id = obsfact.patient_num
-    encounter_id = obsfact.encounter_num
-    physician_note = obsfact.observation_blob
-
-    ctakes_json = ctakesclient.client.extract(physician_note)
-
-    return text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
-
-
 ###############################################################################
 #
 # parse i2b2 inputs to FHIR types
 #
 ###############################################################################
-
 
 def parse_zip_code(i2b2_zip_code) -> str:
     """

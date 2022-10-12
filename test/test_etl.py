@@ -15,14 +15,18 @@ import s3fs
 
 from cumulus import etl
 
+from .ctakesmock import CtakesMixin
 from .s3mock import S3Mixin
 
 
-class TestI2b2EtlSimple(unittest.TestCase):
+class TestI2b2EtlSimple(CtakesMixin, unittest.TestCase):
     """Base test case for basic runs of etl methods"""
 
     def setUp(self):
         super().setUp()
+
+        # you'll always want this when debugging
+        self.maxDiff = None  # pylint: disable=invalid-name
 
         script_dir = os.path.dirname(__file__)
         self.data_dir = os.path.join(script_dir, 'data/i2b2/simple')
@@ -181,6 +185,7 @@ class TestI2b2EtlOnS3(S3Mixin, TestI2b2EtlSimple):
             'mockbucket/root/encounter/fhir_encounters.ndjson',
             'mockbucket/root/observation/fhir_observations.ndjson',
             'mockbucket/root/patient/fhir_patients.ndjson',
+            'mockbucket/root/symptom/fhir_symptoms.ndjson',
         }, all_files)
 
         # Confirm we did not accidentally create an 's3:' directory locally
