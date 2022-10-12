@@ -3,7 +3,6 @@
 import logging
 from typing import List
 
-import ctakesclient
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
@@ -21,22 +20,17 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
+from cumulus import common, ctakes, fhir_template, store, text2fhir
 from cumulus.fhir_common import parse_fhir_date
 from cumulus.fhir_common import parse_fhir_date_isostring
-
-from cumulus import common
-from cumulus import fhir_template
-
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
-from cumulus import text2fhir
 
 ###############################################################################
 #
 # Transform: to_fhir_{resource_type}
 #
 ###############################################################################
-
 
 def to_fhir_patient(patient: PatientDimension) -> Patient:
     """
@@ -257,7 +251,11 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     return docref
 
 
-def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos) -> List[Observation]:
+def text2fhir_symptoms(
+        phi_root: store.Root,
+        obsfact: ObservationFact,
+        polarity=text2fhir.Polarity.pos
+) -> List[Observation]:
     """
     :param obsfact: Physician Note
     :param polarity: default only get positive NLP mentions.
@@ -267,7 +265,7 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
     encounter_id = obsfact.encounter_num
     physician_note = obsfact.observation_blob
 
-    ctakes_json = ctakesclient.client.extract(physician_note)
+    ctakes_json = ctakes.extract(phi_root, physician_note)
 
     as_list = []
     for match in ctakes_json.list_sign_symptom(polarity):

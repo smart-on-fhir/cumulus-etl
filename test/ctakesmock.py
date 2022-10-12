@@ -10,9 +10,10 @@ class CtakesMixin(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        nlp_mock = mock.patch('cumulus.i2b2.transform.ctakesclient.client.extract', new=fake_ctakes_extract)
-        self.addCleanup(nlp_mock.stop)
-        nlp_mock.start()
+        nlp_patcher = mock.patch('cumulus.ctakes.ctakesclient.client.extract',
+                                 side_effect=lambda x: fake_ctakes_extract(x))
+        self.addCleanup(nlp_patcher.stop)
+        self.nlp_mock = nlp_patcher.start()
 
 
 def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
@@ -43,7 +44,7 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
         {
           'begin': fever_begin,
           'end': fever_end,
-          'text': '{fever_word}',
+          'text': fever_word,
           'polarity': 0,
           'conceptAttributes': [
             {

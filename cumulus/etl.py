@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import sys
+from functools import partial
 from typing import Callable, Iterable, Iterator, List, TypeVar, Union
 
 import pandas
@@ -174,7 +175,7 @@ def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
         etl_notes_text2fhir_symptoms.__name__,
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.text2fhir_symptoms,
+        partial(i2b2.transform.text2fhir_symptoms, config.dir_phi),
         Codebook.fhir_observation_list,
         config.format.store_symptoms,
     )
