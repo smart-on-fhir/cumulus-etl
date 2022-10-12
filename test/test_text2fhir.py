@@ -1,7 +1,8 @@
 """Tests for the text2fhir NLP part of etl.py"""
 
-import unittest
+import datetime
 import os
+import unittest
 
 from cumulus import common
 from cumulus import text2fhir
@@ -33,7 +34,7 @@ def path(filename: str):
     return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
 
 
-def example_version() -> dict:
+def expected_version() -> dict:
     """
     :return: real example of nlp-version
     """
@@ -49,6 +50,19 @@ def example_version() -> dict:
                 'system': system_url,
             }]
         }
+    }
+
+
+def expected_algorithm() -> dict:
+    return {
+        'extension': [
+            expected_version(),
+            {
+                'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-date-processed',
+                'valueDate': datetime.datetime.now(datetime.timezone.utc).date().isoformat(),
+            },
+        ],
+        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-algorithm',
     }
 
 
@@ -83,7 +97,7 @@ class TestText2Fhir(unittest.TestCase):
     http://build.fhir.org/extension-derivation-reference.html
     """
     def test_nlp_version_client(self):
-        self.assertDictEqual(example_version(),
+        self.assertDictEqual(expected_version(),
                              text2fhir.nlp_version_client().as_json())
 
     def test_nlp_algorithm(self):
@@ -93,7 +107,7 @@ class TestText2Fhir(unittest.TestCase):
         ver = text2fhir.nlp_version_client()
         algo = text2fhir.nlp_algorithm(ver)
 
-        common.print_fhir(algo)
+        self.assertDictEqual(expected_algorithm(), algo.as_json())
 
     def test_fhir_concept(self):
         """
@@ -104,12 +118,44 @@ class TestText2Fhir(unittest.TestCase):
 
         # without extension
         as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
-        common.print_fhir(as_fhir)
+        expected_concept = {
+            'coding': [
+                {
+                    'code': '249497008',
+                    'display': 'Vomiting symptom (finding)',
+                    'system': 'http://snomed.info/sct'
+                },
+                {
+                    'code': '300359004',
+                    'display': 'Finding of vomiting (finding)',
+                    'system': 'http://snomed.info/sct'
+                },
+            ],
+            'text': 'vomiting',
+        }
+        self.assertDictEqual(expected_concept, as_fhir.as_json())
 
         # with extension
         position = text2fhir.nlp_text_position(58, 66)
         as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2], position)
-        common.print_fhir(as_fhir)
+        expected_concept.update({
+            'extension': [
+                {
+                    'extension': [
+                        {
+                            'url': 'begin',
+                            'valueInteger': 58
+                        },
+                        {
+                            'url': 'end',
+                            'valueInteger': 66
+                        },
+                    ],
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
+                },
+            ],
+        })
+        self.assertDictEqual(expected_concept, as_fhir.as_json())
 
     def test_nlp_concept(self):
         """
@@ -117,9 +163,46 @@ class TestText2Fhir(unittest.TestCase):
         """
         ctakes_json = example_ctakes()
 
-        for match in ctakes_json.list_match():
-            concept = text2fhir.nlp_concept(match)
-            common.print_fhir(concept)
+        concepts = [text2fhir.nlp_concept(match).as_json() for match in ctakes_json.list_match()]
+        self.assertEqual(120, len(concepts))
+
+        # Just spot check the first one
+        self.assertDictEqual({
+            'coding': [
+                {
+                    'code': '66076007',
+                    'system': 'SNOMEDCT_US',
+                },
+                {
+                    'code': 'C0304290',
+                    'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                },
+                {
+                    'code': '91058',
+                    'system': 'RXNORM',
+                },
+                {
+                    'code': 'C0304290',
+                    'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                },
+            ],
+            'extension': [
+                {
+                    'extension': [
+                        {
+                            'url': 'begin',
+                            'valueInteger': 442,
+                        },
+                        {
+                            'url': 'end',
+                            'valueInteger': 457,
+                        },
+                    ],
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
+                },
+            ],
+            'text': 'chewable tablet',
+        }, concepts[0])
 
     def test_observation_symptom(self):
         """
@@ -132,11 +215,67 @@ class TestText2Fhir(unittest.TestCase):
         subject_id = '1234'
         encounter_id = '5678'
 
-        for match in ctakes_json.list_sign_symptom():
-            symptom = text2fhir.nlp_observation(subject_id,
-                                                encounter_id,
-                                                match)
-            common.print_fhir(symptom)
+        symptoms = [
+            text2fhir.nlp_observation(subject_id, encounter_id, symptom).as_json()
+            for symptom in ctakes_json.list_sign_symptom()
+        ]
+        self.assertEqual(38, len(symptoms))
+
+        # Spot check first symptom (but first drop id as it is randomly generated)
+        del symptoms[0]['id']
+        self.assertDictEqual({
+            'code': {
+                'coding': [
+                    {
+                        'code': '33962009',
+                        'system': 'SNOMEDCT_US',
+                    },
+                    {
+                        'code': 'C0277786',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                    {
+                        'code': '409586006',
+                        'system': 'SNOMEDCT_US',
+                    },
+                    {
+                        'code': 'C0277786',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                ],
+                'extension': [
+                    {
+                        'extension': [
+                            {
+                                'url': 'begin',
+                                'valueInteger': 21,
+                            },
+                            {
+                                'url': 'end',
+                                'valueInteger': 30,
+                            },
+                        ],
+                        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
+                    },
+                ],
+                'text': 'Complaint',
+            },
+            'encounter': {
+                'reference': 'Encounter/5678',
+            },
+            'modifierExtension': [
+                expected_algorithm(),
+                {
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity',
+                    'valueBoolean': False,
+                },
+            ],
+            'resourceType': 'Observation',
+            'status': 'preliminary',
+            'subject': {
+                'reference': 'Patient/1234',
+            },
+        }, symptoms[0])
 
     def test_medication(self):
         """
@@ -149,11 +288,67 @@ class TestText2Fhir(unittest.TestCase):
         subject_id = '1234'
         encounter_id = '5678'
 
-        for match in ctakes_json.list_medication():
-            medication = text2fhir.nlp_medication(subject_id,
-                                                  encounter_id,
-                                                  match)
-            common.print_fhir(medication)
+        medications = [
+            text2fhir.nlp_medication(subject_id, encounter_id, medication).as_json()
+            for medication in ctakes_json.list_medication()
+        ]
+        self.assertEqual(5, len(medications))
+
+        # Spot check first medication (but first drop id as it is randomly generated)
+        del medications[0]['id']
+        self.assertDictEqual({
+            'context': {
+                'reference': 'Encounter/5678',
+            },
+            'medicationCodeableConcept': {
+                'coding': [
+                    {
+                        'code': '66076007',
+                        'system': 'SNOMEDCT_US',
+                    },
+                    {
+                        'code': 'C0304290',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                    {
+                        'code': '91058',
+                        'system': 'RXNORM',
+                    },
+                    {
+                        'code': 'C0304290',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                ],
+                'extension': [
+                    {
+                        'extension': [
+                            {
+                                'url': 'begin',
+                                'valueInteger': 442,
+                            },
+                            {
+                                'url': 'end',
+                                'valueInteger': 457,
+                            },
+                        ],
+                        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
+                    },
+                ],
+                'text': 'chewable tablet',
+            },
+            'modifierExtension': [
+                expected_algorithm(),
+                {
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity',
+                    'valueBoolean': True,
+                },
+            ],
+            'resourceType': 'MedicationStatement',
+            'status': 'unknown',
+            'subject': {
+                'reference': 'Patient/1234',
+            },
+        }, medications[0])
 
     def test_nlp_fhir(self):
         """
@@ -168,8 +363,11 @@ class TestText2Fhir(unittest.TestCase):
         subject_id = '1234'
         encounter_id = '5678'
 
-        for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json):
-            common.print_fhir(as_fhir)
+        all_fhir = [as_fhir.as_json() for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)]
+        self.assertEqual(68, len(all_fhir))
+
+        resource_types = {x['resourceType'] for x in all_fhir}
+        self.assertSetEqual({'Condition', 'MedicationStatement', 'Observation', 'Procedure'}, resource_types)
 
     def test_nlp_bodysite(self):
         """
@@ -183,10 +381,41 @@ class TestText2Fhir(unittest.TestCase):
         """
         ctakes_json = example_ctakes()
 
-        for match in ctakes_json.list_anatomical_site(Polarity.pos):
-            bodysite = text2fhir.nlp_concept(match)
+        bodysites = [
+            text2fhir.nlp_concept(bodysite).as_json()
+            for bodysite in ctakes_json.list_anatomical_site(Polarity.pos)
+        ]
+        self.assertEqual(5, len(bodysites))
 
-            common.print_fhir(bodysite)
+        # Spot check first bodysite
+        self.assertDictEqual({
+            'coding': [
+                {
+                    'code': '8205005',
+                    'system': 'SNOMEDCT_US',
+                },
+                {
+                    'code': 'C0043262',
+                    'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                },
+            ],
+            'extension': [
+                {
+                    'extension': [
+                        {
+                            'url': 'begin',
+                            'valueInteger': 198,
+                        },
+                        {
+                            'url': 'end',
+                            'valueInteger': 203,
+                        },
+                    ],
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
+                },
+            ],
+            'text': 'wrist',
+        }, bodysites[0])
 
 
 if __name__ == '__main__':
