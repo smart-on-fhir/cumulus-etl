@@ -104,6 +104,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
 
     return encounter
 
+
 def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
     :param obsfact: base "FHIR Observation" from base "I2B2 ObservationFact"
@@ -165,6 +166,7 @@ def to_fhir_observation_lab(obsfact: ObservationFact,
 
     return observation
 
+
 def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     """
     :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED
@@ -218,11 +220,13 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
 
     return condition
 
+
 ###############################################################################
 #
 # Physician Notes and NLP
 #
 ###############################################################################
+
 def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     """
     :param obsfact: i2b2 observation fact containing the I2b2 NOTE as
@@ -238,8 +242,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
         FHIRReference({'reference': str(obsfact.encounter_num)})
     ]
 
-    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)
-                                  })  # i2b2 Note Type
+    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)})  # i2b2 Note Type
     docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
@@ -254,6 +257,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.content = [content]
 
     return docref
+
 
 def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos) -> List[Observation]:
     """

@@ -37,6 +37,7 @@ VALUE_INTEGER = 'valueInteger'
 VALUE_STRING = 'valueString'
 VALUE_BOOLEAN = 'valueBoolean'
 
+
 ###############################################################################
 # NLP Extension methods :
 #
@@ -61,6 +62,7 @@ def nlp_algorithm(version: Extension, processed: FHIRDate = None) -> Extension:
                       'extension': [version.as_json(),
                                     nlp_date_processed(processed).as_json()]})
 
+
 def nlp_modifier(polarity: Polarity, version=None):
     """
     :param polarity: pos= concept is true, neg=concept is negated ("patient denies cough")
@@ -83,6 +85,7 @@ def nlp_polarity(polarity: Polarity) -> Extension:
     return Extension({'url': NLP_POLARITY_URL,
                       VALUE_BOOLEAN: positive})
 
+
 def nlp_text_position(pos_begin: int, pos_end: int) -> Extension:
     """
     FHIR Extension for the NLP Match Text position (ctakes client MatchText.pos())
@@ -92,10 +95,11 @@ def nlp_text_position(pos_begin: int, pos_end: int) -> Extension:
     """
     ext_begin = Extension({VALUE_INTEGER: pos_begin, 'url': 'begin'})
     ext_end = Extension({VALUE_INTEGER: pos_end, 'url': 'end'})
-    return Extension({'url': NLP_TEXT_POSITION_URL,
-                      'extension': [ext_begin.as_json(),
-                                    ext_end.as_json()]
+    return Extension({
+        'url': NLP_TEXT_POSITION_URL,
+        'extension': [ext_begin.as_json(), ext_end.as_json()]
     })
+
 
 def nlp_version(nlp_system: str, version_code: str, version_display: str) -> Extension:
     """
@@ -109,6 +113,7 @@ def nlp_version(nlp_system: str, version_code: str, version_display: str) -> Ext
     return Extension({'url': NLP_VERSION_URL,
                       VALUE_CODEABLE_CONCEPT: {'text': 'NLP Version', 'coding': [full_version]}})
 
+
 def nlp_version_client() -> Extension:
     """
     :return: FHIR Extension defining the default NLP Client (this program)
@@ -118,13 +123,15 @@ def nlp_version_client() -> Extension:
     tag = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
     return nlp_version(tag, ver, f'{pkg}=={ver}')
 
-def nlp_date_processed(processed= fhir_date_now()) -> Extension:
+
+def nlp_date_processed(processed=fhir_date_now()) -> Extension:
     """
     :param processed: date processed, default is date_now()
     :return Extension for "processedDate"
     """
     return Extension({'url': NLP_DATE_PROCESSED_URL,
                       VALUE_DATE: processed.isostring})
+
 
 ###############################################################################
 # NLP conversion functions : simplify creation of FHIR resources for user.
@@ -151,6 +158,7 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
         coded.append(fhir_coding(vocab=UMLS_SYSTEM_URL, code=concept.cui))
     return fhir_concept(match.text, coded, nlp_text_position(match.begin, match.end))
 
+
 def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Condition:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
@@ -176,6 +184,7 @@ def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, vers
 
     return condition
 
+
 def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Observation:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
@@ -198,6 +207,7 @@ def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, ve
 
     return observation
 
+
 def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> MedicationStatement:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
@@ -219,6 +229,7 @@ def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, ver
     medication.modifierExtension = nlp_modifier(nlp_match.polarity, version)
 
     return medication
+
 
 def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, version=None) -> Procedure:
     """
