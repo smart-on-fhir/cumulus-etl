@@ -9,16 +9,6 @@ from cumulus import text2fhir
 import ctakesclient
 from ctakesclient.typesystem import CtakesJSON, Polarity
 
-
-def example_note(filename='synthea.txt') -> str:
-    """
-    :param filename: default is *NOT PHI* Synthea AI generated example.
-    """
-    return common.read_text(path(filename))
-
-def example_ctakes(filename='synthea.json') -> CtakesJSON:
-    return CtakesJSON(common.read_json(path(filename)))
-
 def path(filename: str):
     """
     Physician Note examples is sourced from ctakes:
@@ -30,39 +20,29 @@ def path(filename: str):
     """
     return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
 
-def example_version() -> dict:
+def example_note(filename='synthea.txt') -> str:
     """
-    :return: real example of nlp-version
+    :param filename: default is *NOT PHI* Synthea AI generated example.
     """
-    ver = ctakesclient.__version__
-    system_url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
-    return {
-        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version',
-        'valueCodeableConcept': {
-            'text': 'NLP Version',
-            'coding': [{
-                'code': ver,
-                'display': f'ctakesclient=={ver}',
-                'system': system_url,
-            }]
-        }
-    }
+    return common.read_text(path(filename))
 
+def example_ctakes(filename='synthea.json') -> CtakesJSON:
+    return CtakesJSON(common.read_json(path(filename)))
+
+def example_nlp_source() -> dict:
+    ver = ctakesclient.__version__
+    url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
+
+    return {"url": "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source",
+            "extension": [
+                {"url": "algorithm", "valueString": "ctakesclient"},
+                {"url": "version", "valueString": f"{url}"}]}
 
 def example_derivation_reference() -> dict:
-    """
-    Jamie Jones proposed example
-    """
-    return {'extension': [{'extension': [{'url': 'reference',
-                                          'valueReference': {'display': 'note',
-                                                             'reference': 'DocumentReference/episode-summary'}},
-                                         {'url': 'offset', 'valueInteger': 20},
-                                         {'url': 'length', 'valueInteger': 5},
-                                         {'url': 'algorithm', 'valueString': 'however specifically we want to log the '
-                                                                             'fact that cTAKES was used'},
-                                         {'url': 'version', 'valueString': 'whatever date or number is useful here'}],
-                           'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference'}]}
-
+    return {'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
+            'extension': [{'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
+                            {'url': 'offset', 'valueInteger': 20},
+                            {'url': 'length', 'valueInteger': 5}]}
 
 ###############################################################################
 #
@@ -79,19 +59,19 @@ class TestText2Fhir(unittest.TestCase):
     see @self.example_derivation_reference()
     http://build.fhir.org/extension-derivation-reference.html
     """
-    def test_nlp_version_client(self):
-        common.print_fhir(text2fhir.nlp_version())
+    def test_nlp_source(self):
+        expected = example_nlp_source()
+        actual = text2fhir.nlp_source()
 
-        #self.assertDictEqual(example_version(),
-        #                     text2fhir.nlp_version().as_json())
+        # common.print_json(actual)
+        self.assertDictEqual(expected, actual.as_json())
 
-    def test_nlp_algorithm(self):
-        """
-        Test the FHIR Extension for "nlp-algorithm" is the proposed format.
-        """
-        algo = text2fhir.nlp_algorithm()
+    def test_nlp_derivation_reference(self):
 
-        common.print_fhir(algo)
+        actual = text2fhir.nlp_derivation(docref_id='ABCD', offset=20, length=5)
+
+        # common.print_json(actual)
+        self.assertDictEqual(example_derivation_reference(), actual.as_json())
 
     def test_fhir_concept(self):
         """
@@ -100,11 +80,6 @@ class TestText2Fhir(unittest.TestCase):
         vomiting1 = text2fhir.fhir_coding('http://snomed.info/sct', '249497008', 'Vomiting symptom (finding)')
         vomiting2 = text2fhir.fhir_coding('http://snomed.info/sct', '300359004', 'Finding of vomiting (finding)')
 
-        # without extension
-        as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
-        common.print_fhir(as_fhir)
-
-        # with extension
         as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
         common.print_fhir(as_fhir)
 
@@ -118,18 +93,6 @@ class TestText2Fhir(unittest.TestCase):
             concept = text2fhir.nlp_concept(match)
             common.print_fhir(concept)
 
-    def test_nlp_modifier(self):
-
-        #algo = text2fhir.nlp_algorithm()
-        #ver = text2fhir.nlp_version()
-        #values = text2fhir.value_list('url-extension-example', [algo, ver])
-
-        #common.print_fhir(values)
-
-        modifier = text2fhir.nlp_modifier()
-
-        common.print_json(text2fhir.as_json(modifier))
-
     def test_observation_symptom(self):
         """
         Test conversion from NLP to FHIR (SignSymptomMention -> FHIR Observation).
@@ -140,11 +103,10 @@ class TestText2Fhir(unittest.TestCase):
 
         subject_id = '1234'
         encounter_id = '5678'
+        docref_id = 'ABCD'
 
         for match in ctakes_json.list_sign_symptom():
-            symptom = text2fhir.nlp_observation(subject_id,
-                                                encounter_id,
-                                                match)
+            symptom = text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match)
             common.print_fhir(symptom)
 
     def test_medication(self):
@@ -157,11 +119,10 @@ class TestText2Fhir(unittest.TestCase):
 
         subject_id = '1234'
         encounter_id = '5678'
+        docref_id = 'ABCD'
 
         for match in ctakes_json.list_medication():
-            medication = text2fhir.nlp_medication(subject_id,
-                                                  encounter_id,
-                                                  match)
+            medication = text2fhir.nlp_medication(subject_id, encounter_id, docref_id, match)
             common.print_fhir(medication)
 
     def test_nlp_fhir(self):
@@ -176,8 +137,9 @@ class TestText2Fhir(unittest.TestCase):
 
         subject_id = '1234'
         encounter_id = '5678'
+        docref_id = 'ABCD'
 
-        for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json):
+        for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json):
             common.print_fhir(as_fhir)
 
     def test_nlp_bodysite(self):

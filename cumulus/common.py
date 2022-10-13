@@ -10,6 +10,7 @@ import hashlib
 
 import fsspec
 from fhirclient.models.resource import Resource
+from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 
 from cumulus import store
 
@@ -194,18 +195,17 @@ def error_fhir(fhir_resource):
         logging.error('expected FHIR Resource got %s', type(fhir_resource))
 
 
-def print_json(jsonable):
+def print_json(jsonable): #TODO: refactor fhir_common
     if isinstance(jsonable, dict):
         print(json.dumps(jsonable, indent=4))
     if isinstance(jsonable, list):
         print(json.dumps(jsonable, indent=4))
-    if isinstance(jsonable, Resource):
+    if isinstance(jsonable, FHIRAbstractBase):
         print(json.dumps(jsonable.as_json(), indent=4))
 
-def print_fhir(fhir_resource):
+def print_fhir(fhir_resource): #TODO: refactor fhir_common
     print('#######################################################')
     print(json.dumps(fhir_resource.as_json(), indent=4))
-
 
 ###############################################################################
 #

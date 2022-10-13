@@ -1,6 +1,6 @@
 """NLP extension using ctakes"""
 import uuid
-from typing import List
+from typing import List, Optional
 
 from fhirclient.models.resource import Resource
 from fhirclient.models.domainresource import DomainResource
@@ -14,7 +14,7 @@ from fhirclient.models.procedure import Procedure
 from fhirclient.models.condition import Condition
 
 import ctakesclient
-from ctakesclient.typesystem import CtakesJSON
+from ctakesclient.typesystem import CtakesJSON, Span
 from ctakesclient.typesystem import Polarity, MatchText
 
 from cumulus.fhir_common import ref_subject, ref_encounter, ref_document
@@ -65,7 +65,7 @@ def value_reference(value: FHIRReference) -> Extension:
     :param value: valueString to associate with URL
     :return: Extension with reference:FHIRReference like 'Patient/123456789'
     """
-    return Extension({'url': 'reference', 'valueReference': value})
+    return Extension({'url': 'reference', 'valueReference': value.as_json()})
 
 def value_list(url: str, values: List) -> Extension:
     """
@@ -73,16 +73,18 @@ def value_list(url: str, values: List) -> Extension:
     :param values: nested list of extensions
     :return: Extension with nested content extension:List
     """
-    return Extension({'url': url, 'extension': values})
+    return Extension({'url': url, 'extension': as_json(values)})
 
-def as_json(resource):
-    if isinstance(resource, Resource):
-        return resource.as_json()
-    if isinstance(resource, dict):
-        return resource
-    if isinstance(resource, list):
+def as_json(fhirdata):
+    if isinstance(fhirdata, Extension):
+        return fhirdata.as_json()
+    elif isinstance(fhirdata, Resource):
+        return fhirdata.as_json()
+    elif isinstance(fhirdata, dict):
+        return fhirdata
+    elif isinstance(fhirdata, list):
         cons = list()
-        for r in resource:
+        for r in fhirdata:
             if r:
                 cons.append(as_json(r))
         return cons
@@ -150,13 +152,16 @@ def nlp_polarity(polarity: Polarity) -> Extension:
 #   "length" is Optional
 #
 ###############################################################################
+def nlp_derivation_span(docref_id, span: Span) -> Extension:
+    return nlp_derivation(docref_id=docref_id, offset=span.begin, length=(span.end - span.begin))
+
 def nlp_derivation(docref_id, offset=None, length=None) -> Extension:
     """
     README: http://build.fhir.org/extension-derivation-reference.html
 
     :param docref_id: ID for the DocumentReference from which NLP resource was derived.
     :param offset: optional character *offset in document* (integer!)
-    :param offset: optional character *length from offset* of the matching text span.
+    :param length: optional character *length from offset* of the matching text span.
     :return: Extension for DerivationReference defining which document and text position was derived using NLP
     """
     values = [value_reference(ref_document(docref_id))]
@@ -165,7 +170,7 @@ def nlp_derivation(docref_id, offset=None, length=None) -> Extension:
         values.append(value_integer('offset', offset))
 
     if length:
-        values.append(value_integer('length', offset))
+        values.append(value_integer('length', length))
 
     values = [v.as_json() for v in values]
 
@@ -197,15 +202,29 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
 
     return fhir_concept(match.text, coded)
 
-def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> Condition:
+def nlp_extensions(fhir_resource: Resource, docref_id:str, nlp_match: MatchText, source=None) -> None:
+    """
+    apply "extensions" and "modiferExtension" to provided $fhir_resource
+
+    :param fhir_resource: passed by reference
+    :param docref_id: ID for DocumentReference (isa REF can be UUID)
+    :param nlp_match: response from cTAKES or other NLP Client
+    :param source: NLP Version information, if none is provided use version of ctakesclient.
+    """
+    fhir_resource.modifierExtension = nlp_modifier(source, nlp_match.polarity)
+    fhir_resource.extension = [nlp_derivation_span(docref_id, nlp_match.span())]
+
+def nlp_condition(subject_id: str, encounter_id: str, docref_id: str, nlp_match: MatchText, source=None) -> Condition:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for visit (isa REF can be UUID)
+    :param docref_id: ID for DocumentReference (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
     :param source: NLP Version information, if none is provided use version of ctakesclient.
-    :return: FHIR Observation
+    :return: FHIR Condition (such as DiseaseDisorder type)
     """
     condition = Condition()
+
 
     # id linkage
     condition.id = str(uuid.uuid4())
@@ -216,13 +235,14 @@ def nlp_condition(subject_id: str, encounter_id: str, nlp_match: MatchText, sour
     status = fhir_coding('http://terminology.hl7.org/CodeSystem/condition-ver-status', 'unconfirmed')
     condition.verificationStatus = fhir_concept(text='Unconfirmed', coded=[status])
 
-    # nlp extensions
+    # NLP
+    nlp_extensions(condition, docref_id, nlp_match, source)
     condition.code = nlp_concept(nlp_match)
-    condition.modifierExtension = nlp_modifier(source, nlp_match.polarity)
 
     return condition
 
-def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> Observation:
+
+def nlp_observation(subject_id: str, encounter_id: str, docref_id: str, nlp_match: MatchText, source=None) -> Observation:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for visit (isa REF can be UUID)
@@ -238,14 +258,13 @@ def nlp_observation(subject_id: str, encounter_id: str, nlp_match: MatchText, so
     observation.context = ref_encounter(encounter_id)
     observation.status = 'preliminary'
 
-    # nlp extensions
+    # NLP
+    nlp_extensions(observation, docref_id, nlp_match, source)
     observation.code = nlp_concept(nlp_match)
-    observation.modifierExtension = nlp_modifier(source, nlp_match.polarity)
-    observation.extension = [nlp_derivation(encounter_id, 10, 20)]
 
     return observation
 
-def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> MedicationStatement:
+def nlp_medication(subject_id: str, encounter_id: str, docref_id: str, nlp_match: MatchText, source=None) -> MedicationStatement:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for encounter (isa REF can be UUID)
@@ -261,16 +280,17 @@ def nlp_medication(subject_id: str, encounter_id: str, nlp_match: MatchText, sou
     medication.context = ref_encounter(encounter_id)
     medication.status = 'unknown'
 
-    # nlp extensions
+    # NLP
+    nlp_extensions(medication, docref_id, nlp_match, source)
     medication.medicationCodeableConcept = nlp_concept(nlp_match)
-    medication.modifierExtension = nlp_modifier(source, nlp_match.polarity)
 
     return medication
 
-def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, source=None) -> Procedure:
+def nlp_procedure(subject_id: str, encounter_id: str, docref_id: str, nlp_match: MatchText, source=None) -> Procedure:
     """
-    :param subject_id: ID for patient (isa REF can be UUID)
-    :param encounter_id: ID for encounter (isa REF can be UUID)
+    :param subject_id: ID for Patient (isa REF can be UUID)
+    :param encounter_id: ID for visit (isa REF can be UUID)
+    :param docref_id: ID for DocumentReference (isa REF can be UUID)
     :param nlp_match: response from cTAKES or other NLP Client
     :param source: NLP Version information, if none is provided use version of ctakesclient.
     :return: FHIR Procedure
@@ -283,22 +303,23 @@ def nlp_procedure(subject_id: str, encounter_id: str, nlp_match: MatchText, sour
     procedure.encounter = ref_encounter(encounter_id)
     procedure.status = 'unknown'
 
-    # nlp extensions
+    # NLP
+    nlp_extensions(procedure, docref_id, nlp_match, source)
     procedure.code = nlp_concept(nlp_match)
-    procedure.modifierExtension = nlp_modifier(source, nlp_match.polarity)
 
     return procedure
 
 
-def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON,
+def nlp_fhir(subject_id: str, encounter_id: str, docref_id: str, nlp_results: CtakesJSON,
              source=None, polarity=Polarity.pos) -> List[DomainResource]:
     """
     FHIR Resources for a patient encounter.
     Use this method to get FHIR Observation, Condition, MedicationStatement, and Procedures for a note that is for a
     ** specific encounter **. Be advised that a single note can reference past medical history.
 
-    :param subject_id: ID for patient (isa REF can be UUID)
-    :param encounter_id: ID for encounter (isa REF can be UUID)
+    :param subject_id: ID for Patient (isa REF can be UUID)
+    :param encounter_id: ID for visit (isa REF can be UUID)
+    :param docref_id: ID for DocumentReference (isa REF can be UUID)
     :param nlp_results: response from cTAKES or other NLP Client
     :param source: NLP Version information, if none is provided use version of ctakesclient.
     :param polarity: filter only positive mentions by default
@@ -307,15 +328,15 @@ def nlp_fhir(subject_id: str, encounter_id: str, nlp_results: CtakesJSON,
     as_fhir = []
 
     for match in nlp_results.list_sign_symptom(polarity):
-        as_fhir.append(nlp_observation(subject_id, encounter_id, match, source))
+        as_fhir.append(nlp_observation(subject_id, encounter_id, docref_id, match, source))
 
     for match in nlp_results.list_medication(polarity):
-        as_fhir.append(nlp_medication(subject_id, encounter_id, match, source))
+        as_fhir.append(nlp_medication(subject_id, encounter_id, docref_id, match, source))
 
     for match in nlp_results.list_disease_disorder(polarity):
-        as_fhir.append(nlp_condition(subject_id, encounter_id, match, source))
+        as_fhir.append(nlp_condition(subject_id, encounter_id, docref_id, match, source))
 
     for match in nlp_results.list_procedure(polarity):
-        as_fhir.append(nlp_procedure(subject_id, encounter_id, match, source))
+        as_fhir.append(nlp_procedure(subject_id, encounter_id, docref_id, match, source))
 
     return as_fhir
