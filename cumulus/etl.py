@@ -217,7 +217,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         summary_list.append(summary)
 
         path = os.path.join(config.dir_job_config(), f'{summary.label}.json')
-        common.write_json(path, summary.as_json())
+        common.write_json(path, summary.as_json(), indent=4)
 
     return summary_list
 
@@ -258,7 +258,7 @@ def main(args: List[str]):
     config = JobConfig(root_input, root_phi, config_store, comment=args.comment)
     print(json.dumps(config.as_json(), indent=4))
 
-    common.write_json(config.path_config(), config.as_json())
+    common.write_json(config.path_config(), config.as_json(), indent=4)
 
     for summary in etl_job(config):
         print(json.dumps(summary.as_json(), indent=4))
