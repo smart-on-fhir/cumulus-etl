@@ -5,8 +5,7 @@ import os
 import pandas
 from typing import Callable
 
-import ctakesclient
-from cumulus import common, store
+from cumulus import store
 
 
 class JsonTreeFormat(store.Format):
@@ -122,29 +121,6 @@ class JsonTreeFormat(store.Format):
     #
     ###########################################################################
 
-    # The following methods are currently unused
-    # def path_note_dir(root: str, patient_id: str, md5sum: str):
-    #     """
-    #     :param root: directory for messages
-    #     :param patient_id:
-    #     :param md5sum: hash for note text
-    #     :return: notes directory
-    #     """
-    #     folder = os.path.join(path_patient_dir(root, patient_id), md5sum)
-    #     self.root.makedirs(folder)
-    #     return folder
-    #
-    #
-    # def path_ctakes(root: str, patient_id: str, md5sum: str):
-    #     """
-    #     :param root: directory for messages
-    #     :param patient_id:
-    #     :param md5sum: hash for note text
-    #     :return: path to ctakes.json
-    #     """
-    #     return os.path.join(path_note_dir(root, patient_id, md5sum),
-    #                         'ctakes.json')
-
     def _write_docref(self, docref: pandas.Series) -> None:
         # TODO: confirm what we should do with multiple/zero encounters
         # (not a problem yet, as i2b2 only ever gives us one)
@@ -161,54 +137,17 @@ class JsonTreeFormat(store.Format):
     def store_docrefs(self, job, docrefs: pandas.DataFrame) -> None:
         self._write_records(job, docrefs, self._write_docref)
 
-    def _write_note(self, docref: pandas.Series) -> None:
-        if len(docref.content) != 1:
-            raise ValueError('Cumulus only supports single-content '
-                             'notes right now')
+    ###########################################################################
+    #
+    # Symptoms
+    #
+    ###########################################################################
 
-        # TODO: confirm what we should do with multiple/zero encounters
-        # (not a problem yet, as i2b2 only ever gives us one)
-        if len(docref.context['encounter']) != 1:
-            raise ValueError('Cumulus only supports single-encounter '
-                             'notes right now')
-
-        note_text = docref.content[0]['attachment']['data']
-        md5sum = common.hash_clinical_text(note_text)
-
-        mrn = docref.subject['reference']
-        enc = docref.context['encounter'][0]['reference']
-
-        folder = self._dir_output_encounter(mrn, enc)
-
-        path_text = os.path.join(folder, f'physician_note_{md5sum}.txt')
-        path_ctakes_json = os.path.join(folder, f'ctakes_{md5sum}.json')
-        path_cnlp = os.path.join(folder, f'cnlp_{md5sum}.json')
-        ner = None  # Named Entity Recognition (cTAKES JSON response)
-
-        if len(note_text) > 10:
-            if not self.root.exists(path_text):
-                common.write_text(path_text, note_text)
-            if not self.root.exists(path_ctakes_json):
-                logging.debug('ctakes.client.extract(...) ')
-                ner = ctakesclient.client.extract(note_text)
-                common.write_json(path_ctakes_json, ner.as_json())
-            if not self.root.exists(path_cnlp):
-                logging.debug('ctakes.transformer.list_polarity(...)')
-                if not ner:
-                    ner = ctakesclient.client.CtakesJSON(
-                        common.read_json(path_ctakes_json))
-
-                match_text = ner.list_match_text()
-                spans = ner.list_spans(ner.list_match())
-                polarities = ctakesclient.transformer.list_polarity(
-                    note_text, spans)
-                as_json = {
-                    'polarity': [status.name for status in polarities],
-                    'spans': spans,
-                    'match_text': match_text
-                }
-
-                common.write_json(path_cnlp, as_json)
+    def _write_symptom(self, observation: pandas.Series) -> None:
+        mrn = observation.subject['reference']
+        enc = observation.encounter['reference']
+        path = os.path.join(self._dir_output_encounter(mrn, enc), f'fhir_symptom_{observation.id}.json')
+        observation.to_json(path, storage_options=self.root.fsspec_options())
 
     def store_symptoms(self, job, observations: pandas.DataFrame) -> None:
-        pass
+        self._write_records(job, observations, self._write_symptom)
