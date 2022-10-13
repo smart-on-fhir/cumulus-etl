@@ -81,7 +81,7 @@ class TestText2Fhir(unittest.TestCase):
         vomiting2 = text2fhir.fhir_coding('http://snomed.info/sct', '300359004', 'Finding of vomiting (finding)')
 
         as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
-        common.print_fhir(as_fhir)
+        common.print_json(as_fhir)
 
     def test_nlp_concept(self):
         """
@@ -91,7 +91,7 @@ class TestText2Fhir(unittest.TestCase):
 
         for match in ctakes_json.list_match():
             concept = text2fhir.nlp_concept(match)
-            common.print_fhir(concept)
+            common.print_json(concept)
 
     def test_observation_symptom(self):
         """
@@ -107,7 +107,7 @@ class TestText2Fhir(unittest.TestCase):
 
         for match in ctakes_json.list_sign_symptom():
             symptom = text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match)
-            common.print_fhir(symptom)
+            common.print_json(symptom)
 
     def test_medication(self):
         """
@@ -123,7 +123,7 @@ class TestText2Fhir(unittest.TestCase):
 
         for match in ctakes_json.list_medication():
             medication = text2fhir.nlp_medication(subject_id, encounter_id, docref_id, match)
-            common.print_fhir(medication)
+            common.print_json(medication)
 
     def test_nlp_fhir(self):
         """
@@ -140,7 +140,7 @@ class TestText2Fhir(unittest.TestCase):
         docref_id = 'ABCD'
 
         for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json):
-            common.print_fhir(as_fhir)
+            common.print_json(as_fhir)
 
     def test_nlp_bodysite(self):
         """
@@ -157,7 +157,7 @@ class TestText2Fhir(unittest.TestCase):
         for match in ctakes_json.list_anatomical_site(Polarity.pos):
             bodysite = text2fhir.nlp_concept(match)
 
-            common.print_fhir(bodysite)
+            common.print_json(bodysite)
 
 
 if __name__ == '__main__':

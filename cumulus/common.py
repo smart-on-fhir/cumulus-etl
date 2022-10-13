@@ -194,18 +194,13 @@ def error_fhir(fhir_resource):
     else:
         logging.error('expected FHIR Resource got %s', type(fhir_resource))
 
-
-def print_json(jsonable): #TODO: refactor fhir_common
+def print_json(jsonable):
     if isinstance(jsonable, dict):
         print(json.dumps(jsonable, indent=4))
     if isinstance(jsonable, list):
         print(json.dumps(jsonable, indent=4))
     if isinstance(jsonable, FHIRAbstractBase):
         print(json.dumps(jsonable.as_json(), indent=4))
-
-def print_fhir(fhir_resource): #TODO: refactor fhir_common
-    print('#######################################################')
-    print(json.dumps(fhir_resource.as_json(), indent=4))
 
 ###############################################################################
 #

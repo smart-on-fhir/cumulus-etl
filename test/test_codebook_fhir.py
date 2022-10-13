@@ -1,7 +1,7 @@
 """Tests for the API-level Codebook class"""
 import unittest
 from uuid import UUID
-from cumulus.common import print_fhir
+from cumulus.common import print_json
 from cumulus.codebook import Codebook
 from .test_i2b2_transform import TestI2b2Transform
 
@@ -19,7 +19,7 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(0, len(codebook.db.mrn.keys()),
                          'codebook should be empty')
 
-        print_fhir(patient)
+        print_json(patient)
 
         patient = codebook.fhir_patient(patient)
 
@@ -62,7 +62,7 @@ class TestCodebookFHIR(unittest.TestCase):
     def test_condition(self):
         condition = TestI2b2Transform().example_fhir_condition()
 
-        print_fhir(condition)
+        print_json(condition)
 
         self.assertEqual('12345', condition.subject.reference)
         self.assertEqual('67890', condition.encounter.reference)
@@ -79,14 +79,14 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(condition.encounter.reference,
                          codebook.db.encounter(mrn, visit)['deid'])
 
-        print_fhir(condition)
+        print_json(condition)
 
         UUID(condition.id)
 
     def test_observation(self):
         observation = TestI2b2Transform().example_fhir_observation_lab()
 
-        print_fhir(observation)
+        print_json(observation)
 
         self.assertEqual('12345', observation.subject.reference)
         self.assertEqual('67890', observation.encounter.reference)
@@ -103,14 +103,14 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(observation.encounter.reference,
                          codebook.db.encounter(mrn, visit)['deid'])
 
-        print_fhir(observation)
+        print_json(observation)
 
         UUID(observation.id)
 
     def test_documentreference(self):
         docref = TestI2b2Transform().example_fhir_documentreference()
 
-        print_fhir(docref)
+        print_json(docref)
 
         self.assertEqual('12345', docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
@@ -131,7 +131,7 @@ class TestCodebookFHIR(unittest.TestCase):
         self.assertEqual(docref.context.encounter[0].reference,
                          codebook.db.encounter(mrn, visit)['deid'])
 
-        print_fhir(docref)
+        print_json(docref)
 
         UUID(docref.id)
 
