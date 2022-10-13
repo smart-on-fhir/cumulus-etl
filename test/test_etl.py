@@ -167,6 +167,7 @@ class TestI2b2EtlFormats(TestI2b2EtlSimple):
                 'encounter/fhir_encounters.parquet',
                 'observation/fhir_observations.parquet',
                 'patient/fhir_patients.parquet',
+                'symptom/fhir_symptoms.parquet',
             }, set(all_files))
 
 
@@ -234,10 +235,10 @@ class TestI2b2EtlCachedCtakes(TestI2b2EtlSimple):
                         'type': 'SignSymptomMention',
                         'conceptAttributes': [
                             {
-                                "code": "91058",
-                                "cui": "C0304290",
-                                "codingScheme": "RXNORM",
-                                "tui": "T122"
+                                'code': '91058',
+                                'cui': 'C0304290',
+                                'codingScheme': 'RXNORM',
+                                'tui': 'T122'
                             },
                         ],
                     }
@@ -250,10 +251,10 @@ class TestI2b2EtlCachedCtakes(TestI2b2EtlSimple):
         self.assertEqual(0, self.nlp_mock.call_count)
 
         # And we should see our fake cached results in the output
-        with open(os.path.join(self.output_path, 'symptom', 'fhir_symptoms.ndjson')) as f:
+        with open(os.path.join(self.output_path, 'symptom', 'fhir_symptoms.ndjson'), 'r', encoding='utf8') as f:
             lines = f.readlines()
         symptoms = [json.loads(line) for line in lines]
         self.assertEqual(2, len(symptoms))
-        self.assertEqual({'foobar0', 'foobar1'}, {x['0']['code']['text'] for x in symptoms})
+        self.assertEqual({'foobar0', 'foobar1'}, {x['code']['text'] for x in symptoms})
         for symptom in symptoms:
-            self.assertEqual({'91058', 'C0304290'}, {x['code'] for x in symptom['0']['code']['coding']})
+            self.assertEqual({'91058', 'C0304290'}, {x['code'] for x in symptom['code']['coding']})

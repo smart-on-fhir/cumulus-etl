@@ -27,7 +27,7 @@ AnyResource = TypeVar('AnyResource', bound=Resource)
 AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
 CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
 I2b2ToFhirCallable = Callable[[AnyDimension], Union[Resource, List[Resource]]]
-DeidentifyCallable = Callable[[Codebook, Union[AnyResource, List[AnyResource]]], Resource]
+DeidentifyCallable = Callable[[Codebook, AnyResource], Resource]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame], None]
 
 
@@ -38,13 +38,21 @@ def _extract_from_files(extract: CsvToI2b2Callable, csv_files: Iterable[str]) ->
             yield entry
 
 
-def _deid_to_json(obj):
-    """Returns a json-style structure from an object or list of objects"""
-    if isinstance(obj, Resource):
-        return obj.as_json()
+def _flatten(iterable: Iterable) -> Iterator:
+    """
+    Generator that flattens any lists it finds into individual objects
 
-    # Else iterate and recurse
-    return (_deid_to_json(x) for x in obj)
+    That is, _flatten([1, [2, 3], 4]) will yield [1, 2, 3, 4].
+    Note:
+        - this only flattens explicit `list` types, not any iterable it finds
+        - this only goes one level deep
+    """
+    for item in iterable:
+        if isinstance(item, list):
+            for sub_item in item:
+                yield sub_item
+        else:
+            yield item
 
 
 def _process_job_entries(
@@ -65,9 +73,9 @@ def _process_job_entries(
 
     i2b2_csv_files = config.list_csv(csv_folder)
     i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
-    fhir_entries = (to_fhir(x) for x in i2b2_entries)
+    fhir_entries = _flatten(to_fhir(x) for x in i2b2_entries)
     deid_entries = (deid(codebook, x) for x in fhir_entries)
-    dataframe = pandas.DataFrame(_deid_to_json(x) for x in deid_entries)
+    dataframe = pandas.DataFrame(x.as_json() for x in deid_entries)
 
     to_store(job, dataframe)
 
@@ -176,7 +184,7 @@ def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         partial(i2b2.transform.text2fhir_symptoms, config.dir_phi),
-        Codebook.fhir_observation_list,
+        Codebook.fhir_observation,
         config.format.store_symptoms,
     )
 
