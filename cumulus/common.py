@@ -67,7 +67,7 @@ def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     :return: pandas Dataframe
     """
     logging.info('Reading csv %s ...', path_csv)
-    df = pandas.read_csv(path_csv, dtype=str)
+    df = pandas.read_csv(path_csv, dtype=str, na_filter=False)
     if sample != 1.0:
         df = df.sample(frac=sample)
     logging.info('Done reading %s .', path_csv)
