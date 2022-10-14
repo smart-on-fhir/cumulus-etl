@@ -1,6 +1,5 @@
 """Tests for the text2fhir NLP part of etl.py"""
 
-import datetime
 import os
 import unittest
 
@@ -9,17 +8,6 @@ from cumulus import text2fhir
 
 import ctakesclient
 from ctakesclient.typesystem import CtakesJSON, Polarity
-
-
-def example_note(filename='synthea.txt') -> str:
-    """
-    :param filename: default is *NOT PHI* Synthea AI generated example.
-    """
-    return common.read_text(path(filename))
-
-
-def example_ctakes(filename='synthea.json') -> CtakesJSON:
-    return CtakesJSON(common.read_json(path(filename)))
 
 
 def path(filename: str):
@@ -34,51 +22,32 @@ def path(filename: str):
     return os.path.join(os.path.dirname(__file__), 'data', filename)
 
 
-def expected_version() -> dict:
+def example_note(filename='synthea.txt') -> str:
     """
-    :return: real example of nlp-version
+    :param filename: default is *NOT PHI* Synthea AI generated example.
     """
+    return common.read_text(path(filename))
+
+
+def example_ctakes(filename='synthea.json') -> CtakesJSON:
+    return CtakesJSON(common.read_json(path(filename)))
+
+
+def example_nlp_source() -> dict:
     ver = ctakesclient.__version__
-    system_url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
-    return {
-        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-version',
-        'valueCodeableConcept': {
-            'text': 'NLP Version',
-            'coding': [{
-                'code': ver,
-                'display': f'ctakesclient=={ver}',
-                'system': system_url,
-            }]
-        }
-    }
+    url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
 
-
-def expected_algorithm() -> dict:
-    return {
-        'extension': [
-            expected_version(),
-            {
-                'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-date-processed',
-                'valueDate': datetime.datetime.now(datetime.timezone.utc).date().isoformat(),
-            },
-        ],
-        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-algorithm',
-    }
+    return {'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source',
+            'extension': [
+                {'url': 'algorithm', 'valueString': 'ctakesclient'},
+                {'url': 'version', 'valueString': f'{url}'}]}
 
 
 def example_derivation_reference() -> dict:
-    """
-    Jamie Jones proposed example
-    """
-    return {'extension': [{'extension': [{'url': 'reference',
-                                          'valueReference': {'display': 'note',
-                                                             'reference': 'DocumentReference/episode-summary'}},
-                                         {'url': 'offset', 'valueInteger': 20},
-                                         {'url': 'length', 'valueInteger': 5},
-                                         {'url': 'algorithm', 'valueString': 'however specifically we want to log the '
-                                                                             'fact that cTAKES was used'},
-                                         {'url': 'version', 'valueString': 'whatever date or number is useful here'}],
-                           'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference'}]}
+    return {'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
+            'extension': [{'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
+                          {'url': 'offset', 'valueInteger': 20},
+                          {'url': 'length', 'valueInteger': 5}]}
 
 
 ###############################################################################
@@ -96,18 +65,19 @@ class TestText2Fhir(unittest.TestCase):
     see @self.example_derivation_reference()
     http://build.fhir.org/extension-derivation-reference.html
     """
-    def test_nlp_version_client(self):
-        self.assertDictEqual(expected_version(),
-                             text2fhir.nlp_version_client().as_json())
+    def test_nlp_source(self):
+        expected = example_nlp_source()
+        actual = text2fhir.nlp_source()
 
-    def test_nlp_algorithm(self):
-        """
-        Test the FHIR Extension for "nlp-algorithm" is the proposed format.
-        """
-        ver = text2fhir.nlp_version_client()
-        algo = text2fhir.nlp_algorithm(ver)
+        # common.print_json(actual)
+        self.assertDictEqual(expected, actual.as_json())
 
-        self.assertDictEqual(expected_algorithm(), algo.as_json())
+    def test_nlp_derivation_reference(self):
+
+        actual = text2fhir.nlp_derivation(docref_id='ABCD', offset=20, length=5)
+
+        # common.print_json(actual)
+        self.assertDictEqual(example_derivation_reference(), actual.as_json())
 
     def test_fhir_concept(self):
         """
@@ -116,9 +86,9 @@ class TestText2Fhir(unittest.TestCase):
         vomiting1 = text2fhir.fhir_coding('http://snomed.info/sct', '249497008', 'Vomiting symptom (finding)')
         vomiting2 = text2fhir.fhir_coding('http://snomed.info/sct', '300359004', 'Finding of vomiting (finding)')
 
-        # without extension
         as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
-        expected_concept = {
+        # common.print_json(as_fhir)
+        self.assertDictEqual({
             'coding': [
                 {
                     'code': '249497008',
@@ -132,30 +102,7 @@ class TestText2Fhir(unittest.TestCase):
                 },
             ],
             'text': 'vomiting',
-        }
-        self.assertDictEqual(expected_concept, as_fhir.as_json())
-
-        # with extension
-        position = text2fhir.nlp_text_position(58, 66)
-        as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2], position)
-        expected_concept.update({
-            'extension': [
-                {
-                    'extension': [
-                        {
-                            'url': 'begin',
-                            'valueInteger': 58
-                        },
-                        {
-                            'url': 'end',
-                            'valueInteger': 66
-                        },
-                    ],
-                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
-                },
-            ],
-        })
-        self.assertDictEqual(expected_concept, as_fhir.as_json())
+        }, as_fhir.as_json())
 
     def test_nlp_concept(self):
         """
@@ -164,6 +111,7 @@ class TestText2Fhir(unittest.TestCase):
         ctakes_json = example_ctakes()
 
         concepts = [text2fhir.nlp_concept(match).as_json() for match in ctakes_json.list_match()]
+        # common.print_json(concepts)
         self.assertEqual(120, len(concepts))
 
         # Just spot check the first one
@@ -186,21 +134,6 @@ class TestText2Fhir(unittest.TestCase):
                     'system': 'http://terminology.hl7.org/CodeSystem/umls',
                 },
             ],
-            'extension': [
-                {
-                    'extension': [
-                        {
-                            'url': 'begin',
-                            'valueInteger': 442,
-                        },
-                        {
-                            'url': 'end',
-                            'valueInteger': 457,
-                        },
-                    ],
-                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
-                },
-            ],
             'text': 'chewable tablet',
         }, concepts[0])
 
@@ -214,11 +147,13 @@ class TestText2Fhir(unittest.TestCase):
 
         subject_id = '1234'
         encounter_id = '5678'
+        docref_id = 'ABCD'
 
         symptoms = [
-            text2fhir.nlp_observation(subject_id, encounter_id, symptom).as_json()
+            text2fhir.nlp_observation(subject_id, encounter_id, docref_id, symptom).as_json()
             for symptom in ctakes_json.list_sign_symptom()
         ]
+        # common.print_json(symptoms)
         self.assertEqual(38, len(symptoms))
 
         # Spot check first symptom (but first drop id as it is randomly generated)
@@ -243,28 +178,23 @@ class TestText2Fhir(unittest.TestCase):
                         'system': 'http://terminology.hl7.org/CodeSystem/umls',
                     },
                 ],
-                'extension': [
-                    {
-                        'extension': [
-                            {
-                                'url': 'begin',
-                                'valueInteger': 21,
-                            },
-                            {
-                                'url': 'end',
-                                'valueInteger': 30,
-                            },
-                        ],
-                        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
-                    },
-                ],
                 'text': 'Complaint',
             },
             'encounter': {
                 'reference': 'Encounter/5678',
             },
+            'extension': [
+                {
+                    'extension': [
+                        {'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
+                        {'url': 'offset', 'valueInteger': 21},
+                        {'url': 'length', 'valueInteger': 9},
+                    ],
+                    'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
+                },
+            ],
             'modifierExtension': [
-                expected_algorithm(),
+                example_nlp_source(),
                 {
                     'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity',
                     'valueBoolean': False,
@@ -287,11 +217,13 @@ class TestText2Fhir(unittest.TestCase):
 
         subject_id = '1234'
         encounter_id = '5678'
+        docref_id = 'ABCD'
 
         medications = [
-            text2fhir.nlp_medication(subject_id, encounter_id, medication).as_json()
+            text2fhir.nlp_medication(subject_id, encounter_id, docref_id, medication).as_json()
             for medication in ctakes_json.list_medication()
         ]
+        # common.print_json(medications)
         self.assertEqual(5, len(medications))
 
         # Spot check first medication (but first drop id as it is randomly generated)
@@ -319,25 +251,20 @@ class TestText2Fhir(unittest.TestCase):
                         'system': 'http://terminology.hl7.org/CodeSystem/umls',
                     },
                 ],
-                'extension': [
-                    {
-                        'extension': [
-                            {
-                                'url': 'begin',
-                                'valueInteger': 442,
-                            },
-                            {
-                                'url': 'end',
-                                'valueInteger': 457,
-                            },
-                        ],
-                        'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
-                    },
-                ],
                 'text': 'chewable tablet',
             },
+            'extension': [
+                {
+                    'extension': [
+                        {'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
+                        {'url': 'offset', 'valueInteger': 442},
+                        {'url': 'length', 'valueInteger': 15},
+                    ],
+                    'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
+                },
+            ],
             'modifierExtension': [
-                expected_algorithm(),
+                example_nlp_source(),
                 {
                     'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity',
                     'valueBoolean': True,
@@ -362,8 +289,11 @@ class TestText2Fhir(unittest.TestCase):
 
         subject_id = '1234'
         encounter_id = '5678'
+        docref_id = 'ABCD'
 
-        all_fhir = [as_fhir.as_json() for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)]
+        all_fhir = [as_fhir.as_json()
+                    for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json)]
+        # common.print_json(all_fhir)
         self.assertEqual(68, len(all_fhir))
 
         resource_types = {x['resourceType'] for x in all_fhir}
@@ -385,6 +315,7 @@ class TestText2Fhir(unittest.TestCase):
             text2fhir.nlp_concept(bodysite).as_json()
             for bodysite in ctakes_json.list_anatomical_site(Polarity.pos)
         ]
+        # common.print_json(bodysites)
         self.assertEqual(5, len(bodysites))
 
         # Spot check first bodysite
@@ -397,21 +328,6 @@ class TestText2Fhir(unittest.TestCase):
                 {
                     'code': 'C0043262',
                     'system': 'http://terminology.hl7.org/CodeSystem/umls',
-                },
-            ],
-            'extension': [
-                {
-                    'extension': [
-                        {
-                            'url': 'begin',
-                            'valueInteger': 198,
-                        },
-                        {
-                            'url': 'end',
-                            'valueInteger': 203,
-                        },
-                    ],
-                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-text-position',
                 },
             ],
             'text': 'wrist',

@@ -270,7 +270,13 @@ def text2fhir_symptoms(
 
     as_list = []
     for match in ctakes_json.list_sign_symptom(polarity):
-        as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, match))
+        # FIXME:  We no longer have a connection to the docref we spun off of this same i2b2 observation fact,
+        #  since they are different etl tasks. To record a true docref, we'd need to (a) be working with real
+        #  fhir objects or (b) keep docrefs in the codebook or (c) combine the two etl tasks in some way.
+        #  For now, reliable docref ids is not a hard requirement and we can just a fake invalid value.
+        #  We should fix this shortly though.
+        docref_id = 'xxxxxx'
+        as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match))
 
     return as_list
 
