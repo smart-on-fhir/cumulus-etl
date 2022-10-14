@@ -1,8 +1,9 @@
 """JSON file templates"""
 
 import os
-import json
-from enum import Enum
+
+from cumulus import common
+
 
 ###############################################################################
 #
@@ -10,56 +11,21 @@ from enum import Enum
 #
 ###############################################################################
 
-
-class FHIRTemplate(Enum):
-    FHIR_PATIENT = 'fhir_patient_template.json'
-    FHIR_ENCOUNTER = 'fhir_encounter_template.json'
-    FHIR_CONDITION = 'fhir_condition_template.json'
-    FHIR_CONDITION_EXAMPLE = 'fhir_condition_example.json'
-    FHIR_DOCUMENTREFERENCE = 'fhir_documentreference_template.json'
-    FHIR_OBSERVATION = 'fhir_observation_template.json'
-    FHIR_COVID_CLASSIFIER = 'fhir_covid_classifier_template.json'
-
-
-def template(name: FHIRTemplate) -> dict:
+def template(name: str) -> dict:
     """
     https://stackoverflow.com/questions/1395593/managing-resources-in-a-python-project
-    :param template: FHIR resource from saved JSON definition (Note: usage will
-                     be *deprecated*)
+    :param name: FHIR resource from saved JSON definition (Note: usage will be *deprecated*)
     :return: JSON of FHIR resource
     """
-    jsonfile = os.path.join(os.path.dirname(__file__), '..', 'resources',
-                            name.value)
-
-    if not os.path.exists(jsonfile):
-        raise Exception(f'{jsonfile} does not exist')
-
-    with open(jsonfile, 'r', encoding='utf8') as f:
-        return json.load(f)
+    return common.read_json(os.path.join(os.path.dirname(__file__), 'resources', name))
 
 
 def fhir_patient() -> dict:
-    return template(FHIRTemplate.FHIR_PATIENT)
+    return template('fhir_patient_template.json')
 
 
 def fhir_encounter() -> dict:
-    return template(FHIRTemplate.FHIR_ENCOUNTER)
-
-
-def fhir_condition() -> dict:
-    return template(FHIRTemplate.FHIR_CONDITION)
-
-
-def fhir_observation() -> dict:
-    return template(FHIRTemplate.FHIR_OBSERVATION)
-
-
-def fhir_documentreference() -> dict:
-    return template(FHIRTemplate.FHIR_DOCUMENTREFERENCE)
-
-
-def fhir_covid_classifier() -> dict:
-    return template(FHIRTemplate.FHIR_COVID_CLASSIFIER)
+    return template('fhir_encounter_template.json')
 
 
 ###############################################################################

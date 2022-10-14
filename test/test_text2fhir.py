@@ -31,7 +31,7 @@ def path(filename: str):
     :param filename:
     :return: /path/to/resources/filename
     """
-    return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
+    return os.path.join(os.path.dirname(__file__), 'data', filename)
 
 
 def expected_version() -> dict:
