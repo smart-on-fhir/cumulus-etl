@@ -70,6 +70,7 @@ def fhir_concept(text: str, coded: List[Coding], extension=None) -> CodeableConc
 
     return concept
 
+
 def fhir_coding(vocab: str, code: str, display=None) -> Coding:
     """
     Helper function, simplifies FHIR semantics for when to use types/json

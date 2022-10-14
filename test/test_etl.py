@@ -13,19 +13,28 @@ from unittest import mock
 import freezegun
 import s3fs
 
-from cumulus import etl
+from cumulus import common, etl, i2b2
 
+from .ctakesmock import CtakesMixin, fake_ctakes_extract
 from .s3mock import S3Mixin
 
 
-class TestI2b2EtlSimple(unittest.TestCase):
-    """Base test case for basic runs of etl methods"""
+@freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
+class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
+    """
+    Base test case for basic runs of etl methods
+
+    Don't put actual tests in here, but rather in subclasses below.
+    """
 
     def setUp(self):
         super().setUp()
 
+        # you'll always want this when debugging
+        self.maxDiff = None  # pylint: disable=invalid-name
+
         script_dir = os.path.dirname(__file__)
-        self.data_dir = os.path.join(script_dir, 'data/i2b2/simple')
+        self.data_dir = os.path.join(script_dir, 'data/simple-i2b2')
         self.input_path = os.path.join(self.data_dir, 'input')
 
         tmpdir = tempfile.mkdtemp()
@@ -111,8 +120,7 @@ class TestI2b2EtlSimple(unittest.TestCase):
         self.assert_file_tree_equal(dircmp)
 
 
-@freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
-class TestI2b2EtlJobConfig(TestI2b2EtlSimple):
+class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
     """Test case for the job config logging data"""
 
     def setUp(self):
@@ -131,7 +139,49 @@ class TestI2b2EtlJobConfig(TestI2b2EtlSimple):
         self.assertEqual(config['comment'], 'Run by foo on machine bar')
 
 
-class TestI2b2EtlFormats(TestI2b2EtlSimple):
+class TestI2b2EtlBatches(BaseI2b2EtlSimple):
+    """Test case for etl batching"""
+
+    def test_batched_output(self):
+        etl.main(self.args + ['--format=ndjson', '--batch-size=1'])
+        self.assert_output_equal('batched-ndjson-output')
+
+    def test_batch_iterate(self):
+        """Check a bunch of edge cases for the _batch_iterate helper"""
+        # pylint: disable=protected-access
+
+        self.assertEqual([], [list(x) for x in etl._batch_iterate([], 2)])
+
+        self.assertEqual([
+            [1, 2],
+            [3, 4],
+        ], [list(x) for x in etl._batch_iterate([1, 2, 3, 4], 2)])
+
+        self.assertEqual([
+            [1, 2],
+            [3, 4],
+            [5],
+        ], [list(x) for x in etl._batch_iterate([1, 2, 3, 4, 5], 2)])
+
+        self.assertEqual([
+            [1, 2, 3],
+            [4],
+        ], [list(x) for x in etl._batch_iterate([1, 2, 3, 4], 3)])
+
+        self.assertEqual([
+            [1],
+            [2],
+            [3],
+        ], [list(x) for x in etl._batch_iterate([1, 2, 3], 1)])
+
+        with self.assertRaises(ValueError):
+            list(etl._batch_iterate([1, 2, 3], 0))
+
+        with self.assertRaises(ValueError):
+            list(etl._batch_iterate([1, 2, 3], -1))
+
+
+class TestI2b2EtlFormats(BaseI2b2EtlSimple):
     """Test case for each of the formats we support"""
 
     def test_etl_job_json(self):
@@ -158,15 +208,16 @@ class TestI2b2EtlFormats(TestI2b2EtlSimple):
 
         self.assertEqual(
             {
-                'condition/fhir_conditions.parquet',
-                'documentreference/fhir_documentreferences.parquet',
-                'encounter/fhir_encounters.parquet',
-                'observation/fhir_observations.parquet',
-                'patient/fhir_patients.parquet',
+                'condition/fhir_conditions.000.parquet',
+                'documentreference/fhir_documentreferences.000.parquet',
+                'encounter/fhir_encounters.000.parquet',
+                'observation/fhir_observations.000.parquet',
+                'patient/fhir_patients.000.parquet',
+                'symptom/fhir_symptoms.000.parquet',
             }, set(all_files))
 
 
-class TestI2b2EtlOnS3(S3Mixin, TestI2b2EtlSimple):
+class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
     """Test case for our support of writing to S3"""
 
     def test_etl_job_s3(self):
@@ -176,13 +227,80 @@ class TestI2b2EtlOnS3(S3Mixin, TestI2b2EtlSimple):
         fs = s3fs.S3FileSystem()
         all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
         self.assertEqual({
-            'mockbucket/root/condition/fhir_conditions.ndjson',
-            'mockbucket/root/documentreference/fhir_documentreferences.ndjson',
-            'mockbucket/root/encounter/fhir_encounters.ndjson',
-            'mockbucket/root/observation/fhir_observations.ndjson',
-            'mockbucket/root/patient/fhir_patients.ndjson',
+            'mockbucket/root/condition/fhir_conditions.000.ndjson',
+            'mockbucket/root/documentreference/fhir_documentreferences.000.ndjson',
+            'mockbucket/root/encounter/fhir_encounters.000.ndjson',
+            'mockbucket/root/observation/fhir_observations.000.ndjson',
+            'mockbucket/root/patient/fhir_patients.000.ndjson',
+            'mockbucket/root/symptom/fhir_symptoms.000.ndjson',
         }, all_files)
 
         # Confirm we did not accidentally create an 's3:' directory locally
         # because we misinterpreted the s3 path as a local path
         self.assertFalse(os.path.exists('s3:'))
+
+
+class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
+    """Test case for caching the cTAKES responses"""
+
+    def path_for_checksum(self, checksum):
+        return os.path.join(self.phi_path, 'ctakes-cache', 'version1', checksum[0:4], f'sha256-{checksum}.json')
+
+    def test_stores_cached_json(self):
+        etl.main(self.args + ['--format=parquet'])
+
+        notes_csv_path = os.path.join(self.input_path, 'csv_note', 'note1.csv')
+        facts = i2b2.extract.extract_csv_observation_facts(notes_csv_path)
+
+        expected_checksums = {
+            0: 'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
+            1: '2c75f7374e5706606532d8456d7f7d5be184ee3ea9322ca9309beeb1570ceb42',
+        }
+
+        for index, checksum in expected_checksums.items():
+            self.assertEqual(
+                fake_ctakes_extract(facts[index].observation_blob).as_json(),
+                common.read_json(self.path_for_checksum(checksum))
+            )
+
+    def test_does_not_hit_server_if_cache_exists(self):
+        expected_checksums = {
+            'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
+            '2c75f7374e5706606532d8456d7f7d5be184ee3ea9322ca9309beeb1570ceb42',
+        }
+
+        for index, checksum in enumerate(expected_checksums):
+            # Write out some fake results to the cache location
+            common.write_json(self.path_for_checksum(checksum), {
+                'SignSymptomMention': [
+                    {
+                        'begin': 123,
+                        'end': 129,
+                        'text': f'foobar{index}',
+                        'polarity': 0,
+                        'type': 'SignSymptomMention',
+                        'conceptAttributes': [
+                            {
+                                'code': '91058',
+                                'cui': 'C0304290',
+                                'codingScheme': 'RXNORM',
+                                'tui': 'T122'
+                            },
+                        ],
+                    }
+                ],
+            })
+
+        etl.main(self.args + ['--format=ndjson'])
+
+        # We should never have called our mock cTAKES server
+        self.assertEqual(0, self.nlp_mock.call_count)
+
+        # And we should see our fake cached results in the output
+        with open(os.path.join(self.output_path, 'symptom', 'fhir_symptoms.000.ndjson'), 'r', encoding='utf8') as f:
+            lines = f.readlines()
+        symptoms = [json.loads(line) for line in lines]
+        self.assertEqual(2, len(symptoms))
+        self.assertEqual({'foobar0', 'foobar1'}, {x['code']['text'] for x in symptoms})
+        for symptom in symptoms:
+            self.assertEqual({'91058', 'C0304290'}, {x['code'] for x in symptom['code']['coding']})

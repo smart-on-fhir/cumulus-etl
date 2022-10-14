@@ -1,10 +1,8 @@
 """Transformations from i2b2 to FHIR"""
 
 import logging
-from typing import List
+from typing import List, Optional
 
-import ctakesclient
-from fhirclient.models.domainresource import DomainResource
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
@@ -22,22 +20,18 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
+from cumulus import common, ctakes, store, text2fhir
 from cumulus.fhir_common import parse_fhir_date
 from cumulus.fhir_common import parse_fhir_date_isostring
-
-from cumulus import common
-from cumulus import fhir_template
-
+from cumulus.i2b2 import fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
-from cumulus import text2fhir
 
 ###############################################################################
 #
 # Transform: to_fhir_{resource_type}
 #
 ###############################################################################
-
 
 def to_fhir_patient(patient: PatientDimension) -> Patient:
     """
@@ -104,6 +98,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
 
     return encounter
 
+
 def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
     :param obsfact: base "FHIR Observation" from base "I2B2 ObservationFact"
@@ -165,6 +160,7 @@ def to_fhir_observation_lab(obsfact: ObservationFact,
 
     return observation
 
+
 def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     """
     :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED
@@ -218,11 +214,13 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
 
     return condition
 
+
 ###############################################################################
 #
 # Physician Notes and NLP
 #
 ###############################################################################
+
 def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     """
     :param obsfact: i2b2 observation fact containing the I2b2 NOTE as
@@ -238,8 +236,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
         FHIRReference({'reference': str(obsfact.encounter_num)})
     ]
 
-    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)
-                                  })  # i2b2 Note Type
+    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)})  # i2b2 Note Type
     docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
@@ -250,12 +247,16 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     content.attachment.contentType = 'text/plain'
     # content.attachment.data = str(base64.b64encode(str(
     #   obsfact.observation_blob).encode()))
-    content.attachment.data = obsfact.observation_blob
     docref.content = [content]
 
     return docref
 
-def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos) -> List[Observation]:
+
+def text2fhir_symptoms(
+        phi_root: store.Root,
+        obsfact: ObservationFact,
+        polarity=text2fhir.Polarity.pos
+) -> List[Observation]:
     """
     :param obsfact: Physician Note
     :param polarity: default only get positive NLP mentions.
@@ -265,31 +266,19 @@ def text2fhir_symptoms(obsfact: ObservationFact, polarity=text2fhir.Polarity.pos
     encounter_id = obsfact.encounter_num
     physician_note = obsfact.observation_blob
 
-    # TODO @andymc to @mterry : do you prefer method receive CtakesJSON instead?
-    # Mocking test might be easier with CtakesJSON
-    ctakes_json = ctakesclient.client.extract(physician_note)
+    ctakes_json = ctakes.extract(phi_root, physician_note)
 
     as_list = []
     for match in ctakes_json.list_sign_symptom(polarity):
-        as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, match))
+        # FIXME:  We no longer have a connection to the docref we spun off of this same i2b2 observation fact,
+        #  since they are different etl tasks. To record a true docref, we'd need to (a) be working with real
+        #  fhir objects or (b) keep docrefs in the codebook or (c) combine the two etl tasks in some way.
+        #  For now, reliable docref ids is not a hard requirement and we can just a fake invalid value.
+        #  We should fix this shortly though.
+        docref_id = 'xxxxxx'
+        as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match))
 
     return as_list
-
-
-def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> List[DomainResource]:
-    """
-    Optional usage, export everything from NLP that cumulus has a FHIR mapping for.
-
-    :param obsfact: Physician Note
-    :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
-    """
-    subject_id = obsfact.patient_num
-    encounter_id = obsfact.encounter_num
-    physician_note = obsfact.observation_blob
-
-    ctakes_json = ctakesclient.client.extract(physician_note)
-
-    return text2fhir.nlp_fhir(subject_id, encounter_id, ctakes_json)
 
 
 ###############################################################################
@@ -297,7 +286,6 @@ def to_fhir_bundle_text2fhir(obsfact: ObservationFact) -> List[DomainResource]:
 # parse i2b2 inputs to FHIR types
 #
 ###############################################################################
-
 
 def parse_zip_code(i2b2_zip_code) -> str:
     """
@@ -309,17 +297,13 @@ def parse_zip_code(i2b2_zip_code) -> str:
             return i2b2_zip_code
 
 
-def parse_gender(i2b2_sex_cd) -> str:
+def parse_gender(i2b2_sex_cd) -> Optional[str]:
     """
     :param i2b2_sex_cd:
-    :return: M,F,T,U, NB
+    :return: FHIR AdministrativeGender code
     """
     if i2b2_sex_cd and isinstance(i2b2_sex_cd, str):
-        if i2b2_sex_cd in fhir_template.GENDER:
-            return fhir_template.GENDER[i2b2_sex_cd]
-        else:
-            logging.warning('i2b2_sex_cd unknown code %s', i2b2_sex_cd)
-    logging.warning('i2b2_sex_cd missing: %s', i2b2_sex_cd)
+        return fhir_template.GENDER.get(i2b2_sex_cd, 'other')
 
 
 def parse_race(i2b2_race_cd) -> str:

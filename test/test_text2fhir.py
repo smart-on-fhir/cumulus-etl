@@ -1,7 +1,8 @@
 """Tests for the text2fhir NLP part of etl.py"""
 
-import unittest
+import datetime
 import os
+import unittest
 
 from cumulus import common
 from cumulus import text2fhir
@@ -18,7 +19,7 @@ def path(filename: str):
     :param filename:
     :return: /path/to/resources/filename
     """
-    return os.path.join(os.path.dirname(__file__), '..', 'resources', filename)
+    return os.path.join(os.path.dirname(__file__), 'data', filename)
 
 def example_note(filename='synthea.txt') -> str:
     """
@@ -26,8 +27,10 @@ def example_note(filename='synthea.txt') -> str:
     """
     return common.read_text(path(filename))
 
+
 def example_ctakes(filename='synthea.json') -> CtakesJSON:
     return CtakesJSON(common.read_json(path(filename)))
+
 
 def example_nlp_source() -> dict:
     ver = ctakesclient.__version__
@@ -38,11 +41,13 @@ def example_nlp_source() -> dict:
                 {"url": "algorithm", "valueString": "ctakesclient"},
                 {"url": "version", "valueString": f"{url}"}]}
 
+
 def example_derivation_reference() -> dict:
     return {'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
             'extension': [{'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
                             {'url': 'offset', 'valueInteger': 20},
                             {'url': 'length', 'valueInteger': 5}]}
+
 
 ###############################################################################
 #
@@ -59,6 +64,9 @@ class TestText2Fhir(unittest.TestCase):
     see @self.example_derivation_reference()
     http://build.fhir.org/extension-derivation-reference.html
     """
+    def setUp(self):
+        self.maxDiff = None
+
     def test_nlp_source(self):
         expected = example_nlp_source()
         actual = text2fhir.nlp_source()
@@ -81,7 +89,22 @@ class TestText2Fhir(unittest.TestCase):
         vomiting2 = text2fhir.fhir_coding('http://snomed.info/sct', '300359004', 'Finding of vomiting (finding)')
 
         as_fhir = text2fhir.fhir_concept('vomiting', [vomiting1, vomiting2])
-        common.print_json(as_fhir)
+        # common.print_json(as_fhir)
+        self.assertDictEqual({
+            'coding': [
+                {
+                    'code': '249497008',
+                    'display': 'Vomiting symptom (finding)',
+                    'system': 'http://snomed.info/sct'
+                },
+                {
+                    'code': '300359004',
+                    'display': 'Finding of vomiting (finding)',
+                    'system': 'http://snomed.info/sct'
+                },
+            ],
+            'text': 'vomiting',
+        }, as_fhir.as_json())
 
     def test_nlp_concept(self):
         """
@@ -89,9 +112,32 @@ class TestText2Fhir(unittest.TestCase):
         """
         ctakes_json = example_ctakes()
 
-        for match in ctakes_json.list_match():
-            concept = text2fhir.nlp_concept(match)
-            common.print_json(concept)
+        concepts = [text2fhir.nlp_concept(match).as_json() for match in ctakes_json.list_match()]
+        # common.print_json(concepts)
+        self.assertEqual(120, len(concepts))
+
+        # Just spot check the first one
+        self.assertDictEqual({
+            'coding': [
+                {
+                    'code': '66076007',
+                    'system': 'SNOMEDCT_US',
+                },
+                {
+                    'code': 'C0304290',
+                    'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                },
+                {
+                    'code': '91058',
+                    'system': 'RXNORM',
+                },
+                {
+                    'code': 'C0304290',
+                    'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                },
+            ],
+            'text': 'chewable tablet',
+        }, concepts[0])
 
     def test_observation_symptom(self):
         """
@@ -105,9 +151,63 @@ class TestText2Fhir(unittest.TestCase):
         encounter_id = '5678'
         docref_id = 'ABCD'
 
-        for match in ctakes_json.list_sign_symptom():
-            symptom = text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match)
-            common.print_json(symptom)
+        symptoms = [
+            text2fhir.nlp_observation(subject_id, encounter_id, docref_id, symptom).as_json()
+            for symptom in ctakes_json.list_sign_symptom()
+        ]
+        # common.print_json(symptoms)
+        self.assertEqual(38, len(symptoms))
+
+        # Spot check first symptom (but first drop id as it is randomly generated)
+        del symptoms[0]['id']
+        self.assertDictEqual({
+            'code': {
+                'coding': [
+                    {
+                        'code': '33962009',
+                        'system': 'SNOMEDCT_US',
+                    },
+                    {
+                        'code': 'C0277786',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                    {
+                        'code': '409586006',
+                        'system': 'SNOMEDCT_US',
+                    },
+                    {
+                        'code': 'C0277786',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                ],
+                'text': 'Complaint',
+            },
+            'encounter': {
+                'reference': 'Encounter/5678',
+            },
+            'extension': [
+                {
+                    'extension': [
+                        {'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
+                        {'url': 'offset', 'valueInteger': 21},
+                        {'url': 'length', 'valueInteger': 9},
+                    ],
+                    'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
+                },
+            ],
+            'modifierExtension': [
+                example_nlp_source(),
+                {
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity',
+                    'valueBoolean': False,
+                },
+            ],
+            'resourceType': 'Observation',
+            'status': 'preliminary',
+            'subject': {
+                'reference': 'Patient/1234',
+            },
+        }, symptoms[0])
 
     def test_medication(self):
         """
@@ -121,9 +221,63 @@ class TestText2Fhir(unittest.TestCase):
         encounter_id = '5678'
         docref_id = 'ABCD'
 
-        for match in ctakes_json.list_medication():
-            medication = text2fhir.nlp_medication(subject_id, encounter_id, docref_id, match)
-            common.print_json(medication)
+        medications = [
+            text2fhir.nlp_medication(subject_id, encounter_id, docref_id, medication).as_json()
+            for medication in ctakes_json.list_medication()
+        ]
+        # common.print_json(medications)
+        self.assertEqual(5, len(medications))
+
+        # Spot check first medication (but first drop id as it is randomly generated)
+        del medications[0]['id']
+        self.assertDictEqual({
+            'context': {
+                'reference': 'Encounter/5678',
+            },
+            'medicationCodeableConcept': {
+                'coding': [
+                    {
+                        'code': '66076007',
+                        'system': 'SNOMEDCT_US',
+                    },
+                    {
+                        'code': 'C0304290',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                    {
+                        'code': '91058',
+                        'system': 'RXNORM',
+                    },
+                    {
+                        'code': 'C0304290',
+                        'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                    },
+                ],
+                'text': 'chewable tablet',
+            },
+            'extension': [
+                {
+                    'extension': [
+                        {'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
+                        {'url': 'offset', 'valueInteger': 442},
+                        {'url': 'length', 'valueInteger': 15},
+                    ],
+                    'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
+                },
+            ],
+            'modifierExtension': [
+                example_nlp_source(),
+                {
+                    'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity',
+                    'valueBoolean': True,
+                },
+            ],
+            'resourceType': 'MedicationStatement',
+            'status': 'unknown',
+            'subject': {
+                'reference': 'Patient/1234',
+            },
+        }, medications[0])
 
     def test_nlp_fhir(self):
         """
@@ -139,8 +293,12 @@ class TestText2Fhir(unittest.TestCase):
         encounter_id = '5678'
         docref_id = 'ABCD'
 
-        for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json):
-            common.print_json(as_fhir)
+        all_fhir = [as_fhir.as_json() for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json)]
+        # common.print_json(all_fhir)
+        self.assertEqual(68, len(all_fhir))
+
+        resource_types = {x['resourceType'] for x in all_fhir}
+        self.assertSetEqual({'Condition', 'MedicationStatement', 'Observation', 'Procedure'}, resource_types)
 
     def test_nlp_bodysite(self):
         """
@@ -154,10 +312,27 @@ class TestText2Fhir(unittest.TestCase):
         """
         ctakes_json = example_ctakes()
 
-        for match in ctakes_json.list_anatomical_site(Polarity.pos):
-            bodysite = text2fhir.nlp_concept(match)
+        bodysites = [
+            text2fhir.nlp_concept(bodysite).as_json()
+            for bodysite in ctakes_json.list_anatomical_site(Polarity.pos)
+        ]
+        # common.print_json(bodysites)
+        self.assertEqual(5, len(bodysites))
 
-            common.print_json(bodysite)
+        # Spot check first bodysite
+        self.assertDictEqual({
+            'coding': [
+                {
+                    'code': '8205005',
+                    'system': 'SNOMEDCT_US',
+                },
+                {
+                    'code': 'C0043262',
+                    'system': 'http://terminology.hl7.org/CodeSystem/umls',
+                },
+            ],
+            'text': 'wrist',
+        }, bodysites[0])
 
 
 if __name__ == '__main__':
