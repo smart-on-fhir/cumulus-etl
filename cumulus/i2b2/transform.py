@@ -1,7 +1,7 @@
 """Transformations from i2b2 to FHIR"""
 
 import logging
-from typing import List
+from typing import List, Optional
 
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirreference import FHIRReference
@@ -20,9 +20,10 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from cumulus import common, ctakes, fhir_template, store, text2fhir
+from cumulus import common, ctakes, store, text2fhir
 from cumulus.fhir_common import parse_fhir_date
 from cumulus.fhir_common import parse_fhir_date_isostring
+from cumulus.i2b2 import fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 
@@ -290,17 +291,13 @@ def parse_zip_code(i2b2_zip_code) -> str:
             return i2b2_zip_code
 
 
-def parse_gender(i2b2_sex_cd) -> str:
+def parse_gender(i2b2_sex_cd) -> Optional[str]:
     """
     :param i2b2_sex_cd:
-    :return: M,F,T,U, NB
+    :return: FHIR AdministrativeGender code
     """
     if i2b2_sex_cd and isinstance(i2b2_sex_cd, str):
-        if i2b2_sex_cd in fhir_template.GENDER:
-            return fhir_template.GENDER[i2b2_sex_cd]
-        else:
-            logging.warning('i2b2_sex_cd unknown code %s', i2b2_sex_cd)
-    logging.warning('i2b2_sex_cd missing: %s', i2b2_sex_cd)
+        return fhir_template.GENDER.get(i2b2_sex_cd, 'other')
 
 
 def parse_race(i2b2_race_cd) -> str:
