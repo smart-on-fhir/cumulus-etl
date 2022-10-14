@@ -1,6 +1,5 @@
 """Tests for the text2fhir NLP part of etl.py"""
 
-import datetime
 import os
 import unittest
 
@@ -9,6 +8,7 @@ from cumulus import text2fhir
 
 import ctakesclient
 from ctakesclient.typesystem import CtakesJSON, Polarity
+
 
 def path(filename: str):
     """
@@ -20,6 +20,7 @@ def path(filename: str):
     :return: /path/to/resources/filename
     """
     return os.path.join(os.path.dirname(__file__), 'data', filename)
+
 
 def example_note(filename='synthea.txt') -> str:
     """
@@ -36,17 +37,17 @@ def example_nlp_source() -> dict:
     ver = ctakesclient.__version__
     url = f'https://github.com/Machine-Learning-for-Medical-Language/ctakes-client-py/releases/tag/v{ver}'
 
-    return {"url": "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source",
-            "extension": [
-                {"url": "algorithm", "valueString": "ctakesclient"},
-                {"url": "version", "valueString": f"{url}"}]}
+    return {'url': 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source',
+            'extension': [
+                {'url': 'algorithm', 'valueString': 'ctakesclient'},
+                {'url': 'version', 'valueString': f'{url}'}]}
 
 
 def example_derivation_reference() -> dict:
     return {'url': 'http://hl7.org/fhir/StructureDefinition/derivation-reference',
             'extension': [{'url': 'reference', 'valueReference': {'reference': 'DocumentReference/ABCD'}},
-                            {'url': 'offset', 'valueInteger': 20},
-                            {'url': 'length', 'valueInteger': 5}]}
+                          {'url': 'offset', 'valueInteger': 20},
+                          {'url': 'length', 'valueInteger': 5}]}
 
 
 ###############################################################################
@@ -64,9 +65,6 @@ class TestText2Fhir(unittest.TestCase):
     see @self.example_derivation_reference()
     http://build.fhir.org/extension-derivation-reference.html
     """
-    def setUp(self):
-        self.maxDiff = None
-
     def test_nlp_source(self):
         expected = example_nlp_source()
         actual = text2fhir.nlp_source()
@@ -293,7 +291,8 @@ class TestText2Fhir(unittest.TestCase):
         encounter_id = '5678'
         docref_id = 'ABCD'
 
-        all_fhir = [as_fhir.as_json() for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json)]
+        all_fhir = [as_fhir.as_json()
+                    for as_fhir in text2fhir.nlp_fhir(subject_id, encounter_id, docref_id, ctakes_json)]
         # common.print_json(all_fhir)
         self.assertEqual(68, len(all_fhir))
 

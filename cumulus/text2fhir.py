@@ -1,6 +1,6 @@
 """NLP extension using ctakes"""
 import uuid
-from typing import List, Optional
+from typing import List
 
 from fhirclient.models.resource import Resource
 from fhirclient.models.domainresource import DomainResource
@@ -89,7 +89,7 @@ def as_json(fhirdata):
     elif isinstance(fhirdata, dict):
         return fhirdata
     elif isinstance(fhirdata, list):
-        cons = list()
+        cons = []
         for r in fhirdata:
             if r:
                 cons.append(as_json(r))
@@ -218,7 +218,7 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
     return fhir_concept(match.text, coded)
 
 
-def nlp_extensions(fhir_resource: Resource, docref_id:str, nlp_match: MatchText, source=None) -> None:
+def nlp_extensions(fhir_resource: Resource, docref_id: str, nlp_match: MatchText, source=None) -> None:
     """
     apply "extensions" and "modiferExtension" to provided $fhir_resource
 
@@ -242,7 +242,6 @@ def nlp_condition(subject_id: str, encounter_id: str, docref_id: str, nlp_match:
     """
     condition = Condition()
 
-
     # id linkage
     condition.id = str(uuid.uuid4())
     condition.subject = ref_subject(subject_id)
@@ -259,7 +258,13 @@ def nlp_condition(subject_id: str, encounter_id: str, docref_id: str, nlp_match:
     return condition
 
 
-def nlp_observation(subject_id: str, encounter_id: str, docref_id: str, nlp_match: MatchText, source=None) -> Observation:
+def nlp_observation(
+        subject_id: str,
+        encounter_id: str,
+        docref_id: str,
+        nlp_match: MatchText,
+        source=None,
+) -> Observation:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for visit (isa REF can be UUID)
@@ -282,7 +287,13 @@ def nlp_observation(subject_id: str, encounter_id: str, docref_id: str, nlp_matc
     return observation
 
 
-def nlp_medication(subject_id: str, encounter_id: str, docref_id: str, nlp_match: MatchText, source=None) -> MedicationStatement:
+def nlp_medication(
+        subject_id: str,
+        encounter_id: str,
+        docref_id: str,
+        nlp_match: MatchText,
+        source=None,
+) -> MedicationStatement:
     """
     :param subject_id: ID for patient (isa REF can be UUID)
     :param encounter_id: ID for encounter (isa REF can be UUID)

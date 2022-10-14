@@ -26,6 +26,7 @@ def ref_resource(resource_type: str, resource_id: str) -> Optional[FHIRReference
         raise ValueError('Missing resource ID')
     return FHIRReference({'reference': f'{resource_type}/{resource_id}'})
 
+
 def ref_subject(subject_id: str) -> Optional[FHIRReference]:
     """
     Patient Reference the FHIR proper way
@@ -33,6 +34,7 @@ def ref_subject(subject_id: str) -> Optional[FHIRReference]:
     :return: FHIRReference as Patient/$id
     """
     return ref_resource('Patient', subject_id)
+
 
 def ref_encounter(encounter_id: str) -> Optional[FHIRReference]:
     """
@@ -42,6 +44,7 @@ def ref_encounter(encounter_id: str) -> Optional[FHIRReference]:
     """
     return ref_resource('Encounter', encounter_id)
 
+
 def ref_document(docref_id: str) -> Optional[FHIRReference]:
     """
     Encounter Reference the FHIR proper way
@@ -49,6 +52,7 @@ def ref_document(docref_id: str) -> Optional[FHIRReference]:
     :return: FHIRReference as Encounter/$id
     """
     return ref_resource('DocumentReference', docref_id)
+
 
 ###############################################################################
 # FHIR Coding and CodeableConcept

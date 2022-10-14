@@ -196,6 +196,7 @@ def error_fhir(fhir_resource):
     else:
         logging.error('expected FHIR Resource got %s', type(fhir_resource))
 
+
 def print_json(jsonable):
     if isinstance(jsonable, dict):
         print(json.dumps(jsonable, indent=4))
@@ -203,6 +204,7 @@ def print_json(jsonable):
         print(json.dumps(jsonable, indent=4))
     if isinstance(jsonable, FHIRAbstractBase):
         print(json.dumps(jsonable.as_json(), indent=4))
+
 
 ###############################################################################
 #
