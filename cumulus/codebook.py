@@ -1,7 +1,6 @@
 """Codebook to help de-identify records"""
 
 import logging
-from typing import List
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
@@ -69,9 +68,6 @@ class Codebook:
             mrn, observation.encounter.reference)['deid']
 
         return observation
-
-    def fhir_observation_list(self, observation_list: List[Observation]) -> List[Observation]:
-        return [self.fhir_observation(o) for o in observation_list]
 
     def fhir_documentreference(self,
                                docref: DocumentReference) -> DocumentReference:

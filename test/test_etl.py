@@ -13,16 +13,21 @@ from unittest import mock
 import freezegun
 import s3fs
 
-from cumulus import etl
+from cumulus import common, etl, i2b2
 
+from .ctakesmock import CtakesMixin, fake_ctakes_extract
 from .s3mock import S3Mixin
 
 
-class TestI2b2EtlSimple(unittest.TestCase):
+@freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
+class TestI2b2EtlSimple(CtakesMixin, unittest.TestCase):
     """Base test case for basic runs of etl methods"""
 
     def setUp(self):
         super().setUp()
+
+        # you'll always want this when debugging
+        self.maxDiff = None  # pylint: disable=invalid-name
 
         script_dir = os.path.dirname(__file__)
         self.data_dir = os.path.join(script_dir, 'data/i2b2/simple')
@@ -111,7 +116,6 @@ class TestI2b2EtlSimple(unittest.TestCase):
         self.assert_file_tree_equal(dircmp)
 
 
-@freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
 class TestI2b2EtlJobConfig(TestI2b2EtlSimple):
     """Test case for the job config logging data"""
 
@@ -163,6 +167,7 @@ class TestI2b2EtlFormats(TestI2b2EtlSimple):
                 'encounter/fhir_encounters.parquet',
                 'observation/fhir_observations.parquet',
                 'patient/fhir_patients.parquet',
+                'symptom/fhir_symptoms.parquet',
             }, set(all_files))
 
 
@@ -181,8 +186,75 @@ class TestI2b2EtlOnS3(S3Mixin, TestI2b2EtlSimple):
             'mockbucket/root/encounter/fhir_encounters.ndjson',
             'mockbucket/root/observation/fhir_observations.ndjson',
             'mockbucket/root/patient/fhir_patients.ndjson',
+            'mockbucket/root/symptom/fhir_symptoms.ndjson',
         }, all_files)
 
         # Confirm we did not accidentally create an 's3:' directory locally
         # because we misinterpreted the s3 path as a local path
         self.assertFalse(os.path.exists('s3:'))
+
+
+class TestI2b2EtlCachedCtakes(TestI2b2EtlSimple):
+    """Test case for caching the cTAKES responses"""
+
+    def path_for_checksum(self, checksum):
+        return os.path.join(self.phi_path, 'ctakes-cache', 'version1', checksum[0:4], f'sha256-{checksum}.json')
+
+    def test_stores_cached_json(self):
+        etl.main(self.args + ['--format=parquet'])
+
+        notes_csv_path = os.path.join(self.input_path, 'csv_note', 'note1.csv')
+        facts = i2b2.extract.extract_csv_observation_facts(notes_csv_path)
+
+        expected_checksums = {
+            0: 'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
+            1: '2c75f7374e5706606532d8456d7f7d5be184ee3ea9322ca9309beeb1570ceb42',
+        }
+
+        for index, checksum in expected_checksums.items():
+            self.assertEqual(
+                fake_ctakes_extract(facts[index].observation_blob).as_json(),
+                common.read_json(self.path_for_checksum(checksum))
+            )
+
+    def test_does_not_hit_server_if_cache_exists(self):
+        expected_checksums = {
+            'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
+            '2c75f7374e5706606532d8456d7f7d5be184ee3ea9322ca9309beeb1570ceb42',
+        }
+
+        for index, checksum in enumerate(expected_checksums):
+            # Write out some fake results to the cache location
+            common.write_json(self.path_for_checksum(checksum), {
+                'SignSymptomMention': [
+                    {
+                        'begin': 123,
+                        'end': 129,
+                        'text': f'foobar{index}',
+                        'polarity': 0,
+                        'type': 'SignSymptomMention',
+                        'conceptAttributes': [
+                            {
+                                'code': '91058',
+                                'cui': 'C0304290',
+                                'codingScheme': 'RXNORM',
+                                'tui': 'T122'
+                            },
+                        ],
+                    }
+                ],
+            })
+
+        etl.main(self.args + ['--format=ndjson'])
+
+        # We should never have called our mock cTAKES server
+        self.assertEqual(0, self.nlp_mock.call_count)
+
+        # And we should see our fake cached results in the output
+        with open(os.path.join(self.output_path, 'symptom', 'fhir_symptoms.ndjson'), 'r', encoding='utf8') as f:
+            lines = f.readlines()
+        symptoms = [json.loads(line) for line in lines]
+        self.assertEqual(2, len(symptoms))
+        self.assertEqual({'foobar0', 'foobar1'}, {x['code']['text'] for x in symptoms})
+        for symptom in symptoms:
+            self.assertEqual({'91058', 'C0304290'}, {x['code'] for x in symptom['code']['coding']})

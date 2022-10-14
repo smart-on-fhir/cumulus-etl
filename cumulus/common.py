@@ -7,6 +7,7 @@ import json
 import pandas
 import uuid
 import hashlib
+from typing import Optional
 
 import fsspec
 from fhirclient.models.resource import Resource
@@ -153,16 +154,17 @@ def read_json(path: str) -> dict:
         return json.load(f)
 
 
-def write_json(path: str, data: dict) -> None:
+def write_json(path: str, data: dict, indent: Optional[int] = None) -> None:
     """
     Writes data to the given path, in json format
     :param path: filesystem path
     :param data: the structure to write to disk
+    :param indent: whether and how much to indent the output
     """
     logging.debug('write_json() %s', path)
 
     with open_file(path, 'w') as f:
-        json.dump(data, f, indent=4)
+        json.dump(data, f, indent=indent)
 
 
 ###############################################################################
