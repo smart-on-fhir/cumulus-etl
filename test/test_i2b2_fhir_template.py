@@ -4,7 +4,7 @@ import unittest
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 
-from cumulus import fhir_template
+from cumulus.i2b2 import fhir_template
 
 
 class TestResourcesFhirTemplates(unittest.TestCase):

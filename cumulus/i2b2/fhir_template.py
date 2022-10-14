@@ -17,7 +17,7 @@ def template(name: str) -> dict:
     :param name: FHIR resource from saved JSON definition (Note: usage will be *deprecated*)
     :return: JSON of FHIR resource
     """
-    return common.read_json(os.path.join(os.path.dirname(__file__), 'resources', name))
+    return common.read_json(os.path.join(os.path.dirname(__file__), '..', 'resources', name))
 
 
 def fhir_patient() -> dict:
@@ -44,12 +44,13 @@ RACE = {
     'Not Hispanic or Latino': '2186-5'
 }
 
+# FHIR AdministrativeGender code (not a full gender spectrum, but quite limited)
+# https://www.hl7.org/fhir/valueset-administrative-gender.html
+# Anything not in this dictionary maps should map to 'other'
 GENDER = {
     'F': 'female',
     'M': 'male',
-    'T': 'transgender',
-    'U': 'Unknown',
-    'NB': 'non-binary'
+    'U': 'unknown',
 }
 
 LOINC = {
