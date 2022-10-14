@@ -7,8 +7,9 @@ from fhirclient.models.encounter import Encounter
 from fhirclient.models.condition import Condition
 from fhirclient.models.observation import Observation
 from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.fhirreference import FHIRReference
 
-from cumulus import common, store
+from cumulus import common, fhir_common, store
 
 
 class Codebook:
@@ -37,50 +38,70 @@ class Codebook:
         return patient
 
     def fhir_encounter(self, encounter: Encounter) -> Encounter:
-        mrn = encounter.subject.reference
-        encounter.subject.reference = self.db.patient(mrn)['deid']
+        mrn = self._clean_mrn(encounter.subject)
 
         deid = self.db.encounter(mrn, encounter.id, encounter.period.start,
                                  encounter.period.end)['deid']
         encounter.id = deid
         encounter.identifier[0].value = deid
+        encounter.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
 
         return encounter
 
     def fhir_condition(self, condition: Condition) -> Condition:
-        mrn = condition.subject.reference
-        condition.subject.reference = self.db.patient(mrn)['deid']
+        mrn = self._clean_mrn(condition.subject)
+        encounter_id = self._clean_encounter_id(condition.encounter)
 
         condition.id = common.fake_id()
-        condition.subject.reference = self.db.patient(mrn)['deid']
-        condition.encounter.reference = self.db.encounter(
-            mrn, condition.encounter.reference)['deid']
+        condition.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
+        condition.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
 
         return condition
 
     def fhir_observation(self, observation: Observation) -> Observation:
-        mrn = observation.subject.reference
-        observation.subject.reference = self.db.patient(mrn)['deid']
+        mrn = self._clean_mrn(observation.subject)
+        encounter_id = self._clean_encounter_id(observation.encounter)
 
         observation.id = common.fake_id()
-        observation.subject.reference = self.db.patient(mrn)['deid']
-        observation.encounter.reference = self.db.encounter(
-            mrn, observation.encounter.reference)['deid']
+        observation.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
+        observation.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
 
         return observation
 
-    def fhir_documentreference(self,
-                               docref: DocumentReference) -> DocumentReference:
-        mrn = docref.subject.reference
-        docref.subject.reference = self.db.patient(mrn)['deid']
+    def fhir_documentreference(self, docref: DocumentReference) -> DocumentReference:
+        mrn = self._clean_mrn(docref.subject)
 
         docref.id = common.fake_id()
-        docref.subject.reference = self.db.patient(mrn)['deid']
-        for encounter in docref.context.encounter:
-            encounter.reference = self.db.encounter(mrn,
-                                                    encounter.reference)['deid']
+        docref.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
+        docref.context.encounter = [
+            fhir_common.ref_encounter(self.db.encounter(mrn, self._clean_encounter_id(encounter))['deid'])
+            for encounter in docref.context.encounter
+        ]
 
         return docref
+
+    @staticmethod
+    def _clean_id(ref: FHIRReference, id_type: str) -> str:
+        """
+        Strips a leading type marker, if any
+
+        Examples with id_type=Patient:
+        - ABC -> ABC
+        - Patient/ABC -> ABC
+        - Group/ABC -> Group/ABC
+        """
+        # TODO: what if ref is not simply a local reference like Patient/ABC, but has a type & identifier or url
+        prefix = f'{id_type}/'
+        # Once we depend on python3.9+, we can simply use identifier.removeprefix()
+        if ref.reference.startswith(prefix):
+            return ref.reference[len(prefix):]
+        return ref.reference
+
+    def _clean_mrn(self, ref: FHIRReference) -> str:
+        return self._clean_id(ref, 'Patient')
+
+    def _clean_encounter_id(self, ref: FHIRReference) -> str:
+        return self._clean_id(ref, 'Encounter')
 
 
 ###############################################################################

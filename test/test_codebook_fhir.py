@@ -40,10 +40,10 @@ class TestCodebookFHIR(unittest.TestCase):
     def test_encounter(self):
         encounter = TestI2b2Transform().example_fhir_encounter()
 
-        self.assertEqual('12345', encounter.subject.reference)
+        self.assertEqual('Patient/12345', encounter.subject.reference)
         self.assertEqual('67890', str(encounter.id))
 
-        mrn = encounter.subject.reference
+        mrn = encounter.subject.reference.split('/')[-1]
         visit = encounter.id
 
         codebook = Codebook()
@@ -64,60 +64,48 @@ class TestCodebookFHIR(unittest.TestCase):
 
         print_json(condition)
 
-        self.assertEqual('12345', condition.subject.reference)
-        self.assertEqual('67890', condition.encounter.reference)
+        self.assertEqual('Patient/12345', condition.subject.reference)
+        self.assertEqual('Encounter/67890', condition.encounter.reference)
 
-        mrn = condition.subject.reference
-        visit = condition.encounter.reference
+        mrn = condition.subject.reference.split('/')[-1]
+        visit = condition.encounter.reference.split('/')[-1]
 
         codebook = Codebook()
         #
         condition = codebook.fhir_condition(condition)
 
-        self.assertEqual(condition.subject.reference,
-                         codebook.db.patient(mrn)['deid'])
-        self.assertEqual(condition.encounter.reference,
-                         codebook.db.encounter(mrn, visit)['deid'])
-
-        print_json(condition)
-
-        UUID(condition.id)
+        self.assertEqual(condition.subject.reference, f"Patient/{codebook.db.patient(mrn)['deid']}")
+        self.assertEqual(condition.encounter.reference, f"Encounter/{codebook.db.encounter(mrn, visit)['deid']}")
 
     def test_observation(self):
         observation = TestI2b2Transform().example_fhir_observation_lab()
 
         print_json(observation)
 
-        self.assertEqual('12345', observation.subject.reference)
-        self.assertEqual('67890', observation.encounter.reference)
+        self.assertEqual('Patient/12345', observation.subject.reference)
+        self.assertEqual('Encounter/67890', observation.encounter.reference)
 
-        mrn = observation.subject.reference
-        visit = observation.encounter.reference
+        mrn = observation.subject.reference.split('/')[-1]
+        visit = observation.encounter.reference.split('/')[-1]
 
         codebook = Codebook()
         #
         observation = codebook.fhir_observation(observation)
 
-        self.assertEqual(observation.subject.reference,
-                         codebook.db.patient(mrn)['deid'])
-        self.assertEqual(observation.encounter.reference,
-                         codebook.db.encounter(mrn, visit)['deid'])
-
-        print_json(observation)
-
-        UUID(observation.id)
+        self.assertEqual(observation.subject.reference, f"Patient/{codebook.db.patient(mrn)['deid']}")
+        self.assertEqual(observation.encounter.reference, f"Encounter/{codebook.db.encounter(mrn, visit)['deid']}")
 
     def test_documentreference(self):
         docref = TestI2b2Transform().example_fhir_documentreference()
 
         print_json(docref)
 
-        self.assertEqual('12345', docref.subject.reference)
+        self.assertEqual('Patient/12345', docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
-        self.assertEqual('67890', docref.context.encounter[0].reference)
+        self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
 
-        mrn = docref.subject.reference
-        visit = docref.context.encounter[0].reference
+        mrn = docref.subject.reference.split('/')[-1]
+        visit = docref.context.encounter[0].reference.split('/')[-1]
 
         codebook = Codebook()
         #
@@ -126,14 +114,9 @@ class TestCodebookFHIR(unittest.TestCase):
         # TODO: docref date?
         # self.assertEqual('2016-01-01', docref.context.encounter)
 
-        self.assertEqual(docref.subject.reference,
-                         codebook.db.patient(mrn)['deid'])
+        self.assertEqual(docref.subject.reference, f"Patient/{codebook.db.patient(mrn)['deid']}")
         self.assertEqual(docref.context.encounter[0].reference,
-                         codebook.db.encounter(mrn, visit)['deid'])
-
-        print_json(docref)
-
-        UUID(docref.id)
+                         f"Encounter/{codebook.db.encounter(mrn, visit)['deid']}")
 
     def test_missing_db_file(self):
         """Ensure we gracefully handle a saved db file that doesn't exist yet"""

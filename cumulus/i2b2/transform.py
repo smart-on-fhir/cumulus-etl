@@ -4,7 +4,6 @@ import logging
 from typing import List, Optional
 
 from fhirclient.models.identifier import Identifier
-from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
@@ -20,9 +19,7 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from cumulus import common, ctakes, store, text2fhir
-from cumulus.fhir_common import parse_fhir_date
-from cumulus.fhir_common import parse_fhir_date_isostring
+from cumulus import common, ctakes, fhir_common, store, text2fhir
 from cumulus.i2b2 import fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
@@ -43,10 +40,10 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     subject.identifier = [Identifier({'value': str(patient.patient_num)})]
 
     if patient.birth_date:
-        subject.birthDate = parse_fhir_date(patient.birth_date)
+        subject.birthDate = fhir_common.parse_fhir_date(patient.birth_date)
 
     if patient.death_date:
-        subject.deceasedDateTime = parse_fhir_date(patient.death_date)
+        subject.deceasedDateTime = fhir_common.parse_fhir_date(patient.death_date)
 
     if patient.sex_cd:
         subject.gender = parse_gender(patient.sex_cd)
@@ -74,7 +71,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     encounter = Encounter(fhir_template.fhir_encounter())
     encounter.id = str(visit.encounter_num)
     encounter.identifier = [Identifier({'value': str(visit.encounter_num)})]
-    encounter.subject = FHIRReference({'reference': visit.patient_num})
+    encounter.subject = fhir_common.ref_subject(visit.patient_num)
 
     if visit.inout_cd == 'Inpatient':
         encounter.class_fhir.code = 'IMP'
@@ -92,8 +89,8 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
         })
 
     encounter.period = Period({
-        'start': parse_fhir_date_isostring(visit.start_date),
-        'end': parse_fhir_date_isostring(visit.end_date)
+        'start': fhir_common.parse_fhir_date_isostring(visit.start_date),
+        'end': fhir_common.parse_fhir_date_isostring(visit.end_date)
     })
 
     return encounter
@@ -106,11 +103,10 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
     observation = Observation()
     observation.id = common.fake_id()
-    observation.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    observation.encounter = FHIRReference(
-        {'reference': str(obsfact.encounter_num)})
+    observation.subject = fhir_common.ref_subject(obsfact.patient_num)
+    observation.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
     observation.effectiveDateTime = FHIRDate(
-        parse_fhir_date_isostring(obsfact.start_date))
+        fhir_common.parse_fhir_date_isostring(obsfact.start_date))
 
     return observation
 
@@ -170,9 +166,8 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition = Condition()
     condition.id = common.fake_id()
 
-    condition.subject = FHIRReference({'reference': str(obsfact.patient_num)})
-    condition.encounter = FHIRReference(
-        {'reference': str(obsfact.encounter_num)})
+    condition.subject = fhir_common.ref_subject(obsfact.patient_num)
+    condition.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
 
     condition.meta = Meta({
         'profile': [
@@ -230,14 +225,12 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref = DocumentReference()
     docref.indexed = FHIRDate()
 
-    docref.subject = FHIRReference({'reference': str(obsfact.patient_num)})
+    docref.subject = fhir_common.ref_subject(obsfact.patient_num)
     docref.context = DocumentReferenceContext()
-    docref.context.encounter = [
-        FHIRReference({'reference': str(obsfact.encounter_num)})
-    ]
+    docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
 
     docref.type = CodeableConcept({'text': str(obsfact.concept_cd)})  # i2b2 Note Type
-    docref.created = FHIRDate(parse_fhir_date_isostring(obsfact.start_date))
+    docref.created = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
     # TODO: Content Warning: Philter DEID should be used on all notes that are
@@ -265,6 +258,8 @@ def text2fhir_symptoms(
     subject_id = obsfact.patient_num
     encounter_id = obsfact.encounter_num
     physician_note = obsfact.observation_blob
+    if not physician_note:
+        return []
 
     ctakes_json = ctakes.extract(phi_root, physician_note)
 
