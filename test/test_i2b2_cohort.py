@@ -4,7 +4,6 @@ import unittest
 
 from cumulus import fhir_common
 from cumulus.i2b2 import cohort
-from cumulus.i2b2 import transform as T
 
 
 class TestCohortSuicidality(unittest.TestCase):
@@ -19,13 +18,13 @@ class TestCohortSuicidality(unittest.TestCase):
         patient.birth_date = fhir_common.parse_fhir_period('1992-01-01', '2023-01-01')
 
         visit = cohort.VisitDimension(empty_row)
-        visit.start_date = T.parse_fhir_date('2014-01-01')
-        visit.end_date = T.parse_fhir_date('2023-01-01')
+        visit.start_date = fhir_common.parse_fhir_date('2014-01-01')
+        visit.end_date = fhir_common.parse_fhir_date('2023-01-01')
         visit.length_of_stay = fhir_common.parse_fhir_range(0, 365)
 
         obs = cohort.ObservationFact(empty_row)
-        obs.start_date = T.parse_fhir_date('2014-01-01')
-        obs.end_date = T.parse_fhir_date('2023-01-01')
+        obs.start_date = fhir_common.parse_fhir_date('2014-01-01')
+        obs.end_date = fhir_common.parse_fhir_date('2023-01-01')
         obs.patient_num = patient
         obs.encounter_num = visit
         obs.concept_cd = [

@@ -7,6 +7,7 @@ from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.documentreference import DocumentReference
 
+from cumulus import fhir_common
 from cumulus.i2b2 import transform as T
 
 
@@ -53,7 +54,7 @@ class TestI2b2Transform(unittest.TestCase):
         encounter = self.example_fhir_encounter()
         # print(json.dumps(encounter.as_json(), indent=4))
 
-        self.assertEqual(str(12345), encounter.subject.reference)
+        self.assertEqual('Patient/12345', encounter.subject.reference)
         self.assertEqual(str(67890), encounter.identifier[0].value)
         self.assertEqual('2016-01-01', encounter.period.start.isostring)
         self.assertEqual('2016-01-04', encounter.period.end.isostring)
@@ -73,8 +74,8 @@ class TestI2b2Transform(unittest.TestCase):
         condition = self.example_fhir_condition()
 
         # print(json.dumps(condition.as_json(), indent=4))
-        self.assertEqual(str(12345), condition.subject.reference)
-        self.assertEqual(str(67890), condition.encounter.reference)
+        self.assertEqual('Patient/12345', condition.subject.reference)
+        self.assertEqual('Encounter/67890', condition.encounter.reference)
         self.assertEqual(str('U07.1'), condition.code.coding[0].code)
         self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'),
                          condition.code.coding[0].system)
@@ -99,9 +100,9 @@ class TestI2b2Transform(unittest.TestCase):
 
         # print(json.dumps(docref.as_json(), indent=4))
 
-        self.assertEqual(str(12345), docref.subject.reference)
+        self.assertEqual('Patient/12345', docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
-        self.assertEqual(str(67890), docref.context.encounter[0].reference)
+        self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
         self.assertEqual(str('NOTE:103933779'), docref.type.text)
 
     def example_fhir_observation_lab(self):
@@ -123,8 +124,8 @@ class TestI2b2Transform(unittest.TestCase):
         # print(json.dumps(lab_i2b2.__dict__, indent=4))
         # print(json.dumps(lab_fhir.as_json(), indent=4))
 
-        self.assertEqual(str(12345), lab_fhir.subject.reference)
-        self.assertEqual(str(67890), lab_fhir.encounter.reference)
+        self.assertEqual('Patient/12345', lab_fhir.subject.reference)
+        self.assertEqual('Encounter/67890', lab_fhir.encounter.reference)
 
         self.assertEqual('94500-6', lab_fhir.code.coding[0].code)
         self.assertEqual('http://loinc.org', lab_fhir.code.coding[0].system)
@@ -146,12 +147,12 @@ class TestI2b2Transform(unittest.TestCase):
 
         timestamp = '2020-01-02 12:00:00.000'
 
-        self.assertEqual('2020-01-02', T.parse_fhir_date(timestamp).isostring)
+        self.assertEqual('2020-01-02', fhir_common.parse_fhir_date(timestamp).isostring)
 
         timezone = '2020-01-02T16:00:00+00:00'
 
-        self.assertEqual('2020-01-02', T.parse_fhir_date(timezone).isostring)
+        self.assertEqual('2020-01-02', fhir_common.parse_fhir_date(timezone).isostring)
 
         datepart = '2020-01-02'
 
-        self.assertEqual('2020-01-02', T.parse_fhir_date(datepart).isostring)
+        self.assertEqual('2020-01-02', fhir_common.parse_fhir_date(datepart).isostring)

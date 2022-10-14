@@ -39,10 +39,10 @@ class JsonTreeFormat(store.Format):
         :param mrn: unique patient
         :return: path to patient *folder*
         """
+        mrn = mrn.split('/')[-1]
+
         # practical limit of number of "files" in a folder is 10,000
-        prefix = str(mrn)
-        if len(str(mrn)) >= 4:
-            prefix = prefix[0:4]
+        prefix = mrn[0:4]
 
         path = self.root.joinpath(prefix, mrn)
         self.root.makedirs(path)
@@ -69,6 +69,7 @@ class JsonTreeFormat(store.Format):
         :param encounter_id: unique encounter
         :return: path to encounter *folder*
         """
+        encounter_id = encounter_id.split('/')[-1]
         path = os.path.join(self._dir_output_patient(mrn), encounter_id)
         self.root.makedirs(path)
         return path

@@ -1,5 +1,5 @@
 """NLP extension using ctakes"""
-import uuid
+
 from typing import List
 
 from fhirclient.models.resource import Resource
@@ -17,6 +17,7 @@ import ctakesclient
 from ctakesclient.typesystem import CtakesJSON, Span
 from ctakesclient.typesystem import Polarity, MatchText
 
+from cumulus import common
 from cumulus.fhir_common import ref_subject, ref_encounter, ref_document
 from cumulus.fhir_common import fhir_coding, fhir_concept
 
@@ -243,7 +244,7 @@ def nlp_condition(subject_id: str, encounter_id: str, docref_id: str, nlp_match:
     condition = Condition()
 
     # id linkage
-    condition.id = str(uuid.uuid4())
+    condition.id = common.fake_id()
     condition.subject = ref_subject(subject_id)
     condition.encounter = ref_encounter(encounter_id)
 
@@ -275,7 +276,7 @@ def nlp_observation(
     observation = Observation()
 
     # id linkage
-    observation.id = str(uuid.uuid4())
+    observation.id = common.fake_id()
     observation.subject = ref_subject(subject_id)
     observation.encounter = ref_encounter(encounter_id)
     observation.status = 'preliminary'
@@ -304,7 +305,7 @@ def nlp_medication(
     medication = MedicationStatement()
 
     # id linkage
-    medication.id = str(uuid.uuid4())
+    medication.id = common.fake_id()
     medication.subject = ref_subject(subject_id)
     medication.context = ref_encounter(encounter_id)
     medication.status = 'unknown'
@@ -328,7 +329,7 @@ def nlp_procedure(subject_id: str, encounter_id: str, docref_id: str, nlp_match:
     procedure = Procedure()
 
     # id linkage
-    procedure.id = str(uuid.uuid4())
+    procedure.id = common.fake_id()
     procedure.subject = ref_subject(subject_id)
     procedure.encounter = ref_encounter(encounter_id)
     procedure.status = 'unknown'
