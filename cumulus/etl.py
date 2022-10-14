@@ -1,6 +1,7 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
+import itertools
 import json
 import logging
 import os
@@ -11,7 +12,7 @@ from typing import Callable, Iterable, Iterator, List, TypeVar, Union
 import pandas
 from fhirclient.models.resource import Resource
 
-from cumulus import common, store, store_json_tree, store_ndjson, store_parquet
+from cumulus import common, formats, store
 from cumulus import i2b2
 from cumulus.codebook import Codebook
 from cumulus.config import JobConfig, JobSummary
@@ -23,12 +24,13 @@ from cumulus.i2b2.schema import Dimension as I2b2Dimension
 #
 ###############################################################################
 
+T = TypeVar('T')
 AnyResource = TypeVar('AnyResource', bound=Resource)
 AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
 CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
 I2b2ToFhirCallable = Callable[[AnyDimension], Union[Resource, List[Resource]]]
 DeidentifyCallable = Callable[[Codebook, AnyResource], Resource]
-StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame], None]
+StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
 def _extract_from_files(extract: CsvToI2b2Callable, csv_files: Iterable[str]) -> Iterator[I2b2Dimension]:
@@ -55,6 +57,34 @@ def _flatten(iterable: Iterable) -> Iterator:
             yield item
 
 
+def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
+    """
+    Yields sub-iterators, each with {size} elements or less from iterable
+
+    The whole iterable is never fully loaded into memory. Rather we load only one element at a time.
+
+    Example:
+        for batch in _batch_iterate([1, 2, 3, 4, 5], 2):
+            print(list(batch))
+
+    Results in:
+        [1, 2]
+        [3, 4]
+        [5]
+    """
+    if size < 1:
+        raise ValueError('Must iterate by at least a batch of 1')
+
+    true_iterable = iter(iterable)  # in case it's actually a list (we want to iterate only once through)
+    while True:
+        iter_slice = itertools.islice(true_iterable, size)
+        try:
+            peek = next(iter_slice)
+        except StopIteration:
+            return  # we're done!
+        yield itertools.chain([peek], iter_slice)
+
+
 def _process_job_entries(
     config: JobConfig,
     job_name: str,
@@ -71,13 +101,22 @@ def _process_job_entries(
     print('###############################################################')
     print(f'{job_name}()')
 
+    # Convert input folder full of i2b2 csv files into an iterable of FHIR objects
     i2b2_csv_files = config.list_csv(csv_folder)
     i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
     fhir_entries = _flatten(to_fhir(x) for x in i2b2_entries)
-    deid_entries = (deid(codebook, x) for x in fhir_entries)
-    dataframe = pandas.DataFrame(x.as_json() for x in deid_entries)
 
-    to_store(job, dataframe)
+    # De-identify each entry by passing them through our codebook
+    deid_entries = (deid(codebook, x) for x in fhir_entries)
+
+    # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
+    # We want to batch them up, to allow resuming from interruptions more easily.
+    for index, batch in enumerate(_batch_iterate(deid_entries, config.batch_size)):
+        # Stuff de-identified FHIR json into one big pandas DataFrame
+        dataframe = pandas.DataFrame(x.as_json() for x in batch)
+
+        # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
+        to_store(job, dataframe, index)
 
     codebook.db.save(config.path_codebook())
     return job
@@ -234,9 +273,11 @@ def main(args: List[str]):
     parser.add_argument('dir_input', metavar='/path/to/input')
     parser.add_argument('dir_output', metavar='/path/to/processed')
     parser.add_argument('dir_phi', metavar='/path/to/phi')
-    parser.add_argument('--format',
-                        choices=['json', 'ndjson', 'parquet'],
-                        default='json')
+    parser.add_argument('--format', default='json', choices=['json', 'ndjson', 'parquet'],
+                        help='output format (default is json)')
+    parser.add_argument('--batch-size', type=int, metavar='SIZE', default=10000000,
+                        help='how many entries to process at once and thus '
+                             'how many to put in one output file (default is 10M)')
     parser.add_argument('--comment', help='add the comment to the log file')
     args = parser.parse_args(args)
 
@@ -249,13 +290,13 @@ def main(args: List[str]):
     root_phi = store.Root(args.dir_phi, create=True)
 
     if args.format == 'ndjson':
-        config_store = store_ndjson.NdjsonFormat(root_output)
+        config_store = formats.NdjsonFormat(root_output)
     elif args.format == 'parquet':
-        config_store = store_parquet.ParquetFormat(root_output)
+        config_store = formats.ParquetFormat(root_output)
     else:
-        config_store = store_json_tree.JsonTreeFormat(root_output)
+        config_store = formats.JsonTreeFormat(root_output)
 
-    config = JobConfig(root_input, root_phi, config_store, comment=args.comment)
+    config = JobConfig(root_input, root_phi, config_store, comment=args.comment, batch_size=args.batch_size)
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json(), indent=4)
