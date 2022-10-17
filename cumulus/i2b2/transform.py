@@ -102,7 +102,7 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     :return: https://www.hl7.org/fhir/observation.html
     """
     observation = Observation()
-    observation.id = common.fake_id()
+    observation.id = obsfact.instance_num
     observation.subject = fhir_common.ref_subject(obsfact.patient_num)
     observation.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
     observation.effectiveDateTime = FHIRDate(
@@ -164,7 +164,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     :return: https://www.hl7.org/fhir/condition.html
     """
     condition = Condition()
-    condition.id = common.fake_id()
+    condition.id = obsfact.instance_num
 
     condition.subject = fhir_common.ref_subject(obsfact.patient_num)
     condition.encounter = fhir_common.ref_encounter(obsfact.encounter_num)

@@ -60,15 +60,30 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
 
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
-        # This helps with UUIDs that don't get recorded in the codebook, like
-        # observations. But note that it's sensitive to code changes that cause
-        # a different timing of the calls to uuid4().
-        rd = random.Random()
-        rd.seed(12345)
-        uuid4_mock = mock.patch('cumulus.common.uuid.uuid4',
-                                new=lambda: uuid.UUID(int=rd.getrandbits(128)))
+        # This helps with UUIDs that don't get recorded in the codebook, like observations.
+        # Note that we only mock out the fake_id calls in codebook.py -- this is
+        # intentional, as while we do use fake_id() elsewhere when generating new FHIR
+        # objects, those are arbitrary real IDs before de-identification. If those
+        # make it through to the end of etl test output, we have a problem anyway
+        # and the flakiness of those IDs is a feature not a bug.
+        self.category_seeds = {}
+        uuid4_mock = mock.patch('cumulus.codebook.common.fake_id', new=self.reliable_fake_id)
         self.addCleanup(uuid4_mock.stop)
         uuid4_mock.start()
+
+    def reliable_fake_id(self, category: str) -> str:
+        """
+        A version of common.fake_id that uses a new seed per category
+
+        This helps reduce churn as each category has its own random generator.
+        Without this, adding a new call to common.fake_id() early in the pipeline
+        would change the result of every single call to common.fake_id() afterward.
+
+        This was causing a lot of test file churn, so now we silo each random
+        generator in each category. There is still churn in each category, but :shrug:.
+        """
+        rd = self.category_seeds.setdefault(category, random.Random(category))
+        return str(uuid.UUID(int=rd.getrandbits(128)))
 
     def assert_file_tree_equal(self, dircmp):
         """

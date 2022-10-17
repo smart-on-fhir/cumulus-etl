@@ -244,7 +244,7 @@ def nlp_condition(subject_id: str, encounter_id: str, docref_id: str, nlp_match:
     condition = Condition()
 
     # id linkage
-    condition.id = common.fake_id()
+    condition.id = common.fake_id('Condition')
     condition.subject = ref_subject(subject_id)
     condition.encounter = ref_encounter(encounter_id)
 
@@ -276,7 +276,7 @@ def nlp_observation(
     observation = Observation()
 
     # id linkage
-    observation.id = common.fake_id()
+    observation.id = common.fake_id('Observation')
     observation.subject = ref_subject(subject_id)
     observation.encounter = ref_encounter(encounter_id)
     observation.status = 'preliminary'
@@ -305,7 +305,7 @@ def nlp_medication(
     medication = MedicationStatement()
 
     # id linkage
-    medication.id = common.fake_id()
+    medication.id = common.fake_id('MedicationStatement')
     medication.subject = ref_subject(subject_id)
     medication.context = ref_encounter(encounter_id)
     medication.status = 'unknown'
@@ -329,7 +329,7 @@ def nlp_procedure(subject_id: str, encounter_id: str, docref_id: str, nlp_match:
     procedure = Procedure()
 
     # id linkage
-    procedure.id = common.fake_id()
+    procedure.id = common.fake_id('Procedure')
     procedure.subject = ref_subject(subject_id)
     procedure.encounter = ref_encounter(encounter_id)
     procedure.status = 'unknown'

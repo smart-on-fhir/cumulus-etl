@@ -74,11 +74,14 @@ def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     return df
 
 
-def fake_id() -> str:
+def fake_id(category: str) -> str:
     """
     Randomly generate a linked Patient identifier
+
+    :param category: the resource type for this ID
     :return: long universally unique ID
     """
+    del category  # unused outside of tests
     return str(uuid.uuid4())
 
 

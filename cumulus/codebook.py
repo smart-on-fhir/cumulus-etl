@@ -52,7 +52,7 @@ class Codebook:
         mrn = self._clean_mrn(condition.subject)
         encounter_id = self._clean_encounter_id(condition.encounter)
 
-        condition.id = common.fake_id()
+        condition.id = common.fake_id('Condition')
         condition.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
         condition.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
 
@@ -62,7 +62,7 @@ class Codebook:
         mrn = self._clean_mrn(observation.subject)
         encounter_id = self._clean_encounter_id(observation.encounter)
 
-        observation.id = common.fake_id()
+        observation.id = common.fake_id('Observation')
         observation.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
         observation.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
 
@@ -71,7 +71,7 @@ class Codebook:
     def fhir_documentreference(self, docref: DocumentReference) -> DocumentReference:
         mrn = self._clean_mrn(docref.subject)
 
-        docref.id = common.fake_id()
+        docref.id = common.fake_id('DocumentReference')
         docref.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
         docref.context.encounter = [
             fhir_common.ref_encounter(self.db.encounter(mrn, self._clean_encounter_id(encounter))['deid'])
@@ -151,7 +151,7 @@ class CodebookDB:
         if mrn:
             if mrn not in self.mrn.keys():
                 self.mrn[mrn] = {}
-                self.mrn[mrn]['deid'] = common.fake_id()
+                self.mrn[mrn]['deid'] = common.fake_id('Patient')
                 self.mrn[mrn]['encounter'] = {}
             return self.mrn[mrn]
 
@@ -177,7 +177,7 @@ class CodebookDB:
             if encounter_id not in self.mrn[mrn]['encounter'].keys():
                 self.mrn[mrn]['encounter'][encounter_id] = {}
                 self.mrn[mrn]['encounter'][encounter_id][
-                    'deid'] = common.fake_id()
+                    'deid'] = common.fake_id('Encounter')
                 self.mrn[mrn]['encounter'][encounter_id]['docref'] = {}
 
                 if period_start:
@@ -212,7 +212,7 @@ class CodebookDB:
                     'docref'].keys():
                 self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum] = {}
                 self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum][
-                    'deid'] = common.fake_id()
+                    'deid'] = common.fake_id('DocumentReference')
 
             return self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum]
 
