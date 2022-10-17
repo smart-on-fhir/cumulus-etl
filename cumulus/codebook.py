@@ -9,7 +9,7 @@ from fhirclient.models.observation import Observation
 from fhirclient.models.documentreference import DocumentReference
 from fhirclient.models.fhirreference import FHIRReference
 
-from cumulus import common, fhir_common, store
+from cumulus import common, fhir_common, store, text2fhir
 
 
 class Codebook:
@@ -27,6 +27,8 @@ class Codebook:
             self.db = CodebookDB(saved)
         except FileNotFoundError:
             self.db = CodebookDB()
+
+        self.docrefs = {}
 
     def fhir_patient(self, patient: Patient) -> Patient:
         mrn = patient.identifier[0].value
@@ -52,7 +54,7 @@ class Codebook:
         mrn = self._clean_mrn(condition.subject)
         encounter_id = self._clean_encounter_id(condition.encounter)
 
-        condition.id = common.fake_id()
+        condition.id = common.fake_id('Condition')
         condition.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
         condition.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
 
@@ -62,23 +64,53 @@ class Codebook:
         mrn = self._clean_mrn(observation.subject)
         encounter_id = self._clean_encounter_id(observation.encounter)
 
-        observation.id = common.fake_id()
+        observation.id = common.fake_id('Observation')
         observation.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
         observation.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
+
+        # Does the observation have an NLP source extension? If so, de-identify its docref
+        for extension in (observation.extension or []):
+            if extension.url == text2fhir.FHIR_DERIVATION_REF_URL:
+                for values in extension.extension:
+                    if values.url == 'reference':
+                        cleaned_docref_id = self._clean_id(values.valueReference, 'DocumentReference')
+                        deid_docref_id = self._docref_deid(cleaned_docref_id)
+                        values.valueReference = fhir_common.ref_document(deid_docref_id)
 
         return observation
 
     def fhir_documentreference(self, docref: DocumentReference) -> DocumentReference:
         mrn = self._clean_mrn(docref.subject)
+        original_id = docref.id
 
-        docref.id = common.fake_id()
+        docref.id = common.fake_id('DocumentReference')
         docref.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
         docref.context.encounter = [
             fhir_common.ref_encounter(self.db.encounter(mrn, self._clean_encounter_id(encounter))['deid'])
             for encounter in docref.context.encounter
         ]
 
+        # Record the mapping for this document, so that later observations (like NLP results) can reference it.
+        # We don't bother saving this in the codebook database though, since we don't care about persisting run-to-run.
+        self.docrefs[original_id] = docref.id
+
         return docref
+
+    def _docref_deid(self, docref_id: str) -> str:
+        """
+        Looks up the mapping from original to deid docref ID for this cumulus run
+
+        This should only be used after all docrefs have been scanned, so that we already have the mappings.
+        """
+        deid_docref_id = self.docrefs.get(docref_id)
+
+        if deid_docref_id is None:
+            # Should not happen unless we have broken links -- all documents will have been scanned by this point.
+            deid_docref_id = common.fake_id('DocumentReference')
+            self.docrefs[docref_id] = deid_docref_id
+            logging.error('Could not find existing docref to de-identify, inventing new ref "%s"', deid_docref_id)
+
+        return deid_docref_id
 
     @staticmethod
     def _clean_id(ref: FHIRReference, id_type: str) -> str:
@@ -151,7 +183,7 @@ class CodebookDB:
         if mrn:
             if mrn not in self.mrn.keys():
                 self.mrn[mrn] = {}
-                self.mrn[mrn]['deid'] = common.fake_id()
+                self.mrn[mrn]['deid'] = common.fake_id('Patient')
                 self.mrn[mrn]['encounter'] = {}
             return self.mrn[mrn]
 
@@ -176,67 +208,32 @@ class CodebookDB:
         if encounter_id:
             if encounter_id not in self.mrn[mrn]['encounter'].keys():
                 self.mrn[mrn]['encounter'][encounter_id] = {}
-                self.mrn[mrn]['encounter'][encounter_id][
-                    'deid'] = common.fake_id()
-                self.mrn[mrn]['encounter'][encounter_id]['docref'] = {}
+                self.mrn[mrn]['encounter'][encounter_id]['deid'] = common.fake_id('Encounter')
 
-                if period_start:
-                    if isinstance(period_start, FHIRDate):
-                        period_start = period_start.isostring
+                if period_start and isinstance(period_start, FHIRDate):
+                    period_start = period_start.isostring
 
-                if period_end:
-                    if isinstance(period_end, FHIRDate):
-                        period_end = period_end.isostring
+                if period_end and isinstance(period_end, FHIRDate):
+                    period_end = period_end.isostring
 
-                self.mrn[mrn]['encounter'][encounter_id][
-                    'period_start'] = period_start
-                self.mrn[mrn]['encounter'][encounter_id][
-                    'period_end'] = period_end
+                self.mrn[mrn]['encounter'][encounter_id]['period_start'] = period_start
+                self.mrn[mrn]['encounter'][encounter_id]['period_end'] = period_end
 
             return self.mrn[mrn]['encounter'][encounter_id]
-
-    def docref(self, mrn, encounter_id, md5sum) -> dict:
-        """
-        FHIR DocumentReference
-        :param mrn: Medical Record Number
-                    https://www.hl7.org/fhir/patient-definitions.html#Patient.identifier
-        :param encounter_id: encounter identifier
-                             https://hl7.org/fhir/encounter-definitions.html#Encounter.identifier
-        :param md5sum: md5 checksum
-                       https://www.hl7.org/fhir/documentreference-definitions.html#DocumentReference.identifier
-        :return: record mapping docref to a fake ID
-        """
-        self.encounter(mrn, encounter_id)
-        if md5sum:
-            if md5sum not in self.mrn[mrn]['encounter'][encounter_id][
-                    'docref'].keys():
-                self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum] = {}
-                self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum][
-                    'deid'] = common.fake_id()
-
-            return self.mrn[mrn]['encounter'][encounter_id]['docref'][md5sum]
 
     def _load_saved(self, saved: dict):
         """
         :param saved: dictionary containing structure
-                      [patient][encounter][docref]
+                      [patient][encounter]
         :return:
         """
-        for mrn in saved['mrn'].keys():
-            self.patient(mrn)['deid'] = saved['mrn'][mrn]['deid']
+        for mrn, patient_data in saved['mrn'].items():
+            self.patient(mrn)['deid'] = patient_data['deid']
 
-            for enc in saved['mrn'][mrn]['encounter'].keys():
-                self.encounter(
-                    mrn,
-                    enc)['deid'] = saved['mrn'][mrn]['encounter'][enc]['deid']
-                self.encounter(mrn, enc)['period_start'] = saved['mrn'][mrn][
-                    'encounter'][enc]['period_start']
-                self.encounter(mrn, enc)['period_end'] = saved['mrn'][mrn][
-                    'encounter'][enc]['period_end']
-
-                for md5sum in saved['mrn'][mrn]['encounter'][enc]['docref']:
-                    self.docref(mrn, enc, md5sum)['deid'] = saved['mrn'][mrn][
-                        'encounter'][enc]['docref'][md5sum]['deid']
+            for enc, enc_data in patient_data.get('encounter', {}).items():
+                self.encounter(mrn, enc)['deid'] = enc_data['deid']
+                self.encounter(mrn, enc)['period_start'] = enc_data['period_start']
+                self.encounter(mrn, enc)['period_end'] = enc_data['period_end']
 
     def save(self, path: str) -> None:
         """

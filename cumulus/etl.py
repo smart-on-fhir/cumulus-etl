@@ -29,7 +29,7 @@ AnyResource = TypeVar('AnyResource', bound=Resource)
 AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
 CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
 I2b2ToFhirCallable = Callable[[AnyDimension], Union[Resource, List[Resource]]]
-DeidentifyCallable = Callable[[Codebook, AnyResource], Resource]
+DeidentifyCallable = Callable[[AnyResource], Resource]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
@@ -94,8 +94,6 @@ def _process_job_entries(
     deid: DeidentifyCallable,
     to_store: StoreFormatCallable,
 ):
-    codebook = Codebook(config.path_codebook())
-
     job = JobSummary(job_name)
 
     print('###############################################################')
@@ -107,7 +105,7 @@ def _process_job_entries(
     fhir_entries = _flatten(to_fhir(x) for x in i2b2_entries)
 
     # De-identify each entry by passing them through our codebook
-    deid_entries = (deid(codebook, x) for x in fhir_entries)
+    deid_entries = (deid(x) for x in fhir_entries)
 
     # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
     # We want to batch them up, to allow resuming from interruptions more easily.
@@ -118,7 +116,6 @@ def _process_job_entries(
         # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
         to_store(job, dataframe, index)
 
-    codebook.db.save(config.path_codebook())
     return job
 
 
@@ -129,14 +126,14 @@ def _process_job_entries(
 ###############################################################################
 
 
-def etl_patient(config: JobConfig) -> JobSummary:
+def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_patient.__name__,
         'csv_patient',
         i2b2.extract.extract_csv_patients,
         i2b2.transform.to_fhir_patient,
-        Codebook.fhir_patient,
+        codebook.fhir_patient,
         config.format.store_patients,
     )
 
@@ -148,14 +145,14 @@ def etl_patient(config: JobConfig) -> JobSummary:
 ###############################################################################
 
 
-def etl_visit(config: JobConfig) -> JobSummary:
+def etl_visit(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_visit.__name__,
         'csv_visit',
         i2b2.extract.extract_csv_visits,
         i2b2.transform.to_fhir_encounter,
-        Codebook.fhir_encounter,
+        codebook.fhir_encounter,
         config.format.store_encounters,
     )
 
@@ -167,14 +164,14 @@ def etl_visit(config: JobConfig) -> JobSummary:
 ###############################################################################
 
 
-def etl_lab(config: JobConfig) -> JobSummary:
+def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_lab.__name__,
         'csv_lab',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_observation_lab,
-        Codebook.fhir_observation,
+        codebook.fhir_observation,
         config.format.store_labs,
     )
 
@@ -186,14 +183,14 @@ def etl_lab(config: JobConfig) -> JobSummary:
 ###############################################################################
 
 
-def etl_diagnosis(config: JobConfig) -> JobSummary:
+def etl_diagnosis(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_diagnosis.__name__,
         'csv_diagnosis',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_condition,
-        Codebook.fhir_condition,
+        codebook.fhir_condition,
         config.format.store_conditions,
     )
 
@@ -204,26 +201,26 @@ def etl_diagnosis(config: JobConfig) -> JobSummary:
 #
 ###############################################################################
 
-def etl_notes_meta(config: JobConfig) -> JobSummary:
+def etl_notes_meta(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_meta.__name__,
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         i2b2.transform.to_fhir_documentreference,
-        Codebook.fhir_documentreference,
+        codebook.fhir_documentreference,
         config.format.store_docrefs,
     )
 
 
-def etl_notes_text2fhir_symptoms(config: JobConfig) -> JobSummary:
+def etl_notes_text2fhir_symptoms(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_text2fhir_symptoms.__name__,
         'csv_note',
         i2b2.extract.extract_csv_observation_facts,
         partial(i2b2.transform.text2fhir_symptoms, config.dir_phi),
-        Codebook.fhir_observation,
+        codebook.fhir_observation,
         config.format.store_symptoms,
     )
 
@@ -251,9 +248,12 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         etl_diagnosis,
     ]
 
+    codebook = Codebook(config.path_codebook())
     for task in task_list:
-        summary = task(config)
+        summary = task(config, codebook)
         summary_list.append(summary)
+
+        codebook.db.save(config.path_codebook())
 
         path = os.path.join(config.dir_job_config(), f'{summary.label}.json')
         common.write_json(path, summary.as_json(), indent=4)

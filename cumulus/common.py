@@ -6,7 +6,6 @@ import logging
 import json
 import pandas
 import uuid
-import hashlib
 from typing import Optional
 
 import fsspec
@@ -74,37 +73,15 @@ def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
     return df
 
 
-def fake_id() -> str:
+def fake_id(category: str) -> str:
     """
     Randomly generate a linked Patient identifier
+
+    :param category: the resource type for this ID
     :return: long universally unique ID
     """
+    del category  # unused outside of tests
     return str(uuid.uuid4())
-
-
-###############################################################################
-#
-# Helper Functions: Fake Identifiers
-#
-###############################################################################
-
-
-def hash_clinical_text(text: str) -> str:
-    """
-    Get "fingerprint" of text to check if two inputs refer to the same text.
-    This "filterprint" is NOT saved to the DEID system, it is used in place of
-    a static identifier in the PHI Zone.
-
-    :param text: clinical text
-    :return: md5 digest
-    """
-    if not isinstance(text, str):
-        logging.warning('invalid input, expected str but type(text) = %s',
-                        type(text))
-        logging.warning('hash_clinical_text() : invalid input, text= %s', text)
-        return None
-
-    return hashlib.md5(text.encode('utf-8')).hexdigest()
 
 
 ###############################################################################

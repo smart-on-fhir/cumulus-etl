@@ -282,6 +282,7 @@ class ObservationFact(Dimension):
 
     def __init__(self, row: dict):
         self.table = Table.observation_fact
+        self.instance_num = row.get('INSTANCE_NUM')
         self.patient_num = row.get('PATIENT_NUM')
         self.encounter_num = row.get('ENCOUNTER_NUM')
         self.concept_cd = row.get('CONCEPT_CD')
