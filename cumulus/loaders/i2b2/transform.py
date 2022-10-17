@@ -1,5 +1,6 @@
 """Transformations from i2b2 to FHIR"""
 
+import base64
 import logging
 from typing import List, Optional
 
@@ -20,8 +21,8 @@ from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
 from cumulus import ctakes, fhir_common, store, text2fhir
-from cumulus.i2b2 import fhir_template
-from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
+from cumulus.loaders.i2b2 import fhir_template
+from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 
 ###############################################################################
@@ -234,13 +235,10 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.created = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
-    # TODO: Content Warning: Philter DEID should be used on all notes that are
-    #       sent to Cumulus.
     content = DocumentReferenceContent()
     content.attachment = Attachment()
     content.attachment.contentType = 'text/plain'
-    # content.attachment.data = str(base64.b64encode(str(
-    #   obsfact.observation_blob).encode()))
+    content.attachment.data = base64.standard_b64encode(obsfact.observation_blob.encode('utf8')).decode('utf8')
     docref.content = [content]
 
     return docref

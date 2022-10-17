@@ -1,5 +1,6 @@
 """NLP extension using ctakes"""
 
+import base64
 from typing import List
 
 from fhirclient.models.resource import Resource
@@ -8,6 +9,7 @@ from fhirclient.models.extension import Extension
 from fhirclient.models.fhirreference import FHIRReference
 
 from fhirclient.models.codeableconcept import CodeableConcept
+from fhirclient.models.documentreference import DocumentReference
 from fhirclient.models.observation import Observation
 from fhirclient.models.medicationstatement import MedicationStatement
 from fhirclient.models.procedure import Procedure
@@ -17,7 +19,7 @@ import ctakesclient
 from ctakesclient.typesystem import CtakesJSON, Span
 from ctakesclient.typesystem import Polarity, MatchText
 
-from cumulus import common
+from cumulus import common, ctakes, fhir_common, store
 from cumulus.fhir_common import ref_subject, ref_encounter, ref_document
 from cumulus.fhir_common import fhir_coding, fhir_concept
 
@@ -371,3 +373,33 @@ def nlp_fhir(subject_id: str, encounter_id: str, docref_id: str, nlp_results: Ct
         as_fhir.append(nlp_procedure(subject_id, encounter_id, docref_id, match, source))
 
     return as_fhir
+
+
+def nlp_symptoms(phi_root: store.Root, docref: DocumentReference) -> List[Observation]:
+    """
+    :param phi_root: Where to cache NLP results
+    :param docref: Physician Note
+    :return: list of NLP results encoded as FHIR observations
+    """
+    docref_id = docref.id
+    subject_id = fhir_common.unref_patient(docref.subject)
+
+    if not docref.context.encounter:
+        return []
+    encounter_id = fhir_common.unref_encounter(docref.context.encounter[0])
+
+    # Find the physician note among the attachments
+    for content in docref.content:
+        if content.attachment.contentType == 'text/plain':  # just grab first text we find
+            physician_note = base64.standard_b64decode(content.attachment.data).decode('utf8')
+            break
+    else:
+        return []
+
+    ctakes_json = ctakes.extract(phi_root, physician_note)
+
+    as_list = []
+    for match in ctakes_json.list_sign_symptom(Polarity.pos):
+        as_list.append(nlp_observation(subject_id, encounter_id, docref_id, match))
+
+    return as_list

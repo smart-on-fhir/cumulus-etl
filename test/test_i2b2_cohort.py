@@ -3,7 +3,7 @@
 import unittest
 
 from cumulus import fhir_common
-from cumulus.i2b2 import cohort
+from cumulus.loaders.i2b2 import cohort
 
 
 class TestCohortSuicidality(unittest.TestCase):

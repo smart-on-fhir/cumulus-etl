@@ -7,16 +7,16 @@ import logging
 import os
 import sys
 from functools import partial
-from typing import Callable, Iterable, Iterator, List, TypeVar, Union
+from typing import Callable, Iterable, Iterator, List, TypeVar
 
 import pandas
+from fhirclient.models.attachment import Attachment
 from fhirclient.models.resource import Resource
 
-from cumulus import common, formats, store
-from cumulus import i2b2
+from cumulus import common, formats, loaders, store, text2fhir
 from cumulus.codebook import Codebook
 from cumulus.config import JobConfig, JobSummary
-from cumulus.i2b2.schema import Dimension as I2b2Dimension
+from cumulus.loaders import ResourceIterator
 
 ###############################################################################
 #
@@ -26,18 +26,9 @@ from cumulus.i2b2.schema import Dimension as I2b2Dimension
 
 T = TypeVar('T')
 AnyResource = TypeVar('AnyResource', bound=Resource)
-AnyDimension = TypeVar('AnyDimension', bound=I2b2Dimension)
-CsvToI2b2Callable = Callable[[str], Iterable[I2b2Dimension]]
-I2b2ToFhirCallable = Callable[[AnyDimension], Union[Resource, List[Resource]]]
+LoaderCallable = Callable[[], ResourceIterator]
 DeidentifyCallable = Callable[[AnyResource], Resource]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
-
-
-def _extract_from_files(extract: CsvToI2b2Callable, csv_files: Iterable[str]) -> Iterator[I2b2Dimension]:
-    """Generator method that lazily loads input csv files"""
-    for csv_file in csv_files:
-        for entry in extract(csv_file):
-            yield entry
 
 
 def _flatten(iterable: Iterable) -> Iterator:
@@ -88,9 +79,7 @@ def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
 def _process_job_entries(
     config: JobConfig,
     job_name: str,
-    csv_folder: str,
-    extract: CsvToI2b2Callable,
-    to_fhir: I2b2ToFhirCallable,
+    loader: LoaderCallable,
     deid: DeidentifyCallable,
     to_store: StoreFormatCallable,
 ):
@@ -99,10 +88,8 @@ def _process_job_entries(
     print('###############################################################')
     print(f'{job_name}()')
 
-    # Convert input folder full of i2b2 csv files into an iterable of FHIR objects
-    i2b2_csv_files = config.list_csv(csv_folder)
-    i2b2_entries = _extract_from_files(extract, i2b2_csv_files)
-    fhir_entries = _flatten(to_fhir(x) for x in i2b2_entries)
+    # Load input data into an iterable of FHIR objects
+    fhir_entries = _flatten(loader())
 
     # De-identify each entry by passing them through our codebook
     deid_entries = (deid(x) for x in fhir_entries)
@@ -130,9 +117,7 @@ def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_patient.__name__,
-        'csv_patient',
-        i2b2.extract.extract_csv_patients,
-        i2b2.transform.to_fhir_patient,
+        config.loader.load_patients,
         codebook.fhir_patient,
         config.format.store_patients,
     )
@@ -145,13 +130,11 @@ def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_visit(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_encounter(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
-        etl_visit.__name__,
-        'csv_visit',
-        i2b2.extract.extract_csv_visits,
-        i2b2.transform.to_fhir_encounter,
+        etl_encounter.__name__,
+        config.loader.load_encounters,
         codebook.fhir_encounter,
         config.format.store_encounters,
     )
@@ -168,9 +151,7 @@ def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_lab.__name__,
-        'csv_lab',
-        i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.to_fhir_observation_lab,
+        config.loader.load_labs,
         codebook.fhir_observation,
         config.format.store_labs,
     )
@@ -183,13 +164,11 @@ def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_diagnosis(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_condition(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
-        etl_diagnosis.__name__,
-        'csv_diagnosis',
-        i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.to_fhir_condition,
+        etl_condition.__name__,
+        config.loader.load_conditions,
         codebook.fhir_condition,
         config.format.store_conditions,
     )
@@ -201,25 +180,42 @@ def etl_diagnosis(config: JobConfig, codebook: Codebook) -> JobSummary:
 #
 ###############################################################################
 
+def load_docrefs_without_notes(config: JobConfig) -> ResourceIterator:
+    """Strips the notes off of any documents"""
+    for docref in config.loader.load_docrefs():
+        for content in getattr(docref, 'content', []):
+            # Remove all attributes except a couple metadata ones
+            content.attachment = Attachment({
+                'contentType': content.attachment.contentType,
+                'creation': content.attachment.creation,
+                'language': content.attachment.language,
+            })
+        yield docref
+
+
 def etl_notes_meta(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_meta.__name__,
-        'csv_note',
-        i2b2.extract.extract_csv_observation_facts,
-        i2b2.transform.to_fhir_documentreference,
+        partial(load_docrefs_without_notes, config),
         codebook.fhir_documentreference,
         config.format.store_docrefs,
     )
+
+
+def load_nlp_symptoms(config: JobConfig) -> ResourceIterator:
+    """Strips the notes off of any documents"""
+    for docref in config.loader.load_docrefs():
+        symptoms = text2fhir.nlp_symptoms(config.dir_phi, docref)
+        for symptom in symptoms:
+            yield symptom
 
 
 def etl_notes_text2fhir_symptoms(config: JobConfig, codebook: Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_text2fhir_symptoms.__name__,
-        'csv_note',
-        i2b2.extract.extract_csv_observation_facts,
-        partial(i2b2.transform.text2fhir_symptoms, config.dir_phi),
+        partial(load_nlp_symptoms, config),
         codebook.fhir_observation,
         config.format.store_symptoms,
     )
@@ -241,11 +237,11 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 
     task_list = [
         etl_patient,
-        etl_visit,
+        etl_encounter,
         etl_lab,
         etl_notes_meta,
         etl_notes_text2fhir_symptoms,
-        etl_diagnosis,
+        etl_condition,
     ]
 
     codebook = Codebook(config.path_codebook())
@@ -273,8 +269,10 @@ def main(args: List[str]):
     parser.add_argument('dir_input', metavar='/path/to/input')
     parser.add_argument('dir_output', metavar='/path/to/processed')
     parser.add_argument('dir_phi', metavar='/path/to/phi')
-    parser.add_argument('--format', default='json', choices=['json', 'ndjson', 'parquet'],
-                        help='output format (default is json)')
+    parser.add_argument('--input-format', default='i2b2', choices=['i2b2'],
+                        help='input format (default is i2b2)')
+    parser.add_argument('--output-format', default='ndjson', choices=['json', 'ndjson', 'parquet'],
+                        help='output format (default is ndjson)')
     parser.add_argument('--batch-size', type=int, metavar='SIZE', default=10000000,
                         help='how many entries to process at once and thus '
                              'how many to put in one output file (default is 10M)')
@@ -289,14 +287,16 @@ def main(args: List[str]):
     root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 
-    if args.format == 'ndjson':
-        config_store = formats.NdjsonFormat(root_output)
-    elif args.format == 'parquet':
+    config_loader = loaders.I2b2Loader(root_input)
+
+    if args.output_format == 'json':
+        config_store = formats.JsonTreeFormat(root_output)
+    elif args.output_format == 'parquet':
         config_store = formats.ParquetFormat(root_output)
     else:
-        config_store = formats.JsonTreeFormat(root_output)
+        config_store = formats.NdjsonFormat(root_output)
 
-    config = JobConfig(root_input, root_phi, config_store, comment=args.comment, batch_size=args.batch_size)
+    config = JobConfig(config_loader, config_store, root_phi, comment=args.comment, batch_size=args.batch_size)
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json(), indent=4)

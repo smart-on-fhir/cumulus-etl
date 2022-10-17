@@ -17,7 +17,7 @@ def template(name: str) -> dict:
     :param name: FHIR resource from saved JSON definition (Note: usage will be *deprecated*)
     :return: JSON of FHIR resource
     """
-    return common.read_json(os.path.join(os.path.dirname(__file__), '..', 'resources', name))
+    return common.read_json(os.path.join(os.path.dirname(__file__), 'resources', name))
 
 
 def fhir_patient() -> dict:

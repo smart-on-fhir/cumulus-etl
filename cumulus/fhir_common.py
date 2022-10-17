@@ -15,7 +15,7 @@ from fhirclient.models.range import Range
 # Standard FHIR References are ResourceType/id
 ###############################################################################
 
-def ref_resource(resource_type: str, resource_id: str) -> Optional[FHIRReference]:
+def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
     """
     Reference the FHIR proper way
     :param resource_type: Name of resource, like "Patient"
@@ -27,7 +27,7 @@ def ref_resource(resource_type: str, resource_id: str) -> Optional[FHIRReference
     return FHIRReference({'reference': f'{resource_type}/{resource_id}'})
 
 
-def ref_subject(subject_id: str) -> Optional[FHIRReference]:
+def ref_subject(subject_id: str) -> FHIRReference:
     """
     Patient Reference the FHIR proper way
     :param subject_id: ID for patient (isa REF can be UUID)
@@ -36,7 +36,7 @@ def ref_subject(subject_id: str) -> Optional[FHIRReference]:
     return ref_resource('Patient', subject_id)
 
 
-def ref_encounter(encounter_id: str) -> Optional[FHIRReference]:
+def ref_encounter(encounter_id: str) -> FHIRReference:
     """
     Encounter Reference the FHIR proper way
     :param encounter_id: ID for encounter (isa REF can be UUID)
@@ -45,13 +45,39 @@ def ref_encounter(encounter_id: str) -> Optional[FHIRReference]:
     return ref_resource('Encounter', encounter_id)
 
 
-def ref_document(docref_id: str) -> Optional[FHIRReference]:
+def ref_document(docref_id: str) -> FHIRReference:
     """
     Encounter Reference the FHIR proper way
     :param docref_id: ID for encounter (isa REF can be UUID)
     :return: FHIRReference as Encounter/$id
     """
     return ref_resource('DocumentReference', docref_id)
+
+
+def unref_resource(ref: FHIRReference, resource_type: str) -> str:
+    """
+    Strips a leading type marker, if any, and returns the raw identifier
+
+    Examples with id_type=Patient:
+    - ABC -> ABC
+    - Patient/ABC -> ABC
+    - Group/ABC -> Group/ABC
+    """
+    # TODO: what if ref is not simply a local reference like Patient/ABC, but has a type & identifier or url
+    prefix = f'{resource_type}/'
+    # Once we depend on python3.9+, we can simply use identifier.removeprefix()
+    if ref.reference.startswith(prefix):
+        return ref.reference[len(prefix):]
+    return ref.reference
+
+
+def unref_patient(ref: FHIRReference) -> str:
+    return unref_resource(ref, 'Patient')
+
+
+def unref_encounter(ref: FHIRReference) -> str:
+    return unref_resource(ref, 'Encounter')
+
 
 
 ###############################################################################

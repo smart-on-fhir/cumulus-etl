@@ -1,7 +1,7 @@
 """Tests for oracle connections"""
 
 import unittest
-from cumulus.i2b2.oracle import connect
+from cumulus.loaders.i2b2.oracle import connect
 
 
 @unittest.skip('oracle client drivers fail to load on new OSX')
