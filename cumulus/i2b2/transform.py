@@ -19,7 +19,7 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from cumulus import common, ctakes, fhir_common, store, text2fhir
+from cumulus import ctakes, fhir_common, store, text2fhir
 from cumulus.i2b2 import fhir_template
 from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
@@ -225,6 +225,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref = DocumentReference()
     docref.indexed = FHIRDate()
 
+    docref.id = obsfact.instance_num
     docref.subject = fhir_common.ref_subject(obsfact.patient_num)
     docref.context = DocumentReferenceContext()
     docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
@@ -255,6 +256,7 @@ def text2fhir_symptoms(
     :param polarity: default only get positive NLP mentions.
     :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
     """
+    docref_id = obsfact.instance_num
     subject_id = obsfact.patient_num
     encounter_id = obsfact.encounter_num
     physician_note = obsfact.observation_blob
@@ -265,12 +267,6 @@ def text2fhir_symptoms(
 
     as_list = []
     for match in ctakes_json.list_sign_symptom(polarity):
-        # FIXME:  We no longer have a connection to the docref we spun off of this same i2b2 observation fact,
-        #  since they are different etl tasks. To record a true docref, we'd need to (a) be working with real
-        #  fhir objects or (b) keep docrefs in the codebook or (c) combine the two etl tasks in some way.
-        #  For now, reliable docref ids is not a hard requirement and we can just a fake invalid value.
-        #  We should fix this shortly though.
-        docref_id = 'xxxxxx'
         as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match))
 
     return as_list
