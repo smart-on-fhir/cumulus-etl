@@ -2,7 +2,7 @@
 
 from fhirclient.models.period import Period
 
-from cumulus.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
+from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 
 class CohortSelection:

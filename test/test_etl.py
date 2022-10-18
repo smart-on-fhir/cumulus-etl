@@ -13,7 +13,8 @@ from unittest import mock
 import freezegun
 import s3fs
 
-from cumulus import common, etl, i2b2
+from cumulus import common, etl
+from cumulus.loaders.i2b2 import extract
 
 from .ctakesmock import CtakesMixin, fake_ctakes_extract
 from .s3mock import S3Mixin
@@ -34,8 +35,8 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
         self.maxDiff = None  # pylint: disable=invalid-name
 
         script_dir = os.path.dirname(__file__)
-        self.data_dir = os.path.join(script_dir, 'data/simple-i2b2')
-        self.input_path = os.path.join(self.data_dir, 'input')
+        self.data_dir = os.path.join(script_dir, 'data/simple')
+        self.input_path = os.path.join(self.data_dir, 'i2b2-input')
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
@@ -43,7 +44,7 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
 
         self.output_path = os.path.join(tmpdir, 'output')
         self.phi_path = os.path.join(tmpdir, 'phi')
-        self.args = [self.input_path, self.output_path, self.phi_path]
+        self.args = [self.input_path, self.output_path, self.phi_path, '--input-format=i2b2']
 
         filecmp.clear_cache()
 
@@ -158,7 +159,7 @@ class TestI2b2EtlBatches(BaseI2b2EtlSimple):
     """Test case for etl batching"""
 
     def test_batched_output(self):
-        etl.main(self.args + ['--format=ndjson', '--batch-size=1'])
+        etl.main(self.args + ['--batch-size=1'])
         self.assert_output_equal('batched-ndjson-output')
 
     def test_batch_iterate(self):
@@ -200,15 +201,21 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
     """Test case for each of the formats we support"""
 
     def test_etl_job_json(self):
-        etl.main(self.args)  # json is default
+        etl.main(self.args + ['--output-format=json'])
         self.assert_output_equal('json-output')
 
     def test_etl_job_ndjson(self):
-        etl.main(self.args + ['--format=ndjson'])
+        etl.main(self.args)  # ndjson is default
+        self.assert_output_equal('ndjson-output')
+
+    def test_etl_job_input_ndjson(self):
+        self.input_path = os.path.join(self.data_dir, 'ndjson-input')
+        self.args = [self.input_path, self.output_path, self.phi_path]
+        etl.main(self.args)  # ndjson is default input and output
         self.assert_output_equal('ndjson-output')
 
     def test_etl_job_parquet(self):
-        etl.main(self.args + ['--format=parquet'])
+        etl.main(self.args + ['--output-format=parquet'])
 
         # Merely test that the files got created. It's a binary format, so
         # diffs aren't helpful, and looks like it can differ from machine to
@@ -236,8 +243,7 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
     """Test case for our support of writing to S3"""
 
     def test_etl_job_s3(self):
-        etl.main(['--format=ndjson', self.input_path, 's3://mockbucket/root',
-                  self.phi_path])
+        etl.main(['--input-format=i2b2', self.input_path, 's3://mockbucket/root', self.phi_path])
 
         fs = s3fs.S3FileSystem()
         all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
@@ -262,10 +268,10 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
         return os.path.join(self.phi_path, 'ctakes-cache', 'version1', checksum[0:4], f'sha256-{checksum}.json')
 
     def test_stores_cached_json(self):
-        etl.main(self.args + ['--format=parquet'])
+        etl.main(self.args + ['--output-format=parquet'])
 
         notes_csv_path = os.path.join(self.input_path, 'csv_note', 'note1.csv')
-        facts = i2b2.extract.extract_csv_observation_facts(notes_csv_path)
+        facts = extract.extract_csv_observation_facts(notes_csv_path)
 
         expected_checksums = {
             0: 'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
@@ -306,7 +312,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
                 ],
             })
 
-        etl.main(self.args + ['--format=ndjson'])
+        etl.main(self.args)
 
         # We should never have called our mock cTAKES server
         self.assertEqual(0, self.nlp_mock.call_count)

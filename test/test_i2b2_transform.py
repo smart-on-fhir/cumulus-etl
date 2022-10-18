@@ -8,7 +8,7 @@ from fhirclient.models.encounter import Encounter
 from fhirclient.models.documentreference import DocumentReference
 
 from cumulus import fhir_common
-from cumulus.i2b2 import transform as T
+from cumulus.loaders.i2b2 import transform as T
 
 
 class TestI2b2Transform(unittest.TestCase):

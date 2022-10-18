@@ -3,9 +3,9 @@
 from typing import List
 import logging
 
-from cumulus.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
-from cumulus.i2b2.schema import ConceptDimension, ProviderDimension
-from cumulus.i2b2.oracle import connect, query
+from cumulus.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
+from cumulus.loaders.i2b2.schema import ConceptDimension, ProviderDimension
+from cumulus.loaders.i2b2.oracle import connect, query
 
 
 def execute(sql_statement: str):

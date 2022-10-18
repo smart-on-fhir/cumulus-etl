@@ -4,7 +4,7 @@ from typing import List
 import logging
 import pandas
 from cumulus import common
-from cumulus.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
+from cumulus.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
 
 def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:

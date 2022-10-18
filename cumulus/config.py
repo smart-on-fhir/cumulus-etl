@@ -3,7 +3,7 @@
 import os
 from socket import gethostname
 
-from cumulus import common, store
+from cumulus import common, loaders, store
 
 
 class JobConfig:
@@ -11,20 +11,20 @@ class JobConfig:
 
     def __init__(
             self,
-            dir_input: store.Root,
-            dir_phi: store.Root,
+            loader: loaders.Loader,
             store_format: store.Format,
+            dir_phi: store.Root,
             comment: str = None,
             batch_size: int = 1,  # this default is never really used - overridden by command line args
     ):
         """
-        :param dir_input: sources stored in csv_* folders
-        :param dir_phi: where to place PHI build artifacts like the codebook
+        :param loader: how to grab input files (like csv or ndjson)
         :param store_format: where to place output files and how, like ndjson
+        :param dir_phi: where to place PHI build artifacts like the codebook
         """
-        self.dir_input = dir_input
-        self.dir_phi = dir_phi
+        self.loader = loader
         self.format = store_format
+        self.dir_phi = dir_phi
         self.timestamp = common.timestamp_filename()
         self.hostname = gethostname()
         self.comment = comment or ''
@@ -41,37 +41,15 @@ class JobConfig:
         self.format.root.makedirs(path)
         return path
 
-    def list_csv(self, folder) -> list:
-        return common.list_csv(self.dir_input.joinpath(folder))
-
-    def list_csv_patient(self) -> list:
-        return self.list_csv('csv_patient')
-
-    def list_csv_visit(self) -> list:
-        return self.list_csv('csv_visit')
-
-    def list_csv_lab(self) -> list:
-        return self.list_csv('csv_lab')
-
-    def list_csv_diagnosis(self) -> list:
-        return self.list_csv('csv_diagnosis')
-
-    def list_csv_notes(self) -> list:
-        return self.list_csv('csv_note')
-
     def as_json(self):
         return {
-            'dir_input': self.dir_input.path,
+            'dir_input': self.loader.root.path,
             'dir_output': self.format.root.path,
             'dir_phi': self.dir_phi.path,
             'path': self.path_config(),
             'codebook': self.path_codebook(),
-            'list_csv_patient': self.list_csv_patient(),
-            'list_csv_visit': self.list_csv_visit(),
-            'list_csv_lab': self.list_csv_lab(),
-            'list_csv_notes': self.list_csv_notes(),
-            'list_csv_diagnosis': self.list_csv_diagnosis(),
-            'format': type(self.format).__name__,
+            'input_format': type(self.loader).__name__,
+            'output_format': type(self.format).__name__,
             'comment': self.comment,
             'batch_size': self.batch_size,
         }

@@ -1,6 +1,6 @@
 """Actual queries to oracle"""
 
-from cumulus.i2b2.schema import Table, ValueType
+from cumulus.loaders.i2b2.schema import Table, ValueType
 
 
 ###############################################################################
