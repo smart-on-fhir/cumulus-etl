@@ -79,7 +79,6 @@ def unref_encounter(ref: FHIRReference) -> str:
     return unref_resource(ref, 'Encounter')
 
 
-
 ###############################################################################
 # FHIR Coding and CodeableConcept
 ###############################################################################

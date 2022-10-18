@@ -2,7 +2,7 @@
 
 import base64
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirdate import FHIRDate
@@ -20,7 +20,7 @@ from fhirclient.models.documentreference import DocumentReferenceContext, Docume
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
 
-from cumulus import ctakes, fhir_common, store, text2fhir
+from cumulus import fhir_common
 from cumulus.loaders.i2b2 import fhir_template
 from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
@@ -238,36 +238,10 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     content = DocumentReferenceContent()
     content.attachment = Attachment()
     content.attachment.contentType = 'text/plain'
-    content.attachment.data = base64.standard_b64encode(obsfact.observation_blob.encode('utf8')).decode('utf8')
+    content.attachment.data = base64.standard_b64encode(obsfact.observation_blob.encode('utf8')).decode('ascii')
     docref.content = [content]
 
     return docref
-
-
-def text2fhir_symptoms(
-        phi_root: store.Root,
-        obsfact: ObservationFact,
-        polarity=text2fhir.Polarity.pos
-) -> List[Observation]:
-    """
-    :param obsfact: Physician Note
-    :param polarity: default only get positive NLP mentions.
-    :return: FHIR Bundle containing a collection of NLP results encoded as FHIR resources.
-    """
-    docref_id = obsfact.instance_num
-    subject_id = obsfact.patient_num
-    encounter_id = obsfact.encounter_num
-    physician_note = obsfact.observation_blob
-    if not physician_note:
-        return []
-
-    ctakes_json = ctakes.extract(phi_root, physician_note)
-
-    as_list = []
-    for match in ctakes_json.list_sign_symptom(polarity):
-        as_list.append(text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match))
-
-    return as_list
 
 
 ###############################################################################

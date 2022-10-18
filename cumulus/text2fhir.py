@@ -1,6 +1,8 @@
 """NLP extension using ctakes"""
 
 import base64
+import cgi
+import logging
 from typing import List
 
 from fhirclient.models.resource import Resource
@@ -385,15 +387,20 @@ def nlp_symptoms(phi_root: store.Root, docref: DocumentReference) -> List[Observ
     subject_id = fhir_common.unref_patient(docref.subject)
 
     if not docref.context.encounter:
+        logging.warning('No valid encounters for symptoms')  # ideally would print identifier, but it's PHI...
         return []
     encounter_id = fhir_common.unref_encounter(docref.context.encounter[0])
 
     # Find the physician note among the attachments
     for content in docref.content:
-        if content.attachment.contentType == 'text/plain':  # just grab first text we find
-            physician_note = base64.standard_b64decode(content.attachment.data).decode('utf8')
-            break
+        if content.attachment.contentType and content.attachment.data:
+            mimetype, params = cgi.parse_header(content.attachment.contentType)
+            if mimetype == 'text/plain':  # just grab first text we find
+                charset = params.get('charset', 'utf8')
+                physician_note = base64.standard_b64decode(content.attachment.data).decode(charset)
+                break
     else:
+        logging.warning('No text/plain content for symptoms')  # ideally would print identifier, but it's PHI...
         return []
 
     ctakes_json = ctakes.extract(phi_root, physician_note)

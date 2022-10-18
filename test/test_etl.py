@@ -35,8 +35,8 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
         self.maxDiff = None  # pylint: disable=invalid-name
 
         script_dir = os.path.dirname(__file__)
-        self.data_dir = os.path.join(script_dir, 'data/simple-i2b2')
-        self.input_path = os.path.join(self.data_dir, 'input')
+        self.data_dir = os.path.join(script_dir, 'data/simple')
+        self.input_path = os.path.join(self.data_dir, 'i2b2-input')
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
@@ -159,7 +159,7 @@ class TestI2b2EtlBatches(BaseI2b2EtlSimple):
     """Test case for etl batching"""
 
     def test_batched_output(self):
-        etl.main(self.args + ['--output-format=ndjson', '--batch-size=1'])
+        etl.main(self.args + ['--batch-size=1'])
         self.assert_output_equal('batched-ndjson-output')
 
     def test_batch_iterate(self):
@@ -208,6 +208,12 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
         etl.main(self.args)  # ndjson is default
         self.assert_output_equal('ndjson-output')
 
+    def test_etl_job_input_ndjson(self):
+        self.input_path = os.path.join(self.data_dir, 'ndjson-input')
+        self.args = [self.input_path, self.output_path, self.phi_path]
+        etl.main(self.args)  # ndjson is default input and output
+        self.assert_output_equal('ndjson-output')
+
     def test_etl_job_parquet(self):
         etl.main(self.args + ['--output-format=parquet'])
 
@@ -237,7 +243,7 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
     """Test case for our support of writing to S3"""
 
     def test_etl_job_s3(self):
-        etl.main(['--output-format=ndjson', self.input_path, 's3://mockbucket/root', self.phi_path])
+        etl.main(['--input-format=i2b2', self.input_path, 's3://mockbucket/root', self.phi_path])
 
         fs = s3fs.S3FileSystem()
         all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
@@ -306,7 +312,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
                 ],
             })
 
-        etl.main(self.args + ['--output-format=ndjson'])
+        etl.main(self.args)
 
         # We should never have called our mock cTAKES server
         self.assertEqual(0, self.nlp_mock.call_count)

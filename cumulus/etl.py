@@ -31,23 +31,6 @@ DeidentifyCallable = Callable[[AnyResource], Resource]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
-def _flatten(iterable: Iterable) -> Iterator:
-    """
-    Generator that flattens any lists it finds into individual objects
-
-    That is, _flatten([1, [2, 3], 4]) will yield [1, 2, 3, 4].
-    Note:
-        - this only flattens explicit `list` types, not any iterable it finds
-        - this only goes one level deep
-    """
-    for item in iterable:
-        if isinstance(item, list):
-            for sub_item in item:
-                yield sub_item
-        else:
-            yield item
-
-
 def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
     """
     Yields sub-iterators, each with {size} elements or less from iterable
@@ -89,7 +72,7 @@ def _process_job_entries(
     print(f'{job_name}()')
 
     # Load input data into an iterable of FHIR objects
-    fhir_entries = _flatten(loader())
+    fhir_entries = loader()
 
     # De-identify each entry by passing them through our codebook
     deid_entries = (deid(x) for x in fhir_entries)
@@ -204,7 +187,7 @@ def etl_notes_meta(config: JobConfig, codebook: Codebook) -> JobSummary:
 
 
 def load_nlp_symptoms(config: JobConfig) -> ResourceIterator:
-    """Strips the notes off of any documents"""
+    """Passes physician notes through NLP and returns any symptoms found"""
     for docref in config.loader.load_docrefs():
         symptoms = text2fhir.nlp_symptoms(config.dir_phi, docref)
         for symptom in symptoms:
@@ -269,8 +252,8 @@ def main(args: List[str]):
     parser.add_argument('dir_input', metavar='/path/to/input')
     parser.add_argument('dir_output', metavar='/path/to/processed')
     parser.add_argument('dir_phi', metavar='/path/to/phi')
-    parser.add_argument('--input-format', default='i2b2', choices=['i2b2'],
-                        help='input format (default is i2b2)')
+    parser.add_argument('--input-format', default='ndjson', choices=['i2b2', 'ndjson'],
+                        help='input format (default is ndjson)')
     parser.add_argument('--output-format', default='ndjson', choices=['json', 'ndjson', 'parquet'],
                         help='output format (default is ndjson)')
     parser.add_argument('--batch-size', type=int, metavar='SIZE', default=10000000,
@@ -287,7 +270,10 @@ def main(args: List[str]):
     root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 
-    config_loader = loaders.I2b2Loader(root_input)
+    if args.input_format == 'i2b2':
+        config_loader = loaders.I2b2Loader(root_input)
+    else:
+        config_loader = loaders.FhirNdjsonLoader(root_input)
 
     if args.output_format == 'json':
         config_store = formats.JsonTreeFormat(root_output)
