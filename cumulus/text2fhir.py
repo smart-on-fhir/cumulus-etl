@@ -1,6 +1,7 @@
 """NLP extension using ctakes"""
 
-from typing import List
+from enum import Enum
+from typing import List, Optional
 
 from fhirclient.models.resource import Resource
 from fhirclient.models.domainresource import DomainResource
@@ -31,8 +32,32 @@ FHIR_DERIVATION_REF_URL = 'http://hl7.org/fhir/StructureDefinition/derivation-re
 NLP_SOURCE_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source'
 NLP_POLARITY_URL = 'http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity'
 
-UMLS_SYSTEM_URL = 'http://terminology.hl7.org/CodeSystem/umls'  # TODO: refactor
+class Vocab(Enum):
+    """
+    https://build.fhir.org/terminologies-systems.html
+    """
+    SNOMEDCT_US = 'http://snomed.info/sct'
+    RXNORM = 'http://www.nlm.nih.gov/research/umls/rxnorm'
+    LOINC = 'http://loinc.org'
+    LNC = 'http://loinc.org'
+    CPT = 'http://www.ama-assn.org/go/cpt'
+    MEDRT = 'http://va.gov/terminology/medrt'
+    NDFRT = 'http://hl7.org/fhir/ndfrt'
+    NDC = 'http://hl7.org/fhir/sid/ndc'
+    CVX = 'http://hl7.org/fhir/sid/cvx'
+    ICD9 = 'ICD-9'
+    ICD10 = 'ICD-10'
+    UMLS = 'http://terminology.hl7.org/CodeSystem/umls'
 
+def url_vocab(umls_sab: str) -> Optional[str]:
+    """
+    https://www.nlm.nih.gov/research/umls/sourcereleasedocs/index.html
+    :param umls_sab: UMLS SAB = "Source Abbreviation"
+    :return: URL of UMLS vocab
+    """
+    if umls_sab == 'custom':
+        return None
+    return Vocab[umls_sab].value
 
 ###############################################################################
 # Common extension helper methods
@@ -213,8 +238,8 @@ def nlp_concept(match: MatchText) -> CodeableConcept:
     """
     coded = []
     for concept in match.conceptAttributes:
-        coded.append(fhir_coding(vocab=concept.codingScheme, code=concept.code))
-        coded.append(fhir_coding(vocab=UMLS_SYSTEM_URL, code=concept.cui))
+        coded.append(fhir_coding(vocab=url_vocab(concept.codingScheme), code=concept.code))
+        coded.append(fhir_coding(vocab=Vocab.UMLS.value, code=concept.cui))
 
     return fhir_concept(match.text, coded)
 

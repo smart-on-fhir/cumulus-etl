@@ -119,7 +119,7 @@ class TestText2Fhir(unittest.TestCase):
             'coding': [
                 {
                     'code': '66076007',
-                    'system': 'SNOMEDCT_US',
+                    'system': 'http://snomed.info/sct',
                 },
                 {
                     'code': 'C0304290',
@@ -127,7 +127,7 @@ class TestText2Fhir(unittest.TestCase):
                 },
                 {
                     'code': '91058',
-                    'system': 'RXNORM',
+                    'system': 'http://www.nlm.nih.gov/research/umls/rxnorm',
                 },
                 {
                     'code': 'C0304290',
@@ -163,7 +163,7 @@ class TestText2Fhir(unittest.TestCase):
                 'coding': [
                     {
                         'code': '33962009',
-                        'system': 'SNOMEDCT_US',
+                        'system': 'http://snomed.info/sct',
                     },
                     {
                         'code': 'C0277786',
@@ -171,7 +171,7 @@ class TestText2Fhir(unittest.TestCase):
                     },
                     {
                         'code': '409586006',
-                        'system': 'SNOMEDCT_US',
+                        'system': 'http://snomed.info/sct',
                     },
                     {
                         'code': 'C0277786',
@@ -236,7 +236,7 @@ class TestText2Fhir(unittest.TestCase):
                 'coding': [
                     {
                         'code': '66076007',
-                        'system': 'SNOMEDCT_US',
+                        'system': 'http://snomed.info/sct',
                     },
                     {
                         'code': 'C0304290',
@@ -244,7 +244,7 @@ class TestText2Fhir(unittest.TestCase):
                     },
                     {
                         'code': '91058',
-                        'system': 'RXNORM',
+                        'system': 'http://www.nlm.nih.gov/research/umls/rxnorm',
                     },
                     {
                         'code': 'C0304290',
@@ -323,7 +323,7 @@ class TestText2Fhir(unittest.TestCase):
             'coding': [
                 {
                     'code': '8205005',
-                    'system': 'SNOMEDCT_US',
+                    'system': 'http://snomed.info/sct',
                 },
                 {
                     'code': 'C0043262',
@@ -332,6 +332,11 @@ class TestText2Fhir(unittest.TestCase):
             ],
             'text': 'wrist',
         }, bodysites[0])
+
+    def test_url_vocab(self):
+        # defaults preloaded with ctakes
+        for umls_sab in ['SNOMEDCT_US', 'RXNORM', 'UMLS', 'custom']:
+            text2fhir.url_vocab(umls_sab)
 
 
 if __name__ == '__main__':
