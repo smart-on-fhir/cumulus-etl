@@ -58,6 +58,10 @@ class Root:
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
         self._confirm_in_root(path)
+        if self.protocol == 's3':
+            # s3 doesn't really care about folders, and if we try to make one,
+            # fsspec would want the CreateBucket permission as it goes up the tree
+            return
         self.fs.makedirs(path, exist_ok=True)
 
     def rm(self, path: str, recursive=False) -> None:
@@ -67,15 +71,27 @@ class Root:
 
     def fsspec_options(self) -> dict:
         """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
+        options = {}
+
         if self.protocol == 's3':
+            # Check for region manually. If you aren't using us-east-1, you usually need to specify the region
+            # explicitly, and fsspec doesn't seem to check the environment variables for us, nor pull it from
+            # ~/.aws/config
+            region_name = os.environ.get('CUMULUS_AWS_REGION')
+            if not region_name:
+                region_name = os.environ.get('AWS_DEFAULT_REGION')
+            if region_name:
+                options['client_kwargs'] = {
+                    'region_name': 'us-east-2',
+                }
+
             # Assume KMS encryption for now - we can make this tunable to AES256 if folks have a need.
             # But in general, I believe we want to enforce server side encryption when possible, KMS or not.
-            return {
-                's3_additional_kwargs': {
-                    'ServerSideEncryption': 'aws:kms',
-                },
+            options['s3_additional_kwargs'] = {
+                'ServerSideEncryption': 'aws:kms',
             }
-        return {}
+
+        return options
 
 
 class Format(abc.ABC):

@@ -243,9 +243,11 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
     """Test case for our support of writing to S3"""
 
     def test_etl_job_s3(self):
+        fs = s3fs.S3FileSystem()
+        fs.makedirs('s3://mockbucket/')
+
         etl.main(['--input-format=i2b2', self.input_path, 's3://mockbucket/root', self.phi_path])
 
-        fs = s3fs.S3FileSystem()
         all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
         self.assertEqual({
             'mockbucket/root/condition/fhir_conditions.000.ndjson',
@@ -292,7 +294,9 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
 
         for index, checksum in enumerate(expected_checksums):
             # Write out some fake results to the cache location
-            common.write_json(self.path_for_checksum(checksum), {
+            filename = self.path_for_checksum(checksum)
+            os.makedirs(os.path.dirname(filename))
+            common.write_json(filename, {
                 'SignSymptomMention': [
                     {
                         'begin': 123,

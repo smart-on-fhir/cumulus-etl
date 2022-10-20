@@ -1,6 +1,7 @@
 """Interface for talking to a cTAKES server"""
 
 import hashlib
+import os
 
 import ctakesclient
 
@@ -21,6 +22,7 @@ def extract(cache: store.Root, sentence: str) -> ctakesclient.typesystem.CtakesJ
         result = ctakesclient.typesystem.CtakesJSON(source=cached_response)
     except Exception:  # pylint: disable=broad-except
         result = ctakesclient.client.extract(sentence)
+        cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, result.as_json())
 
     return result
