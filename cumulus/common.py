@@ -93,7 +93,9 @@ def fake_id(category: str) -> str:
 def open_file(path: str, mode: str):
     """A version of open() that handles remote access, like to S3"""
     root = store.Root(path)
-    return fsspec.open(path, mode, encoding='utf8', **root.fsspec_options())
+    # We pass auto_mkdir because on some backends (like S3), we may not have permissions that fsspec might want,
+    # like CreateBucket. We elsewhere call Root.makedirs as needed.
+    return fsspec.open(path, mode, encoding='utf8', auto_mkdir=False, **root.fsspec_options())
 
 
 def read_text(path: str) -> str:
