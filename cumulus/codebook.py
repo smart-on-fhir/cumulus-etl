@@ -24,7 +24,7 @@ class Codebook:
         """
         try:
             self.db = CodebookDB(saved)
-        except FileNotFoundError:
+        except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
         self.docrefs = {}
