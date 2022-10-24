@@ -7,8 +7,17 @@ from ctakesclient import typesystem
 
 
 class CtakesMixin(unittest.TestCase):
+    """
+    Add this mixin to your test class to properly mock out calls to the NLP server
+
+    See the docstring for fake_ctakes_extract() for guidance on the fake results this generates.
+    """
     def setUp(self):
         super().setUp()
+
+        version_patcher = mock.patch('ctakesclient.__version__', new='1.2.0')  # just freeze this in place
+        self.addCleanup(version_patcher.stop)
+        version_patcher.start()
 
         nlp_patcher = mock.patch('cumulus.ctakes.ctakesclient.client.extract',
                                  side_effect=fake_ctakes_extract)

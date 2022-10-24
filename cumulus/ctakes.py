@@ -1,11 +1,55 @@
 """Interface for talking to a cTAKES server"""
 
+import base64
+import cgi
 import hashlib
+import logging
 import os
+from typing import List
 
 import ctakesclient
+from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.observation import Observation
 
-from cumulus import common, store
+from cumulus import common, fhir_common, store
+
+
+def symptoms(cache: store.Root, docref: DocumentReference) -> List[Observation]:
+    """
+    Extract a list of Observations from NLP-detected symptoms in physician notes
+
+    :param cache: Where to cache NLP results
+    :param docref: Physician Note
+    :return: list of NLP results encoded as FHIR observations
+    """
+    docref_id = docref.id
+    subject_id = fhir_common.unref_patient(docref.subject)
+
+    if not docref.context.encounter:
+        logging.warning('No valid encounters for symptoms')  # ideally would print identifier, but it's PHI...
+        return []
+    encounter_id = fhir_common.unref_encounter(docref.context.encounter[0])
+
+    # Find the physician note among the attachments
+    for content in docref.content:
+        if content.attachment.contentType and content.attachment.data:
+            mimetype, params = cgi.parse_header(content.attachment.contentType)
+            if mimetype == 'text/plain':  # just grab first text we find
+                charset = params.get('charset', 'utf8')
+                physician_note = base64.standard_b64decode(content.attachment.data).decode(charset)
+                break
+    else:
+        logging.warning('No text/plain content for symptoms')  # ideally would print identifier, but it's PHI...
+        return []
+
+    ctakes_json = extract(cache, physician_note)
+
+    observations = []
+    for match in ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos):
+        observation = ctakesclient.text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match)
+        observation.id = common.fake_id('Observation')
+        observations.append(observation)
+    return observations
 
 
 def extract(cache: store.Root, sentence: str) -> ctakesclient.typesystem.CtakesJSON:

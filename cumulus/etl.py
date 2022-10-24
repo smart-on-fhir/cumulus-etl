@@ -13,7 +13,7 @@ import pandas
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.resource import Resource
 
-from cumulus import common, formats, loaders, store, text2fhir
+from cumulus import common, ctakes, formats, loaders, store
 from cumulus.codebook import Codebook
 from cumulus.config import JobConfig, JobSummary
 from cumulus.loaders import ResourceIterator
@@ -189,7 +189,7 @@ def etl_notes_meta(config: JobConfig, codebook: Codebook) -> JobSummary:
 def load_nlp_symptoms(config: JobConfig) -> ResourceIterator:
     """Passes physician notes through NLP and returns any symptoms found"""
     for docref in config.loader.load_docrefs():
-        symptoms = text2fhir.nlp_symptoms(config.dir_phi, docref)
+        symptoms = ctakes.symptoms(config.dir_phi, docref)
         for symptom in symptoms:
             yield symptom
 
