@@ -8,7 +8,7 @@ from fhirclient.models.condition import Condition
 from fhirclient.models.observation import Observation
 from fhirclient.models.documentreference import DocumentReference
 
-from cumulus import common, fhir_common, store, text2fhir
+from cumulus import common, fhir_common, store
 
 
 class Codebook:
@@ -69,7 +69,7 @@ class Codebook:
 
         # Does the observation have an NLP source extension? If so, de-identify its docref
         for extension in (observation.extension or []):
-            if extension.url == text2fhir.FHIR_DERIVATION_REF_URL:
+            if extension.url == 'http://hl7.org/fhir/StructureDefinition/derivation-reference':
                 for values in extension.extension:
                     if values.url == 'reference':
                         cleaned_docref_id = fhir_common.unref_resource(values.valueReference, 'DocumentReference')
