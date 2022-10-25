@@ -13,8 +13,7 @@ import pandas
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.resource import Resource
 
-from cumulus import common, ctakes, formats, loaders, store
-from cumulus.codebook import Codebook
+from cumulus import common, ctakes, deid, formats, loaders, store
 from cumulus.config import JobConfig, JobSummary
 from cumulus.loaders import ResourceIterator
 
@@ -63,7 +62,7 @@ def _process_job_entries(
     config: JobConfig,
     job_name: str,
     loader: LoaderCallable,
-    deid: DeidentifyCallable,
+    to_deid: DeidentifyCallable,
     to_store: StoreFormatCallable,
 ):
     job = JobSummary(job_name)
@@ -75,7 +74,7 @@ def _process_job_entries(
     fhir_entries = loader()
 
     # De-identify each entry by passing them through our codebook
-    deid_entries = (deid(x) for x in fhir_entries)
+    deid_entries = (to_deid(x) for x in fhir_entries)
 
     # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
     # We want to batch them up, to allow resuming from interruptions more easily.
@@ -96,7 +95,7 @@ def _process_job_entries(
 ###############################################################################
 
 
-def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_patient(config: JobConfig, codebook: deid.Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_patient.__name__,
@@ -113,7 +112,7 @@ def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_encounter(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_encounter(config: JobConfig, codebook: deid.Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_encounter.__name__,
@@ -130,7 +129,7 @@ def etl_encounter(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_lab(config: JobConfig, codebook: deid.Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_lab.__name__,
@@ -147,7 +146,7 @@ def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_condition(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_condition(config: JobConfig, codebook: deid.Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_condition.__name__,
@@ -176,7 +175,7 @@ def load_docrefs_without_notes(config: JobConfig) -> ResourceIterator:
         yield docref
 
 
-def etl_notes_meta(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_notes_meta(config: JobConfig, codebook: deid.Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_meta.__name__,
@@ -194,7 +193,7 @@ def load_nlp_symptoms(config: JobConfig) -> ResourceIterator:
             yield symptom
 
 
-def etl_notes_text2fhir_symptoms(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_notes_text2fhir_symptoms(config: JobConfig, codebook: deid.Codebook) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_text2fhir_symptoms.__name__,
@@ -227,7 +226,7 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         etl_condition,
     ]
 
-    codebook = Codebook(config.path_codebook())
+    codebook = deid.Codebook(config.path_codebook())
     for task in task_list:
         summary = task(config, codebook)
         summary_list.append(summary)

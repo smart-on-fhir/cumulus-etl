@@ -68,7 +68,7 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
         # make it through to the end of etl test output, we have a problem anyway
         # and the flakiness of those IDs is a feature not a bug.
         self.category_seeds = {}
-        uuid4_mock = mock.patch('cumulus.codebook.common.fake_id', new=self.reliable_fake_id)
+        uuid4_mock = mock.patch('cumulus.deid.codebook.common.fake_id', new=self.reliable_fake_id)
         self.addCleanup(uuid4_mock.stop)
         uuid4_mock.start()
 

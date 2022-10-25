@@ -3,7 +3,7 @@
 import json
 import logging
 import unittest
-from cumulus import codebook
+from cumulus.deid import codebook
 
 
 class TestCodebookDB(unittest.TestCase):

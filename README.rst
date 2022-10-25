@@ -31,7 +31,7 @@ DEID: Patient Privacy
 * PHI stays behind the hospital firewall.
 * Physician Notes are NOT shared outside hospital.
 * Encrypted patient data at rest and in transit.
-* DEID `Codebook.py <./cumulus/codebook.py>`_ replaces real patient identifiers with fake ones (`UUID <https://docs.python.org/3/library/uuid.html>`_)
+* DEID `Codebook.py <./cumulus/deid/codebook.py>`_ replaces real patient identifiers with fake ones (`UUID <https://docs.python.org/3/library/uuid.html>`_)
 * Anonymize `structured data anonymization <https://github.com/microsoft/Tools-for-Health-Data-Anonymization>`_
 * Count "number of patients" -- this is what is shown in users in Cumulus Dashboard.
 * Non-human subjects and minimal disclosures -- non admin users only see numbers of patients or graphs.
@@ -61,3 +61,15 @@ Single hospital View
 
 Regional Cluster View
 .. image:: ./docs/architecture/cumulus-arch-regional-cluster.svg
+
+Pipeline Sequence
+===============================================
+There are several phases to the Cumulus pipeline:
+
+#. Download & normalize input
+
+   * For example, converting i2b2 exports sitting in an S3 bucket into local FHIR ndjson files
+
+#. De-identify input
+#. Analyze physician notes with NLP
+#. Write de-identified & analyzed results to the output folder

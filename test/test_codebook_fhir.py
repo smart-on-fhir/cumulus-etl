@@ -1,8 +1,8 @@
 """Tests for the API-level Codebook class"""
 import unittest
 from uuid import UUID
+from cumulus import deid
 from cumulus.common import print_json
-from cumulus.codebook import Codebook
 from .test_i2b2_transform import TestI2b2Transform
 
 
@@ -14,7 +14,7 @@ class TestCodebookFHIR(unittest.TestCase):
 
         self.assertEqual('12345', patient.id)
 
-        codebook = Codebook()
+        codebook = deid.Codebook()
         #
         self.assertEqual(0, len(codebook.db.mrn.keys()),
                          'codebook should be empty')
@@ -46,7 +46,7 @@ class TestCodebookFHIR(unittest.TestCase):
         mrn = encounter.subject.reference.split('/')[-1]
         visit = encounter.id
 
-        codebook = Codebook()
+        codebook = deid.Codebook()
         #
         encounter = codebook.fhir_encounter(encounter)
 
@@ -70,7 +70,7 @@ class TestCodebookFHIR(unittest.TestCase):
         mrn = condition.subject.reference.split('/')[-1]
         visit = condition.encounter.reference.split('/')[-1]
 
-        codebook = Codebook()
+        codebook = deid.Codebook()
         #
         condition = codebook.fhir_condition(condition)
 
@@ -88,7 +88,7 @@ class TestCodebookFHIR(unittest.TestCase):
         mrn = observation.subject.reference.split('/')[-1]
         visit = observation.encounter.reference.split('/')[-1]
 
-        codebook = Codebook()
+        codebook = deid.Codebook()
         #
         observation = codebook.fhir_observation(observation)
 
@@ -107,7 +107,7 @@ class TestCodebookFHIR(unittest.TestCase):
         mrn = docref.subject.reference.split('/')[-1]
         visit = docref.context.encounter[0].reference.split('/')[-1]
 
-        codebook = Codebook()
+        codebook = deid.Codebook()
         #
         docref = codebook.fhir_documentreference(docref)
 
@@ -120,5 +120,5 @@ class TestCodebookFHIR(unittest.TestCase):
 
     def test_missing_db_file(self):
         """Ensure we gracefully handle a saved db file that doesn't exist yet"""
-        codebook = Codebook('/missing-codebook-file.json')
+        codebook = deid.Codebook('/missing-codebook-file.json')
         self.assertEqual({}, codebook.db.mrn)
