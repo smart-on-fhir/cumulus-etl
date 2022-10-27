@@ -6,13 +6,6 @@
          "http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter"
       ]
    },
-   "identifier":[
-      {
-         "use":"official",
-         "system":"BCH i2b2 visit dimension",
-         "value":"0"
-      }
-   ],
    "status":"finished",
    "class":{
       "system":"http://terminology.hl7.org/CodeSystem/v3-ActCode",

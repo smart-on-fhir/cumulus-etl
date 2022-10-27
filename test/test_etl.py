@@ -12,12 +12,14 @@ from unittest import mock
 
 import freezegun
 import s3fs
+from fhirclient.models.extension import Extension
 
-from cumulus import common, etl
+from cumulus import common, config, deid, etl, store
 from cumulus.loaders.i2b2 import extract
 
 from .ctakesmock import CtakesMixin, fake_ctakes_extract
 from .s3mock import S3Mixin
+from .test_i2b2_transform import TestI2b2Transform
 
 
 @freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
@@ -58,6 +60,10 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
         os.makedirs(self.phi_path)
         shutil.copy(os.path.join(self.data_dir, 'codebook.json'),
                     self.phi_path)
+
+        secrets_mock = mock.patch('cumulus.deid.codebook.secrets.token_bytes', new=lambda x: b'1234')
+        self.addCleanup(secrets_mock.stop)
+        secrets_mock.start()
 
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
@@ -136,6 +142,54 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
         self.assert_file_tree_equal(dircmp)
 
 
+class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
+    """Test case for the sequence of data through the system"""
+
+    def setUp(self):
+        super().setUp()
+        self.scrubber = deid.Scrubber()
+        self.codebook = self.scrubber.codebook
+        self.loader = mock.MagicMock()
+        self.format = mock.MagicMock()
+        phi_root = store.Root(self.phi_path)
+        self.config = config.JobConfig(self.loader, self.format, phi_root, batch_size=5)
+
+    def test_unknown_modifier_extensions_skipped_for_patients(self):
+        """Verify we ignore unknown modifier extensions during a normal etl job flow (like patients)"""
+        patient0 = TestI2b2Transform.example_fhir_patient()
+        patient0.id = '0'
+        patient1 = TestI2b2Transform.example_fhir_patient()
+        patient1.id = '1'
+        patient1.modifierExtension = [Extension({'url': 'unrecognized'})]
+        self.loader.load_patients.return_value = [patient0, patient1]
+
+        etl.etl_patient(self.config, self.scrubber)
+
+        # Confirm that only patient 0 got stored
+        self.assertEqual(1, self.format.store_patients.call_count)
+        df = self.format.store_patients.call_args[0][1]
+        self.assertEqual([self.codebook.db.patient('0')], list(df.id))
+
+    def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
+        """Verify we ignore unknown modifier extensions during a custom etl job flow (nlp symptoms)"""
+        docref0 = TestI2b2Transform.example_fhir_documentreference()
+        docref0.id = '0'
+        docref0.subject.reference = 'Patient/1234'
+        docref1 = TestI2b2Transform.example_fhir_documentreference()
+        docref1.id = '1'
+        docref1.subject.reference = 'Patient/5678'
+        docref1.modifierExtension = [Extension({'url': 'unrecognized'})]
+        self.loader.load_docrefs.return_value = [docref0, docref1]
+
+        etl.etl_notes_text2fhir_symptoms(self.config, self.scrubber)
+
+        # Confirm that only symptoms from docref 0 got stored
+        self.assertEqual(1, self.format.store_symptoms.call_count)
+        df = self.format.store_symptoms.call_args[0][1]
+        expected_subject = f"Patient/{self.codebook.db.patient('1234')}"
+        self.assertEqual({expected_subject}, {s['reference'] for s in df.subject})
+
+
 class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
     """Test case for the job config logging data"""
 
@@ -151,8 +205,8 @@ class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
     def test_comment(self):
         """Verify that a comment makes it from command line to the log file"""
         etl.main(self.args + ['--comment=Run by foo on machine bar'])
-        config = self.read_config_file('job_config.json')
-        self.assertEqual(config['comment'], 'Run by foo on machine bar')
+        config_file = self.read_config_file('job_config.json')
+        self.assertEqual(config_file['comment'], 'Run by foo on machine bar')
 
 
 class TestI2b2EtlBatches(BaseI2b2EtlSimple):

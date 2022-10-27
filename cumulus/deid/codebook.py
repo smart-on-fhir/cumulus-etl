@@ -1,215 +1,156 @@
-"""Codebook to help de-identify records"""
+"""Codebook that stores the mappings between real and fake IDs"""
 
+import hmac
 import logging
-from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.patient import Patient
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.condition import Condition
-from fhirclient.models.observation import Observation
-from fhirclient.models.documentreference import DocumentReference
+import secrets
 
-from cumulus import common, fhir_common, store
+from cumulus import common
 
 
 class Codebook:
     """
-    Codebook links real IDs (like MRN medical record number) to UUIDs.
-    Obtaining the UUID without the codebook is safe.
+    Codebook links real IDs (like MRN medical record number) to fake IDs.
+    Obtaining the fake ID without the codebook is safe.
     Codebook is saved local to the hospital and NOT shared on public internet.
+
+    Some IDs may be cryptographically hashed versions of the real ID, some may be entirely random.
     """
 
-    def __init__(self, saved=None):
+    def __init__(self, saved: str = None):
         """
-        :param saved: saved codebook or None (initialize empty)
+        :param saved: saved codebook path or None (initialize empty)
         """
         try:
             self.db = CodebookDB(saved)
         except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
-        self.docrefs = {}
+        # Create a salt, used when hashing resource IDs.
+        # Some prior art is Microsoft's anonymizer tool which uses a UUID4 salt (with 122 bits of entropy).
+        # Since this is an important salt, it seems reasonable to do a bit more.
+        # Python's docs for the secrets module recommend 256 bits, as of 2015.
+        # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
+        # recommended, so 256 bits seem good (which is 32 bytes).
+        self.salt = secrets.token_bytes(32)
 
-    def fhir_patient(self, patient: Patient) -> Patient:
-        mrn = patient.identifier[0].value
-        deid = self.db.patient(mrn)['deid']
-
-        patient.id = deid
-        patient.identifier[0].value = deid
-
-        return patient
-
-    def fhir_encounter(self, encounter: Encounter) -> Encounter:
-        mrn = fhir_common.unref_patient(encounter.subject)
-
-        deid = self.db.encounter(mrn, encounter.id, encounter.period.start,
-                                 encounter.period.end)['deid']
-        encounter.id = deid
-        encounter.identifier[0].value = deid
-        encounter.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
-
-        return encounter
-
-    def fhir_condition(self, condition: Condition) -> Condition:
-        mrn = fhir_common.unref_patient(condition.subject)
-        encounter_id = fhir_common.unref_encounter(condition.encounter)
-
-        condition.id = common.fake_id('Condition')
-        condition.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
-        condition.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
-
-        return condition
-
-    def fhir_observation(self, observation: Observation) -> Observation:
-        mrn = fhir_common.unref_patient(observation.subject)
-        encounter_id = fhir_common.unref_encounter(observation.encounter)
-
-        observation.id = common.fake_id('Observation')
-        observation.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
-        observation.encounter = fhir_common.ref_encounter(self.db.encounter(mrn, encounter_id)['deid'])
-
-        # Does the observation have an NLP source extension? If so, de-identify its docref
-        for extension in (observation.extension or []):
-            if extension.url == 'http://hl7.org/fhir/StructureDefinition/derivation-reference':
-                for values in extension.extension:
-                    if values.url == 'reference':
-                        cleaned_docref_id = fhir_common.unref_resource(values.valueReference, 'DocumentReference')
-                        deid_docref_id = self._docref_deid(cleaned_docref_id)
-                        values.valueReference = fhir_common.ref_document(deid_docref_id)
-
-        return observation
-
-    def fhir_documentreference(self, docref: DocumentReference) -> DocumentReference:
-        mrn = fhir_common.unref_patient(docref.subject)
-        original_id = docref.id
-
-        docref.id = common.fake_id('DocumentReference')
-        docref.subject = fhir_common.ref_subject(self.db.patient(mrn)['deid'])
-        docref.context.encounter = [
-            fhir_common.ref_encounter(self.db.encounter(mrn, fhir_common.unref_encounter(encounter))['deid'])
-            for encounter in docref.context.encounter
-        ]
-
-        # Record the mapping for this document, so that later observations (like NLP results) can reference it.
-        # We don't bother saving this in the codebook database though, since we don't care about persisting run-to-run.
-        self.docrefs[original_id] = docref.id
-
-        return docref
-
-    def _docref_deid(self, docref_id: str) -> str:
+    def fake_id(self, resource_type: str, real_id: str) -> str:
         """
-        Looks up the mapping from original to deid docref ID for this cumulus run
+        Returns a new fake ID in place of the provided real ID
 
-        This should only be used after all docrefs have been scanned, so that we already have the mappings.
+        This will always return the same fake ID for a given resource type & real ID, for the lifetime of the codebook.
+
+        For some resource types (like Patient or Encounter), the result will be reversible.
+        This is because we want to retain the ability to investigate oddities in the resulting Cumulus output.
+        If we are seeing a signal in queries against the de-identified data, we want the hospital to be able to go back
+        and investigate.
+        Since it's reversible and preserved, that means we can also completely randomize it, since we have it sitting
+        in memory anyway.
+
+        But most other types don't need that reversibility and are instead cryptographically hashed using HMAC-SHA256
+        and a random salt/secret. This is the same algorithm used by Microsoft's anonymization tools for FHIR.
+        We use a hash rather than a stored mapping purely for memory reasons.
         """
-        deid_docref_id = self.docrefs.get(docref_id)
-
-        if deid_docref_id is None:
-            # Should not happen unless we have broken links -- all documents will have been scanned by this point.
-            deid_docref_id = common.fake_id('DocumentReference')
-            self.docrefs[docref_id] = deid_docref_id
-            logging.error('Could not find existing docref to de-identify, inventing new ref "%s"', deid_docref_id)
-
-        return deid_docref_id
+        if resource_type == 'Patient':
+            return self.db.patient(real_id)
+        elif resource_type == 'Encounter':
+            return self.db.encounter(real_id)
+        else:
+            # This will be exactly 64 characters long, the maximum FHIR id length
+            return hmac.new(self.salt, digestmod='sha256', msg=real_id.encode('utf8')).hexdigest()
 
 
 ###############################################################################
 #
-# HTTP Client for CTAKES REST
+# Database for the codebook
 #
 ###############################################################################
-
 
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
 
-    def __init__(self, saved=None):
+    def __init__(self, saved: str = None):
         """
         Create a codebook database.
 
-        Preserves scientific accuracy of patient counting and linkage while
-        preserving patient privacy.
+        Preserves scientific accuracy of patient counting and linkage while preserving patient privacy.
 
-        Codebook replaces sensitive PHI identifiers with DEID linked
-        identifiers.
+        Codebook replaces sensitive PHI identifiers with DEID linked identifiers.
         https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2244902
 
-        codebook::= (patient (encounter note))+
-        mrn::= text
-        encounter::= encounter_id period_start period_end
-        note::= md5sum
-
-        :param saved: load from file (optional)
+        :param saved: filename to load from (optional)
         """
-        self.mrn = {}
-        if saved is not None:
-            if isinstance(saved, str):
-                self._load_saved(common.read_json(saved))
-            if isinstance(saved, dict):
-                self._load_saved(saved)
-            if isinstance(saved, CodebookDB):
-                self.mrn = saved.mrn
+        self.mapping = {
+            # If you change the saved format, bump this number and add your new format loader in _load_saved()
+            'version': 1,
+            'Patient': {},
+            'Encounter': {},
+        }
 
-    def patient(self, mrn) -> dict:
+        if saved:
+            self._load_saved(common.read_json(saved))
+
+    def patient(self, real_id: str) -> str:
         """
-        FHIR Patient
-        :param mrn: Medical Record Number
-                    https://www.hl7.org/fhir/patient-definitions.html#Patient.identifier
-        :return: record mapping MRN to a fake ID
+        Get a fake ID for a FHIR Patient ID
+
+        :param real_id: patient resource ID
+        :return: fake ID
         """
-        if mrn:
-            if mrn not in self.mrn.keys():
-                self.mrn[mrn] = {}
-                self.mrn[mrn]['deid'] = common.fake_id('Patient')
-                self.mrn[mrn]['encounter'] = {}
-            return self.mrn[mrn]
+        return self._fake_id('Patient', real_id)
 
-    def encounter(self,
-                  mrn,
-                  encounter_id,
-                  period_start=None,
-                  period_end=None) -> dict:
+    def encounter(self, real_id: str) -> str:
         """
-        FHIR Encounter
+        Get a fake ID for a FHIR Encounter ID
 
-        :param mrn: Medical Record Number
-        :param encounter_id: encounter identifier
-                             https://hl7.org/fhir/encounter-definitions.html#Encounter.identifier
-        :param period_start: start of encounter
-                             http://hl7.org/fhir/encounter-definitions.html#Encounter.period
-        :param period_end: end of encounter
-                           http://hl7.org/fhir/encounter-definitions.html#Encounter.period
-        :return: record mapping encounter to a fake ID
+        :param real_id: encounter resource ID
+        :return: fake ID
         """
-        self.patient(mrn)
-        if encounter_id:
-            if encounter_id not in self.mrn[mrn]['encounter'].keys():
-                self.mrn[mrn]['encounter'][encounter_id] = {}
-                self.mrn[mrn]['encounter'][encounter_id]['deid'] = common.fake_id('Encounter')
+        return self._fake_id('Encounter', real_id)
 
-                if period_start and isinstance(period_start, FHIRDate):
-                    period_start = period_start.isostring
+    def _fake_id(self, resource_type: str, real_id: str) -> str:
+        """
+        Get a random fake ID and preserve the mapping
+        :param resource_type: FHIR resource name
+        :param real_id: patient resource ID
+        :return: fake ID
+        """
+        type_mapping = self.mapping.setdefault(resource_type, {})
 
-                if period_end and isinstance(period_end, FHIRDate):
-                    period_end = period_end.isostring
+        fake_id = type_mapping.get(real_id)
+        if not fake_id:
+            # We could have just called setdefault() above instead of get(), but to avoid calling fake_id() more often
+            # than necessary, only create new IDs as needed.
+            # The ID does not need to be cryptographically random, since the real_id is not encoded in it at all.
+            fake_id = common.fake_id(resource_type)
+            type_mapping[real_id] = fake_id
 
-                self.mrn[mrn]['encounter'][encounter_id]['period_start'] = period_start
-                self.mrn[mrn]['encounter'][encounter_id]['period_end'] = period_end
+        return fake_id
 
-            return self.mrn[mrn]['encounter'][encounter_id]
-
-    def _load_saved(self, saved: dict):
+    def _load_saved(self, saved: dict) -> None:
         """
         :param saved: dictionary containing structure
                       [patient][encounter]
         :return:
         """
-        for mrn, patient_data in saved['mrn'].items():
-            self.patient(mrn)['deid'] = patient_data['deid']
+        version = saved.get('version', 0)
+        if version == 0:
+            self._load_version0(saved)
+        elif version == 1:
+            self._load_version1(saved)
+        else:
+            raise Exception(f'Unknown codebook version: "{version}"')
 
-            for enc, enc_data in patient_data.get('encounter', {}).items():
-                self.encounter(mrn, enc)['deid'] = enc_data['deid']
-                self.encounter(mrn, enc)['period_start'] = enc_data['period_start']
-                self.encounter(mrn, enc)['period_end'] = enc_data['period_end']
+    def _load_version0(self, saved: dict) -> None:
+        """Loads version 0 of the codebook database format"""
+        for patient_id, patient_data in saved['mrn'].items():
+            self.mapping['Patient'][patient_id] = patient_data['deid']
+
+            for enc_id, enc_data in patient_data.get('encounter', {}).items():
+                self.mapping['Encounter'][enc_id] = enc_data['deid']
+
+    def _load_version1(self, saved: dict) -> None:
+        """Loads version 1 of the codebook database format"""
+        self.mapping = saved
 
     def save(self, path: str) -> None:
         """
@@ -217,13 +158,4 @@ class CodebookDB:
         :param path: /path/to/codebook.json
         """
         logging.info('Saving codebook to: %s', path)
-        common.write_json(path, self.__dict__)
-
-    def delete(self, root: store.Root, path: str) -> None:
-        """
-        DELETE the CodebookDB database
-        :param root: target filesystem
-        :param path: /path/to/codebook.json
-        """
-        logging.warning('DELETE codebook from: %s', path)
-        root.rm(path)
+        common.write_json(path, self.mapping)

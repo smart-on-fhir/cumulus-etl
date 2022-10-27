@@ -77,6 +77,8 @@ def fake_id(category: str) -> str:
     """
     Randomly generate a linked Patient identifier
 
+    This ID is not cryptographically random.
+
     :param category: the resource type for this ID
     :return: long universally unique ID
     """

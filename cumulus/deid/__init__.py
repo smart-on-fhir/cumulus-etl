@@ -1,3 +1,3 @@
 """De-identification support"""
 
-from .codebook import Codebook
+from .scrubber import Scrubber

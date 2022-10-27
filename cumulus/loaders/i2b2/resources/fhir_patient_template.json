@@ -21,12 +21,6 @@
          ]
       }
    ],
-   "identifier":[
-      {
-         "system":"BCH i2b2 patient number",
-         "value":"0"
-      }
-   ],
    "gender":"U",
    "birthDate":"1800",
    "address":[
