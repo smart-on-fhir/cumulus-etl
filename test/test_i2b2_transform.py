@@ -14,7 +14,8 @@ from cumulus.loaders.i2b2 import transform as T
 class TestI2b2Transform(unittest.TestCase):
     """Test case for converting from i2b2 to FHIR"""
 
-    def example_fhir_patient(self) -> Patient:
+    @staticmethod
+    def example_fhir_patient() -> Patient:
         pat_i2b2 = T.PatientDimension({
             'PATIENT_NUM': str(12345),
             'BIRTH_DATE': '2005-06-07',
@@ -37,8 +38,8 @@ class TestI2b2Transform(unittest.TestCase):
         # pylint: disable-next=unsubscriptable-object
         self.assertEqual('02115', subject.address[0].postalCode)
 
-    def example_fhir_encounter(self) -> Encounter:
-
+    @staticmethod
+    def example_fhir_encounter() -> Encounter:
         visit_i2b2 = T.VisitDimension({
             'ENCOUNTER_NUM': 67890,
             'PATIENT_NUM': '12345',
@@ -54,14 +55,16 @@ class TestI2b2Transform(unittest.TestCase):
         encounter = self.example_fhir_encounter()
         # print(json.dumps(encounter.as_json(), indent=4))
 
+        self.assertEqual('67890', encounter.id)
         self.assertEqual('Patient/12345', encounter.subject.reference)
-        self.assertEqual(str(67890), encounter.identifier[0].value)
         self.assertEqual('2016-01-01', encounter.period.start.isostring)
         self.assertEqual('2016-01-04', encounter.period.end.isostring)
         self.assertEqual(3, encounter.length.value)
 
-    def example_fhir_condition(self):
+    @staticmethod
+    def example_fhir_condition():
         diagnosis = T.ObservationFact({
+            'INSTANCE_NUM': '4567',
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
             'CONCEPT_CD': 'ICD10:U07.1',  # COVID19 Diagnosis
@@ -80,8 +83,10 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'),
                          condition.code.coding[0].system)
 
-    def example_fhir_documentreference(self) -> DocumentReference:
+    @staticmethod
+    def example_fhir_documentreference() -> DocumentReference:
         note_i2b2 = T.ObservationFact({
+            'INSTANCE_NUM': '345',
             'PATIENT_NUM':
                 str(12345),
             'ENCOUNTER_NUM':
@@ -105,7 +110,8 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
         self.assertEqual(str('NOTE:103933779'), docref.type.text)
 
-    def example_fhir_observation_lab(self):
+    @staticmethod
+    def example_fhir_observation_lab():
         lab_i2b2 = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,

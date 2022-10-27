@@ -23,12 +23,12 @@ def symptoms(cache: store.Root, docref: DocumentReference) -> List[Observation]:
     :return: list of NLP results encoded as FHIR observations
     """
     docref_id = docref.id
-    subject_id = fhir_common.unref_patient(docref.subject)
+    _, subject_id = fhir_common.unref_resource(docref.subject)
 
     if not docref.context.encounter:
         logging.warning('No valid encounters for symptoms')  # ideally would print identifier, but it's PHI...
         return []
-    encounter_id = fhir_common.unref_encounter(docref.context.encounter[0])
+    _, encounter_id = fhir_common.unref_resource(docref.context.encounter[0])
 
     # Find the physician note among the attachments
     for content in docref.content:

@@ -1,0 +1,64 @@
+{
+    "mrn": {
+        "323456": {
+            "deid": "1de9ea66-70d3-da1f-c735-df5ef7697fb9",
+            "encounter": {
+                "24": {
+                    "deid": "08f0ebd4-950c-ddd9-ce97-b5bdf073eed1",
+                    "docref": {},
+                    "period_start": "2013-03-10",
+                    "period_end": "2013-03-13"
+                },
+                "22": {
+                    "deid": "175e9941-2607-ad5f-76ab-14759da618fd",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                },
+                "25": {
+                    "deid": "af1e6186-3f9a-1fa9-3c73-cfa56c84a056",
+                    "docref": {},
+                    "period_start": "2013-04-10",
+                    "period_end": "2013-04-13"
+                }
+            }
+        },
+        "334567": {
+            "deid": "118dc10e-7745-20d7-e98d-7c358a84c15c",
+            "encounter": {
+                "23": {
+                    "deid": "d30aad4b-4503-8e22-0bc4-621b94398520",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        },
+        "312345": {
+            "deid": "7442a124-4e2e-3761-aba6-01ca242780aa",
+            "encounter": {
+                "21": {
+                    "deid": "458c3cdb-2d66-5a7b-0a4a-db41ce779a93",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        },
+        "3234567": {
+            "deid": "861abd5d-c0ae-6995-27aa-e362c6c0ac72",
+            "encounter": {}
+        },
+        "3123456": {
+            "deid": "c07666e7-9ef6-62f8-8dee-ba7ec0ea7563",
+            "encounter": {
+                "212": {
+                    "deid": "4e9e5e14-a289-0d0d-81ee-8062b8b984c3",
+                    "docref": {},
+                    "period_start": null,
+                    "period_end": null
+                }
+            }
+        }
+    }
+}

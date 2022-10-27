@@ -4,7 +4,6 @@ import base64
 import logging
 from typing import Optional
 
-from fhirclient.models.identifier import Identifier
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
@@ -38,7 +37,6 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     """
     subject = Patient(fhir_template.fhir_patient())
     subject.id = patient.patient_num
-    subject.identifier = [Identifier({'value': str(patient.patient_num)})]
 
     if patient.birth_date:
         subject.birthDate = fhir_common.parse_fhir_date(patient.birth_date)
@@ -71,7 +69,6 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     """
     encounter = Encounter(fhir_template.fhir_encounter())
     encounter.id = str(visit.encounter_num)
-    encounter.identifier = [Identifier({'value': str(visit.encounter_num)})]
     encounter.subject = fhir_common.ref_subject(visit.patient_num)
 
     if visit.inout_cd == 'Inpatient':

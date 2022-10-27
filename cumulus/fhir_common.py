@@ -54,29 +54,28 @@ def ref_document(docref_id: str) -> FHIRReference:
     return ref_resource('DocumentReference', docref_id)
 
 
-def unref_resource(ref: FHIRReference, resource_type: str) -> str:
+def unref_resource(ref: FHIRReference) -> (str, str):
     """
-    Strips a leading type marker, if any, and returns the raw identifier
+    Returns the type & ID for the target of the reference
 
-    Examples with id_type=Patient:
-    - ABC -> ABC
-    - Patient/ABC -> ABC
-    - Group/ABC -> Group/ABC
+    Examples:
+    - reference=Patient/ABC -> (Patient, ABC)
+    - reference=ABC, type=Patient -> (Patient, ABC)
+
+    Raises ValueError if the reference could not be understood
     """
-    # TODO: what if ref is not simply a local reference like Patient/ABC, but has a type & identifier or url
-    prefix = f'{resource_type}/'
-    # Once we depend on python3.9+, we can simply use identifier.removeprefix()
-    if ref.reference.startswith(prefix):
-        return ref.reference[len(prefix):]
-    return ref.reference
+    # FIXME: Support contained resources like '#p1' and absolute resources like
+    #        http://fhir.hl7.org/svc/StructureDefinition/c8973a22-2b5b-4e76-9c66-00639c99e61b
+    if not ref.reference or ref.reference.count('/') > 2 or ref.reference.startswith('#'):
+        raise ValueError(f'Unrecognized reference: "{ref.reference}"')
 
+    tokens = ref.reference.split('/')
+    if len(tokens) == 2:
+        return tokens[0], tokens[1]
 
-def unref_patient(ref: FHIRReference) -> str:
-    return unref_resource(ref, 'Patient')
-
-
-def unref_encounter(ref: FHIRReference) -> str:
-    return unref_resource(ref, 'Encounter')
+    if not ref.type:
+        raise ValueError(f'Reference does not have a type: "{ref.reference}"')
+    return ref.type, tokens[0]
 
 
 ###############################################################################

@@ -7,14 +7,12 @@ import logging
 import os
 import sys
 from functools import partial
-from typing import Callable, Iterable, Iterator, List, TypeVar
+from typing import Callable, Iterable, Iterator, List, Optional, TypeVar
 
 import pandas
-from fhirclient.models.attachment import Attachment
-from fhirclient.models.resource import Resource
+from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 
-from cumulus import common, ctakes, formats, loaders, store
-from cumulus.codebook import Codebook
+from cumulus import common, ctakes, deid, formats, loaders, store
 from cumulus.config import JobConfig, JobSummary
 from cumulus.loaders import ResourceIterator
 
@@ -25,9 +23,9 @@ from cumulus.loaders import ResourceIterator
 ###############################################################################
 
 T = TypeVar('T')
-AnyResource = TypeVar('AnyResource', bound=Resource)
+AnyResource = TypeVar('AnyResource', bound=FHIRAbstractBase)
 LoaderCallable = Callable[[], ResourceIterator]
-DeidentifyCallable = Callable[[AnyResource], Resource]
+DeidentifyCallable = Callable[[AnyResource], bool]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
@@ -63,7 +61,7 @@ def _process_job_entries(
     config: JobConfig,
     job_name: str,
     loader: LoaderCallable,
-    deid: DeidentifyCallable,
+    to_deid: Optional[DeidentifyCallable],
     to_store: StoreFormatCallable,
 ):
     job = JobSummary(job_name)
@@ -74,8 +72,11 @@ def _process_job_entries(
     # Load input data into an iterable of FHIR objects
     fhir_entries = loader()
 
-    # De-identify each entry by passing them through our codebook
-    deid_entries = (deid(x) for x in fhir_entries)
+    # De-identify each entry by passing them through our scrubber
+    if to_deid:
+        deid_entries = filter(to_deid, fhir_entries)
+    else:
+        deid_entries = fhir_entries
 
     # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
     # We want to batch them up, to allow resuming from interruptions more easily.
@@ -96,12 +97,12 @@ def _process_job_entries(
 ###############################################################################
 
 
-def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_patient(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_patient.__name__,
         config.loader.load_patients,
-        codebook.fhir_patient,
+        scrubber.scrub_resource,
         config.format.store_patients,
     )
 
@@ -113,12 +114,12 @@ def etl_patient(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_encounter(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_encounter(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_encounter.__name__,
         config.loader.load_encounters,
-        codebook.fhir_encounter,
+        scrubber.scrub_resource,
         config.format.store_encounters,
     )
 
@@ -130,12 +131,12 @@ def etl_encounter(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_lab(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_lab.__name__,
         config.loader.load_labs,
-        codebook.fhir_observation,
+        scrubber.scrub_resource,
         config.format.store_labs,
     )
 
@@ -147,12 +148,12 @@ def etl_lab(config: JobConfig, codebook: Codebook) -> JobSummary:
 ###############################################################################
 
 
-def etl_condition(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_condition(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_condition.__name__,
         config.loader.load_conditions,
-        codebook.fhir_condition,
+        scrubber.scrub_resource,
         config.format.store_conditions,
     )
 
@@ -163,43 +164,32 @@ def etl_condition(config: JobConfig, codebook: Codebook) -> JobSummary:
 #
 ###############################################################################
 
-def load_docrefs_without_notes(config: JobConfig) -> ResourceIterator:
-    """Strips the notes off of any documents"""
-    for docref in config.loader.load_docrefs():
-        for content in getattr(docref, 'content', []):
-            # Remove all attributes except a couple metadata ones
-            content.attachment = Attachment({
-                'contentType': content.attachment.contentType,
-                'creation': content.attachment.creation,
-                'language': content.attachment.language,
-            })
-        yield docref
-
-
-def etl_notes_meta(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_notes_meta(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_meta.__name__,
-        partial(load_docrefs_without_notes, config),
-        codebook.fhir_documentreference,
+        config.loader.load_docrefs,
+        scrubber.scrub_resource,
         config.format.store_docrefs,
     )
 
 
-def load_nlp_symptoms(config: JobConfig) -> ResourceIterator:
+def load_nlp_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> ResourceIterator:
     """Passes physician notes through NLP and returns any symptoms found"""
     for docref in config.loader.load_docrefs():
+        if not scrubber.scrub_resource(docref, scrub_attachments=False):
+            continue
         symptoms = ctakes.symptoms(config.dir_phi, docref)
         for symptom in symptoms:
             yield symptom
 
 
-def etl_notes_text2fhir_symptoms(config: JobConfig, codebook: Codebook) -> JobSummary:
+def etl_notes_text2fhir_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_text2fhir_symptoms.__name__,
-        partial(load_nlp_symptoms, config),
-        codebook.fhir_observation,
+        partial(load_nlp_symptoms, config, scrubber),
+        None,  # scrubbing is done in load method
         config.format.store_symptoms,
     )
 
@@ -227,12 +217,12 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
         etl_condition,
     ]
 
-    codebook = Codebook(config.path_codebook())
+    scrubber = deid.Scrubber(config.path_codebook())
     for task in task_list:
-        summary = task(config, codebook)
+        summary = task(config, scrubber)
         summary_list.append(summary)
 
-        codebook.db.save(config.path_codebook())
+        scrubber.save()
 
         path = os.path.join(config.dir_job_config(), f'{summary.label}.json')
         common.write_json(path, summary.as_json(), indent=4)
