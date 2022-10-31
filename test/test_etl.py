@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import unittest
 import uuid
+from typing import Optional
 from unittest import mock
 
 import freezegun
@@ -46,11 +47,28 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
 
         self.output_path = os.path.join(tmpdir, 'output')
         self.phi_path = os.path.join(tmpdir, 'phi')
-        self.args = [self.input_path, self.output_path, self.phi_path, '--input-format=i2b2']
 
         filecmp.clear_cache()
 
         self.enforce_consistent_uuids()
+
+    def run_etl(self, input_path=None, output_path=None, phi_path=None, input_format: Optional[str] = 'i2b2',
+                output_format=None, comment=None, batch_size=None) -> None:
+        args = [
+            input_path or self.input_path,
+            output_path or self.output_path,
+            phi_path or self.phi_path,
+            '--skip-init-checks',
+        ]
+        if input_format:
+            args.append(f'--input-format={input_format}')
+        if output_format:
+            args.append(f'--output-format={output_format}')
+        if comment:
+            args.append(f'--comment={comment}')
+        if batch_size:
+            args.append(f'--batch-size={batch_size}')
+        etl.main(args)
 
     def enforce_consistent_uuids(self):
         """Make sure that UUIDs will be the same from run to run"""
@@ -204,7 +222,7 @@ class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
 
     def test_comment(self):
         """Verify that a comment makes it from command line to the log file"""
-        etl.main(self.args + ['--comment=Run by foo on machine bar'])
+        self.run_etl(comment='Run by foo on machine bar')
         config_file = self.read_config_file('job_config.json')
         self.assertEqual(config_file['comment'], 'Run by foo on machine bar')
 
@@ -213,7 +231,7 @@ class TestI2b2EtlBatches(BaseI2b2EtlSimple):
     """Test case for etl batching"""
 
     def test_batched_output(self):
-        etl.main(self.args + ['--batch-size=1'])
+        self.run_etl(batch_size=1)
         self.assert_output_equal('batched-ndjson-output')
 
     def test_batch_iterate(self):
@@ -255,21 +273,20 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
     """Test case for each of the formats we support"""
 
     def test_etl_job_json(self):
-        etl.main(self.args + ['--output-format=json'])
+        self.run_etl(output_format='json')
         self.assert_output_equal('json-output')
 
     def test_etl_job_ndjson(self):
-        etl.main(self.args)  # ndjson is default
+        self.run_etl()  # ndjson should be default output
         self.assert_output_equal('ndjson-output')
 
     def test_etl_job_input_ndjson(self):
         self.input_path = os.path.join(self.data_dir, 'ndjson-input')
-        self.args = [self.input_path, self.output_path, self.phi_path]
-        etl.main(self.args)  # ndjson is default input and output
+        self.run_etl(input_format=None)  # ndjson should be default input
         self.assert_output_equal('ndjson-output')
 
     def test_etl_job_parquet(self):
-        etl.main(self.args + ['--output-format=parquet'])
+        self.run_etl(output_format='parquet')
 
         # Merely test that the files got created. It's a binary format, so
         # diffs aren't helpful, and looks like it can differ from machine to
@@ -300,7 +317,7 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
         fs = s3fs.S3FileSystem()
         fs.makedirs('s3://mockbucket/')
 
-        etl.main(['--input-format=i2b2', self.input_path, 's3://mockbucket/root', self.phi_path])
+        self.run_etl(output_path='s3://mockbucket/root')
 
         all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
         self.assertEqual({
@@ -324,7 +341,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
         return os.path.join(self.phi_path, 'ctakes-cache', 'version1', checksum[0:4], f'sha256-{checksum}.json')
 
     def test_stores_cached_json(self):
-        etl.main(self.args + ['--output-format=parquet'])
+        self.run_etl(output_format='parquet')
 
         notes_csv_path = os.path.join(self.input_path, 'csv_note', 'note1.csv')
         facts = extract.extract_csv_observation_facts(notes_csv_path)
@@ -370,7 +387,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
                 ],
             })
 
-        etl.main(self.args)
+        self.run_etl()
 
         # We should never have called our mock cTAKES server
         self.assertEqual(0, self.nlp_mock.call_count)
