@@ -5,10 +5,14 @@ import itertools
 import json
 import logging
 import os
+import socket
 import sys
+import time
 from functools import partial
 from typing import Callable, Iterable, Iterator, List, Optional, TypeVar
+from urllib.parse import urlparse
 
+import ctakesclient
 import pandas
 from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 
@@ -232,10 +236,50 @@ def etl_job(config: JobConfig) -> List[JobSummary]:
 
 ###############################################################################
 #
-# Main
+# External requirements (like cTAKES)
 #
 ###############################################################################
 
+def check_ctakes() -> None:
+    """
+    Verifies that cTAKES is available to receive requests.
+
+    Will block while waiting for cTAKES.
+    """
+    # Check if our cTAKES server is ready (it may still not be fully ready once the socket is open, but at least it
+    # will accept requests and then block the reply on it finishing its initialization)
+    ctakes_url = ctakesclient.client.get_url_ctakes_rest()
+    ctakes_url_parsed = urlparse(ctakes_url)
+
+    num_tries = 6  # try six times / wait five seconds
+    for i in range(num_tries):
+        try:
+            socket.socket().connect((ctakes_url_parsed.hostname, ctakes_url_parsed.port))
+            break
+        except ConnectionRefusedError:
+            if i < num_tries - 1:
+                time.sleep(1)
+    else:
+        print(f'A running cTAKES server was not found at:\n    {ctakes_url}\n'
+              'Please set the URL_CTAKES_REST environment variable to your server.',
+              file=sys.stderr)
+        raise SystemExit(1)
+
+
+def check_requirements() -> None:
+    """
+    Verifies that all external services and programs are ready
+
+    May block while waiting a bit for them.
+    """
+    check_ctakes()
+
+
+###############################################################################
+#
+# Main
+#
+###############################################################################
 
 def main(args: List[str]):
     parser = argparse.ArgumentParser()
@@ -250,11 +294,16 @@ def main(args: List[str]):
                         help='how many entries to process at once and thus '
                              'how many to put in one output file (default is 10M)')
     parser.add_argument('--comment', help='add the comment to the log file')
+    parser.add_argument('--skip-init-checks', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(args)
 
     logging.info('Input Directory: %s', args.dir_input)
     logging.info('Output Directory: %s', args.dir_output)
     logging.info('PHI Build Directory: %s', args.dir_phi)
+
+    # Check that cTAKES is running and any other services or binaries we require
+    if not args.skip_init_checks:
+        check_requirements()
 
     root_input = store.Root(args.dir_input, create=True)
     root_output = store.Root(args.dir_output, create=True)
