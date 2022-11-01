@@ -1,9 +1,8 @@
 """Support for cohorts"""
 
 from fhirclient.models.period import Period
-
+from cumulus import common
 from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
-
 
 class CohortSelection:
     """
@@ -45,12 +44,14 @@ class CohortSelection:
         self.patient = patient
         self.visit = visit
         self.observation = observation
+        self.timestamp = common.timestamp_filename()
 
     def as_json(self):
         out = {
             'patient': self.patient.as_json(),
             'visit': self.visit.as_json(),
-            'observation': self.observation.as_json()
+            'observation': self.observation.as_json(),
+            'timestamp':self.timestamp
         }
 
         if self.patient.birth_date and isinstance(self.patient.birth_date,

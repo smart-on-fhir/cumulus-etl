@@ -1,6 +1,7 @@
 """Schemas for i2b2 csv files"""
 
 from enum import Enum
+from cumulus import common
 
 # pylint: disable=invalid-name
 
@@ -23,10 +24,11 @@ class Table(Enum):
     mrn_patient_uuid = 'mrn_patuuid_patnum'
     mrn_patient_failed = 'mrn_patuuid_patnum_failed'
 
-
 class Dimension:
     """Base class for any i2b2 entry"""
 
+    def as_json(self):
+        return common.as_json(self.__dict__)
 
 ###############################################################################
 # i2b2 PatientDimension --> FHIR Patient
@@ -72,10 +74,6 @@ class PatientDimension(Dimension):
 
         self.table = Table.patient
 
-    def as_json(self):
-        return self.__dict__
-
-
 ###############################################################################
 # i2b2 ProviderDimension --> FHIR Practitioner (Future)
 ###############################################################################
@@ -104,10 +102,6 @@ class ProviderDimension(Dimension):
         self.import_date = row.get('IMPORT_DATE')
 
         self.table = Table.provider
-
-    def as_json(self):
-        return self.__dict__
-
 
 ###############################################################################
 # I2b2 VisitDimension --> FHIR Encounter
@@ -140,9 +134,6 @@ class VisitDimension(Dimension):
         self.length_of_stay = row.get('LENGTH_OF_STAY')
 
         self.table = Table.visit
-
-    def as_json(self):
-        return self.__dict__
 
 
 ###############################################################################
@@ -177,7 +168,6 @@ class ConceptDimension(Dimension):
         self.sourcesystem_cd = row.get('SOURCESYSTEM_CD')
 
         self.table = Table.concept
-
 
 ###############################################################################
 #
@@ -280,8 +270,11 @@ class ObservationFact(Dimension):
         TEXT_SEARCH_INDEX
     """
 
-    def __init__(self, row: dict):
-        self.table = Table.observation_fact
+    def __init__(self, row=None):
+        if row is None:
+            row = {}
+
+        self.table = Table.observation_fact.value
         self.instance_num = row.get('INSTANCE_NUM')
         self.patient_num = row.get('PATIENT_NUM')
         self.encounter_num = row.get('ENCOUNTER_NUM')
@@ -304,6 +297,3 @@ class ObservationFact(Dimension):
 
     def get_value_flag_abnormality(self) -> ValueFlagNormality:
         return ValueFlagNormality(self.valueflag_cd)
-
-    def as_json(self):
-        return self.__dict__

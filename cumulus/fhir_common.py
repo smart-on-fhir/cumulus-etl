@@ -9,7 +9,7 @@ from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.period import Period
 from fhirclient.models.range import Range
-
+from fhirclient.models.quantity import Quantity
 
 ###############################################################################
 # Standard FHIR References are ResourceType/id
@@ -145,7 +145,24 @@ def parse_fhir_date_isostring(yyyy_mm_dd) -> Optional[str]:
     return parsed.isostring if parsed else None
 
 
-def parse_fhir_period(start_date, end_date) -> Period:
+def parse_fhir_period(start_date=None, end_date=None) -> Period:
+    """
+    "Date Range", usually for an observation, encounter, or document reference.
+    Range may have start_date or end_date, but defaults are none.
+
+    https://build.fhir.org/datatypes.html#Period
+    https://hl7.org/fhir/encounter-definitions.html#Encounter.period
+    https://hl7.org/fhir/observation-definitions.html#Observation.effective_x_
+    https://hl7.org/fhir/documentreference-definitions.html#DocumentReference.context.period
+
+    In some contexts, the "Period" may refer to the selection of a population.
+    See also cumulus class "CohortSelection"
+    https://build.fhir.org/population.html
+
+    @param start_date: None means no START date is required or known.
+    @param end_date:None means no END date is required or known.
+    @return: FHIR Period start/end optionally either start/end can be "unbound"
+    """
     if isinstance(start_date, str):
         start_date = parse_fhir_date(start_date)
     if isinstance(end_date, str):
@@ -157,8 +174,53 @@ def parse_fhir_period(start_date, end_date) -> Period:
     return p
 
 
-def parse_fhir_range(low, high) -> Range:
+def _fhir_range(low=None, high=None) -> Range:
+    """
+    Specify a low<--->high range, for example LAB value reference range.
+    Many different types of range can be specified.
+
+    For *specific* date ranges, FHIR Period is usually more appropriate except
+    when date range is count like LOS (Length Of Stay in days, hours, etc).
+
+    https://www.hl7.org/fhir/datatypes.html#Range
+
+    @param low: lower bound of range
+    @param high: higher bound of rage
+    @return: FHIR Range with low/high optionally specified.
+    """
     r = Range()
     r.low = low
     r.high = high
     return r
+
+def parse_fhir_range_duration(low=None, high=None, units='d') -> Range:
+    """
+    FHIR Range duration from milliseconds to years
+    http://hl7.org/fhir/ValueSet/duration-units
+
+    @param low: start/begin duration
+    @param high: stop/end duration
+    @param units: [ms,s,min,h,d,wk,mo,a] unit of time (see duration-units)
+    @return: FHIR Range with FHIR Duration and FHIR Quantity nested
+    """
+    ucum = 'http://hl7.org/fhir/ValueSet/duration-units'
+    _low = Quantity()
+    _low.value = low
+    _low.system = ucum
+    _low.unit = units
+
+    _high = Quantity()
+    _high.value = high
+    _high.system = ucum
+    _high.unit = units
+
+    return _fhir_range(_low, _high)
+
+
+
+
+
+
+
+
+

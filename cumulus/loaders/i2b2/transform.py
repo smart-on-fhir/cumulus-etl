@@ -227,9 +227,9 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.subject = fhir_common.ref_subject(obsfact.patient_num)
     docref.context = DocumentReferenceContext()
     docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
+    docref.context.period = fhir_common.parse_fhir_period(obsfact.start_date, obsfact.end_date)
 
     docref.type = CodeableConcept({'text': str(obsfact.concept_cd)})  # i2b2 Note Type
-    docref.created = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
     content = DocumentReferenceContent()

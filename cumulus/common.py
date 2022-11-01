@@ -6,11 +6,13 @@ import logging
 import json
 import pandas
 import uuid
+from enum import Enum
 from typing import Optional
 
 import fsspec
 from fhirclient.models.resource import Resource
 from fhirclient.models.fhirabstractbase import FHIRAbstractBase
+from fhirclient.models.fhirdate import FHIRDate
 
 from cumulus import store
 
@@ -177,6 +179,21 @@ def error_fhir(fhir_resource):
     else:
         logging.error('expected FHIR Resource got %s', type(fhir_resource))
 
+def as_json(variable) -> dict:
+    out = dict()
+    for key, val in variable.items():
+        #print(f'type={type(val)}\tkey={key}\tval={val}')
+        if isinstance(val, FHIRDate):
+            out[key] = str(val.as_json())
+        elif isinstance(val, FHIRAbstractBase):
+            out[key] = val.as_json()
+        elif isinstance(val, Enum):
+            out[key] = val.value
+        elif isinstance(val, dict):
+            out[key] = as_json(val)
+        else:
+            out[key] = val
+    return out
 
 def print_json(jsonable):
     if isinstance(jsonable, dict):
