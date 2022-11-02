@@ -124,6 +124,24 @@ def fhir_date_now() -> FHIRDate:
     return FHIRDate(str(datetime.datetime.now(datetime.timezone.utc)))
 
 
+def fhir_date_is_before(fhir_date1: Union[str, FHIRDate],
+                        fhir_date2: Union[str, FHIRDate]) -> Optional[bool]:
+    fhir_date1 = parse_fhir_date(fhir_date1)
+    fhir_date2 = parse_fhir_date(fhir_date2)
+
+    if fhir_date1 and fhir_date2:
+        return fhir_date1.isostring < fhir_date2.isostring
+
+
+def fhir_date_is_equal(fhir_date1: Union[str, FHIRDate],
+                       fhir_date2: Union[str, FHIRDate]) -> Optional[bool]:
+    fhir_date1 = parse_fhir_date(fhir_date1)
+    fhir_date2 = parse_fhir_date(fhir_date2)
+
+    if fhir_date1 and fhir_date2:
+        return fhir_date1.isostring == fhir_date2.isostring
+
+
 def parse_fhir_date(yyyy_mm_dd: Union[str, FHIRDate]) -> Optional[FHIRDate]:
     """
     :param yyyy_mm_dd: YEAR Month Date

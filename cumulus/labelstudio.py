@@ -58,7 +58,8 @@ class LabelStudio:
         :param filter_semtype: UMLS semantic type to filter by (select for)
         """
         self.note_text = physician_note
-        self.note_file = None
+        self.note_file = None # optionally load from file and cache filename
+        self.note_ref = None # optional provide a document reference
         self.response_ctakes = response_ctakes
         self.filter_cui = filter_cui
         self.filter_semtype = filter_semtype
@@ -90,13 +91,16 @@ class LabelStudio:
         :param polarity: default POSITIVE mentions only.
         """
         whole_doc = set()
+        span_list = list()
 
         if self.response_ctakes:
             for match in self.response_ctakes.list_match(polarity):
                 for concept in match.conceptAttributes:
                     if concept.cui in self.filter_cui.keys():
-                        self.add_match(match, self.filter_cui[concept.cui])
-                        whole_doc.add(self.filter_cui[concept.cui])
+                        if match.span().key() not in span_list:
+                            span_list.append(match.span().key())
+                            self.add_match(match, self.filter_cui[concept.cui])
+                            whole_doc.add(self.filter_cui[concept.cui])
 
             self.add_concept(whole_doc)
 

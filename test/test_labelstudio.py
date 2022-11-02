@@ -11,7 +11,7 @@ from cumulus import store, common
 from cumulus.labelstudio import LabelStudio, merge_cohort
 
 
-@unittest.skip('Not yet finished and needs access to /opt/i2b2')
+#@unittest.skip('Not yet finished and needs access to /opt/i2b2')
 class TestLabelStudio(unittest.TestCase):
     """Test case for label studio"""
 
