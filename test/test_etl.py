@@ -3,6 +3,7 @@
 import filecmp
 import json
 import os
+import pytest
 import random
 import shutil
 import tempfile
@@ -20,11 +21,13 @@ from cumulus.loaders.i2b2 import extract
 
 from .ctakesmock import CtakesMixin, fake_ctakes_extract
 from .s3mock import S3Mixin
-from .test_i2b2_transform import TestI2b2Transform
+from .test_i2b2_transform import ExampleResources
+from .utils import TreeCompareMixin
 
 
+@pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason='MS tool not installed')
 @freezegun.freeze_time('Sep 15th, 2021 1:23:45', tz_offset=-4)
-class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
+class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
     """
     Base test case for basic runs of etl methods
 
@@ -33,9 +36,6 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
 
     def setUp(self):
         super().setUp()
-
-        # you'll always want this when debugging
-        self.maxDiff = None  # pylint: disable=invalid-name
 
         script_dir = os.path.dirname(__file__)
         self.data_dir = os.path.join(script_dir, 'data/simple')
@@ -110,45 +110,6 @@ class BaseI2b2EtlSimple(CtakesMixin, unittest.TestCase):
         rd = self.category_seeds.setdefault(category, random.Random(category))
         return str(uuid.UUID(int=rd.getrandbits(128)))
 
-    def assert_file_tree_equal(self, dircmp):
-        """
-        Compare a tree of file content.
-
-        filecmp.dircmp by itself likes to only do shallow comparisons that
-        notice changes like timestamps. But we want the contents themselves.
-        """
-        self.assertEqual([], dircmp.left_only, dircmp.left)
-        self.assertEqual([], dircmp.right_only, dircmp.right)
-
-        for filename in dircmp.common_files:
-            left_path = os.path.join(dircmp.left, filename)
-            right_path = os.path.join(dircmp.right, filename)
-
-            with open(left_path, 'rb') as f:
-                left_contents = f.read()
-            with open(right_path, 'rb') as f:
-                right_contents = f.read()
-
-            # Try to avoid comparing json files byte-for-byte. We may reasonably
-            # change formatting, or even want the test files in an
-            # easier-to-read format than the actual output files. In theory all
-            # json files are equal once parsed.
-            if filename.endswith('.json'):
-                left_json = json.loads(left_contents.decode('utf8'))
-                right_json = json.loads(right_contents.decode('utf8'))
-                self.assertEqual(left_json, right_json, filename)
-            elif filename.endswith('.ndjson'):
-                left_split = left_contents.decode('utf8').splitlines()
-                right_split = right_contents.decode('utf8').splitlines()
-                left_rows = list(map(json.loads, left_split))
-                right_rows = list(map(json.loads, right_split))
-                self.assertEqual(left_rows, right_rows, filename)
-            else:
-                self.assertEqual(left_contents, right_contents, filename)
-
-        for subdircmp in dircmp.subdirs.values():
-            self.assert_file_tree_equal(subdircmp)
-
     def assert_output_equal(self, folder: str):
         """Compares the etl output with the expected json structure"""
         # We don't compare contents of the job config because it includes a lot of paths etc.
@@ -168,20 +129,22 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         self.scrubber = deid.Scrubber()
         self.codebook = self.scrubber.codebook
         self.loader = mock.MagicMock()
+        self.dir_input = mock.MagicMock()
         self.format = mock.MagicMock()
         phi_root = store.Root(self.phi_path)
-        self.config = config.JobConfig(self.loader, self.format, phi_root, batch_size=5)
+        self.config = config.JobConfig(self.loader, self.dir_input, self.format, phi_root, batch_size=5)
 
     def test_unknown_modifier_extensions_skipped_for_patients(self):
         """Verify we ignore unknown modifier extensions during a normal etl job flow (like patients)"""
-        patient0 = TestI2b2Transform.example_fhir_patient()
+        patient0 = ExampleResources.patient()
         patient0.id = '0'
-        patient1 = TestI2b2Transform.example_fhir_patient()
+        patient1 = ExampleResources.patient()
         patient1.id = '1'
         patient1.modifierExtension = [Extension({'url': 'unrecognized'})]
-        self.loader.load_patients.return_value = [patient0, patient1]
 
-        etl.etl_patient(self.config, self.scrubber)
+        with mock.patch('cumulus.etl._read_ndjson') as mock_read:
+            mock_read.return_value = [patient0, patient1]
+            etl.etl_patient(self.config, self.scrubber)
 
         # Confirm that only patient 0 got stored
         self.assertEqual(1, self.format.store_patients.call_count)
@@ -190,16 +153,17 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
         """Verify we ignore unknown modifier extensions during a custom etl job flow (nlp symptoms)"""
-        docref0 = TestI2b2Transform.example_fhir_documentreference()
+        docref0 = ExampleResources.documentreference()
         docref0.id = '0'
         docref0.subject.reference = 'Patient/1234'
-        docref1 = TestI2b2Transform.example_fhir_documentreference()
+        docref1 = ExampleResources.documentreference()
         docref1.id = '1'
         docref1.subject.reference = 'Patient/5678'
         docref1.modifierExtension = [Extension({'url': 'unrecognized'})]
-        self.loader.load_docrefs.return_value = [docref0, docref1]
 
-        etl.etl_notes_text2fhir_symptoms(self.config, self.scrubber)
+        with mock.patch('cumulus.etl._read_ndjson') as mock_read:
+            mock_read.return_value = [docref0, docref1]
+            etl.etl_notes_text2fhir_symptoms(self.config, self.scrubber)
 
         # Confirm that only symptoms from docref 0 got stored
         self.assertEqual(1, self.format.store_symptoms.call_count)

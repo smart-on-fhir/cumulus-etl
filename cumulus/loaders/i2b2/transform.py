@@ -8,7 +8,6 @@ from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.meta import Meta
 from fhirclient.models.period import Period
 from fhirclient.models.duration import Duration
-from fhirclient.models.coding import Coding
 from fhirclient.models.extension import Extension
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
@@ -109,48 +108,31 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     return observation
 
 
-def to_fhir_observation_lab(obsfact: ObservationFact,
-                            loinc=None) -> Observation:
+def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     """
     :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
     :return: https://www.hl7.org/fhir/observation.html
     """
-    loinc = loinc or fhir_template.LOINC
-
     observation = to_fhir_observation(obsfact)
     observation.status = 'final'
 
-    if obsfact.concept_cd in loinc.keys():
-        obs_code = loinc[obsfact.concept_cd]
+    if obsfact.concept_cd in fhir_template.LOINC:
+        obs_code = fhir_template.LOINC[obsfact.concept_cd]
         obs_system = 'http://loinc.org'
     else:
         obs_code = obsfact.concept_cd
-        obs_system = 'https://childrenshospital.org/'
+        obs_system = None
 
-    observation.code = CodeableConcept()
-    observation.code.coding = [Coding({'code': obs_code, 'system': obs_system})]
+    observation.code = make_concept(obs_code, obs_system)
 
     # lab result
-    lab_result = obsfact.tval_char
-
-    concept = CodeableConcept()
-
-    if lab_result in fhir_template.LAB_RESULT:
-        concept.coding = [
-            Coding({
-                'code': fhir_template.LAB_RESULT[lab_result],
-                'display': obsfact.tval_char
-            })
-        ]
+    if obsfact.tval_char in fhir_template.LAB_RESULT:
+        lab_result = obsfact.tval_char
     else:
-        concept.coding = [
-            Coding({
-                'code': fhir_template.LAB_RESULT['Absent'],
-                'display': 'Absent'
-            })
-        ]
+        lab_result = 'Absent'
 
-    observation.valueCodeableConcept = concept
+    observation.valueCodeableConcept = make_concept(fhir_template.LAB_RESULT[lab_result], 'http://snomed.info/sct',
+                                                    display=lab_result)
 
     return observation
 
@@ -173,17 +155,14 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
         ]
     })
 
-    condition.clinicalStatus = CodeableConcept({'text': 'active'})
-    condition.verificationStatus = CodeableConcept({'text': 'unconfirmed'})
+    condition.clinicalStatus = make_concept('active', 'http://terminology.hl7.org/CodeSystem/condition-clinical')
+    condition.verificationStatus = make_concept('unconfirmed',
+                                                'http://terminology.hl7.org/CodeSystem/condition-ver-status')
 
     # Category
-    category = Coding()
-    category.system = 'http://terminology.hl7.org/CodeSystem/condition-category'
-    category.code = 'encounter-diagnosis'
-    category.display = 'Encounter Diagnosis'
-
-    condition.category = [CodeableConcept()]
-    condition.category[0].coding = [category]
+    condition.category = [make_concept('encounter-diagnosis',
+                                       'http://terminology.hl7.org/CodeSystem/condition-category',
+                                       display='Encounter Diagnosis')]
 
     # Code
     i2b2_sys, i2b2_code = obsfact.concept_cd.split(':')
@@ -198,12 +177,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
         logging.warning('Unknown System')
         i2b2_sys = '???'
 
-    code = Coding()
-    code.code = i2b2_code
-    code.system = i2b2_sys
-
-    condition.code = CodeableConcept()
-    condition.code.coding = [code]
+    condition.code = make_concept(i2b2_code, i2b2_sys)
 
     return condition
 
@@ -288,3 +262,8 @@ def parse_fhir_duration(i2b2_length_of_stay) -> float:
             return float(i2b2_length_of_stay)
         if isinstance(i2b2_length_of_stay, float):
             return i2b2_length_of_stay
+
+
+def make_concept(code: str, system: str, display: str = None) -> CodeableConcept:
+    """Syntactic sugar to make a codeable concept"""
+    return CodeableConcept({'coding': [{'code': code, 'system': system, 'display': display}]})

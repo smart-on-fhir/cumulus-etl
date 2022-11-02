@@ -2,15 +2,17 @@
 
 import collections
 import logging
+import tempfile
 from typing import Any
 
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 from fhirclient.models.fhirabstractresource import FHIRAbstractResource
 from fhirclient.models.fhirreference import FHIRReference
+from fhirclient.models.meta import Meta
 
 from cumulus import fhir_common
-from cumulus.deid import codebook
+from cumulus.deid import codebook, mstool
 
 
 FHIRProperty = collections.namedtuple(
@@ -31,10 +33,31 @@ class Scrubber:
 
     It's meant to persist throughout the whole de-identification process (to keep the ID mappings around, across
     resources).
+
+    Scrubbing happens in two phases:
+    1. Bulk de-identification of all the input data early on. This is a first pass for almost everything (except IDs,
+       notes, and sundries that Cumulus actually wants to see). Dates of birth are generalized, for example, and lots
+       of PHI attributes like names or contact info is redacted. After this call, the data is partially de-identified.
+    2. Per-resource de-identification as Cumulus inspects each resource. This is to give Cumulus more control over the
+       bits of PHI data that it actually cares about (like IDs or notes) before this final scrub here. After this call,
+       the resource is fully de-identified.
     """
     def __init__(self, codebook_path: str = None):
         self.codebook = codebook.Codebook(codebook_path)
         self.codebook_path = codebook_path
+
+    @staticmethod
+    def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
+        """
+        Bulk de-identification of all input data
+
+        This assumes that input_dir holds several FHIR ndjson files.
+
+        :returns: a temporary directory holding the de-identified results, in FHIR ndjson format
+        """
+        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        mstool.run_mstool(input_dir, tmpdir.name)
+        return tmpdir
 
     def scrub_resource(self, node: FHIRAbstractBase, scrub_attachments: bool = True) -> bool:
         """
@@ -90,6 +113,7 @@ class Scrubber:
         # For now, just manually run each operation. If this grows further, we can abstract it more.
         self._check_ids(node, fhir_property, value)
         self._check_modifier_extensions(fhir_property, value)
+        self._check_security(fhir_property, value)
         if scrub_attachments:
             self._check_attachments(node, fhir_property)
 
@@ -132,3 +156,13 @@ class Scrubber:
         """Strip any attachment data"""
         if isinstance(node, Attachment) and fhir_property.name == 'data':
             node.data = None
+
+    @staticmethod
+    def _check_security(fhir_property: FHIRProperty, value: Any) -> None:
+        """
+        Strip any security data that the MS tool injects
+
+        It takes up space in the result and anyone using Cumulus ETL understands that there was ETL applied.
+        """
+        if fhir_property.name == 'meta' and isinstance(value, Meta):
+            value.security = None  # maybe too aggressive -- is there data we care about in meta.security?
