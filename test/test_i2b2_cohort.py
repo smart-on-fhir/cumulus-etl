@@ -30,18 +30,30 @@ Dyspnea
 Muscle or body aches
 Anosmia
 """
-def asciify(physician_note: str) -> str:
-    return physician_note.encode('ascii', 'ignore').decode('utf-8')
+def clean_text(physician_note: str) -> str:
+    """
+    Clean (replace) noisy chars like '¿' from physician note.
+    Character length **Must be preserved** !
+    @param physician_note: just like the doctor said, but EHR adds noise.
+    @return: str replaced chars
+    """
+    replace_char = '¿'
+    return physician_note.replace(replace_char, ' ')
 
 def cache_ctakes(physician_note: str) -> CtakesJSON:
-    ascii_text = asciify(physician_note)
-    path = _target_filename(ascii_text)
+    """
+    Write through cache -- this probably belongs in cTAKES.
+    @param physician_note: optionally cleaned, will call clean_text(...)
+    @return: ctakes response from cache or lazy-loaded
+    """
+    cleaned = clean_text(physician_note)
+    path = _target_filename(cleaned)
 
     if os.path.exists(path):
         return CtakesJSON(common.read_json(path))
     else:
         dir_folder(path)
-        res = ctakesclient.client.extract(ascii_text)
+        res = ctakesclient.client.extract(cleaned)
         common.write_json(path, res.as_json())
         return res
 
@@ -62,8 +74,14 @@ def dir_cohort(symptom: str, cui: str) -> str:
     """
     return dir_folder(f"cohort/{symptom.title().replace(' ','')}/{cui}/")
 
-def save_labelstudio(labelstudio: LabelStudio, symptom: str, cui: str, filename:str) -> str:
-
+def save_labelstudio(labelstudio: LabelStudio, symptom: str, cui: str, filename: str) -> str:
+    """
+    @param labelstudio: ChartReview file containing physician note and parsed JSON in LabelStudio format.
+    @param symptom: "label" in LabelStudio
+    @param cui: concept unique ID, not strictly needed but useful for keeping track.
+    @param filename: where to save labelstudio file.
+    @return: path to labelstudio JSON file
+    """
     labelstudio.load_lazy()
 
     cohort_dir = dir_cohort(symptom, cui)
@@ -129,7 +147,7 @@ class TestCohortCovidSymptoms:
                 continue
 
             # NLP
-            physician_note = asciify(obsfact.observation_blob)
+            physician_note = clean_text(obsfact.observation_blob)
             if len(physician_note) < 25:
                 print(f'@@@ Note too short')
                 print(physician_note)
