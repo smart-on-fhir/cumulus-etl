@@ -1,7 +1,8 @@
 """FHIR utility methods"""
 
-from typing import List, Optional, Union
 import datetime
+import re
+from typing import List, Optional, Union
 
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.coding import Coding
@@ -9,6 +10,11 @@ from fhirclient.models.codeableconcept import CodeableConcept
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.period import Period
 from fhirclient.models.range import Range
+
+# A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
+# (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
+RELATIVE_REFERENCE_REGEX = re.compile('[A-Za-z]+[/?].+')
+RELATIVE_SEPARATOR_REGEX = re.compile('[/?]')
 
 
 ###############################################################################
@@ -45,15 +51,6 @@ def ref_encounter(encounter_id: str) -> FHIRReference:
     return ref_resource('Encounter', encounter_id)
 
 
-def ref_document(docref_id: str) -> FHIRReference:
-    """
-    Encounter Reference the FHIR proper way
-    :param docref_id: ID for encounter (isa REF can be UUID)
-    :return: FHIRReference as Encounter/$id
-    """
-    return ref_resource('DocumentReference', docref_id)
-
-
 def unref_resource(ref: FHIRReference) -> (str, str):
     """
     Returns the type & ID for the target of the reference
@@ -66,11 +63,14 @@ def unref_resource(ref: FHIRReference) -> (str, str):
     """
     # FIXME: Support contained resources like '#p1' and absolute resources like
     #        http://fhir.hl7.org/svc/StructureDefinition/c8973a22-2b5b-4e76-9c66-00639c99e61b
-    if not ref.reference or ref.reference.count('/') > 2 or ref.reference.startswith('#'):
+    if not ref.reference or ref.reference.startswith('#'):
+        raise ValueError(f'Reference type not handled: "{ref.reference}"')
+
+    if not RELATIVE_REFERENCE_REGEX.match(ref.reference) and not ref.type:
         raise ValueError(f'Unrecognized reference: "{ref.reference}"')
 
-    tokens = ref.reference.split('/')
-    if len(tokens) == 2:
+    tokens = RELATIVE_SEPARATOR_REGEX.split(ref.reference, maxsplit=1)
+    if len(tokens) > 1:
         return tokens[0], tokens[1]
 
     if not ref.type:

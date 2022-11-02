@@ -8,7 +8,7 @@ import freezegun
 from cumulus import config
 
 
-class TestI2b2ConfigSummary(unittest.TestCase):
+class TestConfigSummary(unittest.TestCase):
     """Test case for JobSummary"""
 
     @freezegun.freeze_time('Sep 15th, 2021 1:23:45')
