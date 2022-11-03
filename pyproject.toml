@@ -14,7 +14,7 @@ authors = [
   { name="Michael Terry", email="michael.terry@childrens.harvard.edu" },
 ]
 description = "Turns FHIR data into de-identified & aggregated records"
-readme = "README.rst"
+readme = "README.md"
 license = { text="Apache License 2.0" }
 classifiers = [
     "License :: OSI Approved :: Apache Software License",
