@@ -53,7 +53,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
         self.enforce_consistent_uuids()
 
     def run_etl(self, input_path=None, output_path=None, phi_path=None, input_format: Optional[str] = 'i2b2',
-                output_format=None, comment=None, batch_size=None) -> None:
+                output_format: Optional[str] = 'ndjson', comment=None, batch_size=None) -> None:
         args = [
             input_path or self.input_path,
             output_path or self.output_path,
@@ -241,7 +241,7 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
         self.assert_output_equal('json-output')
 
     def test_etl_job_ndjson(self):
-        self.run_etl()  # ndjson should be default output
+        self.run_etl(output_format='ndjson')
         self.assert_output_equal('ndjson-output')
 
     def test_etl_job_input_ndjson(self):
@@ -250,7 +250,7 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
         self.assert_output_equal('ndjson-output')
 
     def test_etl_job_parquet(self):
-        self.run_etl(output_format='parquet')
+        self.run_etl(output_format=None)  # parquet should be default output
 
         # Merely test that the files got created. It's a binary format, so
         # diffs aren't helpful, and looks like it can differ from machine to
@@ -301,6 +301,14 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
 class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
     """Test case for caching the cTAKES responses"""
 
+    def setUp(self):
+        super().setUp()
+        # sha256 checksums of the two test patient notes
+        self.expected_checksums = [
+            '5db841c4c46d8a25fbb1891fd1eb352170278fa2b931c1c5edebe09a06582fb5',
+            '6466bb1868126fd2b5e357a556fceed075fab1e8d25d5f777abf33144d93c5cf',
+        ]
+
     def path_for_checksum(self, checksum):
         return os.path.join(self.phi_path, 'ctakes-cache', 'version1', checksum[0:4], f'sha256-{checksum}.json')
 
@@ -310,24 +318,14 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
         notes_csv_path = os.path.join(self.input_path, 'csv_note', 'note1.csv')
         facts = extract.extract_csv_observation_facts(notes_csv_path)
 
-        expected_checksums = {
-            0: 'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
-            1: '2c75f7374e5706606532d8456d7f7d5be184ee3ea9322ca9309beeb1570ceb42',
-        }
-
-        for index, checksum in expected_checksums.items():
+        for index, checksum in enumerate(self.expected_checksums):
             self.assertEqual(
                 fake_ctakes_extract(facts[index].observation_blob).as_json(),
                 common.read_json(self.path_for_checksum(checksum))
             )
 
     def test_does_not_hit_server_if_cache_exists(self):
-        expected_checksums = {
-            'd4f19607abe69ff92f1c80da0f78da1adb3bd26ecde5946178dc5c2957bafd78',
-            '2c75f7374e5706606532d8456d7f7d5be184ee3ea9322ca9309beeb1570ceb42',
-        }
-
-        for index, checksum in enumerate(expected_checksums):
+        for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
             filename = self.path_for_checksum(checksum)
             os.makedirs(os.path.dirname(filename))
