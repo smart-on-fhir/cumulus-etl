@@ -97,8 +97,8 @@ class LabelStudio:
             for match in self.response_ctakes.list_match(polarity):
                 for concept in match.conceptAttributes:
                     if concept.cui in self.filter_cui.keys():
-                        if match.span().key() not in span_list:
-                            span_list.append(match.span().key())
+                        if str(match.span()) not in span_list:
+                            span_list.append(str(match.span()))
                             self.add_match(match, self.filter_cui[concept.cui])
                             whole_doc.add(self.filter_cui[concept.cui])
 

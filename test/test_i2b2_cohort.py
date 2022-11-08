@@ -176,6 +176,23 @@ def score_kappa(ann1: list, ann2: list):
 class TestCohortCovidSymptoms(unittest.TestCase):
     """Test case for cohort """
 
+    def test_span_overlapping(self):
+        spanA = Span(1, 2)
+        spanB = Span(1, 2)
+        spanC = Span(1, 3)
+        spanD = Span(4, 3)
+
+        span_list = [str(spanA), spanC, spanD]
+
+        self.assertTrue(str(spanB) in span_list)
+
+    def test_date_is_before(self):
+        date1 = parse_fhir_date('2017-10-23 19:40:10')
+        date2 = parse_fhir_date('2020-03-01')
+
+        self.assertTrue(fhir_date_is_before(date1, date2))
+        self.assertFalse(fhir_date_is_before(date2, date1))
+
     def test_criteria(self):
         """
         Example Cohort Selection
@@ -200,7 +217,26 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
         return select
 
-    def test_select_notes(self, notes_csv, cnt_notes=30):
+    def test_select_notes_no_labels(self, notes_csv, cnt_notes=30):
+        selected = list()
+        obsfact_list = extract.extract_csv_observation_facts(notes_csv)
+        random.shuffle(obsfact_list)
+
+        for obsfact in obsfact_list:
+            selected.append(obsfact.instance_num)
+
+            physician_note = clean_text(obsfact.observation_blob)
+            if len(physician_note) > 25:
+                no_labels = LabelStudio(physician_note, None)
+                save_labelstudio(no_labels, f'no_labels_{obsfact.instance_num}')
+
+            if len(selected) >= cnt_notes:
+                logging.info('randomly sampled enough cases, existing.')
+                break
+
+        print(selected)
+
+    def test_select_notes_silver_prelabel(self, notes_csv, cnt_notes=30):
 
         criteria = self.test_criteria()
         criteria_cui_symptom = criteria.observation.concept_cd
@@ -223,9 +259,10 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
         for obsfact in obsfact_list:
             seen.append(obsfact.instance_num)
+            print(obsfact.start_date)
 
-            if fhir_date_is_before(obsfact.start_date, criteria.visit.start_date):
-                print(f'before COVID study start {obsfact.start_date}')
+            if fhir_date_is_before(obsfact.start_date, criteria.observation.start_date):
+                print(f'Excluded date:  {obsfact.start_date}')
                 continue
 
             # NLP
@@ -267,6 +304,7 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
                         if obsfact.instance_num not in selected:
                             selected.append(obsfact.instance_num)
+                            print(f'added note for date= {obsfact.start_date}')
 
                         print(f'{cui} in {nlp_cui_matches} {symptom_pref}')
             else:
@@ -286,4 +324,4 @@ def test_summary_counts():
 if __name__ == '__main__':
     runner = TestCohortCovidSymptoms()
     #runner.test_select('/Users/andy/phi/i2b2/csv_note/sample.csv')
-    runner.test_select_notes('/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv')
+    runner.test_select_notes_silver_prelabel('/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv')
