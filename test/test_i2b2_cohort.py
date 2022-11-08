@@ -259,7 +259,6 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
         for obsfact in obsfact_list:
             seen.append(obsfact.instance_num)
-            print(obsfact.start_date)
 
             if fhir_date_is_before(obsfact.start_date, criteria.observation.start_date):
                 print(f'Excluded date:  {obsfact.start_date}')
@@ -268,8 +267,7 @@ class TestCohortCovidSymptoms(unittest.TestCase):
             # NLP
             physician_note = clean_text(obsfact.observation_blob)
             if len(physician_note) < 25:
-                print(f'@@@ Note too short')
-                print(physician_note)
+                print(f'@note too short\t{physician_note}')
                 continue
 
             nlp_cache = cache_ctakes(physician_note)
@@ -324,4 +322,5 @@ def test_summary_counts():
 if __name__ == '__main__':
     runner = TestCohortCovidSymptoms()
     #runner.test_select('/Users/andy/phi/i2b2/csv_note/sample.csv')
+    runner.test_select_notes_no_labels('/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv')
     runner.test_select_notes_silver_prelabel('/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv')
