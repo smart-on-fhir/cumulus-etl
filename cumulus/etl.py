@@ -341,6 +341,9 @@ def main(args: List[str]):
     parser.add_argument('--comment', help='add the comment to the log file')
     parser.add_argument('--s3-region', help='if using S3 paths (s3://...), this is their region')
     parser.add_argument('--s3-kms-key', help='if using S3 paths (s3://...), this is the KMS key ID to use')
+    parser.add_argument('--smart-client-id', metavar='CLIENT_ID', help='Client ID registered with SMART FHIR server '
+                                                                       '(can be a filename with ID inside it')
+    parser.add_argument('--smart-jwks', metavar='/path/to/jwks', help='JWKS file registered with SMART FHIR server')
     parser.add_argument('--skip-init-checks', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(args)
 
@@ -361,7 +364,7 @@ def main(args: List[str]):
     if args.input_format == 'i2b2':
         config_loader = loaders.I2b2Loader(root_input)
     else:
-        config_loader = loaders.FhirNdjsonLoader(root_input)
+        config_loader = loaders.FhirNdjsonLoader(root_input, client_id=args.smart_client_id, jwks=args.smart_jwks)
 
     if args.output_format == 'json':
         config_store = formats.JsonTreeFormat(root_output)

@@ -4,7 +4,9 @@ requires-python = ">= 3.7"
 dependencies = [
     "ctakesclient >= 1.3",
     "cx-oracle",
-    "fhirclient",
+    # This branch includes some jwt fixes we need (and will hopefully be in mainline in future)
+    "fhirclient @ git+https://github.com/mikix/client-py.git@mikix/oauth2-jwt",
+    "jwcrypto",
     "pandas",
     "pyarrow",
     "s3fs",
@@ -48,4 +50,6 @@ tests = [
     "freezegun",
     "moto[s3]",
     "pytest",
+    "responses",
+    "urllib3",
 ]
