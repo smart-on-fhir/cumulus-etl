@@ -55,6 +55,11 @@ class Root:
         self._confirm_in_root(path)
         return self.fs.exists(path)
 
+    def get(self, rpath: str, lpath: str) -> None:
+        """Download files"""
+        self._confirm_in_root(rpath)
+        return self.fs.get(rpath, lpath)
+
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
         self._confirm_in_root(path)

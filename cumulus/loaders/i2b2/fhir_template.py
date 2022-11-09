@@ -53,6 +53,7 @@ GENDER = {
     'U': 'unknown',
 }
 
+# system: http://loinc.org
 LOINC = {
     'LAB:1043473617': '94500-6',
     'LAB:1044804335': '94500-6',
@@ -66,6 +67,7 @@ LOINC = {
     'LAB:13815125': '62462-7'
 }
 
+# system: http://snomed.info/sct
 LAB_RESULT = {
     'Positive': '10828004',
     'Negative': '260385009',

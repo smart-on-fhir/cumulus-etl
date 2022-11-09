@@ -5,20 +5,26 @@ import itertools
 import json
 import logging
 import os
+import shutil
 import socket
 import sys
+import tempfile
 import time
-from functools import partial
-from typing import Callable, Iterable, Iterator, List, Optional, TypeVar
+from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar
 from urllib.parse import urlparse
 
 import ctakesclient
 import pandas
+from fhirclient.models.condition import Condition
+from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.encounter import Encounter
 from fhirclient.models.fhirabstractbase import FHIRAbstractBase
+from fhirclient.models.observation import Observation
+from fhirclient.models.patient import Patient
+from fhirclient.models.resource import Resource
 
 from cumulus import common, ctakes, deid, formats, loaders, store
 from cumulus.config import JobConfig, JobSummary
-from cumulus.loaders import ResourceIterator
 
 ###############################################################################
 #
@@ -27,10 +33,21 @@ from cumulus.loaders import ResourceIterator
 ###############################################################################
 
 T = TypeVar('T')
-AnyResource = TypeVar('AnyResource', bound=FHIRAbstractBase)
-LoaderCallable = Callable[[], ResourceIterator]
-DeidentifyCallable = Callable[[AnyResource], bool]
+AnyFhir = TypeVar('AnyFhir', bound=FHIRAbstractBase)
+AnyResource = TypeVar('AnyResource', bound=Resource)
+DeidentifyCallable = Callable[[AnyFhir], bool]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
+
+
+def _read_ndjson(config: JobConfig, resource_type: Type[AnyResource]) -> Iterator[AnyResource]:
+    filename = f'{resource_type.__name__}.ndjson'
+    try:
+        with common.open_file(os.path.join(config.dir_input, filename), 'r') as f:
+            for line in f:
+                yield resource_type(jsondict=json.loads(line), strict=False)
+    except FileNotFoundError:
+        logging.error('Could not find %s in the input folder. Did you want a different --input-format value?',
+                      filename)
 
 
 def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
@@ -64,7 +81,7 @@ def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
 def _process_job_entries(
     config: JobConfig,
     job_name: str,
-    loader: LoaderCallable,
+    resources: Iterator[Resource],
     to_deid: Optional[DeidentifyCallable],
     to_store: StoreFormatCallable,
 ):
@@ -73,14 +90,11 @@ def _process_job_entries(
     print('###############################################################')
     print(f'{job_name}()')
 
-    # Load input data into an iterable of FHIR objects
-    fhir_entries = loader()
-
     # De-identify each entry by passing them through our scrubber
     if to_deid:
-        deid_entries = filter(to_deid, fhir_entries)
+        deid_entries = filter(to_deid, resources)
     else:
-        deid_entries = fhir_entries
+        deid_entries = resources
 
     # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
     # We want to batch them up, to allow resuming from interruptions more easily.
@@ -105,7 +119,7 @@ def etl_patient(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_patient.__name__,
-        config.loader.load_patients,
+        _read_ndjson(config, Patient),
         scrubber.scrub_resource,
         config.format.store_patients,
     )
@@ -122,7 +136,7 @@ def etl_encounter(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_encounter.__name__,
-        config.loader.load_encounters,
+        _read_ndjson(config, Encounter),
         scrubber.scrub_resource,
         config.format.store_encounters,
     )
@@ -139,7 +153,7 @@ def etl_lab(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_lab.__name__,
-        config.loader.load_labs,
+        _read_ndjson(config, Observation),
         scrubber.scrub_resource,
         config.format.store_labs,
     )
@@ -156,7 +170,7 @@ def etl_condition(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_condition.__name__,
-        config.loader.load_conditions,
+        _read_ndjson(config, Condition),
         scrubber.scrub_resource,
         config.format.store_conditions,
     )
@@ -172,15 +186,15 @@ def etl_notes_meta(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     return _process_job_entries(
         config,
         etl_notes_meta.__name__,
-        config.loader.load_docrefs,
+        _read_ndjson(config, DocumentReference),
         scrubber.scrub_resource,
         config.format.store_docrefs,
     )
 
 
-def load_nlp_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> ResourceIterator:
+def load_nlp_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> Iterator[Resource]:
     """Passes physician notes through NLP and returns any symptoms found"""
-    for docref in config.loader.load_docrefs():
+    for docref in _read_ndjson(config, DocumentReference):
         if not scrubber.scrub_resource(docref, scrub_attachments=False):
             continue
         symptoms = ctakes.symptoms(config.dir_phi, docref)
@@ -192,7 +206,7 @@ def etl_notes_text2fhir_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> 
     return _process_job_entries(
         config,
         etl_notes_text2fhir_symptoms.__name__,
-        partial(load_nlp_symptoms, config, scrubber),
+        load_nlp_symptoms(config, scrubber),
         None,  # scrubbing is done in load method
         config.format.store_symptoms,
     )
@@ -203,6 +217,20 @@ def etl_notes_text2fhir_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> 
 # Main Pipeline (run all tasks)
 #
 ###############################################################################
+
+def load_and_deidentify(loader: loaders.Loader) -> tempfile.TemporaryDirectory:
+    """
+    Loads the input directory and does a first-pass de-identification
+
+    Code outside this method should never see the original input files.
+
+    :returns: a temporary directory holding the de-identified files in FHIR ndjson format
+    """
+    # First step is loading all the data into a local ndjson format
+    loaded_dir = loader.load_all()
+
+    # Second step is de-identifying that data (at a bulk level)
+    return deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
 def etl_job(config: JobConfig) -> List[JobSummary]:
@@ -260,8 +288,20 @@ def check_ctakes() -> None:
             if i < num_tries - 1:
                 time.sleep(1)
     else:
-        print(f'A running cTAKES server was not found at:\n    {ctakes_url}\n'
+        print(f'A running cTAKES server was not found at:\n    {ctakes_url}\n\n'
               'Please set the URL_CTAKES_REST environment variable to your server.',
+              file=sys.stderr)
+        raise SystemExit(1)
+
+
+def check_mstool() -> None:
+    """
+    Verifies that the MS anonymizer tool is installed in PATH.
+    """
+    if not shutil.which(deid.MSTOOL_CMD):
+        print(f'No executable found for {deid.MSTOOL_CMD}.\n\n'
+              'Please see https://github.com/microsoft/Tools-for-Health-Data-Anonymization\n'
+              'and install it into your PATH.',
               file=sys.stderr)
         raise SystemExit(1)
 
@@ -273,6 +313,7 @@ def check_requirements() -> None:
     May block while waiting a bit for them.
     """
     check_ctakes()
+    check_mstool()
 
 
 ###############################################################################
@@ -321,7 +362,10 @@ def main(args: List[str]):
     else:
         config_store = formats.NdjsonFormat(root_output)
 
-    config = JobConfig(config_loader, config_store, root_phi, comment=args.comment, batch_size=args.batch_size)
+    deid_dir = load_and_deidentify(config_loader)
+
+    config = JobConfig(config_loader, deid_dir.name, config_store, root_phi, comment=args.comment,
+                       batch_size=args.batch_size)
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json(), indent=4)

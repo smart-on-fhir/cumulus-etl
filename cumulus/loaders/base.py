@@ -1,13 +1,9 @@
 """Base abstract loader"""
 
 import abc
-from typing import Iterator
-
-from fhirclient.models.resource import Resource
+import tempfile
 
 from cumulus.store import Root
-
-ResourceIterator = Iterator[Resource]
 
 
 class Loader(abc.ABC):
@@ -18,7 +14,6 @@ class Loader(abc.ABC):
 
     All methods return an iterator over FHIR resources.
     """
-
     def __init__(self, root: Root):
         """
         Initialize a new Loader class
@@ -27,21 +22,9 @@ class Loader(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    def load_conditions(self) -> ResourceIterator:
-        pass
+    def load_all(self) -> tempfile.TemporaryDirectory:
+        """
+        Loads all remote resources and places them into a local folder as FHIR ndjson
 
-    @abc.abstractmethod
-    def load_docrefs(self) -> ResourceIterator:
-        pass
-
-    @abc.abstractmethod
-    def load_encounters(self) -> ResourceIterator:
-        pass
-
-    @abc.abstractmethod
-    def load_labs(self) -> ResourceIterator:
-        pass
-
-    @abc.abstractmethod
-    def load_patients(self) -> ResourceIterator:
-        pass
+        :returns: an object holding the name of a local ndjson folder path (e.g. a TemporaryDirectory)
+        """

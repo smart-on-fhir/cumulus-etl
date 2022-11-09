@@ -23,6 +23,22 @@ jobs:
           pip install pytest
           pip install .[tests]
 
+      - name: Check out MS tool
+        uses: actions/checkout@v3
+        with:
+          repository: microsoft/Tools-for-Health-Data-Anonymization
+          path: mstool
+
+      - name: Build MS tool
+        run: |
+          sudo apt-get install dotnet6
+          dotnet publish \
+            --runtime=linux-x64 \
+            --configuration=Release \
+            -p:PublishSingleFile=true \
+            --output=~/.local/bin \
+            mstool/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
+
       - name: Test with pytest
         run: |
           python -m pytest

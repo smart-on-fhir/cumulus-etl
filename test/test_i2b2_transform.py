@@ -6,16 +6,16 @@ from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.documentreference import DocumentReference
+from fhirclient.models.observation import Observation
 
 from cumulus import fhir_common
 from cumulus.loaders.i2b2 import transform as T
 
 
-class TestI2b2Transform(unittest.TestCase):
-    """Test case for converting from i2b2 to FHIR"""
-
+class ExampleResources:
+    """Convenience class for holding sample resources made from i2b2 data"""
     @staticmethod
-    def example_fhir_patient() -> Patient:
+    def patient() -> Patient:
         pat_i2b2 = T.PatientDimension({
             'PATIENT_NUM': str(12345),
             'BIRTH_DATE': '2005-06-07',
@@ -27,19 +27,8 @@ class TestI2b2Transform(unittest.TestCase):
 
         return T.to_fhir_patient(pat_i2b2)
 
-    def test_to_fhir_patient(self):
-        subject = self.example_fhir_patient()
-
-        # print(json.dumps(pat_fhir.as_json(), indent=4))
-
-        self.assertEqual(str(12345), subject.id)
-        self.assertEqual('2005-06-07', subject.birthDate.isostring)
-        self.assertEqual('female', subject.gender)
-        # pylint: disable-next=unsubscriptable-object
-        self.assertEqual('02115', subject.address[0].postalCode)
-
     @staticmethod
-    def example_fhir_encounter() -> Encounter:
+    def encounter() -> Encounter:
         visit_i2b2 = T.VisitDimension({
             'ENCOUNTER_NUM': 67890,
             'PATIENT_NUM': '12345',
@@ -51,18 +40,8 @@ class TestI2b2Transform(unittest.TestCase):
 
         return T.to_fhir_encounter(visit_i2b2)
 
-    def test_to_fhir_encounter(self):
-        encounter = self.example_fhir_encounter()
-        # print(json.dumps(encounter.as_json(), indent=4))
-
-        self.assertEqual('67890', encounter.id)
-        self.assertEqual('Patient/12345', encounter.subject.reference)
-        self.assertEqual('2016-01-01', encounter.period.start.isostring)
-        self.assertEqual('2016-01-04', encounter.period.end.isostring)
-        self.assertEqual(3, encounter.length.value)
-
     @staticmethod
-    def example_fhir_condition():
+    def condition():
         diagnosis = T.ObservationFact({
             'INSTANCE_NUM': '4567',
             'PATIENT_NUM': str(12345),
@@ -73,18 +52,8 @@ class TestI2b2Transform(unittest.TestCase):
 
         return T.to_fhir_condition(diagnosis)
 
-    def test_to_fhir_condition(self):
-        condition = self.example_fhir_condition()
-
-        # print(json.dumps(condition.as_json(), indent=4))
-        self.assertEqual('Patient/12345', condition.subject.reference)
-        self.assertEqual('Encounter/67890', condition.encounter.reference)
-        self.assertEqual(str('U07.1'), condition.code.coding[0].code)
-        self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'),
-                         condition.code.coding[0].system)
-
     @staticmethod
-    def example_fhir_documentreference() -> DocumentReference:
+    def documentreference() -> DocumentReference:
         note_i2b2 = T.ObservationFact({
             'INSTANCE_NUM': '345',
             'PATIENT_NUM':
@@ -100,18 +69,8 @@ class TestI2b2Transform(unittest.TestCase):
         })
         return T.to_fhir_documentreference(note_i2b2)
 
-    def test_to_fhir_documentreference(self):
-        docref = self.example_fhir_documentreference()
-
-        # print(json.dumps(docref.as_json(), indent=4))
-
-        self.assertEqual('Patient/12345', docref.subject.reference)
-        self.assertEqual(1, len(docref.context.encounter))
-        self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
-        self.assertEqual(str('NOTE:103933779'), docref.type.text)
-
     @staticmethod
-    def example_fhir_observation_lab():
+    def observation() -> Observation:
         lab_i2b2 = T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
@@ -124,8 +83,56 @@ class TestI2b2Transform(unittest.TestCase):
 
         return T.to_fhir_observation_lab(lab_i2b2)
 
+
+class TestI2b2Transform(unittest.TestCase):
+    """Test case for converting from i2b2 to FHIR"""
+
+    # Pylint doesn't like subscripting some lists in our created objects, not sure why yet.
+    # pylint: disable=unsubscriptable-object
+
+    def test_to_fhir_patient(self):
+        subject = ExampleResources.patient()
+
+        # print(json.dumps(pat_fhir.as_json(), indent=4))
+
+        self.assertEqual(str(12345), subject.id)
+        self.assertEqual('2005-06-07', subject.birthDate.isostring)
+        self.assertEqual('female', subject.gender)
+        # pylint: disable-next=unsubscriptable-object
+        self.assertEqual('02115', subject.address[0].postalCode)
+
+    def test_to_fhir_encounter(self):
+        encounter = ExampleResources.encounter()
+        # print(json.dumps(encounter.as_json(), indent=4))
+
+        self.assertEqual('67890', encounter.id)
+        self.assertEqual('Patient/12345', encounter.subject.reference)
+        self.assertEqual('2016-01-01', encounter.period.start.isostring)
+        self.assertEqual('2016-01-04', encounter.period.end.isostring)
+        self.assertEqual(3, encounter.length.value)
+
+    def test_to_fhir_condition(self):
+        condition = ExampleResources.condition()
+
+        # print(json.dumps(condition.as_json(), indent=4))
+        self.assertEqual('Patient/12345', condition.subject.reference)
+        self.assertEqual('Encounter/67890', condition.encounter.reference)
+        self.assertEqual(str('U07.1'), condition.code.coding[0].code)
+        self.assertEqual(str('http://hl7.org/fhir/sid/icd-10-cm'),
+                         condition.code.coding[0].system)
+
+    def test_to_fhir_documentreference(self):
+        docref = ExampleResources.documentreference()
+
+        # print(json.dumps(docref.as_json(), indent=4))
+
+        self.assertEqual('Patient/12345', docref.subject.reference)
+        self.assertEqual(1, len(docref.context.encounter))
+        self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
+        self.assertEqual(str('NOTE:103933779'), docref.type.text)
+
     def test_to_fhir_observation_lab(self):
-        lab_fhir = self.example_fhir_observation_lab()
+        lab_fhir = ExampleResources.observation()
 
         # print(json.dumps(lab_i2b2.__dict__, indent=4))
         # print(json.dumps(lab_fhir.as_json(), indent=4))

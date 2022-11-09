@@ -47,4 +47,5 @@ tests = [
     "ddt",
     "freezegun",
     "moto[s3]",
+    "pytest",
 ]
