@@ -7,6 +7,8 @@ from urllib.parse import urlparse
 import fsspec
 import pandas
 
+from cumulus import common
+
 
 class Root:
     """
@@ -24,13 +26,16 @@ class Root:
     """
 
     def __init__(self, path: str, create=False):
+        """
+        :param path: location (local path or URL)
+        :param create: whether to create the folder if it doesn't exist
+        """
         self.path = path
 
         parsed = urlparse(path)
         self.protocol = parsed.scheme or 'file'  # assume local if no obvious scheme
 
-        options = self.fsspec_options()
-        self.fs = fsspec.filesystem(self.protocol, **options)
+        self.fs = fsspec.filesystem(self.protocol, **self.fsspec_options())
 
         if create:
             # Ensure we exist to start
@@ -76,25 +81,7 @@ class Root:
 
     def fsspec_options(self) -> dict:
         """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
-        options = {}
-
-        if self.protocol == 's3':
-            # Check for region manually. If you aren't using us-east-1, you usually need to specify the region
-            # explicitly, and fsspec doesn't seem to check the environment variables for us, nor pull it from
-            # ~/.aws/config
-            region_name = os.environ.get('CUMULUS_AWS_REGION')
-            if not region_name:
-                region_name = os.environ.get('AWS_DEFAULT_REGION')
-            if region_name:
-                options['client_kwargs'] = {'region_name': region_name}
-
-            # Assume KMS encryption for now - we can make this tunable to AES256 if folks have a need.
-            # But in general, I believe we want to enforce server side encryption when possible, KMS or not.
-            options['s3_additional_kwargs'] = {
-                'ServerSideEncryption': 'aws:kms',
-            }
-
-        return options
+        return common.get_fs_options(self.protocol)
 
 
 class Format(abc.ABC):

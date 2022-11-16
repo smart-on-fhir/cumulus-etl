@@ -168,8 +168,7 @@ Congratulations! You've run your first Cumulus ETL process. The first of many!
 Let's do the same thing, but now pointing at S3 buckets.
 This assumes you've followed the [S3 setup guide](set-up-aws.md).
 
-When using S3 buckets, you'll need to set the `CUMULUS_AWS_REGION` environment variable to
-the correct region.
+When using S3 buckets, you'll need to set the `--s3-region` argument to the correct region.
 
 Run this command, but replace:
 * `us-east-2` with the region your buckets are in
@@ -179,11 +178,11 @@ Run this command, but replace:
 
 ```sh
 docker run \
- --env=CUMULUS_AWS_REGION=us-east-2 \
  --env=URL_CTAKES_REST=http://$CTAKES_IP:8080/ctakes-web-rest/service/analyze \
  --mount=type=bind,src=$CUMULUS_REPO_PATH,dst=/cumulus-etl \
  --rm \
  cumulus-etl \
+  --s3-region=us-east-2 \
   /cumulus-etl/test/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
@@ -197,7 +196,6 @@ Here's a more realistic and complete command, as a starting point for your own v
 
 ```sh
 docker run \
- --env=CUMULUS_AWS_REGION=us-east-2 \
  --env=URL_CTAKES_REST=http://$CTAKES_IP:8080/ctakes-web-rest/service/analyze \
  --rm \
  cumulus-etl \
@@ -205,6 +203,7 @@ docker run \
   --input-format=ndjson \
   --output-format=parquet \
   --batch-size=10000000 \
+  --s3-region=us-east-2 \
   s3://my-us-east-2-input-bucket/ \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
@@ -224,9 +223,9 @@ There are three required positional arguments:
 1. **PHI build path**: where to put build artifacts that contain PHI and need to persist run-to-run,
    usually a different `s3://` bucket (with less access) or a persistent local folder
 
-When using S3 buckets, you'll need to set the `CUMULUS_AWS_REGION` environment variable to
-the correct region. And you'll want to first actually set up those buckets. Follow the [S3 setup
-guide](set-up-aws.md) document for guidance there.
+When using S3 buckets, you'll need to set the `--s3-region` argument to the correct region.
+And you'll want to first actually set up those buckets.
+Follow the [S3 setup guide](set-up-aws.md) document for guidance there.
 
 ### Strongly Recommended Arguments
 
