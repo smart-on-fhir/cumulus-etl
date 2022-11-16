@@ -86,9 +86,7 @@ class Root:
             if not region_name:
                 region_name = os.environ.get('AWS_DEFAULT_REGION')
             if region_name:
-                options['client_kwargs'] = {
-                    'region_name': 'us-east-2',
-                }
+                options['client_kwargs'] = {'region_name': region_name}
 
             # Assume KMS encryption for now - we can make this tunable to AES256 if folks have a need.
             # But in general, I believe we want to enforce server side encryption when possible, KMS or not.
