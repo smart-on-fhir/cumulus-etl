@@ -335,6 +335,8 @@ def main(args: List[str]):
                         help='how many entries to process at once and thus '
                              'how many to put in one output file (default is 10M)')
     parser.add_argument('--comment', help='add the comment to the log file')
+    parser.add_argument('--s3-region', help='if using S3 paths (s3://...), this is their region')
+    parser.add_argument('--s3-kms-key', help='if using S3 paths (s3://...), this is the KMS key ID to use')
     parser.add_argument('--skip-init-checks', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(args)
 
@@ -345,6 +347,8 @@ def main(args: List[str]):
     # Check that cTAKES is running and any other services or binaries we require
     if not args.skip_init_checks:
         check_requirements()
+
+    common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
     root_input = store.Root(args.dir_input, create=True)
     root_output = store.Root(args.dir_output, create=True)
