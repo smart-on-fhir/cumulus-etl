@@ -1,6 +1,7 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
+import glob
 import itertools
 import json
 import logging
@@ -40,14 +41,18 @@ StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
 def _read_ndjson(config: JobConfig, resource_type: Type[AnyResource]) -> Iterator[AnyResource]:
-    filename = f'{resource_type.__name__}.ndjson'
-    try:
+    resource_name = resource_type.__name__
+    pattern = f'{resource_name}.*ndjson'  # support both Condition.ndjson and Condition.000.ndjson, or others
+    filenames = glob.glob(os.path.join(config.dir_input, pattern))
+
+    if not filenames:
+        logging.error('Could not find any files for %s in the input folder, skipping that resource.', resource_name)
+        return
+
+    for filename in filenames:
         with common.open_file(os.path.join(config.dir_input, filename), 'r') as f:
             for line in f:
                 yield resource_type(jsondict=json.loads(line), strict=False)
-    except FileNotFoundError:
-        logging.error('Could not find %s in the input folder. Did you want a different --input-format value?',
-                      filename)
 
 
 def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
@@ -87,8 +92,7 @@ def _process_job_entries(
 ):
     job = JobSummary(job_name)
 
-    print('###############################################################')
-    print(f'{job_name}()')
+    common.print_header(f'{job_name}()')
 
     # De-identify each entry by passing them through our scrubber
     if to_deid:
@@ -370,11 +374,15 @@ def main(args: List[str]):
 
     config = JobConfig(config_loader, deid_dir.name, config_store, root_phi, comment=args.comment,
                        batch_size=args.batch_size)
+
+    common.print_header('Configuration:')
     print(json.dumps(config.as_json(), indent=4))
 
     common.write_json(config.path_config(), config.as_json(), indent=4)
 
-    for summary in etl_job(config):
+    summaries = etl_job(config)
+    common.print_header('Results:')
+    for summary in summaries:
         print(json.dumps(summary.as_json(), indent=4))
 
 

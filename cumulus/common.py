@@ -223,6 +223,18 @@ def print_json(jsonable):
         print(json.dumps(jsonable.as_json(), indent=4))
 
 
+_first_header = True
+
+
+def print_header(name: str) -> None:
+    """Prints a section break to the console, with a name for the user"""
+    global _first_header
+    if not _first_header:
+        print('###############################################################')
+    _first_header = False
+    print(name)
+
+
 ###############################################################################
 #
 # Helper Functions: Timedatestamp

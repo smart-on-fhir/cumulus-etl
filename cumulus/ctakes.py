@@ -25,7 +25,7 @@ def symptoms(cache: store.Root, docref: DocumentReference) -> List[Observation]:
     docref_id = docref.id
     _, subject_id = fhir_common.unref_resource(docref.subject)
 
-    if not docref.context.encounter:
+    if not docref.context or not docref.context.encounter:
         logging.warning('No valid encounters for symptoms')  # ideally would print identifier, but it's PHI...
         return []
     _, encounter_id = fhir_common.unref_resource(docref.context.encounter[0])
