@@ -276,7 +276,7 @@ Resources:
         EnforceWorkGroupConfiguration: True
         PublishCloudWatchMetricsEnabled: True
         EngineVersion:
-          SelectedEngineVersion: "Athena engine version 2"
+          SelectedEngineVersion: "Athena engine version 3"
         ResultConfiguration:
           EncryptionConfiguration:
             EncryptionOption: SSE_KMS
