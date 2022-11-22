@@ -2,10 +2,10 @@
 
 import pandas
 
-from .athena import AthenaFormat
+from .athena import AthenaBatchedFileFormat
 
 
-class ParquetFormat(AthenaFormat):
+class ParquetFormat(AthenaBatchedFileFormat):
     """Stores output files in a few flat parquet files"""
 
     @property
