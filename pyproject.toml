@@ -3,11 +3,13 @@ name = "cumulus"
 requires-python = ">= 3.7"
 dependencies = [
     "ctakesclient >= 1.3",
+    "delta-spark >= 2.1",
     # This branch includes some jwt fixes we need (and will hopefully be in mainline in future)
     "fhirclient @ git+https://github.com/mikix/client-py.git@mikix/oauth2-jwt",
     "jwcrypto",
     "pandas",
     "pyarrow",
+    "pyiceberg[glue] @ git+https://github.com/apache/iceberg.git#subdirectory=python",
     "s3fs",
 ]
 authors = [

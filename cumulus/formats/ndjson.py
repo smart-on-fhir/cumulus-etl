@@ -2,10 +2,10 @@
 
 import pandas
 
-from .athena import AthenaFormat
+from .athena import AthenaBatchedFileFormat
 
 
-class NdjsonFormat(AthenaFormat):
+class NdjsonFormat(AthenaBatchedFileFormat):
     """Stores output files in a few flat ndjson files"""
 
     @property

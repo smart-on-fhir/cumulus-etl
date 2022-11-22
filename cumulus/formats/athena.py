@@ -18,6 +18,36 @@ class AthenaFormat(store.Format):
     (i.e. one folder per data type, broken into large files)
     """
 
+    @abc.abstractmethod
+    def write_records(self, job, df: pandas.DataFrame, dbname: str, batch: int) -> None:
+        """Writes the whole dataframe to the output database folder"""
+
+    def store_patients(self, job, patients: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, patients, 'patient', batch)
+
+    def store_encounters(self, job, encounters: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, encounters, 'encounter', batch)
+
+    def store_labs(self, job, labs: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, labs, 'observation', batch)
+
+    def store_conditions(self, job, conditions: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, conditions, 'condition', batch)
+
+    def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, docrefs, 'documentreference', batch)
+
+    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, observations, 'symptom', batch)
+
+
+class AthenaBatchedFileFormat(AthenaFormat):
+    """
+    Stores output files as batched individual files.
+
+    i.e. a few ndjson files that hold all the rows
+    """
+
     @property
     @abc.abstractmethod
     def suffix(self) -> str:
@@ -39,7 +69,7 @@ class AthenaFormat(store.Format):
     #
     ##########################################################################################
 
-    def _write_records(self, job, df: pandas.DataFrame, path: str, batch: int) -> None:
+    def write_records(self, job, df: pandas.DataFrame, dbname: str, batch: int) -> None:
         """Writes the whole dataframe to a single file"""
         job.attempt += len(df)
 
@@ -49,14 +79,14 @@ class AthenaFormat(store.Format):
             #        our files out. What we really want is some sort of blue/green deploy of data. There's no
             #        satisfying fix while we are writing to the same folder. (Unless we do incremental/delta
             #        writes and keep all old data around still.)
-            parent_dir = self.root.joinpath(os.path.dirname(path))
+            parent_dir = self.root.joinpath(dbname)
             try:
                 self.root.rm(parent_dir, recursive=True)
             except FileNotFoundError:
                 pass
 
         try:
-            full_path = self.root.joinpath(f'{path}.{batch:03}.{self.suffix}')
+            full_path = self.root.joinpath(f'{dbname}/{dbname}.{batch:03}.{self.suffix}')
             self.root.makedirs(os.path.dirname(full_path))
             self.write_format(df, full_path)
 
@@ -64,21 +94,3 @@ class AthenaFormat(store.Format):
             job.success_rate(1)
         except Exception:  # pylint: disable=broad-except
             logging.exception('Could not process data records')
-
-    def store_patients(self, job, patients: pandas.DataFrame, batch: int) -> None:
-        self._write_records(job, patients, 'patient/fhir_patients', batch)
-
-    def store_encounters(self, job, encounters: pandas.DataFrame, batch: int) -> None:
-        self._write_records(job, encounters, 'encounter/fhir_encounters', batch)
-
-    def store_labs(self, job, labs: pandas.DataFrame, batch: int) -> None:
-        self._write_records(job, labs, 'observation/fhir_observations', batch)
-
-    def store_conditions(self, job, conditions: pandas.DataFrame, batch: int) -> None:
-        self._write_records(job, conditions, 'condition/fhir_conditions', batch)
-
-    def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
-        self._write_records(job, docrefs, 'documentreference/fhir_documentreferences', batch)
-
-    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
-        self._write_records(job, observations, 'symptom/fhir_symptoms', batch)

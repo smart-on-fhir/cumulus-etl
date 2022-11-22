@@ -333,8 +333,8 @@ def main(args: List[str]):
     parser.add_argument('dir_phi', metavar='/path/to/phi')
     parser.add_argument('--input-format', default='ndjson', choices=['i2b2', 'ndjson'],
                         help='input format (default is ndjson)')
-    parser.add_argument('--output-format', default='parquet', choices=['json', 'ndjson', 'parquet'],
-                        help='output format (default is parquet)')
+    parser.add_argument('--output-format', default='iceberg', choices=['delta', 'iceberg', 'json', 'ndjson', 'parquet'],
+                        help='output format (default is iceberg)')
     parser.add_argument('--batch-size', type=int, metavar='SIZE', default=10000000,
                         help='how many entries to process at once and thus '
                              'how many to put in one output file (default is 10M)')
@@ -366,7 +366,11 @@ def main(args: List[str]):
     else:
         config_loader = loaders.FhirNdjsonLoader(root_input, client_id=args.smart_client_id, jwks=args.smart_jwks)
 
-    if args.output_format == 'json':
+    if args.output_format == 'delta':
+        config_store = formats.DeltaLakeFormat(root_output)
+    elif args.output_format == 'iceberg':
+        config_store = formats.IcebergFormat(root_output)
+    elif args.output_format == 'json':
         config_store = formats.JsonTreeFormat(root_output)
     elif args.output_format == 'parquet':
         config_store = formats.ParquetFormat(root_output)
