@@ -3,7 +3,8 @@
 import getpass
 import logging
 import os
-import cx_Oracle
+
+import oracledb
 
 
 def get_data_source_name() -> str:
@@ -27,25 +28,9 @@ def get_password() -> str:
         return getpass.getpass(f'Enter password for I2B2_SQL_USER {user}: ')
 
 
-def get_library_path() -> str:
-    """
-    :return: SQL connection requires Linked Library
-    """
-    ldpath = os.getenv('LD_LIBRARY_PATH', None)
-
-    if ldpath is None or 'instantclient' not in ldpath:
-        raise Exception(
-            'LD_LIBRARY_PATH does not exist OR does not contain a path to '
-            'instantclient. '
-            'This environment variable must be set before calling scripts.')
-    else:
-        return ldpath
-
-
-def connect() -> cx_Oracle.Connection:
+def connect() -> oracledb.Connection:
     """
     :return: connection to oracle database
     """
     logging.info('Attempting to connect to %s', get_data_source_name())
-    cx_Oracle.init_oracle_client(lib_dir=get_library_path())
-    return cx_Oracle.connect(get_user(), get_password(), get_data_source_name())
+    return oracledb.connect(user=get_user(), password=get_password(), dsn=get_data_source_name())
