@@ -232,9 +232,10 @@ Follow the [S3 setup guide](set-up-aws.md) document for guidance there.
 While technically optional, it's recommended that you manually specify these arguments because their
 defaults are subject to change or might not match your situation.
 
-* `--input-format`: There are two reasonable values (`ndjson` and `i2b2`). Both require local
-  folders with either FHIR ndjson or i2b2 csv files sitting in them. Directly talking to a FHIR
-  bulk export server is not supported yet.
+* `--input-format`: There are two reasonable values (`ndjson` and `i2b2`). If you want to pull from
+  your bulk export FHIR server, pass in its URL as your input path and use `ndjson` as your input
+  format. Otherwise, you can use either value to point at a local folder with either FHIR ndjson
+  or i2b2 csv files sitting in them, respectively.
 
 * `--output-format`: There are two reasonable values (`ndjson` and `parquet`). For production use,
   you probably want `parquet` as it is smaller and faster. But `ndjson` is useful when debugging as
@@ -249,3 +250,46 @@ defaults are subject to change or might not match your situation.
 
 * `--comment`: You can add any comment you like here, it will be saved in a logging folder on the
 output path (`JobConfig/`). Might help when debugging an issue.
+
+### Bulk FHIR Export
+
+A common task is to point Cumulus ETL at your bulk FHIR export server, rather than pointing it
+at a local folder with the exported data.
+
+This is relatively straightforward but requires a bit of setup first.
+
+#### Registering Cumulus ETL
+
+On your server, you need to register a new "backend service" client.
+You'll be asked to provide a JWKS (JWK Set) file.
+See below for generating that.
+You'll also be asked for a client ID or the server may generate a client ID for you.
+
+#### Generating a JWKS
+
+A JWKS is just a file with some cryptographic keys,
+usually holding a public and private version of the same key.
+FHIR servers use it to grant clients access.
+
+You can generate a JWKS using the RS384 algorithm and a random ID yourself like so:
+
+```sh
+jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o rsa.jwks
+```
+
+Then give `rsa.jwks` to your FHIR server and to Cumulus ETL (details on that below).
+
+#### Cumulus ETL Arguments
+
+You'll need to pass two new arguments to Cumulus ETL: 
+
+```sh
+--smart-client-id=YOUR_CLIENT_ID
+--smart-jwks=/path/to/rsa.jwks
+```
+
+You can also give `--smart-client-id` a path to a file with your client ID,
+if it is too large and unwieldy for the commandline.
+
+And for Cumulus ETL's input path argument,
+you will give your server's URL address (e.g. `https://example.com/fhir`).
