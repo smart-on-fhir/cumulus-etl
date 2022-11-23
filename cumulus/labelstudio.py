@@ -1,9 +1,11 @@
 """LabelStudio document annotation"""
 
-import os
 import json
-from cumulus import store
+import os
+
 from ctakesclient.typesystem import Polarity, MatchText, CtakesJSON, UmlsTypeMention
+
+from cumulus import store
 
 
 ###############################################################################

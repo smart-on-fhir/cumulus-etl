@@ -3,7 +3,6 @@
 import filecmp
 import json
 import os
-import pytest
 import random
 import shutil
 import tempfile
@@ -13,16 +12,17 @@ from typing import Optional
 from unittest import mock
 
 import freezegun
+import pytest
 import s3fs
 from fhirclient.models.extension import Extension
 
 from cumulus import common, config, deid, etl, store
 from cumulus.loaders.i2b2 import extract
 
-from .ctakesmock import CtakesMixin, fake_ctakes_extract
-from .s3mock import S3Mixin
-from .test_i2b2_transform import ExampleResources
-from .utils import TreeCompareMixin
+from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
+from tests.s3mock import S3Mixin
+from tests.test_i2b2_transform import ExampleResources
+from tests.utils import TreeCompareMixin
 
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason='MS tool not installed')

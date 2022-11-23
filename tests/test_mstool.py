@@ -10,7 +10,7 @@ import pytest
 
 from cumulus import common
 from cumulus.deid.mstool import MSTOOL_CMD, run_mstool
-from test.utils import TreeCompareMixin
+from tests.utils import TreeCompareMixin
 
 
 @pytest.mark.skipif(not shutil.which(MSTOOL_CMD), reason='MS tool not installed')

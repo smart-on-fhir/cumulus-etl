@@ -10,7 +10,7 @@ from fhirclient.models.extension import Extension
 
 from cumulus.deid import Scrubber
 from cumulus.deid.codebook import CodebookDB
-from test.test_i2b2_transform import ExampleResources
+from tests.test_i2b2_transform import ExampleResources
 
 
 @mock.patch('cumulus.deid.codebook.secrets.token_bytes', new=lambda x: b'1234')  # just to not waste entropy

@@ -3,6 +3,7 @@
 #   file has 2 because that's what Google uses internally, despite the
 #   public description of their style guide using 4)
 # - max-line-length changed to 120 because 80 was driving us crazy
+# - wrong-import-order re-enabled, because MT likes order among chaos
 #
 # BELOW THIS LINE IS A COPY OF https://google.github.io/styleguide/pylintrc
 
@@ -151,7 +152,6 @@ disable=abstract-method,
         useless-object-inheritance,
         useless-suppression,
         using-cmp-argument,
-        wrong-import-order,
         xrange-builtin,
         zip-builtin-not-iterating,
 

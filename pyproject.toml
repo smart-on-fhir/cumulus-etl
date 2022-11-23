@@ -38,8 +38,7 @@ build-backend = "flit_core.buildapi"
 [tool.flit.sdist]
 include = [
     "docs/",
-    "resources/",
-    "test/",
+    "tests/",
     "LICENSE",
 ]
 

@@ -2,8 +2,9 @@
 
 import logging
 import os
-import pandas
 from typing import Callable
+
+import pandas
 
 from cumulus import store
 
