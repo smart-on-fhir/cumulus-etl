@@ -144,7 +144,7 @@ docker run \
  --mount=type=bind,src=$CUMULUS_REPO_PATH,dst=/cumulus-etl \
  --rm \
  cumulus-etl \
-  /cumulus-etl/test/data/simple/ndjson-input \
+  /cumulus-etl/tests/data/simple/ndjson-input \
   /cumulus-etl/example-output \
   /cumulus-etl/example-phi-build
 ```
@@ -183,7 +183,7 @@ docker run \
  --rm \
  cumulus-etl \
   --s3-region=us-east-2 \
-  /cumulus-etl/test/data/simple/ndjson-input \
+  /cumulus-etl/tests/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
 ```

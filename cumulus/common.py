@@ -1,15 +1,15 @@
 """Utility methods"""
 
 import datetime
+import json
 import os
 import logging
-import json
-import pandas
 import uuid
 from typing import Optional
 from urllib.parse import urlparse
 
 import fsspec
+import pandas
 from fhirclient.models.resource import Resource
 from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 

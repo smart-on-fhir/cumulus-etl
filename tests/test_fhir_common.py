@@ -1,8 +1,8 @@
 """Tests for fhir_common.py"""
 
-import ddt
 import unittest
 
+import ddt
 from fhirclient.models.fhirreference import FHIRReference
 
 from cumulus import fhir_common

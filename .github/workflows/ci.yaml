@@ -60,4 +60,4 @@ jobs:
       - name: Run pylint
         if: success() || failure() # still run pylint if pycodestyle fails
         run: |
-          pylint cumulus test
+          pylint cumulus tests
