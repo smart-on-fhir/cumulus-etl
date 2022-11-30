@@ -1,5 +1,6 @@
 """ETL job config with summary"""
 
+import datetime
 import os
 from socket import gethostname
 
@@ -15,6 +16,7 @@ class JobConfig:
             dir_input: str,
             store_format: store.Format,
             dir_phi: store.Root,
+            timestamp: datetime.datetime = None,
             comment: str = None,
             batch_size: int = 1,  # this default is never really used - overridden by command line args
     ):
@@ -28,7 +30,7 @@ class JobConfig:
         self.dir_input = dir_input
         self.format = store_format
         self.dir_phi = dir_phi
-        self.timestamp = common.timestamp_filename()
+        self.timestamp = common.timestamp_filename(timestamp)
         self.hostname = gethostname()
         self.comment = comment or ''
         self.batch_size = batch_size
