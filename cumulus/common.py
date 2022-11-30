@@ -241,15 +241,23 @@ def print_header(name: str) -> None:
 #
 ###############################################################################
 
-def timestamp_datetime() -> str:
+def datetime_now() -> datetime.datetime:
+    """
+    UTC date and time, suitable for use as a FHIR 'instant' data type
+    """
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def timestamp_datetime(time: datetime.datetime = None) -> str:
     """
     Human-readable UTC date and time
     :return: MMMM-DD-YYY hh:mm:ss
     """
-    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+    time = time or datetime_now()
+    return time.strftime('%Y-%m-%d %H:%M:%S')
 
 
-def timestamp_filename() -> str:
+def timestamp_filename(time: datetime.datetime = None) -> str:
     """
     Human-readable UTC date and time suitable for a filesystem path
 
@@ -257,4 +265,5 @@ def timestamp_filename() -> str:
 
     :return: MMMM-DD-YYY__hh.mm.ss
     """
-    return datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d__%H.%M.%S')
+    time = time or datetime_now()
+    return time.strftime('%Y-%m-%d__%H.%M.%S')

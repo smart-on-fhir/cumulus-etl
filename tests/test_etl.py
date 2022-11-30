@@ -16,7 +16,7 @@ import pytest
 import s3fs
 from fhirclient.models.extension import Extension
 
-from cumulus import common, config, deid, etl, store
+from cumulus import common, config, context, deid, etl, store
 from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
@@ -189,6 +189,38 @@ class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
         self.run_etl(comment='Run by foo on machine bar')
         config_file = self.read_config_file('job_config.json')
         self.assertEqual(config_file['comment'], 'Run by foo on machine bar')
+
+
+class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
+    """Test case for the job context data"""
+
+    def setUp(self):
+        super().setUp()
+        self.context_path = os.path.join(self.phi_path, 'context.json')
+
+    def test_context_updated_on_success(self):
+        """Verify that we update the success timestamp etc. when the job succeeds"""
+        self.run_etl()
+        job_context = context.JobContext(self.context_path)
+        self.assertEqual('2021-09-14T21:23:45+00:00', job_context.last_successful_datetime.isoformat())
+        self.assertEqual(self.input_path, job_context.last_successful_input_dir)
+        self.assertEqual(self.output_path, job_context.last_successful_output_dir)
+
+    def test_context_not_updated_on_failure(self):
+        """Verify that we don't update the success timestamp etc. when the job fails"""
+        input_context = {
+            'last_successful_datetime': '2000-01-01T10:10:10+00:00',
+            'last_successful_input': '/input',
+            'last_successful_output': '/output',
+        }
+        common.write_json(self.context_path, input_context)
+
+        with mock.patch('cumulus.etl.etl_job', side_effect=ZeroDivisionError):
+            with self.assertRaises(ZeroDivisionError):
+                self.run_etl()
+
+        # Confirm we didn't change anything
+        self.assertEqual(input_context, common.read_json(self.context_path))
 
 
 class TestI2b2EtlBatches(BaseI2b2EtlSimple):

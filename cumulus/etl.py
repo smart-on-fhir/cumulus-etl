@@ -24,7 +24,7 @@ from fhirclient.models.observation import Observation
 from fhirclient.models.patient import Patient
 from fhirclient.models.resource import Resource
 
-from cumulus import common, ctakes, deid, formats, loaders, store
+from cumulus import common, context, ctakes, deid, formats, loaders, store
 from cumulus.config import JobConfig, JobSummary
 
 ###############################################################################
@@ -361,6 +361,9 @@ def main(args: List[str]):
     root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 
+    job_context = context.JobContext(root_phi.joinpath('context.json'))
+    job_datetime = common.datetime_now()  # grab timestamp before we do anything
+
     if args.input_format == 'i2b2':
         config_loader = loaders.I2b2Loader(root_input)
     else:
@@ -375,18 +378,26 @@ def main(args: List[str]):
 
     deid_dir = load_and_deidentify(config_loader)
 
+    # Prepare config for jobs
     config = JobConfig(config_loader, deid_dir.name, config_store, root_phi, comment=args.comment,
-                       batch_size=args.batch_size)
-
+                       batch_size=args.batch_size, timestamp=job_datetime)
+    common.write_json(config.path_config(), config.as_json(), indent=4)
     common.print_header('Configuration:')
     print(json.dumps(config.as_json(), indent=4))
 
-    common.write_json(config.path_config(), config.as_json(), indent=4)
-
+    # Finally, actually run the meat of the pipeline!
     summaries = etl_job(config)
+
+    # Print results to the console
     common.print_header('Results:')
     for summary in summaries:
         print(json.dumps(summary.as_json(), indent=4))
+
+    # Update job context for future runs
+    job_context.last_successful_datetime = job_datetime
+    job_context.last_successful_input_dir = root_input.path
+    job_context.last_successful_output_dir = root_output.path
+    job_context.save()
 
 
 def main_cli():
