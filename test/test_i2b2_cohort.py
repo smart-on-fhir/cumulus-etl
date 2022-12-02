@@ -32,6 +32,20 @@ Loss of taste or smell
 X
 """.strip().splitlines()
 
+NOTE_ADMISSION = ['NOTE:67621036', 'NOTE:67621108', 'NOTE:67621129', 'NOTE:15613086', 'NOTE:15603057', 'NOTE:67621186',
+                  'NOTE:67621198', 'NOTE:8042938', 'NOTE:67620997', 'NOTE:67621141', 'NOTE:15603199', 'NOTE:67621213',
+                  'NOTE:67621314', 'NOTE:67621009', 'NOTE:15601144', 'NOTE:67621066', 'NOTE:67621093', 'NOTE:103933779',
+                  'NOTE:67620991', 'NOTE:67621180', 'NOTE:67621255', 'NOTE:15603284', 'NOTE:67621237', 'NOTE:3710472',
+                  'NOTE:67621033', 'NOTE:67621072', 'NOTE:67621078', 'NOTE:189094550', 'NOTE:67621168', 'NOTE:67621192',
+                  'NOTE:67621246', 'NOTE:89557758', 'NOTE:67621305', 'NOTE:67621343', 'NOTE:67621027', 'NOTE:67621123',
+                  'NOTE:67621156', 'NOTE:67621219', 'NOTE:67621231', 'NOTE:67621264', 'NOTE:67621286', 'NOTE:67621334',
+                  'NOTE:67621042', 'NOTE:67621114', 'NOTE:67621225', 'NOTE:67621324']
+
+NOTE_ED = ['NOTE:149798455', 'NOTE:318198113', 'NOTE:318198110', 'NOTE:3710480', 'NOTE:189094619', 'NOTE:159552404',
+           'NOTE:318198107', 'NOTE:189094644', 'NOTE:3807712', 'NOTE:189094576']
+
+NOTE_ED_REASON = ['NOTE:8028099']
+
 def clean_text(physician_note: str) -> str:
     """
     Clean (replace) noisy chars like '¿' from physician note.
@@ -86,11 +100,7 @@ def save_labelstudio(labelstudio: LabelStudio, note_id: str) -> str:
     @param note_id: where to save labelstudio file.
     @return: path to labelstudio JSON file
     """
-    labelstudio.load_lazy()
-
-    #tstmp = common.timestamp_filename()
     path = f'{dir_cohort()}/{note_id}.json'
-
     common.write_json(path, labelstudio.as_json())
     return path
 
@@ -200,9 +210,7 @@ class TestCohortCovidSymptoms(unittest.TestCase):
         obs = ObservationFact()
         obs.start_date = parse_fhir_date('2020-03-01')
         obs.end_date = parse_fhir_date('2023-01-01')
-        obs.concept_cd = map_cui_pref(covid_symptoms())
-        obs.concept_cd['X'] = 'X'  # No Symptoms of COVID
-
+        obs.concept_cd = NOTE_ED + NOTE_ED_REASON
         patient = PatientDimension()
         # patient.birth_date = fhir_common.parse_fhir_period('1992-01-01', '2023-01-01')
 
@@ -217,7 +225,8 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
         return select
 
-    def test_select_notes_no_labels(self, notes_csv, cnt_notes=30):
+    def test_select_random(self, notes_csv, cnt_notes=30):
+        print(f'test_select_random {cnt_notes} notes from {notes_csv}')
         selected = list()
         obsfact_list = extract.extract_csv_observation_facts(notes_csv)
         random.shuffle(obsfact_list)
@@ -236,10 +245,13 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
         print(selected)
 
-    def test_select_notes_silver_prelabel(self, notes_csv, cnt_notes=30):
+    def test_select_class_weights(self, notes_csv, cnt_notes=30, prelabel=False):
+        print(f'test_select_class_weights {cnt_notes} notes, prelabel {prelabel} from {notes_csv}')
 
         criteria = self.test_criteria()
-        criteria_cui_symptom = criteria.observation.concept_cd
+
+        criteria_cui_symptom = map_cui_pref(covid_symptoms())
+        criteria_cui_symptom['X'] = 'X'  # No Symptoms of COVID
 
         print(criteria.as_json())
         print(criteria_cui_symptom)
@@ -249,7 +261,7 @@ class TestCohortCovidSymptoms(unittest.TestCase):
 
         random.shuffle(obsfact_list)
 
-        seen = list()
+        excluded = list()
         selected = list()
         population = {}
 
@@ -258,16 +270,21 @@ class TestCohortCovidSymptoms(unittest.TestCase):
             population[symptom_pref] = []
 
         for obsfact in obsfact_list:
-            seen.append(obsfact.instance_num)
 
+            # Exclude by start_date
             if fhir_date_is_before(obsfact.start_date, criteria.observation.start_date):
-                print(f'Excluded date:  {obsfact.start_date}')
+                excluded.append({obsfact.instance_num: {'start_date': obsfact.start_date}})
                 continue
 
-            # NLP
+            # Exclude notes that are too short
             physician_note = clean_text(obsfact.observation_blob)
             if len(physician_note) < 25:
-                print(f'@note too short\t{physician_note}')
+                excluded.append({obsfact.instance_num: {'physician_note': physician_note}})
+                continue
+
+            # Exclude note type
+            if obsfact.concept_cd not in criteria.observation.concept_cd:
+                excluded.append({obsfact.instance_num: {'concept_cd': obsfact.concept_cd}})
                 continue
 
             nlp_cache = cache_ctakes(physician_note)
@@ -278,6 +295,9 @@ class TestCohortCovidSymptoms(unittest.TestCase):
                 physician_note=physician_note,
                 response_ctakes=nlp_cache,
                 filter_cui=criteria_cui_symptom)
+
+            if prelabel:
+                labelstudio.load_lazy()
 
             # SelectChart: ** no ** 0 Symptoms of COVID
             criteria_sx_no = (not nlp_cui_matches) and (len(set(population['X'])) < cnt_notes)
@@ -297,16 +317,22 @@ class TestCohortCovidSymptoms(unittest.TestCase):
                         save_labelstudio(labelstudio, obsfact.instance_num)
 
                         population[symptom_pref].append(obsfact.instance_num)
+
                         common.write_json('cohort/population.json', population)
                         common.write_text('cohort/tabulate.tsv', tabulate(population, chart_seq=selected))
 
                         if obsfact.instance_num not in selected:
                             selected.append(obsfact.instance_num)
-                            print(f'added note for date= {obsfact.start_date}')
 
                         print(f'{cui} in {nlp_cui_matches} {symptom_pref}')
+                        test_summary_counts()
             else:
-                print(f'no match, len(seen) = {len(seen)}')
+                excluded.append({obsfact.instance_num: {'reason': 'nlp_cui_matches'}})
+                print(f'no match, read = {len(selected) + len(excluded)} (selected = {len(selected)})')
+
+        print('Done, writing criteria.json and excluded.json')
+        common.write_json('cohort/criteria.json', criteria.as_json())
+        common.write_json('cohort/excluded.json', excluded)
 
 def test_merge_population():
     pop1 = '/Users/andy/chip/cumulus-etl/cohort_Nov5_100/population.json'
@@ -321,6 +347,6 @@ def test_summary_counts():
 
 if __name__ == '__main__':
     runner = TestCohortCovidSymptoms()
-    #runner.test_select('/Users/andy/phi/i2b2/csv_note/sample.csv')
-    runner.test_select_notes_no_labels('/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv')
-    runner.test_select_notes_silver_prelabel('/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv')
+    file_csv = '/Users/andy/phi/i2b2/csv_note/NOTE_COHORT_202202062242.csv'
+    #runner.test_select_random(file_csv)
+    runner.test_select_class_weights(file_csv)
