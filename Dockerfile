@@ -14,7 +14,7 @@ RUN dotnet publish \
   --output=/bin \
   /app/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
 
-FROM python:3.10-slim AS cumulus-etl
+FROM python:3.10 AS cumulus-etl
 COPY . /app
 RUN pip3 install /app
 RUN rm -r /app
