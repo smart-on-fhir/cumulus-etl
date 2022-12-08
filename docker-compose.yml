@@ -1,0 +1,39 @@
+version: "3"
+services:
+  
+  cumulus-etl:
+    build: .
+    volumes: 
+      - ./cumulus:/cumulus-etl/cumulus
+      - ./pyproject.toml:/cumulus-etl/pyproject.toml
+      - ./coveragerc:/cumulus-etl/coveragerc
+      # These three volume mounts are only used for local testing and can be removed
+      # for a prod environment if desired
+      - ./tests/data/:/cumulus-etl/tests/data
+      - ./example-output/:/cumulus-etl/example-output
+      - ./example-phi-build/:/cumulus-etl/example-phi-build
+    environment:
+      - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
+    # TODO: This platform requirement is due to the dotnet runtime flag.
+    # We could investigate dynamically passing the system architecture?
+    platform: linux/x86_64
+    depends_on:
+      - ctakes-covid
+    networks:
+      - cumulus-etl
+    
+  ctakes-covid:
+    image: smartonfhir/ctakes-covid
+    environment:
+      - ctakes_umlsuser=umls_api_key 
+      - ctakes_umlspw=$UMLS_API_KEY
+    networks:
+      - cumulus-etl
+    # If you need to expose the ctakes server for testing, uncomment this port mapping
+    # ports:
+    #   - 8080:8080
+
+
+networks:
+  cumulus-etl:
+    name: cumulus-etl
