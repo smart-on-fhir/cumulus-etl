@@ -2,6 +2,7 @@
 
 import unittest
 
+from fhirclient.models.condition import Condition
 from fhirclient.models.fhirdate import FHIRDate
 from fhirclient.models.patient import Patient
 from fhirclient.models.encounter import Encounter
@@ -15,8 +16,8 @@ from cumulus.loaders.i2b2 import transform as T
 class ExampleResources:
     """Convenience class for holding sample resources made from i2b2 data"""
     @staticmethod
-    def patient() -> Patient:
-        pat_i2b2 = T.PatientDimension({
+    def patient_dim() -> T.PatientDimension:
+        return T.PatientDimension({
             'PATIENT_NUM': str(12345),
             'BIRTH_DATE': '2005-06-07',
             'DEATH_DATE': '2008-09-10',
@@ -25,11 +26,13 @@ class ExampleResources:
             'ZIP_CD': '02115'
         })
 
-        return T.to_fhir_patient(pat_i2b2)
+    @staticmethod
+    def patient() -> Patient:
+        return T.to_fhir_patient(ExampleResources.patient_dim())
 
     @staticmethod
-    def encounter() -> Encounter:
-        visit_i2b2 = T.VisitDimension({
+    def encounter_dim() -> T.VisitDimension:
+        return T.VisitDimension({
             'ENCOUNTER_NUM': 67890,
             'PATIENT_NUM': '12345',
             'START_DATE': '2016-01-01T11:44:32+00:00',
@@ -38,11 +41,13 @@ class ExampleResources:
             'LENGTH_OF_STAY': 3
         })
 
-        return T.to_fhir_encounter(visit_i2b2)
+    @staticmethod
+    def encounter() -> Encounter:
+        return T.to_fhir_encounter(ExampleResources.encounter_dim())
 
     @staticmethod
-    def condition():
-        diagnosis = T.ObservationFact({
+    def condition_dim() -> T.ObservationFact:
+        return T.ObservationFact({
             'INSTANCE_NUM': '4567',
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
@@ -50,11 +55,13 @@ class ExampleResources:
             'START_DATE': '2016-01-01'
         })
 
-        return T.to_fhir_condition(diagnosis)
+    @staticmethod
+    def condition() -> Condition:
+        return T.to_fhir_condition(ExampleResources.condition_dim())
 
     @staticmethod
-    def documentreference() -> DocumentReference:
-        note_i2b2 = T.ObservationFact({
+    def documentreference_dim() -> T.ObservationFact:
+        return T.ObservationFact({
             'INSTANCE_NUM': '345',
             'PATIENT_NUM':
                 str(12345),
@@ -67,11 +74,14 @@ class ExampleResources:
             'OBSERVATION_BLOB':
                 'Chief complaint: fever and chills. Denies cough.'
         })
-        return T.to_fhir_documentreference(note_i2b2)
 
     @staticmethod
-    def observation() -> Observation:
-        lab_i2b2 = T.ObservationFact({
+    def documentreference() -> DocumentReference:
+        return T.to_fhir_documentreference(ExampleResources.documentreference_dim())
+
+    @staticmethod
+    def observation_dim() -> T.ObservationFact:
+        return T.ObservationFact({
             'PATIENT_NUM': str(12345),
             'ENCOUNTER_NUM': 67890,
             'CONCEPT_CD': 'LAB:1043473617',  # COVID19 PCR Test
@@ -81,7 +91,9 @@ class ExampleResources:
             'TVAL_CHAR': 'Negative'
         })
 
-        return T.to_fhir_observation_lab(lab_i2b2)
+    @staticmethod
+    def observation() -> Observation:
+        return T.to_fhir_observation_lab(ExampleResources.observation_dim())
 
 
 class TestI2b2Transform(unittest.TestCase):

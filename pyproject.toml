@@ -6,6 +6,7 @@ dependencies = [
     # This branch includes some jwt fixes we need (and will hopefully be in mainline in future)
     "fhirclient @ git+https://github.com/mikix/client-py.git@mikix/oauth2-jwt",
     "jwcrypto",
+    "oracledb",
     "pandas",
     "pyarrow",
     "s3fs",
@@ -50,7 +51,6 @@ tests = [
     "ddt",
     "freezegun",
     "moto[s3]",
-    "oracledb",  # oracle support is not enabled by default, and is only used in tests right now
     "pytest",
     "responses",
     "urllib3",

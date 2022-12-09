@@ -1,68 +1,95 @@
 """Extract data types from oracle"""
 
-from typing import List
-import logging
+import time
+from typing import Iterable, List
 
+from cumulus import common
 from cumulus.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 from cumulus.loaders.i2b2.schema import ConceptDimension, ProviderDimension
 from cumulus.loaders.i2b2.oracle import connect, query
 
 
-def execute(sql_statement: str):
+def execute(dsn: str, desc: str, sql_statement: str) -> Iterable[dict]:
     """
+    :param dsn: data source name (URL like tcp://example.com/foo)
+    :param desc: description of download (like 'observ
     :param sql_statement: SQL
     :return: iterable
     """
-    cursor = connect.connect().cursor()
-    return cursor.execute(sql_statement)
+    cursor = connect.connect(dsn).cursor()
+    cursor.execute(sql_statement)
+    columns = [col[0] for col in cursor.description]
+    cursor.rowfactory = lambda *args: dict(zip(columns, args))
+
+    # OK, cursor is now going to page through results and yield rows.
+    # Let's add some nice printing on top of that, because this can take a long while.
+    common.print_header(f'Starting SQL download for {desc}...')
+
+    # Loop over each row, printing reports as we go
+    count = 0
+    prev_time = time.time()
+    for row in cursor:
+        yield row
+        count += 1
+        now = time.time()
+        elapsed = now - prev_time
+        if elapsed >= 30:  # print twice a minute
+            print(f'  {desc}: downloaded {count:,} so far...')
+            prev_time = now
+
+    print(f'Done with {desc}! Downloaded {count:,} total.')
 
 
-def list_observation_fact() -> List[ObservationFact]:
-    logging.info('Extracting List[ObservationFact]')
+def list_observation_fact(dsn: str, category: str) -> List[ObservationFact]:
+    """
+    Grabs a single category of observation facts.
+
+    There are many, many kinds of observation facts, and usually they map to different FHIR resources.
+    Here are the known-valid categories:
+        Allergies
+        Clinic
+        Demographics
+        Diagnosis
+        Insurance
+        Lab View
+        Medications
+        Notes
+        PDIA
+        Procedures
+        Protocols
+        Service
+        Specimens
+        Vitals
+    """
     facts = []
-
-    for row in execute(query.sql_observation_fact()):
+    for row in execute(dsn, f'ObservationFact[{category}]', query.sql_observation_fact(category)):
         facts.append(ObservationFact(row))
-
-    logging.info('Ready List[ObservationFact]')
     return facts
 
 
-def list_patient() -> List[PatientDimension]:
-    logging.info('Extracting List[PatientDimension]')
+def list_patient(dsn: str) -> List[PatientDimension]:
     patients = []
-    for row in execute(query.sql_patient()):
+    for row in execute(dsn, 'PatientDimension', query.sql_patient()):
         patients.append(PatientDimension(row))
-
-    logging.info('Ready List[PatientDimension]')
     return patients
 
 
-def list_visit() -> List[VisitDimension]:
-    logging.info('Extracting List[VisitDimension]')
+def list_visit(dsn: str) -> List[VisitDimension]:
     visits = []
-    for row in execute(query.sql_visit()):
+    for row in execute(dsn, 'VisitDimension', query.sql_visit()):
         visits.append(VisitDimension(row))
-
-    logging.info('Ready List[VisitDimension]')
     return visits
 
 
-def list_concept() -> List[ConceptDimension]:
-    logging.info('Extracting List[ConceptDimension]')
+def list_concept(dsn: str) -> List[ConceptDimension]:
     concepts = []
-    for row in execute(query.sql_visit()):
+    for row in execute(dsn, 'ConceptDimension', query.sql_concept()):
         concepts.append(ConceptDimension(row))
-
-    logging.info('Ready List[ConceptDimension]')
     return concepts
 
 
-def list_provider() -> List[ProviderDimension]:
-    logging.info('Extracting List[ProviderDimension]')
+def list_provider(dsn: str) -> List[ProviderDimension]:
     providers = []
-    for row in execute(query.sql_provider()):
+    for row in execute(dsn, 'ProviderDimension', query.sql_provider()):
         providers.append(ProviderDimension(row))
-
-    logging.info('Ready List[ProviderDimension]')
     return providers

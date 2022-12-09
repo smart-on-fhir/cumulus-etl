@@ -24,7 +24,7 @@ from fhirclient.models.observation import Observation
 from fhirclient.models.patient import Patient
 from fhirclient.models.resource import Resource
 
-from cumulus import common, context, ctakes, deid, formats, loaders, store
+from cumulus import common, context, ctakes, deid, errors, formats, loaders, store
 from cumulus.config import JobConfig, JobSummary
 
 ###############################################################################
@@ -302,7 +302,7 @@ def check_ctakes() -> None:
         print(f'A running cTAKES server was not found at:\n    {ctakes_url}\n\n'
               'Please set the URL_CTAKES_REST environment variable to your server.',
               file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(errors.CTAKES_MISSING)
 
 
 def check_mstool() -> None:
@@ -314,7 +314,7 @@ def check_mstool() -> None:
               'Please see https://github.com/microsoft/Tools-for-Health-Data-Anonymization\n'
               'and install it into your PATH.',
               file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(errors.MSTOOL_MISSING)
 
 
 def check_requirements() -> None:

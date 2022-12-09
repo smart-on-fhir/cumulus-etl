@@ -206,10 +206,11 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.created = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
     docref.status = 'superseded'
 
+    blob = obsfact.observation_blob or ''
     content = DocumentReferenceContent()
     content.attachment = Attachment()
     content.attachment.contentType = 'text/plain'
-    content.attachment.data = base64.standard_b64encode(obsfact.observation_blob.encode('utf8')).decode('ascii')
+    content.attachment.data = base64.standard_b64encode(blob.encode('utf8')).decode('ascii')
     docref.content = [content]
 
     return docref

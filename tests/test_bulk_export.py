@@ -16,7 +16,7 @@ from requests.adapters import HTTPAdapter
 from responses import matchers
 from urllib3 import HTTPResponse
 
-from cumulus import common, etl, loaders, store
+from cumulus import common, errors, etl, loaders, store
 from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
 
@@ -150,7 +150,7 @@ class TestBulkLoader(unittest.TestCase):
             loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all()
 
         self.assertEqual(1, self.mock_server.call_count)
-        self.assertEqual(2, cm.exception.code)
+        self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
 
 @ddt.ddt
