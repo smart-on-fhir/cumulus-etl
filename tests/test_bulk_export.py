@@ -84,18 +84,18 @@ class TestBulkLoader(unittest.TestCase):
         """Verify that we require both a client ID and a JWK Set"""
         # No SMART args at all
         with self.assertRaises(SystemExit):
-            loaders.FhirNdjsonLoader(self.root).load_all()
+            loaders.FhirNdjsonLoader(self.root).load_all([])
 
         # No JWKS
         with self.assertRaises(SystemExit):
-            loaders.FhirNdjsonLoader(self.root, client_id='foo').load_all()
+            loaders.FhirNdjsonLoader(self.root, client_id='foo').load_all([])
 
         # No client ID
         with self.assertRaises(SystemExit):
-            loaders.FhirNdjsonLoader(self.root, jwks=self.jwks_path).load_all()
+            loaders.FhirNdjsonLoader(self.root, jwks=self.jwks_path).load_all([])
 
         # Works fine if both given
-        loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all()
+        loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all([])
 
     def test_reads_client_id_from_file(self):
         """Verify that we require both a client ID and a JWK Set."""
@@ -123,14 +123,11 @@ class TestBulkLoader(unittest.TestCase):
         mock_exporter_instance = mock.MagicMock()
         self.mock_exporter.return_value = mock_exporter_instance
 
-        loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all()
+        loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all(['Condition', 'Encounter'])
 
         expected_resources = [
             'Condition',
-            'DocumentReference',
             'Encounter',
-            'Observation',
-            'Patient',
         ]
 
         self.assertEqual(1, self.mock_server.call_count)
@@ -147,7 +144,7 @@ class TestBulkLoader(unittest.TestCase):
         self.mock_server.side_effect = FatalError
 
         with self.assertRaises(SystemExit) as cm:
-            loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all()
+            loaders.FhirNdjsonLoader(self.root, client_id='foo', jwks=self.jwks_path).load_all(['Patient'])
 
         self.assertEqual(1, self.mock_server.call_count)
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
@@ -574,7 +571,7 @@ class TestBulkExportEndToEnd(unittest.TestCase):
                     'Prefer': 'respond-async',
                 }),
                 matchers.query_param_matcher({
-                    '_type': 'Condition,DocumentReference,Encounter,Observation,Patient',
+                    '_type': 'Patient',
                     '_since': '1800-01-01T00:00:00Z',
                 })
             ],
@@ -621,7 +618,7 @@ class TestBulkExportEndToEnd(unittest.TestCase):
     def test_successful_bulk_export(self):
         """Verify a happy path bulk export, from toe to tip"""
         loader = loaders.FhirNdjsonLoader(self.root, client_id=self.client_id, jwks=self.jwks_path)
-        tmpdir = loader.load_all()
+        tmpdir = loader.load_all(['Patient'])
 
         self.assertEqual(
             {'id': 'testPatient1', 'resourceType': 'Patient'},

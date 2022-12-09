@@ -13,7 +13,7 @@ from cumulus.deid.codebook import CodebookDB
 from tests.test_i2b2_transform import ExampleResources
 
 
-@mock.patch('cumulus.deid.codebook.secrets.token_bytes', new=lambda x: b'1234')  # just to not waste entropy
+@mock.patch('cumulus.deid.codebook.secrets.token_hex', new=lambda x: b'1234')  # just to not waste entropy
 class TestScrubber(unittest.TestCase):
     """Test case for the Scrubber class"""
 

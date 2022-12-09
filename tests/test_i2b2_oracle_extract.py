@@ -80,14 +80,12 @@ class TestOracleExtraction(unittest.TestCase):
 
         root = store.Root('tcp://localhost/foo')
         oracle_loader = loader.I2b2Loader(root)
-        tmpdir = oracle_loader.load_all()
+        tmpdir = oracle_loader.load_all(['Condition', 'Encounter', 'Patient'])
 
         # Check results
         self.assertEqual({
             'Condition.ndjson',
-            'DocumentReference.ndjson',
             'Encounter.ndjson',
-            'Observation.ndjson',
             'Patient.ndjson',
         }, set(os.listdir(tmpdir.name)))
 

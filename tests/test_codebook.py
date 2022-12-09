@@ -19,7 +19,7 @@ def assert_empty_db(db: CodebookDB):
 
 
 @ddt.ddt
-@mock.patch('cumulus.deid.codebook.secrets.token_bytes', new=lambda x: b'1234')
+@mock.patch('cumulus.deid.codebook.secrets.token_hex', new=lambda x: '31323334')
 class TestCodebook(unittest.TestCase):
     """Test case for the Codebook class"""
 
@@ -39,7 +39,7 @@ class TestCodebook(unittest.TestCase):
         self.assertNotEqual(fake_id, cb.fake_id('Condition', '2'))
         self.assertEqual(fake_id, cb.fake_id('Observation', '1'))  # '1' hashes the same across types
         self.assertEqual('ee1b8555df1476e7512bc31940148a7821edae6e152e92037e6e8d7e948800a4', fake_id)
-        assert_empty_db(cb.db)
+        self.assertEqual('31323334', cb.db.mapping.get('id_salt'))
 
     def test_missing_db_file(self):
         """Ensure we gracefully handle a saved db file that doesn't exist yet"""
