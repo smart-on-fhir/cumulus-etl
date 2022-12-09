@@ -1,6 +1,7 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
+import collections
 import glob
 import itertools
 import json
@@ -222,7 +223,35 @@ def etl_notes_text2fhir_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> 
 #
 ###############################################################################
 
-def load_and_deidentify(loader: loaders.Loader) -> tempfile.TemporaryDirectory:
+TaskDescription = collections.namedtuple(
+    'TaskDescription',
+    ['func', 'resources'],
+)
+
+
+def get_task_descriptions(tasks: List[str] = None) -> Iterable[TaskDescription]:
+    # Tasks are named after the table they generate on the output side
+    available_tasks = {
+        'patient': TaskDescription(etl_patient, ['Patient']),
+        'encounter': TaskDescription(etl_encounter, ['Encounter']),
+        'lab': TaskDescription(etl_lab, ['Observation']),
+        'documentreference': TaskDescription(etl_notes_meta, ['DocumentReference']),
+        'symptom': TaskDescription(etl_notes_text2fhir_symptoms, ['DocumentReference']),
+        'condition': TaskDescription(etl_condition, ['Condition']),
+    }
+
+    if tasks is None:
+        return available_tasks.values()
+
+    try:
+        return [available_tasks[k] for k in tasks]
+    except KeyError as exc:
+        names = '\n'.join(sorted(f'  {key}' for key in available_tasks))
+        print(f'Unknown task name given. Valid task names:\n{names}', file=sys.stderr)
+        raise SystemExit(1) from exc
+
+
+def load_and_deidentify(loader: loaders.Loader, tasks: List[str] = None) -> tempfile.TemporaryDirectory:
     """
     Loads the input directory and does a first-pass de-identification
 
@@ -230,32 +259,27 @@ def load_and_deidentify(loader: loaders.Loader) -> tempfile.TemporaryDirectory:
 
     :returns: a temporary directory holding the de-identified files in FHIR ndjson format
     """
+    # Grab a list of all required resource types for the tasks we are running
+    required_resources = set(itertools.chain.from_iterable(t.resources for t in get_task_descriptions(tasks)))
+
     # First step is loading all the data into a local ndjson format
-    loaded_dir = loader.load_all()
+    loaded_dir = loader.load_all(list(required_resources))
 
     # Second step is de-identifying that data (at a bulk level)
     return deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
-def etl_job(config: JobConfig) -> List[JobSummary]:
+def etl_job(config: JobConfig, tasks: Iterable[str] = None) -> List[JobSummary]:
     """
-    :param config:
-    :return:
+    :param config: job config
+    :param tasks: if specified, only the listed tasks are run
+    :return: a list of job summaries
     """
     summary_list = []
 
-    task_list = [
-        etl_patient,
-        etl_encounter,
-        etl_lab,
-        etl_notes_meta,
-        etl_notes_text2fhir_symptoms,
-        etl_condition,
-    ]
-
     scrubber = deid.Scrubber(config.path_codebook())
-    for task in task_list:
-        summary = task(config, scrubber)
+    for task_desc in get_task_descriptions(tasks):
+        summary = task_desc.func(config, scrubber)
         summary_list.append(summary)
 
         scrubber.save()
@@ -344,6 +368,7 @@ def main(args: List[str]):
     parser.add_argument('--smart-client-id', metavar='CLIENT_ID', help='Client ID registered with SMART FHIR server '
                                                                        '(can be a filename with ID inside it')
     parser.add_argument('--smart-jwks', metavar='/path/to/jwks', help='JWKS file registered with SMART FHIR server')
+    parser.add_argument('--task', action='append', help='Only update the given output tables (comma separated)')
     parser.add_argument('--skip-init-checks', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args(args)
 
@@ -357,7 +382,7 @@ def main(args: List[str]):
 
     common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
-    root_input = store.Root(args.dir_input, create=True)
+    root_input = store.Root(args.dir_input)
     root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 
@@ -376,7 +401,11 @@ def main(args: List[str]):
     else:
         config_store = formats.NdjsonFormat(root_output)
 
-    deid_dir = load_and_deidentify(config_loader)
+    # Check which tasks are being run, allowing comma-separated values
+    tasks = args.task and list(itertools.chain.from_iterable(t.split(',') for t in args.task))
+
+    # Pull down resources and run the MS tool on them
+    deid_dir = load_and_deidentify(config_loader, tasks=tasks)
 
     # Prepare config for jobs
     config = JobConfig(config_loader, deid_dir.name, config_store, root_phi, comment=args.comment,
@@ -385,8 +414,8 @@ def main(args: List[str]):
     common.print_header('Configuration:')
     print(json.dumps(config.as_json(), indent=4))
 
-    # Finally, actually run the meat of the pipeline!
-    summaries = etl_job(config)
+    # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
+    summaries = etl_job(config, tasks=tasks)
 
     # Print results to the console
     common.print_header('Results:')

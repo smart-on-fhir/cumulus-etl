@@ -2,6 +2,7 @@
 
 import sys
 import tempfile
+from typing import List
 
 from cumulus import common, store
 from cumulus.loaders import base
@@ -29,10 +30,10 @@ class FhirNdjsonLoader(base.Loader):
             self.client_id = client_id
         self.jwks = common.read_json(jwks) if jwks else None
 
-    def load_all(self) -> tempfile.TemporaryDirectory:
+    def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ['http', 'https']:
-            return self._load_from_bulk_export()
+            return self._load_from_bulk_export(resources)
 
         # Are we reading from a local directory?
         if self.root.protocol == 'file':
@@ -46,7 +47,7 @@ class FhirNdjsonLoader(base.Loader):
         self.root.get(self.root.joinpath('*.ndjson'), f'{tmpdir.name}/')
         return tmpdir
 
-    def _load_from_bulk_export(self) -> tempfile.TemporaryDirectory:
+    def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         # First, check that the extra arguments we need were provided
         errors = []
         if not self.client_id:
@@ -58,14 +59,6 @@ class FhirNdjsonLoader(base.Loader):
             raise SystemExit(1)
 
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-
-        resources = [
-            'Condition',
-            'DocumentReference',
-            'Encounter',
-            'Observation',
-            'Patient',
-        ]
 
         try:
             server = BackendServiceServer(self.root.path, self.client_id, self.jwks, resources)

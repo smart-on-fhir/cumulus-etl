@@ -79,10 +79,6 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
         shutil.copy(os.path.join(self.data_dir, 'codebook.json'),
                     self.phi_path)
 
-        secrets_mock = mock.patch('cumulus.deid.codebook.secrets.token_bytes', new=lambda x: b'1234')
-        self.addCleanup(secrets_mock.stop)
-        secrets_mock.start()
-
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
         # This helps with UUIDs that don't get recorded in the codebook, like observations.

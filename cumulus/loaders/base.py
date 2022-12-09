@@ -2,6 +2,7 @@
 
 import abc
 import tempfile
+from typing import List
 
 from cumulus.store import Root
 
@@ -22,9 +23,10 @@ class Loader(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    def load_all(self) -> tempfile.TemporaryDirectory:
+    def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         """
-        Loads all remote resources and places them into a local folder as FHIR ndjson
+        Loads the listed remote resources and places them into a local folder as FHIR ndjson
 
+        :param resources: a list of resources to ingest
         :returns: an object holding the name of a local ndjson folder path (e.g. a TemporaryDirectory)
         """
