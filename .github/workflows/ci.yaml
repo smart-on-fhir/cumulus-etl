@@ -51,13 +51,18 @@ jobs:
       - name: Install linters
         run: |
           python -m pip install --upgrade pip
-          pip install pycodestyle pylint
+          pip install bandit[toml] pycodestyle pylint
 
       - name: Run pycodestyle
         run: |
           pycodestyle --max-line-length=120 .
 
       - name: Run pylint
-        if: success() || failure() # still run pylint if pycodestyle fails
+        if: success() || failure() # still run pylint if above checks fail
         run: |
           pylint cumulus tests
+
+      - name: Run bandit
+        if: success() || failure() # still run bandit if above checks fail
+        run: |
+          bandit -c pyproject.toml -r .
