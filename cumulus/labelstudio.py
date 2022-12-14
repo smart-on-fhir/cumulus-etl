@@ -42,7 +42,8 @@ class LabelStudio:
                  physician_note: str,
                  response_ctakes,
                  filter_cui=None,
-                 filter_semtype=UmlsTypeMention.SignSymptom.value):
+                 filter_semtype=UmlsTypeMention.SignSymptom.value,
+                 custom=None):
         """
         LabelStudio document annotation.
         https://labelstud.io/guide/tasks.html#Basic-Label-Studio-JSON-format
@@ -56,10 +57,11 @@ class LabelStudio:
         :param filter_cui: {cui:text} to select concepts for document level
                            annotation
         :param filter_semtype: UMLS semantic type to filter by (select for)
+        :param custom: dict containing optional additional metadata, such as FHIR or I2b2 Source Identifiers.
         """
         self.note_text = physician_note
-        self.note_file = None # optionally load from file and cache filename
-        self.note_ref = None # optional provide a document reference
+        self.note_file = None  # optionally load from file and cache filename
+        self.note_ref = None  # optional provide a document reference
         self.response_ctakes = response_ctakes
         self.filter_cui = filter_cui
         self.filter_semtype = filter_semtype
@@ -81,6 +83,11 @@ class LabelStudio:
                     self.response_ctakes = CtakesJSON(json.load(f))
         elif response_ctakes and isinstance(response_ctakes, dict):
             self.response_ctakes = CtakesJSON(response_ctakes)
+
+        if custom:
+            self.custom = custom
+        else:
+            self.custom = dict()
 
     def load_lazy(self, polarity=Polarity.pos):
         """
@@ -134,13 +141,11 @@ class LabelStudio:
         self.result.append(whole_doc)
 
     def as_json(self):
-        return {
-            'data': {
-                'text': self.note_text,
-                'file': self.note_file
-            },
-            'predictions': [{
-                'model_version': self.model_version,
-                'result': self.result
-            }]
-        }
+        return {'data': {
+                    'text': self.note_text,
+                    'file': self.note_file},
+                'predictions': [{
+                    'model_version': self.model_version,
+                    'result': self.result}],
+                'custom': self.custom
+                }
