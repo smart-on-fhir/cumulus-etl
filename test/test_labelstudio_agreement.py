@@ -3,7 +3,8 @@ import unittest
 from cumulus import common
 from ctakesclient.typesystem import Span
 
-EXPORTED_JSON = '/Users/andy/Downloads/labelstudio-dec6-min.json'
+#EXPORTED_JSON = '/Users/andy/Downloads/labelstudio-dec6-min.json'
+EXPORTED_JSON = '/Users/andy/Downloads/labelstudio-dec14-106pm-min.json'
 
 class Annotator(Enum):
     """
@@ -19,7 +20,7 @@ class NoteRange(Enum):
     """
     corpus = range(782, 1005)
     andy_alon = range(979, 1005)
-    amy_alon = range(0, 0)
+    amy_alon = range(864, 890)
 
 def intersect(span1: Span, span2: Span) -> set:
     """
@@ -102,8 +103,37 @@ def calc_term_freq(annotator=Annotator.andy.name, note_range=NoteRange.corpus.va
                 if symptom not in term_freq[text].keys():
                     term_freq[text][symptom] = list()
 
-                term_freq[text][symptom].append({'id': note_id})
+                term_freq[text][symptom].append(note_id)
     return term_freq
+
+def calc_term_symptom_confusion(term_freq: dict) -> dict:
+    """
+    @param term_freq: output of 'calc_term_freq'
+    @return: dict filtered by only confusing TERMs
+    """
+    confusing = dict()
+    for term in term_freq.keys():
+        if len(term_freq[term].keys()) > 1:
+            confusing[term] = term_freq[term]
+    return confusing
+
+def calc_symptom_frequency(term_freq: dict) -> dict:
+    symptoms = dict()
+    for term in term_freq.keys():
+        for label in term_freq[term].keys():
+            if label not in symptoms.keys():
+                symptoms[label] = dict()
+            if term not in symptoms[label].keys():
+                symptoms[label][term] = list()
+            for note_id in term_freq[term][label]:
+                symptoms[label][term].append(note_id)
+    tf = dict()
+    for label in symptoms.keys():
+        for term in symptoms[label].keys():
+            if label not in tf.keys():
+                tf[label] = dict()
+            tf[label][term] = len(symptoms[label][term])
+    return tf
 
 def accuracy_mentions(ground_truth_ann: str, reliability_ann: str, note_range=NoteRange.corpus.value):
     """
@@ -134,13 +164,6 @@ def accuracy_mentions(ground_truth_ann: str, reliability_ann: str, note_range=No
                                     TP.append(confirm)
                     if not found:
                         FN.append(truth_annot)
-
-    print('###############################')
-    print(f" TP = {len(TP)}")
-    print(f" FN = {len(FN)}")
-    print(f" found = {TP}")
-    print(f" missed = {FN}")
-
     return {'TP': TP, 'FN': FN, 'ID': id_list}
 
 def rollup_mentions(annotator, note_range=NoteRange.corpus.value) -> dict:
@@ -193,20 +216,12 @@ def accuracy_prevalence(ground_truth_ann: str, reliability_ann: str, note_range=
                     TP.append(key)
                 else:
                     FN.append(key)
-
-    print('#####################################')
-    print('# Prevalence style rollup calculation')
-    print(f" TP = {len(TP)}")
-    print(f" FN = {len(FN)}")
-    print(f" found = {TP}")
-    print(f" missed = {FN}")
-
     return {'TP': TP, 'FN': FN, 'ID': id_list}
 
 def score_f1(true_pos, false_pos, false_neg) -> dict:
     """
     Score F1 measure with specificity (PPV) and recall (sensitivity).
-    F1 delibately ignores "True Negatives" because TN inflates scoring (AUROC)
+    F1 deliberately ignores "True Negatives" because TN inflates scoring (AUROC)
 
     @param true_pos: True Positives (agree on positive symptom)
     @param false_pos: False Positives (reliability said pos, annotator said none)
@@ -264,16 +279,36 @@ class TestLabelstudioAgreement(unittest.TestCase):
     def test_term_frequency(self):
         for annotator in list(Annotator):
             path = f'{EXPORTED_JSON}.term_freq.{annotator.name}.json'
-            common.write_json(path, calc_term_freq(annotator.name))
+            common.write_json(path, calc_term_freq(annotator.name), 4)
             print(path)
 
-    def test_score_f1_mentions(self):
-        f1_score = score_f1_mentions(Annotator.andy.name, Annotator.alon.name, NoteRange.andy_alon.value)
-        print(f'{f1_score}')
+    def test_calc_symptom_frequency(self):
+        for annotator in list(Annotator):
+            path = f'{EXPORTED_JSON}.symptom_freq.{annotator.name}.json'
+            common.write_json(path, calc_symptom_frequency(calc_term_freq(annotator.name)), 4)
+            print(path)
 
-    def test_score_f1_prevalence(self):
-        f1_score = score_f1_prevalence(Annotator.andy.name, Annotator.alon.name, NoteRange.andy_alon.value)
-        print(f'{f1_score}')
+    def test_calc_term_symptom_confusion(self):
+        for annotator in list(Annotator):
+            path = f'{EXPORTED_JSON}.term_confusion.{annotator.name}.json'
+            common.write_json(path, calc_term_symptom_confusion(calc_term_freq(annotator.name)), 4)
+            print(path)
+
+    def test_score_f1(self):
+        self.write_score_f1(Annotator.alon.name, Annotator.andy.name, NoteRange.andy_alon.value)
+        self.write_score_f1(Annotator.andy.name, Annotator.alon.name, NoteRange.andy_alon.value)
+        self.write_score_f1(Annotator.amy.name, Annotator.alon.name, NoteRange.amy_alon.value)
+        self.write_score_f1(Annotator.alon.name, Annotator.amy.name, NoteRange.amy_alon.value)
+
+    def write_score_f1(self, ground_truth_ann, reliability_ann, note_range):
+        f1_mentions = score_f1_mentions(ground_truth_ann, reliability_ann, note_range)
+        f1_prevalence = score_f1_prevalence(ground_truth_ann, reliability_ann, note_range)
+
+        path = f'{EXPORTED_JSON}.f1_mentions.{ground_truth_ann}.{reliability_ann}.json'
+        common.write_json(path, f1_mentions, 4)
+
+        path = f'{EXPORTED_JSON}.f1_prevalence.{ground_truth_ann}.{reliability_ann}.json'
+        common.write_json(path, f1_prevalence, 4)
 
 
 if __name__ == '__main__':
