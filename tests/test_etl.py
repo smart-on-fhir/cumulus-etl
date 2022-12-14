@@ -171,6 +171,31 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         expected_subject = f"Patient/{self.codebook.db.patient('1234')}"
         self.assertEqual({expected_subject}, {s['reference'] for s in df.subject})
 
+    def test_downloaded_phi_is_not_kept(self):
+        """Verify we remove all downloaded PHI even if interrupted"""
+        internal_phi_dir = None
+
+        def fake_scrub(phi_dir: str):
+            # Save this dir path
+            nonlocal internal_phi_dir
+            internal_phi_dir = phi_dir
+
+            # Run a couple checks to ensure that we do indeed have PHI in this dir
+            self.assertIn('Patient.ndjson', os.listdir(phi_dir))
+            with common.open_file(os.path.join(phi_dir, 'Patient.ndjson'), 'r') as f:
+                first = json.loads(f.readlines()[0])
+                self.assertEqual('02139', first['address'][0]['postalCode'])
+
+            # Then raise an exception to interrupt the ETL flow before we normally would be able to clean up
+            raise KeyboardInterrupt
+
+        with mock.patch('cumulus.etl.deid.Scrubber.scrub_bulk_data', new=fake_scrub):
+            with self.assertRaises(KeyboardInterrupt):
+                self.run_etl()
+
+        self.assertIsNotNone(internal_phi_dir)
+        self.assertFalse(os.path.exists(internal_phi_dir))
+
 
 class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
     """Test case for the job config logging data"""

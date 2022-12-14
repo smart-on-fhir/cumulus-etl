@@ -29,4 +29,5 @@ Use the provided [Cumulus Library](https://github.com/comorbidity/library)
 
 # Further Reading
 * An [overview of how Cumulus works](docs/explanations/overview.md) (non-technical)
+* An [explanation of how Cumulus de-identifies patient data](docs/explanations/deid.md) (lightly-technical)
 * A [first-time setup guide](docs/howtos/first-time-setup.md) (highly technical)
