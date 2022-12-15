@@ -1,11 +1,11 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
-import glob
 import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import sys
@@ -41,9 +41,16 @@ StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
 def _read_ndjson(config: JobConfig, resource_type: Type[AnyResource]) -> Iterator[AnyResource]:
+    """
+    Grabs all ndjson files from a folder, of a particular resource type.
+
+    Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
+    """
     resource_name = resource_type.__name__
-    pattern = f'{resource_name}.*ndjson'  # support both Condition.ndjson and Condition.000.ndjson, or others
-    filenames = glob.glob(os.path.join(config.dir_input, pattern))
+
+    pattern = re.compile(rf'([0-9]+.)?{resource_name}(.[0-9]+)?.ndjson')
+    all_files = os.listdir(config.dir_input)
+    filenames = filter(pattern.match, all_files)
 
     if not filenames:
         logging.error('Could not find any files for %s in the input folder, skipping that resource.', resource_name)
@@ -357,7 +364,7 @@ def main(args: List[str]):
 
     common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
-    root_input = store.Root(args.dir_input, create=True)
+    root_input = store.Root(args.dir_input)
     root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 

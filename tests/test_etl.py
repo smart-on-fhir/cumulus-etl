@@ -14,7 +14,10 @@ from unittest import mock
 import freezegun
 import pytest
 import s3fs
+from fhirclient.models.condition import Condition
+from fhirclient.models.encounter import Encounter
 from fhirclient.models.extension import Extension
+from fhirclient.models.patient import Patient
 
 from cumulus import common, config, context, deid, etl, store
 from cumulus.loaders.i2b2 import extract
@@ -223,8 +226,8 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
         self.assertEqual(input_context, common.read_json(self.context_path))
 
 
-class TestI2b2EtlBatches(BaseI2b2EtlSimple):
-    """Test case for etl batching"""
+class TestI2b2EtlUtils(BaseI2b2EtlSimple):
+    """Test case for etl utility methods"""
 
     def test_batched_output(self):
         self.run_etl(batch_size=1)
@@ -263,6 +266,31 @@ class TestI2b2EtlBatches(BaseI2b2EtlSimple):
 
         with self.assertRaises(ValueError):
             list(etl._batch_iterate([1, 2, 3], -1))
+
+    def test_read_ndjson(self):
+        """Verify we recognize all expected ndjson filename formats"""
+        # pylint: disable=protected-access
+
+        def make_json(path, filename, resource_id):
+            common.write_json(os.path.join(path, filename), {'id': resource_id})
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            make_json(tmpdir, '11.Condition.ndjson', '11')
+            make_json(tmpdir, 'Condition.12.ndjson', '12')
+            make_json(tmpdir, '13.Condition.13.ndjson', '13')
+            make_json(tmpdir, 'Patient.14.ndjson', '14')
+
+            job_config = mock.MagicMock()
+            job_config.dir_input = tmpdir
+
+            resources = etl._read_ndjson(job_config, Condition)
+            self.assertEqual({'11', '12', '13'}, {r.id for r in resources})
+
+            resources = etl._read_ndjson(job_config, Patient)
+            self.assertEqual({'14'}, {r.id for r in resources})
+
+            resources = etl._read_ndjson(job_config, Encounter)
+            self.assertEqual([], list(resources))
 
 
 class TestI2b2EtlFormats(BaseI2b2EtlSimple):
