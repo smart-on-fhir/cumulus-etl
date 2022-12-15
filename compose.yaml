@@ -35,10 +35,11 @@ services:
       - ./:/cumulus-etl/
     profiles:
       - test
-    entrypoint: 
-      - /bin/sh 
-      - -c
-    command: "cumulus-etl /cumulus-etl/tests/data/simple/ndjson-input /cumulus-etl/example-output /cumulus-etl/example-phi-build --output-format=ndjson"
+    command: 
+      - /cumulus-etl/tests/data/simple/ndjson-input 
+      - /cumulus-etl/example-output 
+      - /cumulus-etl/example-phi-build 
+      - --output-format=ndjson
 
 
 networks:
