@@ -78,31 +78,16 @@ systemctl enable docker.service
 systemctl enable containerd.service
 ```
 
-## cTAKES
+## Docker Compose
 
-Cumulus ETL needs a [cTAKES](https://ctakes.apache.org/) server running alongside it,
-to handle natural language processing of physician notes.
+[Docker Compose](https://docs.docker.com/compose/) is included with Docker, and allows you to deploy a self-contained network.
+We're using it to simplify deploying the Cumulus ETL project in your ecosystem.
 
-Properly building a version of cTAKES with the appropriate dictionaries is a whole topic we
-thankfully don't need to get into right now, because SMART provides a Docker image ready to go,
-loaded with a covid symptoms dictionary.
+The docker-compose.yaml, which defines the network, adds the following containers:
 
-Remember that UMLS API key from the beginning?
-Here's where you use it, to feed to cTAKES (replace the first line below with the correct value).
-
-```sh
-UMLS_API_KEY=your-umls-api-key
-docker pull smartonfhir/ctakes-covid
-CTAKES_CONTAINER=`docker run \
-  --detach \
-  --env=ctakes_umlsuser=umls_api_key \
-  --env=ctakes_umlspw=$UMLS_API_KEY \
-  --rm \
-  smartonfhir/ctakes-covid`
-```
-
-Now you have cTAKES running in a container, ready for Cumulus ETL.
-We saved its ID in the environment variable `CTAKES_CONTAINER`, for use below.
+- The Cumulus ETL process itself
+- A [cTAKES](https://ctakes.apache.org/) server, to handle natural language 
+  processing of physician notes.
 
 ## Cumulus ETL
 
@@ -113,17 +98,19 @@ But we _do_ ship a Dockerfile that you can use to build a docker image yourself 
 You _could_ run Cumulus ETL directly from your cloned repository, but rather than worrying about
 all the dependencies it needs (including a whole
 [C# app from Microsoft](https://github.com/microsoft/Tools-for-Health-Data-Anonymization)
-that does some of the de-identification for us), we'll just build the docker image.
+that does some of the de-identification for us), we'll just build the docker image, using
+the Docker Compose network definition.
 
 ```sh
-DOCKER_BUILDKIT=1 docker build -t cumulus-etl /path-to-cloned-cumulus-etl-repo
+CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile etl build
 ```
 
 And now you have Cumulus ETL installed!
 
 ### Running Cumulus ETL
 
-At the most basic level, running Cumulus ETL is as simple as `docker run cumulus-etl`,
+At the most basic level, running Cumulus ETL is as simple as `docker compose up`,
 but obviously we'll need to provide arguments that point to your data and where output files should
 go, etc.
 
@@ -132,34 +119,30 @@ Cumulus ETL installed correctly.
 
 ### Local Test Run
 
-Go ahead and run this command, replacing  `/path-to-cloned-cumulus-etl-repo` in the first line
-with the path of your local `cumulus-etl` cloned repository.
-This will process some test files that are shipped with the repo.
-
+Once you've done that, you'll need the UMLS key mentioned at the top of this document. First, we're going
+to start the network (here we're setting the UMLS_API_KEY, which cTAKES requires):
 ```sh
-CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
-CTAKES_IP=`docker inspect $CTAKES_CONTAINER | jq -r '.[].NetworkSettings.Networks.bridge.IPAddress'`
-docker run \
- --env=URL_CTAKES_REST=http://$CTAKES_IP:8080/ctakes-web-rest/service/analyze \
- --mount=type=bind,src=$CUMULUS_REPO_PATH,dst=/cumulus-etl \
- --rm \
- cumulus-etl \
-  /cumulus-etl/tests/data/simple/ndjson-input \
-  /cumulus-etl/example-output \
-  /cumulus-etl/example-phi-build
+export UMLS_API_KEY=your-umls-api-key
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile etl-support up -d
 ```
 
-You'll notice that the first thing we do is ask Docker for the IP of the cTAKES server that we
-started earlier.
-And then we pass in a `URL_CTAKES_REST` variable with that same IP so that Cumulus ETL knows where
-the server is.
-
-We also create a bind mount to grant access to the cloned repo, which is similar to what you'd need
-to do if you are using local input files yourself.
+The compose file will handle the environment variable mapping and volume mounts for you.
+After running that command, you can start the actual etl process with the following command:
+```sh
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
+  run --volume $CUMULUS_REPO_PATH:/cumulus-etl --rm \
+  cumulus-etl \
+  /cumulus-etl/tests/data/simple/ndjson-input \
+  /cumulus-etl/example-output \
+  /cumulus-etl/example-phi-build \
+  --output-format=ndjson
+```
 
 After running this command, you should be able to see output in
 `$CUMULUS_REPO_PATH/example-output` and some build artifacts in
-`$CUMULUS_REPO_PATH/example-phi-build`.
+`$CUMULUS_REPO_PATH/example-phi-build`. The ndjson flag shows what the data leaving your
+organization looks like - take a look if you'd like to confirm that there isn't PHI
+in the output direcotry. 
 
 Congratulations! You've run your first Cumulus ETL process. The first of many!
 
@@ -177,11 +160,7 @@ Run this command, but replace:
 * and `subdir1` with the ETL subdirectory you used when setting up AWS
 
 ```sh
-docker run \
- --env=URL_CTAKES_REST=http://$CTAKES_IP:8080/ctakes-web-rest/service/analyze \
- --mount=type=bind,src=$CUMULUS_REPO_PATH,dst=/cumulus-etl \
- --rm \
- cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml run -rm cumulus-etl \
   --s3-region=us-east-2 \
   /cumulus-etl/tests/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
@@ -195,9 +174,7 @@ You should now be able to see some (very small) output files in your S3 buckets!
 Here's a more realistic and complete command, as a starting point for your own version.
 
 ```sh
-docker run \
- --env=URL_CTAKES_REST=http://$CTAKES_IP:8080/ctakes-web-rest/service/analyze \
- --rm \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml run -rm\
  cumulus-etl \
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \
@@ -210,7 +187,7 @@ docker run \
 ```
 
 Now let's talk about customizing this command for your own environment.
-(And remember that you can always run `docker run cumulus-etl --help` for more guidance.)
+(And remember that you can always run `docker compose run cumulus-etl --help` for more guidance.)
 
 ### Required Arguments
 
