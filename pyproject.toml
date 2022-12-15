@@ -42,6 +42,9 @@ include = [
     "LICENSE",
 ]
 
+[tool.bandit]
+exclude_dirs = ["tests"]
+
 [project.optional-dependencies]
 tests = [
     "ddt",

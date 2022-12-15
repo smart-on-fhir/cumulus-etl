@@ -5,7 +5,7 @@ See https://github.com/microsoft/Tools-for-Health-Data-Anonymization for more de
 """
 
 import os
-import subprocess
+import subprocess  # nosec: B404
 import sys
 
 MSTOOL_CMD = 'Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool'
@@ -22,7 +22,9 @@ def run_mstool(input_dir: str, output_dir: str) -> None:
     The input must be in ndjson format. And the output will be as well.
     """
     try:
-        subprocess.run(
+        # The following call only points at some temporary directory names (which we generate),
+        # so it should be safe, and we thus disable the security linter warning about validating inputs.
+        subprocess.run(  # nosec: subprocess_without_shell_equals_true
             [
                 MSTOOL_CMD,
                 '--bulkData',

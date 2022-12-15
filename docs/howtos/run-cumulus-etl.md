@@ -269,4 +269,6 @@ You can also give `--smart-client-id` a path to a file with your client ID,
 if it is too large and unwieldy for the commandline.
 
 And for Cumulus ETL's input path argument,
-you will give your server's URL address (e.g. `https://example.com/fhir`).
+you will give your server's URL address,
+including a Group identifier if you want to scope the export
+(e.g. `https://example.com/fhir` or `https://example.com/fhir/Group/1234`).
