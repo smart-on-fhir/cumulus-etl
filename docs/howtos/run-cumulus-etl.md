@@ -102,7 +102,7 @@ that does some of the de-identification for us), we'll just build the docker ima
 the Docker Compose network definition.
 
 ```sh
-CUMULUS_REPO_PATH =/path-to-cloned-cumulus-etl-repo
+CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
 COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml build
 ```
 
