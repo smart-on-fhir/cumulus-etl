@@ -83,7 +83,7 @@ systemctl enable containerd.service
 [Docker Compose](https://docs.docker.com/compose/) is included with Docker, and allows you to deploy a self-contained network.
 We're using it to simplify deploying the Cumulus ETL project in your ecosystem.
 
-The docker-compose.yml, which defines the network, adds the following containers:
+The docker-compose.yaml, which defines the network, adds the following containers:
 
 - The Cumulus ETL process itself
 - A [cTAKES](https://ctakes.apache.org/) server, to handle natural language 
@@ -102,8 +102,8 @@ that does some of the de-identification for us), we'll just build the docker ima
 the Docker Compose network definition.
 
 ```sh
-CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml build
+export CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile etl build
 ```
 
 And now you have Cumulus ETL installed!
@@ -112,7 +112,7 @@ And now you have Cumulus ETL installed!
 
 At the most basic level, running Cumulus ETL is as simple as `docker compose up`,
 but obviously we'll need to provide arguments that point to your data and where output files should
-go, etc. 
+go, etc.
 
 But first, let's do a bare-minimum run that works with toy data, just to confirm that we have
 Cumulus ETL installed correctly.
@@ -120,16 +120,19 @@ Cumulus ETL installed correctly.
 ### Local Test Run
 
 Once you've done that, you'll need the UMLS key mentioned at the top of this document. First, we're going
-to start the network:
+to start the network (here we're setting the UMLS_API_KEY, which cTAKES requires for
+talking to external resources):
 ```sh
-UMLS_API_KEY=your-umls-api-key
-docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml up -d
+export UMLS_API_KEY=your-umls-api-key
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile etl-support up -d
 ```
 
-The docker-compose file will handle the environment variable mapping and volume mounts for you.
+The compose file will handle the environment variable mapping and volume mounts for you.
 After running that command, you can start the actual etl process with the following command:
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
+  run --volume $CUMULUS_REPO_PATH:/cumulus-etl --rm \
+  cumulus-etl \
   /cumulus-etl/tests/data/simple/ndjson-input \
   /cumulus-etl/example-output \
   /cumulus-etl/example-phi-build \
@@ -138,7 +141,9 @@ docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run cumulus-etl \
 
 After running this command, you should be able to see output in
 `$CUMULUS_REPO_PATH/example-output` and some build artifacts in
-`$CUMULUS_REPO_PATH/example-phi-build`.
+`$CUMULUS_REPO_PATH/example-phi-build`. The ndjson flag shows what the data leaving your
+organization looks like - take a look if you'd like to confirm that there isn't PHI
+in the output direcotry. 
 
 Congratulations! You've run your first Cumulus ETL process. The first of many!
 
@@ -156,7 +161,7 @@ Run this command, but replace:
 * and `subdir1` with the ETL subdirectory you used when setting up AWS
 
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml run -rm cumulus-etl \
   --s3-region=us-east-2 \
   /cumulus-etl/tests/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
@@ -170,7 +175,7 @@ You should now be able to see some (very small) output files in your S3 buckets!
 Here's a more realistic and complete command, as a starting point for your own version.
 
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml run -rm\
  cumulus-etl \
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \
