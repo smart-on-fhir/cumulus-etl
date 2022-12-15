@@ -103,8 +103,7 @@ the Docker Compose network definition.
 
 ```sh
 CUMULUS_REPO_PATH =/path-to-cloned-cumulus-etl-repo
-cd $CUMULUS_REPO_PATH
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose build
+COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml build
 ```
 
 And now you have Cumulus ETL installed!
@@ -124,13 +123,13 @@ Once you've done that, you'll need the UMLS key mentioned at the top of this doc
 to start the network:
 ```sh
 UMLS_API_KEY=your-umls-api-key
-docker compose up -d
+docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml up -d
 ```
 
 The docker-compose file will handle the environment variable mapping and volume mounts for you.
 After running that command, you can start the actual etl process with the following command:
 ```sh
-docker compose run cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run cumulus-etl \
   /cumulus-etl/tests/data/simple/ndjson-input \
   /cumulus-etl/example-output \
   /cumulus-etl/example-phi-build \
@@ -157,7 +156,7 @@ Run this command, but replace:
 * and `subdir1` with the ETL subdirectory you used when setting up AWS
 
 ```sh
-docker compose run cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run cumulus-etl \
   --s3-region=us-east-2 \
   /cumulus-etl/tests/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
@@ -171,7 +170,7 @@ You should now be able to see some (very small) output files in your S3 buckets!
 Here's a more realistic and complete command, as a starting point for your own version.
 
 ```sh
-docker compose run \
+docker compose -f $CUMULUS_REPO_PATH/docker-compose.yml run \
  cumulus-etl \
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \
