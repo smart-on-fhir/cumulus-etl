@@ -59,14 +59,14 @@ def simplify(exported_json=EXPORTED_JSON) -> dict:
     """
     simple = dict()
     for entry in common.read_json(exported_json):
-        id = entry.get('id')
+        note_id = entry.get('id')
         annotator = Annotator(entry.get('annotator')).name
         label = entry.get('label')
 
-        if not simple.get(id):
-            simple[id] = dict()
+        if not simple.get(note_id):
+            simple[note_id] = dict()
 
-        simple[id][annotator] = label
+        simple[note_id][annotator] = label
     return simple
 
 def filter_note_range(simple: dict, note_range) -> dict:
@@ -76,12 +76,12 @@ def filter_note_range(simple: dict, note_range) -> dict:
     @return: dict filtered by note_range
     """
     filtered = dict()
-    for id, values in simple.items():
-        if id in note_range:
-            filtered[id] = values
+    for note_id, values in simple.items():
+        if note_id in note_range:
+            filtered[note_id] = values
     return filtered
 
-def calc_term_freq(annotator=Annotator.andy.name, note_range=NoteRange.corpus.value) -> dict:
+def calc_term_freq(annotator, note_range=NoteRange.corpus.value) -> dict:
     """
     Calculate the frequency of TERMS highlighted for each LABEL (Cough, Dyspnea, etc).
     @param annotator: Reviewer like andy, amy, or alon
@@ -206,8 +206,6 @@ def accuracy_prevalence(ground_truth_ann: str, reliability_ann: str, note_range=
     for note_id, labels in ground_truth.items():
         for symptom in labels:
             key = {note_id: symptom}
-            print(key)
-
             if note_id not in id_list:
                 id_list.append(note_id)
 
@@ -218,7 +216,7 @@ def accuracy_prevalence(ground_truth_ann: str, reliability_ann: str, note_range=
                     FN.append(key)
     return {'TP': TP, 'FN': FN, 'ID': id_list}
 
-def score_f1(true_pos, false_pos, false_neg) -> dict:
+def score_f1(true_pos: list, false_pos: list, false_neg: list) -> dict:
     """
     Score F1 measure with specificity (PPV) and recall (sensitivity).
     F1 deliberately ignores "True Negatives" because TN inflates scoring (AUROC)
