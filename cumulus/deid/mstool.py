@@ -8,6 +8,8 @@ import os
 import subprocess  # nosec: B404
 import sys
 
+from cumulus import errors
+
 MSTOOL_CMD = 'Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool'
 
 
@@ -38,4 +40,4 @@ def run_mstool(input_dir: str, output_dir: str) -> None:
         )
     except subprocess.CalledProcessError as exc:
         print(f'An error occurred while de-identifying the input resources:\n\n{exc.stderr}', file=sys.stderr)
-        raise SystemExit(1) from exc
+        raise SystemExit(errors.MSTOOL_FAILED) from exc

@@ -36,7 +36,7 @@ def sql_visit() -> str:
     end_date = format_date('END_DATE')
     import_date = format_date('IMPORT_DATE')
 
-    cols_dates = f'{start_date},{end_date},{import_date}, LENGTH_OF_STAY'
+    cols_dates = f'{start_date}, {end_date}, {import_date}, LENGTH_OF_STAY'
     cols = 'ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, LOCATION_CD, ' \
            f'{cols_dates}'
     return f'select {cols} \n from {Table.visit.value}'
@@ -77,23 +77,27 @@ def sql_concept() -> str:
 # Table.observation_fact
 ###############################################################################
 
-def sql_observation_fact() -> str:
+def sql_observation_fact(category: str) -> str:
     """
+    :param category: the type of fact (or "concept path" in the database's term)
     :return: SQL for ObservationFact
     """
-    start_date = format_date('START_DATE')
-    end_date = format_date('END_DATE')
-    import_date = format_date('IMPORT_DATE')
+    # In this method, we use aliases: O for the observation_fact table and C for the concept table.
+    start_date = format_date('O.START_DATE', 'START_DATE')
+    end_date = format_date('O.END_DATE', 'END_DATE')
+    import_date = format_date('O.IMPORT_DATE', 'IMPORT_DATE')
 
-    cols_patient_dim = 'PATIENT_NUM'
-    cols_provider_dim = 'PROVIDER_ID'
-    cols_visit_dim = f'ENCOUNTER_NUM, {start_date}, {end_date}, LOCATION_CD'
-    cols_obs_fact = (f'CONCEPT_CD, INSTANCE_NUM, {import_date}, TVAL_CHAR,'
-                     f'VALTYPE_CD, VALUEFLAG_CD, OBSERVATION_BLOB')
-    cols = (f'{cols_patient_dim},{cols_provider_dim},{cols_visit_dim},'
+    cols_patient_dim = 'O.PATIENT_NUM'
+    cols_provider_dim = 'O.PROVIDER_ID'
+    cols_visit_dim = f'O.ENCOUNTER_NUM, {start_date}, {end_date}, O.LOCATION_CD'
+    cols_obs_fact = (f'O.CONCEPT_CD, O.INSTANCE_NUM, {import_date}, O.TVAL_CHAR, '
+                     f'O.VALTYPE_CD, O.VALUEFLAG_CD, O.OBSERVATION_BLOB')
+    cols = (f'{cols_patient_dim}, {cols_provider_dim}, {cols_visit_dim}, '
             f'{cols_obs_fact}')
 
-    return f'select {cols} \n from {Table.observation_fact.value}'
+    return f'select {cols} \n from {Table.observation_fact.value} O ' \
+           f'join {Table.concept.value} C on C.CONCEPT_CD = O.CONCEPT_CD ' \
+           f"where instr(C.CONCEPT_PATH, '{category}') = 7"  # 7 is skipping the '\i2b2\' prefix. TODO: better way
 
 
 def eq_val_type(val_type: ValueType) -> str:

@@ -3,7 +3,7 @@
 import sys
 import tempfile
 
-from cumulus import common, store
+from cumulus import common, errors, store
 from cumulus.loaders import base
 from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
@@ -48,14 +48,14 @@ class FhirNdjsonLoader(base.Loader):
 
     def _load_from_bulk_export(self) -> tempfile.TemporaryDirectory:
         # First, check that the extra arguments we need were provided
-        errors = []
+        error_list = []
         if not self.client_id:
-            errors.append('You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.')
+            error_list.append('You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.')
         if not self.jwks:
-            errors.append('You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.')
-        if errors:
-            print('\n'.join(errors), file=sys.stderr)
-            raise SystemExit(1)
+            error_list.append('You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.')
+        if error_list:
+            print('\n'.join(error_list), file=sys.stderr)
+            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
 
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
@@ -73,6 +73,6 @@ class FhirNdjsonLoader(base.Loader):
             bulk_exporter.export()
         except FatalError as exc:
             print(str(exc), file=sys.stderr)
-            raise SystemExit(2) from exc  # just to differentiate from the 1 system exit above in tests
+            raise SystemExit(errors.BULK_EXPORT_FAILED) from exc
 
         return tmpdir
