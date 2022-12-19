@@ -4,7 +4,7 @@ import json
 import os
 import tempfile
 from functools import partial
-from typing import Callable, Iterable, Iterator, TypeVar
+from typing import Callable, Iterable, Iterator, List, TypeVar
 
 from fhirclient.models.resource import Resource
 
@@ -32,14 +32,15 @@ class I2b2Loader(Loader):
     - csv_visit
     """
 
-    def load_all(self) -> tempfile.TemporaryDirectory:
+    def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         if self.root.protocol in ['tcp']:
-            return self._load_all_from_oracle()
+            return self._load_all_from_oracle(resources)
 
-        return self._load_all_from_csv()
+        return self._load_all_from_csv(resources)
 
     def _load_all_with_extractors(
         self,
+        resources: List[str],
         conditions: I2b2ExtractorCallable,
         observations: I2b2ExtractorCallable,
         documentreferences: I2b2ExtractorCallable,
@@ -53,35 +54,40 @@ class I2b2Loader(Loader):
         """
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
-        self._loop(
-            conditions(),
-            transform.to_fhir_condition,
-            os.path.join(tmpdir.name, 'Condition.ndjson'),
-        )
+        if 'Condition' in resources:
+            self._loop(
+                conditions(),
+                transform.to_fhir_condition,
+                os.path.join(tmpdir.name, 'Condition.ndjson'),
+            )
 
-        self._loop(
-            observations(),
-            transform.to_fhir_observation_lab,
-            os.path.join(tmpdir.name, 'Observation.ndjson'),
-        )
+        if 'Observation' in resources:
+            self._loop(
+                observations(),
+                transform.to_fhir_observation_lab,
+                os.path.join(tmpdir.name, 'Observation.ndjson'),
+            )
 
-        self._loop(
-            documentreferences(),
-            transform.to_fhir_documentreference,
-            os.path.join(tmpdir.name, 'DocumentReference.ndjson'),
-        )
+        if 'DocumentReference' in resources:
+            self._loop(
+                documentreferences(),
+                transform.to_fhir_documentreference,
+                os.path.join(tmpdir.name, 'DocumentReference.ndjson'),
+            )
 
-        self._loop(
-            patients(),
-            transform.to_fhir_patient,
-            os.path.join(tmpdir.name, 'Patient.ndjson'),
-        )
+        if 'Patient' in resources:
+            self._loop(
+                patients(),
+                transform.to_fhir_patient,
+                os.path.join(tmpdir.name, 'Patient.ndjson'),
+            )
 
-        self._loop(
-            encounters(),
-            transform.to_fhir_encounter,
-            os.path.join(tmpdir.name, 'Encounter.ndjson'),
-        )
+        if 'Encounter' in resources:
+            self._loop(
+                encounters(),
+                transform.to_fhir_encounter,
+                os.path.join(tmpdir.name, 'Encounter.ndjson'),
+            )
 
         return tmpdir
 
@@ -119,9 +125,10 @@ class I2b2Loader(Loader):
         csv_files = common.list_csv(folder)
         return self._extract_csv_files(extractor, csv_files)
 
-    def _load_all_from_csv(self) -> tempfile.TemporaryDirectory:
+    def _load_all_from_csv(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         path = self.root.path
         return self._load_all_with_extractors(
+            resources,
             conditions=partial(self._extract_csv_dir, os.path.join(path, 'csv_diagnosis'),
                                extract.extract_csv_observation_facts),
             observations=partial(self._extract_csv_dir, os.path.join(path, 'csv_lab'),
@@ -138,9 +145,10 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_oracle(self) -> tempfile.TemporaryDirectory:
+    def _load_all_from_oracle(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         path = self.root.path
         return self._load_all_with_extractors(
+            resources,
             conditions=partial(oracle_extract.list_observation_fact, path, 'Diagnosis'),
             observations=partial(oracle_extract.list_observation_fact, path, 'Lab View'),
             documentreferences=partial(oracle_extract.list_observation_fact, path, 'Notes'),

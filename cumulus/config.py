@@ -3,6 +3,7 @@
 import datetime
 import os
 from socket import gethostname
+from typing import List
 
 from cumulus import common, loaders, store
 
@@ -19,6 +20,7 @@ class JobConfig:
             timestamp: datetime.datetime = None,
             comment: str = None,
             batch_size: int = 1,  # this default is never really used - overridden by command line args
+            tasks: List[str] = None,
     ):
         """
         :param loader: describes how input files were loaded (e.g. i2b2 or ndjson)
@@ -34,6 +36,7 @@ class JobConfig:
         self.hostname = gethostname()
         self.comment = comment or ''
         self.batch_size = batch_size
+        self.tasks = tasks or []
 
     def path_codebook(self) -> str:
         return self.dir_phi.joinpath('codebook.json')
@@ -57,6 +60,7 @@ class JobConfig:
             'output_format': type(self.format).__name__,
             'comment': self.comment,
             'batch_size': self.batch_size,
+            'tasks': ','.join(self.tasks),
         }
 
 

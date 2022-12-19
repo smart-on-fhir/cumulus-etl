@@ -19,7 +19,7 @@ from fhirclient.models.encounter import Encounter
 from fhirclient.models.extension import Extension
 from fhirclient.models.patient import Patient
 
-from cumulus import common, config, context, deid, etl, store
+from cumulus import common, config, context, deid, errors, etl, loaders, store
 from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
@@ -56,7 +56,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
         self.enforce_consistent_uuids()
 
     def run_etl(self, input_path=None, output_path=None, phi_path=None, input_format: Optional[str] = 'i2b2',
-                output_format: Optional[str] = 'ndjson', comment=None, batch_size=None) -> None:
+                output_format: Optional[str] = 'ndjson', comment=None, batch_size=None, tasks=None) -> None:
         args = [
             input_path or self.input_path,
             output_path or self.output_path,
@@ -71,6 +71,8 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
             args.append(f'--comment={comment}')
         if batch_size:
             args.append(f'--batch-size={batch_size}')
+        if tasks:
+            args.append(f'--task={",".join(tasks)}')
         etl.main(args)
 
     def enforce_consistent_uuids(self):
@@ -81,10 +83,6 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
         os.makedirs(self.phi_path)
         shutil.copy(os.path.join(self.data_dir, 'codebook.json'),
                     self.phi_path)
-
-        secrets_mock = mock.patch('cumulus.deid.codebook.secrets.token_bytes', new=lambda x: b'1234')
-        self.addCleanup(secrets_mock.stop)
-        secrets_mock.start()
 
         # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
         # random seed does not work in this case - we need to mock it out.
@@ -198,6 +196,46 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
         self.assertIsNotNone(internal_phi_dir)
         self.assertFalse(os.path.exists(internal_phi_dir))
+
+    def test_unknown_task(self):
+        with self.assertRaises(SystemExit) as cm:
+            self.run_etl(tasks=['blarg'])
+        self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
+
+    def test_single_task(self):
+        # Grab all observations before we mock anything
+        observations = loaders.I2b2Loader(store.Root(self.input_path)).load_all(['Observation'])
+
+        def fake_load_all(internal_self, resources):
+            del internal_self
+            # Confirm we only tried to load one resource
+            self.assertEqual(['Observation'], resources)
+            return observations
+
+        with mock.patch.object(loaders.I2b2Loader, 'load_all', new=fake_load_all):
+            self.run_etl(tasks=['observation'])
+
+        # Confirm we only wrote the one resource
+        self.assertEqual({'observation', 'JobConfig'}, set(os.listdir(self.output_path)))
+        self.assertEqual(['fhir_observations.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
+
+    def test_multiple_tasks(self):
+        # Grab all observations before we mock anything
+        loaded = loaders.I2b2Loader(store.Root(self.input_path)).load_all(['Observation', 'Patient'])
+
+        def fake_load_all(internal_self, resources):
+            del internal_self
+            # Confirm we only tried to load two resources
+            self.assertEqual({'Observation', 'Patient'}, set(resources))
+            return loaded
+
+        with mock.patch.object(loaders.I2b2Loader, 'load_all', new=fake_load_all):
+            self.run_etl(tasks=['observation', 'patient'])
+
+        # Confirm we only wrote the one resource
+        self.assertEqual({'observation', 'patient', 'JobConfig'}, set(os.listdir(self.output_path)))
+        self.assertEqual(['fhir_observations.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
+        self.assertEqual(['fhir_patients.000.ndjson'], os.listdir(os.path.join(self.output_path, 'patient')))
 
 
 class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):

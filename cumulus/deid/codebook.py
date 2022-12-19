@@ -1,5 +1,6 @@
 """Codebook that stores the mappings between real and fake IDs"""
 
+import binascii
 import hmac
 import logging
 import secrets
@@ -25,14 +26,6 @@ class Codebook:
         except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
-        # Create a salt, used when hashing resource IDs.
-        # Some prior art is Microsoft's anonymizer tool which uses a UUID4 salt (with 122 bits of entropy).
-        # Since this is an important salt, it seems reasonable to do a bit more.
-        # Python's docs for the secrets module recommend 256 bits, as of 2015.
-        # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
-        # recommended, so 256 bits seem good (which is 32 bytes).
-        self.salt = secrets.token_bytes(32)
-
     def fake_id(self, resource_type: str, real_id: str) -> str:
         """
         Returns a new fake ID in place of the provided real ID
@@ -55,8 +48,7 @@ class Codebook:
         elif resource_type == 'Encounter':
             return self.db.encounter(real_id)
         else:
-            # This will be exactly 64 characters long, the maximum FHIR id length
-            return hmac.new(self.salt, digestmod='sha256', msg=real_id.encode('utf8')).hexdigest()
+            return self.db.resource_hash(real_id)
 
 
 ###############################################################################
@@ -125,6 +117,32 @@ class CodebookDB:
             type_mapping[real_id] = fake_id
 
         return fake_id
+
+    def resource_hash(self, real_id: str) -> str:
+        """
+        Get a fake ID for an arbitrary FHIR resource ID
+
+        :param real_id: resource ID
+        :return: hashed ID, using the saved salt
+        """
+        # This will be exactly 64 characters long, the maximum FHIR id length
+        return hmac.new(self._id_salt(), digestmod='sha256', msg=real_id.encode('utf8')).hexdigest()
+
+    def _id_salt(self) -> bytes:
+        """Returns the saved salt or creates and saves one if needed"""
+        salt = self.mapping.get('id_salt')
+
+        if salt is None:
+            # Create a salt, used when hashing resource IDs.
+            # Some prior art is Microsoft's anonymizer tool which uses a UUID4 salt (with 122 bits of entropy).
+            # Since this is an important salt, it seems reasonable to do a bit more.
+            # Python's docs for the secrets module recommend 256 bits, as of 2015.
+            # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
+            # recommended, so 256 bits seem good (which is 32 bytes).
+            salt = secrets.token_hex(32)
+            self.mapping['id_salt'] = salt
+
+        return binascii.unhexlify(salt)  # revert from doubled hex 64-char string representation back to just 32 bytes
 
     def _load_saved(self, saved: dict) -> None:
         """
