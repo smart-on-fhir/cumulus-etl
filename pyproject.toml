@@ -47,6 +47,7 @@ exclude_dirs = ["tests"]
 
 [project.optional-dependencies]
 tests = [
+    "coverage",
     "ddt",
     "freezegun",
     "moto[s3]",

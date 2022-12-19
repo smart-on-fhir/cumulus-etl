@@ -114,3 +114,17 @@ class TestScrubber(unittest.TestCase):
             db2 = CodebookDB(path)
             self.assertEqual(db.encounter('1'), db2.encounter('1'))
             self.assertEqual(encounter.subject.reference, f"Patient/{db2.patient('12345')}")
+
+            # ensure value errors are handled inside scrub_resource:
+            encounter_bad = ExampleResources.encounter()
+            encounter_bad.elementProperties = mock.Mock(
+                side_effect=ValueError(1)
+            )
+            scrubber.scrub_resource(encounter_bad)
+
+            # make sure that we raise an error on an unexpected cookbook version
+            db.mapping['version']='.99'
+            db.save(path)
+            with self.assertRaises(Exception) as context:
+                Scrubber(path)
+            self.assertIn('.99', str(context.exception))

@@ -1,7 +1,9 @@
 services:
   
   cumulus-etl:
-    build: .
+    build: 
+      context: .
+      target: cumulus-etl
     environment:
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
     # TODO: This platform requirement is due to the dotnet runtime flag.
@@ -27,12 +29,16 @@ services:
       - etl-support
       - test
 
-  # this image is intended specifically for development work
+  # this service is intended specifically for development work
   cumulus-etl-test:
     extends:
       service: cumulus-etl
+    build: 
+      context: .
+      target: cumulus-etl-test
     volumes: 
       - ./:/cumulus-etl/
+    working_dir: /cumulus-etl
     profiles:
       - test
     command: 
