@@ -123,7 +123,7 @@ class TestScrubber(unittest.TestCase):
             scrubber.scrub_resource(encounter_bad)
 
             # make sure that we raise an error on an unexpected cookbook version
-            db.mapping['version']='.99'
+            db.mapping['version'] = '.99'
             db.save(path)
             with self.assertRaises(Exception) as context:
                 Scrubber(path)
