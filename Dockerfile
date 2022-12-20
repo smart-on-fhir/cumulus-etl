@@ -15,10 +15,19 @@ RUN dotnet publish \
   /app/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
 
 FROM python:3.10 AS cumulus-etl
+COPY --from=ms-tool /bin/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool /bin
 COPY . /app
-RUN pip3 install /app
+RUN --mount=type=cache,target=/root/.cache \
+  pip3 install /app
 RUN rm -r /app
 
+ENTRYPOINT ["cumulus-etl"]
+
+FROM python:3.10 AS cumulus-etl-test
 COPY --from=ms-tool /bin/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool /bin
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache \
+  pip3 install /app/[tests]
+RUN rm -r /app
 
 ENTRYPOINT ["cumulus-etl"]
