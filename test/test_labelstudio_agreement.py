@@ -1,10 +1,13 @@
 from enum import Enum
 import unittest
+import re
 from cumulus import common
 from ctakesclient.typesystem import Span
 
-#EXPORTED_JSON = '/Users/andy/Downloads/labelstudio-dec6-min.json'
-EXPORTED_JSON = '/Users/andy/Downloads/labelstudio-dec14-106pm-min.json'
+EXPORT_DIR = '/Users/andy/chip/cumulus-etl/NoteType/ED_Nov15_341pm'
+MIN_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-min.json'
+FULL_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-full.json'
+CTAKES_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-ctakes.json'
 
 class Annotator(Enum):
     """
@@ -13,7 +16,7 @@ class Annotator(Enum):
     andy = 2
     amy = 3
     alon = 6
-    ctakes = 7  # mcmurry.andy@gmail.com
+    ctakes = 7  # mcmurry.andy
 
 class NoteRange(Enum):
     """
@@ -49,7 +52,71 @@ def overlaps(span1: Span, span2: Span, min_length=2, max_length=20) -> bool:
     else:
         return False
 
-def simplify(exported_json=EXPORTED_JSON) -> dict:
+def simplify_file_id(file_id: str) -> str:
+    """
+    @param file_id: labelstudio-file_id.json.optional.extension.json
+    @return: simple filename like "file_id.json"
+    """
+    prefix = re.search('-', file_id).start()  # UUID split in LabelStudio
+    suffix = re.search('.json', file_id).start()
+    root = file_id[prefix+1:suffix]
+    return f'{root}.json'
+
+def reverse_map(key_vals: dict) -> dict:
+    return {v: k for k, v in key_vals.items()}
+
+def merge_simple(source: dict, append: dict) -> dict:
+    """
+    @param source: SOURCE of LabelStudio "note" ID mappings
+    @param append: INHERIT LabelStudio "note" ID mappings
+    @return:
+    """
+    merged = {'files': {}, 'annotations': {}}
+
+    for file_id, note_id in source['files'].items():
+        merged['files'][file_id] = note_id
+        merged['annotations'][note_id] = source['annotations'][note_id]
+
+        append_id = append['files'][file_id]
+        for annotator in append['annotations'][append_id]:
+            for entry in append['annotations'][append_id][annotator]:
+                if annotator not in merged['annotations'][note_id].keys():
+                    merged['annotations'][note_id][annotator] = list()
+                if entry.get('labels'):
+                    merged['annotations'][note_id][annotator].append(entry)
+    return merged
+
+
+def simplify_full(exported_json=FULL_JSON) -> dict:
+    """
+    LabelStudio outputs contain more info than needed for IAA and term_freq.
+
+    * PHI raw physician note text is removed *
+
+    @param exported_json: file output from LabelStudio
+    @return: dict key= note_id
+    """
+    simple = {'files': {}, 'annotations': {}}
+    for entry in common.read_json(exported_json):
+        note_id = entry.get('id')
+        file_id = simplify_file_id(entry.get('file_upload'))
+        simple['files'][file_id] = note_id
+        for annot in entry.get('annotations'):
+            annotator = Annotator(annot.get('completed_by')).name
+            label = None
+            for result in annot.get('result'):
+                if not label:
+                    label = list()
+                match = result.get('value')
+                label.append(match)
+
+            if note_id not in simple['annotations'].keys():
+                simple['annotations'][note_id] = dict()
+
+            simple['annotations'][note_id][annotator] = label
+    return simple
+
+def simplify_min(exported_json=MIN_JSON) -> dict:
     """
     LabelStudio outputs contain more info than needed for IAA and term_freq.
 
@@ -90,7 +157,7 @@ def calc_term_freq(annotator, note_range=NoteRange.corpus.value) -> dict:
     @return: dict key=TERM val= {label, list of chart_id}
     """
     term_freq = dict()
-    for note_id, values in filter_note_range(simplify(), note_range).items():
+    for note_id, values in filter_note_range(simplify_min(), note_range).items():
         if values.get(annotator):
             for annot in values.get(annotator):
                 text = annot['text'].upper()
@@ -148,7 +215,7 @@ def accuracy_mentions(ground_truth_ann: str, reliability_ann: str, note_range=No
     FN = list()  # False Negative
     id_list = list()  # list notes compared by both annotators
 
-    for note_id, values in filter_note_range(simplify(), note_range).items():
+    for note_id, values in filter_note_range(simplify_min(), note_range).items():
         if values.get(ground_truth_ann):
             for truth_annot in values[ground_truth_ann]:
                 truth_span = Span(truth_annot['start'], truth_annot['end'])
@@ -175,7 +242,7 @@ def rollup_mentions(annotator, note_range=NoteRange.corpus.value) -> dict:
     """
     rollup = dict()
 
-    for note_id, values in filter_note_range(simplify(), note_range).items():
+    for note_id, values in filter_note_range(simplify_min(), note_range).items():
         if values.get(annotator):
             for annot in values[annotator]:
                 if not rollup.get(note_id):
@@ -269,27 +336,31 @@ def score_f1_prevalence(ground_truth_ann, reliability_ann, note_range=NoteRange.
 
     return score_f1(true_pos, false_pos, false_neg)
 
+
+
 class TestLabelstudioAgreement(unittest.TestCase):
 
-    def test_simplify(self):
-        path = f'{EXPORTED_JSON}.simple.json'
-        common.write_json(path, simplify())
+    def test_ctakes(self):
+        truth = simplify_full(FULL_JSON)
+        predicted = simplify_full(CTAKES_JSON)
+        merged = merge_simple(truth, predicted)
+        common.write_json(f'{EXPORT_DIR}/labelstudio-merged.json', merged, 4)
 
     def test_term_frequency(self):
         for annotator in list(Annotator):
-            path = f'{EXPORTED_JSON}.term_freq.{annotator.name}.json'
+            path = f'{MIN_JSON}.term_freq.{annotator.name}.json'
             common.write_json(path, calc_term_freq(annotator.name), 4)
             print(path)
 
     def test_calc_symptom_frequency(self):
         for annotator in list(Annotator):
-            path = f'{EXPORTED_JSON}.symptom_freq.{annotator.name}.json'
+            path = f'{MIN_JSON}.symptom_freq.{annotator.name}.json'
             common.write_json(path, calc_symptom_frequency(calc_term_freq(annotator.name)), 4)
             print(path)
 
     def test_calc_term_symptom_confusion(self):
         for annotator in list(Annotator):
-            path = f'{EXPORTED_JSON}.term_confusion.{annotator.name}.json'
+            path = f'{MIN_JSON}.term_confusion.{annotator.name}.json'
             common.write_json(path, calc_term_symptom_confusion(calc_term_freq(annotator.name)), 4)
             print(path)
 
@@ -303,11 +374,29 @@ class TestLabelstudioAgreement(unittest.TestCase):
         f1_mentions = score_f1_mentions(ground_truth_ann, reliability_ann, note_range)
         f1_prevalence = score_f1_prevalence(ground_truth_ann, reliability_ann, note_range)
 
-        path = f'{EXPORTED_JSON}.f1_mentions.{ground_truth_ann}.{reliability_ann}.json'
+        path = f'{MIN_JSON}.f1_mentions.{ground_truth_ann}.{reliability_ann}.json'
         common.write_json(path, f1_mentions, 4)
 
-        path = f'{EXPORTED_JSON}.f1_prevalence.{ground_truth_ann}.{reliability_ann}.json'
+        path = f'{MIN_JSON}.f1_prevalence.{ground_truth_ann}.{reliability_ann}.json'
         common.write_json(path, f1_prevalence, 4)
+
+    def test_simplify(self):
+        full = simplify_full()
+        minimal = simplify_min()
+
+        self.assertDictEqual(full, minimal)
+
+    def test_simplify_ctakes(self):
+        full_path = f'{CTAKES_JSON}.simplify_ctakes.json'
+        common.write_json(full_path, simplify_full(CTAKES_JSON), 4)
+
+    def test_simplify_full(self):
+        full_path = f'{FULL_JSON}.simplify_full.json'
+        common.write_json(full_path, simplify_full(), 4)
+
+    def skip_test_simplify_min(self):
+        min_path = f'{MIN_JSON}.simplify_min.json'
+        common.write_json(min_path, simplify_min(), 4)
 
 
 if __name__ == '__main__':
