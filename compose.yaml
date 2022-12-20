@@ -29,7 +29,18 @@ services:
       - etl-support
       - test
 
-  # this service is intended specifically for development work
+  cnlp-transformers:
+    build: ../cnlp_transformers/
+    platform: linux/amd64
+    ports:
+      - 8000:8000
+    profiles:
+      #- etl-support
+      - test
+    networks:
+      - cumulus-etl
+
+  # this image is intended specifically for development work
   cumulus-etl-test:
     extends:
       service: cumulus-etl
