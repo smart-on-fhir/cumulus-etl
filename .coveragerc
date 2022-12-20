@@ -4,6 +4,6 @@ omit =
     */site-packages/*
     */distutils/*
     # project level
-    tests*
-    example_output*
-    docs*
+    tests/*
+    example_output/*
+    docs/*
