@@ -1,0 +1,9 @@
+[run]
+omit = 
+    # sys level
+    */site-packages/*
+    */distutils/*
+    # project level
+    tests*
+    example_output*
+    docs*
