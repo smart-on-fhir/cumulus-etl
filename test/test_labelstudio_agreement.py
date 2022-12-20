@@ -13,6 +13,7 @@ class Annotator(Enum):
     andy = 2
     amy = 3
     alon = 6
+    ctakes = 7  # mcmurry.andy@gmail.com
 
 class NoteRange(Enum):
     """
