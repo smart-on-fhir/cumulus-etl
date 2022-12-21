@@ -4,11 +4,10 @@ import json
 import os
 import tempfile
 from functools import partial
-from typing import Callable, Iterable, Iterator, List, TypeVar
+from typing import Callable, Iterable, List, TypeVar
 
 from fhirclient.models.resource import Resource
 
-from cumulus import common
 from cumulus.loaders.base import Loader
 from cumulus.loaders.i2b2 import extract, schema, transform
 from cumulus.loaders.i2b2.oracle import extract as oracle_extract
@@ -113,30 +112,18 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    @staticmethod
-    def _extract_csv_files(extractor: CsvToI2b2Callable, csv_files: Iterable[str]) -> Iterator[schema.Dimension]:
-        """Generator method that lazily loads a list of input csv files"""
-        for csv_file in csv_files:
-            for entry in extractor(csv_file):
-                yield entry
-
-    def _extract_csv_dir(self, folder: str, extractor: CsvToI2b2Callable) -> Iterator[schema.Dimension]:
-        """Generator method that lazily loads all input csv files in the given folder"""
-        csv_files = common.list_csv(folder)
-        return self._extract_csv_files(extractor, csv_files)
-
     def _load_all_from_csv(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
-            conditions=partial(self._extract_csv_dir, os.path.join(path, 'csv_diagnosis'),
-                               extract.extract_csv_observation_facts),
-            observations=partial(self._extract_csv_dir, os.path.join(path, 'csv_lab'),
-                                 extract.extract_csv_observation_facts),
-            documentreferences=partial(self._extract_csv_dir, os.path.join(path, 'csv_note'),
-                                       extract.extract_csv_observation_facts),
-            patients=partial(self._extract_csv_dir, os.path.join(path, 'csv_patient'), extract.extract_csv_patients),
-            encounters=partial(self._extract_csv_dir, os.path.join(path, 'csv_visit'), extract.extract_csv_visits),
+            conditions=partial(extract.extract_csv_observation_facts,
+                               os.path.join(path, 'observation_fact_diagnosis.csv')),
+            observations=partial(extract.extract_csv_observation_facts,
+                                 os.path.join(path, 'observation_fact_lab_views.csv')),
+            documentreferences=partial(extract.extract_csv_observation_facts,
+                                       os.path.join(path, 'observation_fact_notes.csv')),
+            patients=partial(extract.extract_csv_patients, os.path.join(path, 'patient_dimension.csv')),
+            encounters=partial(extract.extract_csv_visits, os.path.join(path, 'visit_dimension.csv')),
         )
 
     ###################################################################################################################
