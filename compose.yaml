@@ -16,26 +16,26 @@ services:
 
     
   ctakes-covid:
-    image: smartonfhir/ctakes-covid:1
+    image: smartonfhir/ctakes-covid:dev
     environment:
       - ctakes_umlsuser=umls_api_key 
       - ctakes_umlspw=$UMLS_API_KEY
     networks:
       - cumulus-etl
     # If you need to expose the ctakes server for testing, uncomment this port mapping
-    # ports:
-    #   - 8080:8080
+    ports:
+      - 8080:8080
     profiles:
       - etl-support
       - test
 
   cnlp-transformers:
-    build: ../cnlp_transformers/
-    platform: linux/amd64
+    build: smartonfhir/ctakes-covid:dev
+    #platform: linux/amd64
     ports:
       - 8000:8000
     profiles:
-      #- etl-support
+      - etl-support
       - test
     networks:
       - cumulus-etl
