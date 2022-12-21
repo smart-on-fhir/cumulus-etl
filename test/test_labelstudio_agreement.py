@@ -8,6 +8,7 @@ EXPORT_DIR = '/Users/andy/chip/cumulus-etl/NoteType/ED_Nov15_341pm'
 MIN_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-min.json'
 FULL_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-full.json'
 CTAKES_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-ctakes.json'
+MERGED_JSON = f'{EXPORT_DIR}/labelstudio-merged.json'
 
 class Annotator(Enum):
     """
@@ -23,7 +24,9 @@ class NoteRange(Enum):
     LabelStudio list of ED Notes
     """
     corpus = range(782, 1005)
-    andy_alon = range(979, 1005)
+    amy = range(782, 895)
+    andy = range(895, 1006)
+    andy_alon = range(979, 1006)
     amy_alon = range(864, 890)
 
 def intersect(span1: Span, span2: Span) -> set:
@@ -74,16 +77,16 @@ def merge_simple(source: dict, append: dict) -> dict:
     merged = {'files': {}, 'annotations': {}}
 
     for file_id, note_id in source['files'].items():
-        merged['files'][file_id] = note_id
-        merged['annotations'][note_id] = source['annotations'][note_id]
+        merged['files'][file_id] = int(note_id)
+        merged['annotations'][int(note_id)] = source['annotations'][int(note_id)]
 
         append_id = append['files'][file_id]
         for annotator in append['annotations'][append_id]:
             for entry in append['annotations'][append_id][annotator]:
-                if annotator not in merged['annotations'][note_id].keys():
-                    merged['annotations'][note_id][annotator] = list()
+                if annotator not in merged['annotations'][int(note_id)].keys():
+                    merged['annotations'][int(note_id)][annotator] = list()
                 if entry.get('labels'):
-                    merged['annotations'][note_id][annotator].append(entry)
+                    merged['annotations'][int(note_id)][annotator].append(entry)
     return merged
 
 
@@ -98,9 +101,9 @@ def simplify_full(exported_json=FULL_JSON) -> dict:
     """
     simple = {'files': {}, 'annotations': {}}
     for entry in common.read_json(exported_json):
-        note_id = entry.get('id')
+        note_id = int(entry.get('id'))
         file_id = simplify_file_id(entry.get('file_upload'))
-        simple['files'][file_id] = note_id
+        simple['files'][file_id] = int(note_id)
         for annot in entry.get('annotations'):
             annotator = Annotator(annot.get('completed_by')).name
             label = None
@@ -111,9 +114,9 @@ def simplify_full(exported_json=FULL_JSON) -> dict:
                 label.append(match)
 
             if note_id not in simple['annotations'].keys():
-                simple['annotations'][note_id] = dict()
+                simple['annotations'][int(note_id)] = dict()
 
-            simple['annotations'][note_id][annotator] = label
+            simple['annotations'][int(note_id)][annotator] = label
     return simple
 
 def simplify_min(exported_json=MIN_JSON) -> dict:
@@ -127,7 +130,7 @@ def simplify_min(exported_json=MIN_JSON) -> dict:
     """
     simple = dict()
     for entry in common.read_json(exported_json):
-        note_id = entry.get('id')
+        note_id = int(entry.get('id'))
         annotator = Annotator(entry.get('annotator')).name
         label = entry.get('label')
 
@@ -143,21 +146,24 @@ def filter_note_range(simple: dict, note_range) -> dict:
     @param note_range: range of notes
     @return: dict filtered by note_range
     """
-    filtered = dict()
-    for note_id, values in simple.items():
-        if note_id in note_range:
-            filtered[note_id] = values
+    filtered = {'files': {}, 'annotations': {}}
+    for file_id, note_id in simple['files'].items():
+        if int(note_id) in note_range:
+            foo = simple['annotations'][str(note_id)]
+            filtered['annotations'][note_id] = foo
+            filtered['files'][file_id] = note_id
     return filtered
 
-def calc_term_freq(annotator, note_range=NoteRange.corpus.value) -> dict:
+def calc_term_freq(simple: dict, annotator) -> dict:
     """
     Calculate the frequency of TERMS highlighted for each LABEL (Cough, Dyspnea, etc).
+    @param simple: prepared map of files and annotations
     @param annotator: Reviewer like andy, amy, or alon
     @param note_range: default= all in corpus
     @return: dict key=TERM val= {label, list of chart_id}
     """
     term_freq = dict()
-    for note_id, values in filter_note_range(simplify_min(), note_range).items():
+    for note_id, values in simple['annotations'].items():
         if values.get(annotator):
             for annot in values.get(annotator):
                 text = annot['text'].upper()
@@ -203,69 +209,74 @@ def calc_symptom_frequency(term_freq: dict) -> dict:
             tf[label][term] = len(symptoms[label][term])
     return tf
 
-def accuracy_mentions(ground_truth_ann: str, reliability_ann: str, note_range=NoteRange.corpus.value):
+def accuracy_mentions(simple: dict, ground_truth_ann: str, reliability_ann: str, note_range):
     """
-    Calculate the frequency of TERMS for each LABEL (Cough, Dyspnea, etc).
+    Calculate confusion matrix (TP, FP, TN, FN)
+    @param simple: prepared map of files and annotations
     @param ground_truth_ann: annotator like andy, amy, or alon
     @param reliability_ann: annotator like andy, amy, or alon (usually alon)
     @param note_range: default= all in corpus
-    @return: dict
+    @param labels_file: default = $FULL_JSON
+    @return: dict}
     """
     TP = list()  # True Positive
     FN = list()  # False Negative
     id_list = list()  # list notes compared by both annotators
 
-    for note_id, values in filter_note_range(simplify_min(), note_range).items():
-        if values.get(ground_truth_ann):
-            for truth_annot in values[ground_truth_ann]:
-                truth_span = Span(truth_annot['start'], truth_annot['end'])
+    for note_id, values in simple['annotations'].items():
+        if int(note_id) in note_range:
+            if values.get(ground_truth_ann):
+                for truth_annot in values[ground_truth_ann]:
+                    truth_span = Span(truth_annot['start'], truth_annot['end'])
 
-                if values.get(reliability_ann):
-                    id_list.append(note_id)
-                    found = False
-                    for confirm in values[reliability_ann]:
+                    if values.get(reliability_ann):
+                        id_list.append(note_id)
+                        found = False
+                        for confirm in values[reliability_ann]:
+                            if not found:
+                                compare_span = Span(confirm['start'], confirm['end'])
+                                if overlaps(truth_span, compare_span):
+                                    if truth_annot['labels'] == confirm['labels']:
+                                        found = True
+                                        TP.append(confirm)
                         if not found:
-                            compare_span = Span(truth_annot['start'], truth_annot['end'])
-                            if overlaps(truth_span, compare_span):
-                                if truth_annot['labels'] == confirm['labels']:
-                                    found = True
-                                    TP.append(confirm)
-                    if not found:
-                        FN.append(truth_annot)
+                            FN.append(truth_annot)
     return {'TP': TP, 'FN': FN, 'ID': id_list}
 
-def rollup_mentions(annotator, note_range=NoteRange.corpus.value) -> dict:
+def rollup_mentions(simple: dict, annotator, note_range) -> dict:
     """
+    @param simple: prepared map of files and annotations
     @param annotator: like andy, amy, or alon
     @param note_range: default= all in corpus
     @return: dict keys=note_id, values=labels
     """
     rollup = dict()
 
-    for note_id, values in filter_note_range(simplify_min(), note_range).items():
-        if values.get(annotator):
-            for annot in values[annotator]:
-                if not rollup.get(note_id):
-                    rollup[note_id] = list()
+    for note_id, values in simple['annotations'].items():
+        if int(note_id) in note_range:
+            if values.get(annotator):
+                for annot in values[annotator]:
+                    if not rollup.get(note_id):
+                        rollup[note_id] = list()
 
-                symptom = annot['labels'][0]
+                    symptom = annot['labels'][0]
 
-                if symptom not in rollup[note_id]:
-                    rollup[note_id].append(symptom)
+                    if symptom not in rollup[note_id]:
+                        rollup[note_id].append(symptom)
     return rollup
 
-def accuracy_prevalence(ground_truth_ann: str, reliability_ann: str, note_range=NoteRange.corpus.value):
+def accuracy_prevalence(simple: dict, ground_truth_ann: str, reliability_ann: str, note_range):
     """
     "prevalence" in the population of physician notes, not a true "prevalence" term.
     This is the rollup of counting each symptom only 1x, not multiple times for a single patient.
-
+    @param simple: prepared map of files and annotations
     @param ground_truth_ann: annotator like andy, amy, or alon
     @param reliability_ann: annotator like andy, amy, or alon (usually alon)
     @param note_range: default= all in corpus
     @return: dict
     """
-    ground_truth = rollup_mentions(ground_truth_ann, note_range)
-    reliability = rollup_mentions(reliability_ann, note_range)
+    ground_truth = rollup_mentions(simple, ground_truth_ann, note_range)
+    reliability = rollup_mentions(simple, reliability_ann, note_range)
 
     TP = list()  # True Positive
     FN = list()  # False Negative
@@ -300,17 +311,17 @@ def score_f1(true_pos: list, false_pos: list, false_neg: list) -> dict:
 
     return {'f1': f1, 'precision': precision, 'recall': recall}
 
-def score_f1_mentions(ground_truth_ann, reliability_ann, note_range=NoteRange.corpus.value):
+def score_f1_mentions(simple: dict, ground_truth_ann, reliability_ann, note_range=NoteRange.corpus.value):
     """
     Score reliability of rater at the level of all symptom *MENTIONS*
-
+    @param simple: prepared map of files and annotations
     @param ground_truth_ann: annotator like andy, amy, or alon
     @param reliability_ann: annotator like andy, amy, or alon (usually alon)
     @param note_range: default= all in corpus
     @return: dict, keys f1, precision, recall and vals= %percent
     """
-    ground_truth = accuracy_mentions(ground_truth_ann, reliability_ann, note_range)
-    reliability = accuracy_mentions(reliability_ann, ground_truth_ann, note_range)
+    ground_truth = accuracy_mentions(simple, ground_truth_ann, reliability_ann, note_range)
+    reliability = accuracy_mentions(simple, reliability_ann, ground_truth_ann, note_range)
 
     true_pos = ground_truth['TP']
     false_neg = ground_truth['FN']
@@ -318,50 +329,68 @@ def score_f1_mentions(ground_truth_ann, reliability_ann, note_range=NoteRange.co
 
     return score_f1(true_pos, false_pos, false_neg)
 
-def score_f1_prevalence(ground_truth_ann, reliability_ann, note_range=NoteRange.corpus.value):
+def score_f1_prevalence(simple: dict, ground_truth_ann, reliability_ann, note_range):
     """
     Score reliability of rater at the level of all symptom *PREVALENCE*
-
+    @param simple: prepared map of files and annotations
     @param ground_truth_ann: annotator like andy, amy, or alon
     @param reliability_ann: annotator like andy, amy, or alon (usually alon)
     @param note_range: default= all in corpus
     @return: dict, keys f1, precision, recall and vals= %percent
     """
-    ground_truth = accuracy_prevalence(ground_truth_ann, reliability_ann, note_range)
-    reliability = accuracy_prevalence(reliability_ann, ground_truth_ann, note_range)
+    ground_truth = accuracy_prevalence(simple, ground_truth_ann, reliability_ann, note_range)
+    reliability = accuracy_prevalence(simple, reliability_ann, ground_truth_ann, note_range)
 
     true_pos = ground_truth['TP']
     false_neg = ground_truth['FN']
     false_pos = reliability['FN']
 
+    print(f'TP: {len(true_pos)}')
+    print(f'FP: {len(false_pos)}')
+    print(f'FN: {len(false_neg)}')
+
     return score_f1(true_pos, false_pos, false_neg)
-
-
 
 class TestLabelstudioAgreement(unittest.TestCase):
 
-    def test_ctakes(self):
+    def test_merge_simple(self):
         truth = simplify_full(FULL_JSON)
         predicted = simplify_full(CTAKES_JSON)
         merged = merge_simple(truth, predicted)
-        common.write_json(f'{EXPORT_DIR}/labelstudio-merged.json', merged, 4)
+        path = f'{EXPORT_DIR}/labelstudio-merged.json'
+        common.write_json(path, merged, 4)
+        print(path)
+
+    def test_filter_note_range(self):
+        """
+        Test identity transform (no filtering)
+        """
+        simple = simplify_full(FULL_JSON)
+        path = f'{FULL_JSON}.filter_note_range.json'
+        common.write_json(path, filter_note_range(simple, NoteRange.corpus.value), 4)
+        print(path)
+        #identity = common.read_json(path)
+        #self.assertDictEqual(simple, identity)
 
     def test_term_frequency(self):
+        simple = common.read_json(MERGED_JSON)
         for annotator in list(Annotator):
-            path = f'{MIN_JSON}.term_freq.{annotator.name}.json'
-            common.write_json(path, calc_term_freq(annotator.name), 4)
+            path = f'{MERGED_JSON}.term_freq.{annotator.name}.json'
+            common.write_json(path, calc_term_freq(simple, annotator.name), 4)
             print(path)
 
     def test_calc_symptom_frequency(self):
+        simple = common.read_json(MERGED_JSON)
         for annotator in list(Annotator):
-            path = f'{MIN_JSON}.symptom_freq.{annotator.name}.json'
-            common.write_json(path, calc_symptom_frequency(calc_term_freq(annotator.name)), 4)
+            path = f'{MERGED_JSON}.symptom_freq.{annotator.name}.json'
+            common.write_json(path, calc_symptom_frequency(calc_term_freq(simple, annotator.name)), 4)
             print(path)
 
     def test_calc_term_symptom_confusion(self):
+        simple = common.read_json(MERGED_JSON)
         for annotator in list(Annotator):
-            path = f'{MIN_JSON}.term_confusion.{annotator.name}.json'
-            common.write_json(path, calc_term_symptom_confusion(calc_term_freq(annotator.name)), 4)
+            path = f'{MERGED_JSON}.term_confusion.{annotator.name}.json'
+            common.write_json(path, calc_term_symptom_confusion(calc_term_freq(simple, annotator.name)), 4)
             print(path)
 
     def test_score_f1(self):
@@ -369,16 +398,22 @@ class TestLabelstudioAgreement(unittest.TestCase):
         self.write_score_f1(Annotator.andy.name, Annotator.alon.name, NoteRange.andy_alon.value)
         self.write_score_f1(Annotator.amy.name, Annotator.alon.name, NoteRange.amy_alon.value)
         self.write_score_f1(Annotator.alon.name, Annotator.amy.name, NoteRange.amy_alon.value)
+        #   ctakes scores
+        self.write_score_f1(Annotator.andy.name, Annotator.ctakes.name, NoteRange.andy.value)
+        self.write_score_f1(Annotator.amy.name, Annotator.ctakes.name, NoteRange.amy.value)
 
     def write_score_f1(self, ground_truth_ann, reliability_ann, note_range):
-        f1_mentions = score_f1_mentions(ground_truth_ann, reliability_ann, note_range)
-        f1_prevalence = score_f1_prevalence(ground_truth_ann, reliability_ann, note_range)
+        simple = filter_note_range(common.read_json(MERGED_JSON), note_range)
+        f1_mentions = score_f1_mentions(simple, ground_truth_ann, reliability_ann, note_range)
+        f1_prevalence = score_f1_prevalence(simple, ground_truth_ann, reliability_ann, note_range)
 
-        path = f'{MIN_JSON}.f1_mentions.{ground_truth_ann}.{reliability_ann}.json'
+        path = f'{MERGED_JSON}.f1_mentions.{ground_truth_ann}.{reliability_ann}.json'
         common.write_json(path, f1_mentions, 4)
+        print(path)
 
-        path = f'{MIN_JSON}.f1_prevalence.{ground_truth_ann}.{reliability_ann}.json'
+        path = f'{MERGED_JSON}.f1_prevalence.{ground_truth_ann}.{reliability_ann}.json'
         common.write_json(path, f1_prevalence, 4)
+        print(path)
 
     def test_simplify(self):
         full = simplify_full()
@@ -387,17 +422,19 @@ class TestLabelstudioAgreement(unittest.TestCase):
         self.assertDictEqual(full, minimal)
 
     def test_simplify_ctakes(self):
-        full_path = f'{CTAKES_JSON}.simplify_ctakes.json'
+        full_path = f'{CTAKES_JSON}.simplify.json'
         common.write_json(full_path, simplify_full(CTAKES_JSON), 4)
+        print(full_path)
 
     def test_simplify_full(self):
-        full_path = f'{FULL_JSON}.simplify_full.json'
+        full_path = f'{FULL_JSON}.simplify.json'
         common.write_json(full_path, simplify_full(), 4)
+        print(full_path)
 
     def skip_test_simplify_min(self):
-        min_path = f'{MIN_JSON}.simplify_min.json'
+        min_path = f'{MIN_JSON}.simplify.json'
         common.write_json(min_path, simplify_min(), 4)
-
+        print(min_path)
 
 if __name__ == '__main__':
     unittest.main()
