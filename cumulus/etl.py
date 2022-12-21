@@ -366,9 +366,9 @@ def main(args: List[str]):
                         help='input format (default is ndjson)')
     parser.add_argument('--output-format', default='parquet', choices=['json', 'ndjson', 'parquet'],
                         help='output format (default is parquet)')
-    parser.add_argument('--batch-size', type=int, metavar='SIZE', default=10000000,
+    parser.add_argument('--batch-size', type=int, metavar='SIZE', default=200000,
                         help='how many entries to process at once and thus '
-                             'how many to put in one output file (default is 10M)')
+                             'how many to put in one output file (default is 200k)')
     parser.add_argument('--comment', help='add the comment to the log file')
     parser.add_argument('--s3-region', help='if using S3 paths (s3://...), this is their region')
     parser.add_argument('--s3-kms-key', help='if using S3 paths (s3://...), this is the KMS key ID to use')
@@ -397,7 +397,7 @@ def main(args: List[str]):
     job_datetime = common.datetime_now()  # grab timestamp before we do anything
 
     if args.input_format == 'i2b2':
-        config_loader = loaders.I2b2Loader(root_input)
+        config_loader = loaders.I2b2Loader(root_input, args.batch_size)
     else:
         config_loader = loaders.FhirNdjsonLoader(root_input, client_id=args.smart_client_id, jwks=args.smart_jwks)
 

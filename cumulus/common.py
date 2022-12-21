@@ -9,7 +9,6 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import fsspec
-import pandas
 from fhirclient.models.resource import Resource
 from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 
@@ -56,20 +55,6 @@ def find_by_name(folder, path_contains='filemask', progress_bar=1000) -> list:
                     print(f'found: {len(found)}')
                     print(path)
     return found
-
-
-def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
-    """
-    :param path_csv: /path/to/file.csv
-    :param sample: %percentage of file to read
-    :return: pandas Dataframe
-    """
-    logging.info('Reading csv %s ...', path_csv)
-    df = pandas.read_csv(path_csv, dtype=str, na_filter=False)
-    if sample != 1.0:
-        df = df.sample(frac=sample)
-    logging.info('Done reading %s .', path_csv)
-    return df
 
 
 def fake_id(category: str) -> str:

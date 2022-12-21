@@ -204,7 +204,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     def test_single_task(self):
         # Grab all observations before we mock anything
-        observations = loaders.I2b2Loader(store.Root(self.input_path)).load_all(['Observation'])
+        observations = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(['Observation'])
 
         def fake_load_all(internal_self, resources):
             del internal_self
@@ -221,7 +221,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     def test_multiple_tasks(self):
         # Grab all observations before we mock anything
-        loaded = loaders.I2b2Loader(store.Root(self.input_path)).load_all(['Observation', 'Patient'])
+        loaded = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(['Observation', 'Patient'])
 
         def fake_load_all(internal_self, resources):
             del internal_self
@@ -439,7 +439,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
         self.run_etl(output_format='parquet')
 
         notes_csv_path = os.path.join(self.input_path, 'observation_fact_notes.csv')
-        facts = extract.extract_csv_observation_facts(notes_csv_path)
+        facts = list(extract.extract_csv_observation_facts(notes_csv_path, 5))
 
         for index, checksum in enumerate(self.expected_checksums):
             self.assertEqual(

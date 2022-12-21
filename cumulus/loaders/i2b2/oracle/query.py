@@ -37,7 +37,7 @@ def sql_visit() -> str:
     import_date = format_date('IMPORT_DATE')
 
     cols_dates = f'{start_date}, {end_date}, {import_date}, LENGTH_OF_STAY'
-    cols = 'ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, LOCATION_CD, ' \
+    cols = 'ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, ' \
            f'{cols_dates}'
     return f'select {cols} \n from {Table.visit.value}'
 

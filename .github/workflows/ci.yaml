@@ -36,7 +36,7 @@ jobs:
             --runtime=linux-x64 \
             --configuration=Release \
             -p:PublishSingleFile=true \
-            --output=~/.local/bin \
+            --output=$HOME/.local/bin \
             mstool/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
 
       - name: Test with pytest

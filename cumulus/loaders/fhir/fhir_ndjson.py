@@ -35,16 +35,18 @@ class FhirNdjsonLoader(base.Loader):
         if self.root.protocol in ['http', 'https']:
             return self._load_from_bulk_export(resources)
 
-        # Are we reading from a local directory?
-        if self.root.protocol == 'file':
-            # We can actually just re-use the input dir without copying the files, since everything is local.
-            class Dir:
-                name: str = self.root.path
-            return Dir()  # once we drop python3.7, we can have load_all return a Protocol for proper typing
-
-        # Fall back to copying from a remote directory (like S3 buckets) to a local one
+        # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
+        #
+        # We do this even if the files are local, because the next step in our pipeline is the MS deid tool,
+        # and it will just process *everything* in a directory. So if there are other *.ndjson sitting next to our
+        # target resources, they'll get processed by the MS tool and that slows down running a single task with
+        # "--task" a lot.
+        #
+        # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
+        # TemporaryDirectory gets discarded), but that seems reasonable.
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        self.root.get(self.root.joinpath('*.ndjson'), f'{tmpdir.name}/')
+        for resource in resources:
+            self.root.get(self.root.joinpath(f'*{resource}*.ndjson'), f'{tmpdir.name}/')
         return tmpdir
 
     def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
