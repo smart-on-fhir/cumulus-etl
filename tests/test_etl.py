@@ -438,7 +438,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
     def test_stores_cached_json(self):
         self.run_etl(output_format='parquet')
 
-        notes_csv_path = os.path.join(self.input_path, 'csv_note', 'note1.csv')
+        notes_csv_path = os.path.join(self.input_path, 'observation_fact_notes.csv')
         facts = extract.extract_csv_observation_facts(notes_csv_path)
 
         for index, checksum in enumerate(self.expected_checksums):
