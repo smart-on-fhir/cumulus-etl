@@ -20,7 +20,7 @@ Tests are run with `pytest [optional args]`, and coverage is run with `coverage 
 
 ### In container
 
-We have a container, `cumulus-etl-test`, which can be leveraged to run tests. To run these tests, use `docker compose run --entrypoint "pytest [optional args]" cumulus etl test`, and to run coverage, use `docker compose run --entrypoint "coverage run -m pytest [optional args] && coverage report -m" cumulus-etl-test`
+We have a container, `cumulus-etl-test`, which can be leveraged to run tests. To run these tests, use `docker compose run --entrypoint "pytest [optional args]" --rm cumulus-etl-test`, and to run coverage, use `docker compose run --entrypoint "coverage run -m pytest [optional args]` followed by `coverage report -m" --rm cumulus-etl-test`
 
 ## Release management
 

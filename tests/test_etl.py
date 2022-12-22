@@ -24,7 +24,7 @@ from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
-from tests.test_i2b2_transform import ExampleResources
+from tests import i2b2_mock_data
 from tests.utils import TreeCompareMixin
 
 
@@ -137,9 +137,9 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     def test_unknown_modifier_extensions_skipped_for_patients(self):
         """Verify we ignore unknown modifier extensions during a normal etl job flow (like patients)"""
-        patient0 = ExampleResources.patient()
+        patient0 = i2b2_mock_data.patient()
         patient0.id = '0'
-        patient1 = ExampleResources.patient()
+        patient1 = i2b2_mock_data.patient()
         patient1.id = '1'
         patient1.modifierExtension = [Extension({'url': 'unrecognized'})]
 
@@ -154,10 +154,10 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
         """Verify we ignore unknown modifier extensions during a custom etl job flow (nlp symptoms)"""
-        docref0 = ExampleResources.documentreference()
+        docref0 = i2b2_mock_data.documentreference()
         docref0.id = '0'
         docref0.subject.reference = 'Patient/1234'
-        docref1 = ExampleResources.documentreference()
+        docref1 = i2b2_mock_data.documentreference()
         docref1.id = '1'
         docref1.subject.reference = 'Patient/5678'
         docref1.modifierExtension = [Extension({'url': 'unrecognized'})]

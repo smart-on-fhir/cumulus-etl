@@ -6,7 +6,7 @@ from unittest import mock
 from cumulus import common, store
 from cumulus.loaders.i2b2 import loader
 from cumulus.loaders.i2b2.oracle import extract, query
-from tests.test_i2b2_transform import ExampleResources
+from tests import i2b2_mock_data
 
 
 class TestOracleExtraction(unittest.TestCase):
@@ -74,9 +74,9 @@ class TestOracleExtraction(unittest.TestCase):
     @mock.patch('cumulus.loaders.i2b2.loader.oracle_extract')
     def test_loader(self, mock_extract):
         """Verify that when our i2b2 loader is given an Oracle URL, it runs SQL against it and drops it to ndjson"""
-        mock_extract.list_observation_fact.return_value = [ExampleResources.condition_dim()]
-        mock_extract.list_patient.return_value = [ExampleResources.patient_dim()]
-        mock_extract.list_visit.return_value = [ExampleResources.encounter_dim()]
+        mock_extract.list_observation_fact.return_value = [i2b2_mock_data.condition_dim()]
+        mock_extract.list_patient.return_value = [i2b2_mock_data.patient_dim()]
+        mock_extract.list_visit.return_value = [i2b2_mock_data.encounter_dim()]
 
         root = store.Root('tcp://localhost/foo')
         oracle_loader = loader.I2b2Loader(root)
@@ -89,9 +89,9 @@ class TestOracleExtraction(unittest.TestCase):
             'Patient.ndjson',
         }, set(os.listdir(tmpdir.name)))
 
-        self.assertEqual(ExampleResources.condition().as_json(),
+        self.assertEqual(i2b2_mock_data.condition().as_json(),
                          common.read_json(os.path.join(tmpdir.name, 'Condition.ndjson')))
-        self.assertEqual(ExampleResources.encounter().as_json(),
+        self.assertEqual(i2b2_mock_data.encounter().as_json(),
                          common.read_json(os.path.join(tmpdir.name, 'Encounter.ndjson')))
-        self.assertEqual(ExampleResources.patient().as_json(),
+        self.assertEqual(i2b2_mock_data.patient().as_json(),
                          common.read_json(os.path.join(tmpdir.name, 'Patient.ndjson')))
