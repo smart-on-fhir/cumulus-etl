@@ -2,7 +2,7 @@
 
 
 # PHIN VADS 1000-9, Race & Ethnicity - CDC
-# https://phinvads.cdc.gov/vads/ViewCodeSystemConcept.action?oid=2.16.840.1.113883.6.238&code=1000-9 
+# https://phinvads.cdc.gov/vads/ViewCodeSystemConcept.action?oid=2.16.840.1.113883.6.238&code=1000-9
 CDC_RACE = {
     'White': '2106-3',
     'Black or African American': '2054-5',
@@ -23,6 +23,7 @@ FHIR_GENDER = {
     'U': 'unknown',
 }
 
+
 # BCH internal lab codes mapping to international covid-19 codes
 # system: http://loinc.org
 LOINC_COVID_LAB_TESTS = {
@@ -38,7 +39,8 @@ LOINC_COVID_LAB_TESTS = {
     'LAB:13815125': '62462-7'
 }
 
-# PHIN VADS General adjectival modifier (qualifier value) {106234000 , SNOMED-CT } 
+
+# PHIN VADS General adjectival modifier (qualifier value) {106234000 , SNOMED-CT }
 # Subset of codes related to evaluating lab results
 # system: http://snomed.info/sct
 SNOMED_LAB_RESULT = {
@@ -47,10 +49,11 @@ SNOMED_LAB_RESULT = {
     'Absent': '272519000'
 }
 
+
 # PHIN VADS Admission statuses {308277006, SNOMED-CT }
 # Subset of codes related to means of admition
 # system: http://snomed.info/sct
-SNOMED_ADMISSION ={
+SNOMED_ADMISSION = {
     'Inpatient': 'IMP',
     'Emergency': 'EMER'
 }

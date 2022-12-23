@@ -1,5 +1,6 @@
 from cumulus.loaders.i2b2 import transform
 
+
 def patient_dim() -> transform.PatientDimension:
     return transform.PatientDimension({
         'PATIENT_NUM': str(12345),
@@ -10,8 +11,10 @@ def patient_dim() -> transform.PatientDimension:
         'ZIP_CD': '02115'
     })
 
+
 def patient() -> transform.Patient:
     return transform.to_fhir_patient(patient_dim())
+
 
 def encounter_dim() -> transform.VisitDimension:
     return transform.VisitDimension({
@@ -23,8 +26,10 @@ def encounter_dim() -> transform.VisitDimension:
         'LENGTH_OF_STAY': 3
     })
 
+
 def encounter() -> transform.Encounter:
     return transform.to_fhir_encounter(encounter_dim())
+
 
 def condition_dim() -> transform.ObservationFact:
     return transform.ObservationFact({
@@ -35,8 +40,10 @@ def condition_dim() -> transform.ObservationFact:
         'START_DATE': '2016-01-01'
     })
 
+
 def condition() -> transform.Condition:
     return transform.to_fhir_condition(condition_dim())
+
 
 def documentreference_dim() -> transform.ObservationFact:
     return transform.ObservationFact({
@@ -53,8 +60,10 @@ def documentreference_dim() -> transform.ObservationFact:
             'Chief complaint: fever and chills. Denies cough.'
     })
 
+
 def documentreference() -> transform.DocumentReference:
     return transform.to_fhir_documentreference(documentreference_dim())
+
 
 def observation_dim() -> transform.ObservationFact:
     return transform.ObservationFact({
@@ -66,6 +75,7 @@ def observation_dim() -> transform.ObservationFact:
         'VALTYPE_CD': 'T',
         'TVAL_CHAR': 'Negative'
     })
+
 
 def observation() -> transform.Observation:
     return transform.to_fhir_observation_lab(observation_dim())

@@ -10,7 +10,7 @@ from fhirclient.models.documentreference import DocumentReference
 from fhirclient.models.observation import Observation
 
 from cumulus import fhir_common
-from cumulus.loaders.i2b2 import transform 
+from cumulus.loaders.i2b2 import transform
 from tests import i2b2_mock_data
 
 

@@ -18,7 +18,6 @@ from fhirclient.models.meta import Meta
 from fhirclient.models.observation import Observation
 from fhirclient.models.patient import Patient
 from fhirclient.models.period import Period
-#from fhirclient.models.profile import Profile
 
 from cumulus import fhir_common
 from cumulus.loaders.i2b2.resources.external_mappings import *
@@ -54,8 +53,8 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     # TODO: verify that i2b2 always has a single patient address, always in US
     if patient.zip_cd:
         subject.address = [Address({
-            'country': 'US', 
-            'postalCode':parse_zip_code(patient.zip_cd)
+            'country': 'US',
+            'postalCode': parse_zip_code(patient.zip_cd)
         })]
 
     if patient.race_cd:
@@ -86,13 +85,13 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     encounter.meta = Meta({
         'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter']
     })
-    encounter.id= str(visit.encounter_num)
+    encounter.id = str(visit.encounter_num)
     encounter.subject = fhir_common.ref_subject(visit.patient_num)
     # TODO: status may be site specific, we may need to create mapping dict(s) at some point
     # we should also validate use of finished versus unknown
     encounter.status = 'finished'
     # TODO: type may be site specific, we may need to create mapping dict(s) at some point
-    
+
     encounter.type = [CodeableConcept()]
     encounter.type[0].coding = [Coding({
         "system": "http://snomed.info/sct",
@@ -110,13 +109,12 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
             'value': parse_fhir_duration(visit.length_of_stay)
         })
 
-
     if visit.inout_cd is not None:
         encounter.class_fhir = Coding({
             'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
             'code': SNOMED_ADMISSION.get(visit.inout_cd)
         })
-    else: 
+    else:
         logging.warning(
             'skipping encounter.class_fhir.code for i2b2 '
             'INOUT_CD : %s', visit.inout_cd)
