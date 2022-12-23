@@ -4,22 +4,23 @@ import base64
 import logging
 from typing import Optional
 
-from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.meta import Meta
-from fhirclient.models.period import Period
-from fhirclient.models.duration import Duration
-from fhirclient.models.extension import Extension
-from fhirclient.models.patient import Patient
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.condition import Condition
-from fhirclient.models.observation import Observation
-from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.documentreference import DocumentReferenceContext, DocumentReferenceContent
+from fhirclient.models.address import Address
 from fhirclient.models.attachment import Attachment
 from fhirclient.models.codeableconcept import CodeableConcept
+from fhirclient.models.coding import Coding
+from fhirclient.models.condition import Condition
+from fhirclient.models.documentreference import DocumentReference, DocumentReferenceContext, DocumentReferenceContent
+from fhirclient.models.duration import Duration
+from fhirclient.models.encounter import Encounter
+from fhirclient.models.extension import Extension
+from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.meta import Meta
+from fhirclient.models.observation import Observation
+from fhirclient.models.patient import Patient
+from fhirclient.models.period import Period
 
 from cumulus import fhir_common
-from cumulus.loaders.i2b2 import fhir_template
+from cumulus.loaders.i2b2.resources import external_mappings
 from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 
@@ -34,7 +35,10 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     :param patient: i2b2 Patient Dimension record
     :return: https://www.hl7.org/fhir/patient.html
     """
-    subject = Patient(fhir_template.fhir_patient())
+    subject = Patient()
+    subject.meta = Meta({
+        'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient']
+    })
     subject.id = patient.patient_num
 
     if patient.birth_date:
@@ -46,18 +50,29 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     if patient.sex_cd:
         subject.gender = parse_gender(patient.sex_cd)
 
+    # TODO: verify that i2b2 always has a single patient address, always in US
     if patient.zip_cd:
-        # pylint: disable-next=unsubscriptable-object
-        subject.address[0].postalCode = parse_zip_code(patient.zip_cd)
+        subject.address = [Address({
+            'country': 'US',
+            'postalCode': parse_zip_code(patient.zip_cd)
+        })]
 
     if patient.race_cd:
         race_code = parse_race(patient.race_cd)
-        if race_code:
-            race_ext = Extension(
-                fhir_template.extension_race(race_code, patient.race_cd))
-            subject.extension = []
-            subject.extension.append(race_ext)
-
+        if race_code is not None:
+            subject.extension = [Extension({
+                'url': 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race',
+                'extension': [
+                    {
+                        'url': 'ombCategory',
+                        'valueCoding': {
+                            'system': 'urn:oid:2.16.840.1.113883.6.238',
+                            'code': race_code,
+                            'display': patient.race_cd,
+                        },
+                    },
+                ],
+            })]
     return subject
 
 
@@ -66,18 +81,27 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     :param visit: i2b2 Visit Dimension Record
     :return: https://www.hl7.org/fhir/encounter.html
     """
-    encounter = Encounter(fhir_template.fhir_encounter())
+    encounter = Encounter()
+    encounter.meta = Meta({
+        'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter']
+    })
     encounter.id = str(visit.encounter_num)
     encounter.subject = fhir_common.ref_subject(visit.patient_num)
+    # TODO: status may be site specific, we may need to create mapping dict(s) at some point
+    # we should also validate use of finished versus unknown
+    encounter.status = 'finished'
+    # TODO: type may be site specific, we may need to create mapping dict(s) at some point
 
-    if visit.inout_cd == 'Inpatient':
-        encounter.class_fhir.code = 'IMP'
-    elif visit.inout_cd == 'Emergency':
-        encounter.class_fhir.code = 'EMER'
-    else:
-        logging.warning(
-            'skipping encounter.class_fhir.code for i2b2 '
-            'INOUT_CD : %s', visit.inout_cd)
+    encounter.type = [CodeableConcept()]
+    encounter.type[0].coding = [Coding({
+        'system': 'http://snomed.info/sct',
+        'code': '308335008',
+        'display': 'Patient encounter procedure'}
+    )]
+    encounter.period = Period({
+        'start': fhir_common.parse_fhir_date_isostring(visit.start_date),
+        'end': fhir_common.parse_fhir_date_isostring(visit.end_date)
+    })
 
     if visit.length_of_stay:  # days
         encounter.length = Duration({
@@ -85,11 +109,15 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
             'value': parse_fhir_duration(visit.length_of_stay)
         })
 
-    encounter.period = Period({
-        'start': fhir_common.parse_fhir_date_isostring(visit.start_date),
-        'end': fhir_common.parse_fhir_date_isostring(visit.end_date)
-    })
-
+    if visit.inout_cd is not None:
+        encounter.class_fhir = Coding({
+            'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
+            'code': external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
+        })
+    else:
+        logging.warning(
+            'skipping encounter.class_fhir.code for i2b2 '
+            'INOUT_CD : %s', visit.inout_cd)
     return encounter
 
 
@@ -116,8 +144,8 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     observation = to_fhir_observation(obsfact)
     observation.status = 'final'
 
-    if obsfact.concept_cd in fhir_template.LOINC:
-        obs_code = fhir_template.LOINC[obsfact.concept_cd]
+    if obsfact.concept_cd in external_mappings.LOINC_COVID_LAB_TESTS:
+        obs_code = external_mappings.LOINC_COVID_LAB_TESTS[obsfact.concept_cd]
         obs_system = 'http://loinc.org'
     else:
         obs_code = obsfact.concept_cd
@@ -126,13 +154,12 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     observation.code = make_concept(obs_code, obs_system)
 
     # lab result
-    if obsfact.tval_char in fhir_template.LAB_RESULT:
+    if obsfact.tval_char in external_mappings.SNOMED_LAB_RESULT:
         lab_result = obsfact.tval_char
     else:
         lab_result = 'Absent'
-
-    observation.valueCodeableConcept = make_concept(fhir_template.LAB_RESULT[lab_result], 'http://snomed.info/sct',
-                                                    display=lab_result)
+    observation.valueCodeableConcept = make_concept(
+        external_mappings.SNOMED_LAB_RESULT[lab_result], 'http://snomed.info/sct', display=lab_result)
 
     return observation
 
@@ -222,7 +249,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 #
 ###############################################################################
 
-def parse_zip_code(i2b2_zip_code) -> str:
+def parse_zip_code(i2b2_zip_code) -> Optional[str]:
     """
     :param i2b2_zip_code:
     :return: Patient Address ZipCode (3-9 digits)
@@ -238,17 +265,17 @@ def parse_gender(i2b2_sex_cd) -> Optional[str]:
     :return: FHIR AdministrativeGender code
     """
     if i2b2_sex_cd and isinstance(i2b2_sex_cd, str):
-        return fhir_template.GENDER.get(i2b2_sex_cd, 'other')
+        return external_mappings.FHIR_GENDER.get(i2b2_sex_cd, 'other')
 
 
-def parse_race(i2b2_race_cd) -> str:
+def parse_race(i2b2_race_cd) -> Optional[str]:
     """
     :param i2b2_race_cd:
     :return: CDC R5 Race codes or None
     """
     if i2b2_race_cd and isinstance(i2b2_race_cd, str):
-        if i2b2_race_cd in fhir_template.RACE:
-            return fhir_template.RACE[i2b2_race_cd]
+        if i2b2_race_cd in external_mappings.CDC_RACE:
+            return external_mappings.CDC_RACE[i2b2_race_cd]
 
 
 def parse_fhir_duration(i2b2_length_of_stay) -> float:

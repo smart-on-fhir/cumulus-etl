@@ -160,7 +160,7 @@ Run this command, but replace:
 * and `subdir1` with the ETL subdirectory you used when setting up AWS
 
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml run -rm cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm cumulus-etl \
   --s3-region=us-east-2 \
   /cumulus-etl/tests/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
@@ -174,7 +174,7 @@ You should now be able to see some (very small) output files in your S3 buckets!
 Here's a more realistic and complete command, as a starting point for your own version.
 
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml run -rm\
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm\
  cumulus-etl \
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \

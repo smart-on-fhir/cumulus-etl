@@ -10,7 +10,7 @@ from fhirclient.models.extension import Extension
 
 from cumulus.deid import Scrubber
 from cumulus.deid.codebook import CodebookDB
-from tests.test_i2b2_transform import ExampleResources
+from tests import i2b2_mock_data
 
 
 @mock.patch('cumulus.deid.codebook.secrets.token_hex', new=lambda x: b'1234')  # just to not waste entropy
@@ -19,7 +19,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_patient(self):
         """Verify a basic patient (saved ids)"""
-        patient = ExampleResources.patient()
+        patient = i2b2_mock_data.patient()
         self.assertEqual('12345', patient.id)
 
         scrubber = Scrubber()
@@ -28,7 +28,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_encounter(self):
         """Verify a basic encounter (saved ids)"""
-        encounter = ExampleResources.encounter()
+        encounter = i2b2_mock_data.encounter()
         self.assertEqual('Patient/12345', encounter.subject.reference)
         self.assertEqual('67890', encounter.id)
 
@@ -39,7 +39,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_condition(self):
         """Verify a basic condition (hashed ids)"""
-        condition = ExampleResources.condition()
+        condition = i2b2_mock_data.condition()
         self.assertEqual('4567', condition.id)
         self.assertEqual('Patient/12345', condition.subject.reference)
         self.assertEqual('Encounter/67890', condition.encounter.reference)
@@ -52,7 +52,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_documentreference(self):
         """Test DocumentReference, which is interesting because of its list of encounters and attachments"""
-        docref = ExampleResources.documentreference()
+        docref = i2b2_mock_data.documentreference()
         self.assertEqual('345', docref.id)
         self.assertEqual('Patient/12345', docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
@@ -70,7 +70,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_unknown_modifier_extension(self):
         """Confirm we skip resources with unknown modifier extensions"""
-        patient = ExampleResources.patient()
+        patient = i2b2_mock_data.patient()
         scrubber = Scrubber()
 
         patient.modifierExtension = []
@@ -104,7 +104,7 @@ class TestScrubber(unittest.TestCase):
 
             # Confirm we loaded that encounter correctly
             scrubber = Scrubber(path)
-            encounter = ExampleResources.encounter()  # patient is 12345
+            encounter = i2b2_mock_data.encounter()  # patient is 12345
             encounter.id = '1'
             self.assertTrue(scrubber.scrub_resource(encounter))
             self.assertEqual(encounter.id, db.encounter('1'))
@@ -116,7 +116,7 @@ class TestScrubber(unittest.TestCase):
             self.assertEqual(encounter.subject.reference, f"Patient/{db2.patient('12345')}")
 
             # ensure value errors are handled inside scrub_resource:
-            encounter_bad = ExampleResources.encounter()
+            encounter_bad = i2b2_mock_data.encounter()
             encounter_bad.elementProperties = mock.Mock(
                 side_effect=ValueError(1)
             )

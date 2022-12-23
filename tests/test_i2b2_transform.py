@@ -2,98 +2,10 @@
 
 import unittest
 
-from fhirclient.models.condition import Condition
 from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.patient import Patient
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.observation import Observation
 
 from cumulus import fhir_common
-from cumulus.loaders.i2b2 import transform as T
-
-
-class ExampleResources:
-    """Convenience class for holding sample resources made from i2b2 data"""
-    @staticmethod
-    def patient_dim() -> T.PatientDimension:
-        return T.PatientDimension({
-            'PATIENT_NUM': str(12345),
-            'BIRTH_DATE': '2005-06-07',
-            'DEATH_DATE': '2008-09-10',
-            'SEX_CD': 'F',
-            'RACE_CD': 'Black or African American',
-            'ZIP_CD': '02115'
-        })
-
-    @staticmethod
-    def patient() -> Patient:
-        return T.to_fhir_patient(ExampleResources.patient_dim())
-
-    @staticmethod
-    def encounter_dim() -> T.VisitDimension:
-        return T.VisitDimension({
-            'ENCOUNTER_NUM': 67890,
-            'PATIENT_NUM': '12345',
-            'START_DATE': '2016-01-01T11:44:32+00:00',
-            'END_DATE': '2016-01-04T12:45:33+00:00',
-            'INOUT_CD': 'Inpatient',
-            'LENGTH_OF_STAY': 3
-        })
-
-    @staticmethod
-    def encounter() -> Encounter:
-        return T.to_fhir_encounter(ExampleResources.encounter_dim())
-
-    @staticmethod
-    def condition_dim() -> T.ObservationFact:
-        return T.ObservationFact({
-            'INSTANCE_NUM': '4567',
-            'PATIENT_NUM': str(12345),
-            'ENCOUNTER_NUM': 67890,
-            'CONCEPT_CD': 'ICD10:U07.1',  # COVID19 Diagnosis
-            'START_DATE': '2016-01-01'
-        })
-
-    @staticmethod
-    def condition() -> Condition:
-        return T.to_fhir_condition(ExampleResources.condition_dim())
-
-    @staticmethod
-    def documentreference_dim() -> T.ObservationFact:
-        return T.ObservationFact({
-            'INSTANCE_NUM': '345',
-            'PATIENT_NUM':
-                str(12345),
-            'ENCOUNTER_NUM':
-                67890,
-            'CONCEPT_CD':
-                'NOTE:103933779',  # Admission Note Type
-            'START_DATE':
-                '2016-01-01',
-            'OBSERVATION_BLOB':
-                'Chief complaint: fever and chills. Denies cough.'
-        })
-
-    @staticmethod
-    def documentreference() -> DocumentReference:
-        return T.to_fhir_documentreference(ExampleResources.documentreference_dim())
-
-    @staticmethod
-    def observation_dim() -> T.ObservationFact:
-        return T.ObservationFact({
-            'PATIENT_NUM': str(12345),
-            'ENCOUNTER_NUM': 67890,
-            'CONCEPT_CD': 'LAB:1043473617',  # COVID19 PCR Test
-            'START_DATE': '2021-01-02',
-            'END_DATE': '2021-01-02',
-            'VALTYPE_CD': 'T',
-            'TVAL_CHAR': 'Negative'
-        })
-
-    @staticmethod
-    def observation() -> Observation:
-        return T.to_fhir_observation_lab(ExampleResources.observation_dim())
+from tests import i2b2_mock_data
 
 
 class TestI2b2Transform(unittest.TestCase):
@@ -103,7 +15,7 @@ class TestI2b2Transform(unittest.TestCase):
     # pylint: disable=unsubscriptable-object
 
     def test_to_fhir_patient(self):
-        subject = ExampleResources.patient()
+        subject = i2b2_mock_data.patient()
 
         # print(json.dumps(pat_fhir.as_json(), indent=4))
 
@@ -114,7 +26,7 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('02115', subject.address[0].postalCode)
 
     def test_to_fhir_encounter(self):
-        encounter = ExampleResources.encounter()
+        encounter = i2b2_mock_data.encounter()
         # print(json.dumps(encounter.as_json(), indent=4))
 
         self.assertEqual('67890', encounter.id)
@@ -124,7 +36,7 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(3, encounter.length.value)
 
     def test_to_fhir_condition(self):
-        condition = ExampleResources.condition()
+        condition = i2b2_mock_data.condition()
 
         # print(json.dumps(condition.as_json(), indent=4))
         self.assertEqual('Patient/12345', condition.subject.reference)
@@ -134,7 +46,7 @@ class TestI2b2Transform(unittest.TestCase):
                          condition.code.coding[0].system)
 
     def test_to_fhir_documentreference(self):
-        docref = ExampleResources.documentreference()
+        docref = i2b2_mock_data.documentreference()
 
         # print(json.dumps(docref.as_json(), indent=4))
 
@@ -144,7 +56,7 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual(str('NOTE:103933779'), docref.type.text)
 
     def test_to_fhir_observation_lab(self):
-        lab_fhir = ExampleResources.observation()
+        lab_fhir = i2b2_mock_data.observation()
 
         # print(json.dumps(lab_i2b2.__dict__, indent=4))
         # print(json.dumps(lab_fhir.as_json(), indent=4))

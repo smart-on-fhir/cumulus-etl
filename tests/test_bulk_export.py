@@ -614,7 +614,7 @@ class TestBulkExportEndToEnd(unittest.TestCase):
             status=202,
         )
 
-    @responses.activate(assert_all_requests_are_fired=True)
+    @responses.mock.activate(assert_all_requests_are_fired=True)
     def test_successful_bulk_export(self):
         """Verify a happy path bulk export, from toe to tip"""
         loader = loaders.FhirNdjsonLoader(self.root, client_id=self.client_id, jwks=self.jwks_path)
