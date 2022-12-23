@@ -20,8 +20,7 @@ from fhirclient.models.patient import Patient
 from fhirclient.models.period import Period
 
 from cumulus import fhir_common
-#pylint: disable = wildcard-import
-from cumulus.loaders.i2b2.resources.external_mappings import *
+from cumulus.loaders.i2b2.resources import external_mappings
 from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 
@@ -113,7 +112,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     if visit.inout_cd is not None:
         encounter.class_fhir = Coding({
             'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
-            'code': SNOMED_ADMISSION.get(visit.inout_cd)
+            'code': external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
         })
     else:
         logging.warning(
@@ -145,8 +144,8 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     observation = to_fhir_observation(obsfact)
     observation.status = 'final'
 
-    if obsfact.concept_cd in LOINC_COVID_LAB_TESTS:
-        obs_code = LOINC_COVID_LAB_TESTS[obsfact.concept_cd]
+    if obsfact.concept_cd in external_mappings.LOINC_COVID_LAB_TESTS:
+        obs_code = external_mappings.LOINC_COVID_LAB_TESTS[obsfact.concept_cd]
         obs_system = 'http://loinc.org'
     else:
         obs_code = obsfact.concept_cd
@@ -155,12 +154,12 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     observation.code = make_concept(obs_code, obs_system)
 
     # lab result
-    if obsfact.tval_char in SNOMED_LAB_RESULT:
+    if obsfact.tval_char in external_mappings.SNOMED_LAB_RESULT:
         lab_result = obsfact.tval_char
     else:
         lab_result = 'Absent'
     observation.valueCodeableConcept = make_concept(
-        SNOMED_LAB_RESULT[lab_result], 'http://snomed.info/sct', display=lab_result)
+        external_mappings.SNOMED_LAB_RESULT[lab_result], 'http://snomed.info/sct', display=lab_result)
 
     return observation
 
@@ -266,7 +265,7 @@ def parse_gender(i2b2_sex_cd) -> Optional[str]:
     :return: FHIR AdministrativeGender code
     """
     if i2b2_sex_cd and isinstance(i2b2_sex_cd, str):
-        return FHIR_GENDER.get(i2b2_sex_cd, 'other')
+        return external_mappings.FHIR_GENDER.get(i2b2_sex_cd, 'other')
 
 
 def parse_race(i2b2_race_cd) -> Optional[str]:
@@ -275,8 +274,8 @@ def parse_race(i2b2_race_cd) -> Optional[str]:
     :return: CDC R5 Race codes or None
     """
     if i2b2_race_cd and isinstance(i2b2_race_cd, str):
-        if i2b2_race_cd in CDC_RACE:
-            return CDC_RACE[i2b2_race_cd]
+        if i2b2_race_cd in external_mappings.CDC_RACE:
+            return external_mappings.CDC_RACE[i2b2_race_cd]
 
 
 def parse_fhir_duration(i2b2_length_of_stay) -> float:
