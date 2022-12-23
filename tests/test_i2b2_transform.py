@@ -2,15 +2,9 @@
 
 import unittest
 
-from fhirclient.models.condition import Condition
 from fhirclient.models.fhirdate import FHIRDate
-from fhirclient.models.patient import Patient
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.observation import Observation
 
 from cumulus import fhir_common
-from cumulus.loaders.i2b2 import transform
 from tests import i2b2_mock_data
 
 

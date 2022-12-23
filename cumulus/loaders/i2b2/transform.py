@@ -20,6 +20,7 @@ from fhirclient.models.patient import Patient
 from fhirclient.models.period import Period
 
 from cumulus import fhir_common
+#pylint: disable = wildcard-import
 from cumulus.loaders.i2b2.resources.external_mappings import *
 from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
@@ -61,8 +62,8 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
         race_code = parse_race(patient.race_cd)
         if race_code is not None:
             subject.extension = [Extension({
-                "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
-                "extension": [
+                'url': 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race',
+                'extension': [
                     {
                         'url': 'ombCategory',
                         'valueCoding': {
@@ -94,9 +95,9 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
 
     encounter.type = [CodeableConcept()]
     encounter.type[0].coding = [Coding({
-        "system": "http://snomed.info/sct",
-        "code": "308335008",
-        "display": "Patient encounter procedure"}
+        'system': 'http://snomed.info/sct',
+        'code': '308335008',
+        'display': 'Patient encounter procedure'}
     )]
     encounter.period = Period({
         'start': fhir_common.parse_fhir_date_isostring(visit.start_date),
@@ -249,7 +250,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 #
 ###############################################################################
 
-def parse_zip_code(i2b2_zip_code) -> Optional(str):
+def parse_zip_code(i2b2_zip_code) -> Optional[str]:
     """
     :param i2b2_zip_code:
     :return: Patient Address ZipCode (3-9 digits)

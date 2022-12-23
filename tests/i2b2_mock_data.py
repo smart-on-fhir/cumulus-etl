@@ -1,3 +1,5 @@
+"""Mock data used by i2b2 test runners"""
+
 from cumulus.loaders.i2b2 import transform
 
 
