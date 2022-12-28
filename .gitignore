@@ -1,7 +1,8 @@
 # Project specific
 
-example-output/
-example-phi-build/
+/.idea/
+/example-output/
+/example-phi-build/
 
 # Python gitignore https://github.com/github/gitignore/blob/main/Python.gitignore
 # Byte-compiled / optimized / DLL files

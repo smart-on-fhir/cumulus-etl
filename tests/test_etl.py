@@ -217,7 +217,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
         # Confirm we only wrote the one resource
         self.assertEqual({'observation', 'JobConfig'}, set(os.listdir(self.output_path)))
-        self.assertEqual(['fhir_observations.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
+        self.assertEqual(['observation.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
 
     def test_multiple_tasks(self):
         # Grab all observations before we mock anything
@@ -234,8 +234,8 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
         # Confirm we only wrote the one resource
         self.assertEqual({'observation', 'patient', 'JobConfig'}, set(os.listdir(self.output_path)))
-        self.assertEqual(['fhir_observations.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
-        self.assertEqual(['fhir_patients.000.ndjson'], os.listdir(os.path.join(self.output_path, 'patient')))
+        self.assertEqual(['observation.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
+        self.assertEqual(['patient.000.ndjson'], os.listdir(os.path.join(self.output_path, 'patient')))
 
 
 class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
@@ -388,12 +388,12 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
 
         self.assertEqual(
             {
-                'condition/fhir_conditions.000.parquet',
-                'documentreference/fhir_documentreferences.000.parquet',
-                'encounter/fhir_encounters.000.parquet',
-                'observation/fhir_observations.000.parquet',
-                'patient/fhir_patients.000.parquet',
-                'symptom/fhir_symptoms.000.parquet',
+                'condition/condition.000.parquet',
+                'documentreference/documentreference.000.parquet',
+                'encounter/encounter.000.parquet',
+                'observation/observation.000.parquet',
+                'patient/patient.000.parquet',
+                'symptom/symptom.000.parquet',
             }, set(all_files))
 
 
@@ -408,12 +408,12 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
 
         all_files = {x for x in fs.find('mockbucket/root') if '/JobConfig/' not in x}
         self.assertEqual({
-            'mockbucket/root/condition/fhir_conditions.000.ndjson',
-            'mockbucket/root/documentreference/fhir_documentreferences.000.ndjson',
-            'mockbucket/root/encounter/fhir_encounters.000.ndjson',
-            'mockbucket/root/observation/fhir_observations.000.ndjson',
-            'mockbucket/root/patient/fhir_patients.000.ndjson',
-            'mockbucket/root/symptom/fhir_symptoms.000.ndjson',
+            'mockbucket/root/condition/condition.000.ndjson',
+            'mockbucket/root/documentreference/documentreference.000.ndjson',
+            'mockbucket/root/encounter/encounter.000.ndjson',
+            'mockbucket/root/observation/observation.000.ndjson',
+            'mockbucket/root/patient/patient.000.ndjson',
+            'mockbucket/root/symptom/symptom.000.ndjson',
         }, all_files)
 
         # Confirm we did not accidentally create an 's3:' directory locally
@@ -478,7 +478,7 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
         self.assertEqual(0, self.nlp_mock.call_count)
 
         # And we should see our fake cached results in the output
-        with open(os.path.join(self.output_path, 'symptom', 'fhir_symptoms.000.ndjson'), 'r', encoding='utf8') as f:
+        with open(os.path.join(self.output_path, 'symptom', 'symptom.000.ndjson'), 'r', encoding='utf8') as f:
             lines = f.readlines()
         symptoms = [json.loads(line) for line in lines]
         self.assertEqual(2, len(symptoms))
