@@ -87,7 +87,7 @@ class JobSummary:
         prct = float(self.success) / float(self.attempt)
 
         if 0 == self.attempt % show_every:
-            print(f'success = {self.success} rate % {prct}')
+            print(f'success = {self.success:,} rate % {prct}')
 
         return prct
 

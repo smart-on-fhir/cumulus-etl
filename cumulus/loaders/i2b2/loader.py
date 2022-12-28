@@ -8,6 +8,7 @@ from typing import Callable, Iterable, List, TypeVar
 
 from fhirclient.models.resource import Resource
 
+from cumulus import store
 from cumulus.loaders.base import Loader
 from cumulus.loaders.i2b2 import extract, schema, transform
 from cumulus.loaders.i2b2.oracle import extract as oracle_extract
@@ -30,6 +31,15 @@ class I2b2Loader(Loader):
     - csv_patient
     - csv_visit
     """
+
+    def __init__(self, root: store.Root, batch_size: int):
+        """
+        Initialize a new I2b2Loader class
+        :param root: the base location to read data from
+        :param batch_size: the most entries to keep in memory at once
+        """
+        super().__init__(root)
+        self.batch_size = batch_size
 
     def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         if self.root.protocol in ['tcp']:
@@ -117,13 +127,14 @@ class I2b2Loader(Loader):
         return self._load_all_with_extractors(
             resources,
             conditions=partial(extract.extract_csv_observation_facts,
-                               os.path.join(path, 'observation_fact_diagnosis.csv')),
+                               os.path.join(path, 'observation_fact_diagnosis.csv'), self.batch_size),
             observations=partial(extract.extract_csv_observation_facts,
-                                 os.path.join(path, 'observation_fact_lab_views.csv')),
+                                 os.path.join(path, 'observation_fact_lab_views.csv'), self.batch_size),
             documentreferences=partial(extract.extract_csv_observation_facts,
-                                       os.path.join(path, 'observation_fact_notes.csv')),
-            patients=partial(extract.extract_csv_patients, os.path.join(path, 'patient_dimension.csv')),
-            encounters=partial(extract.extract_csv_visits, os.path.join(path, 'visit_dimension.csv')),
+                                       os.path.join(path, 'observation_fact_notes.csv'), self.batch_size),
+            patients=partial(extract.extract_csv_patients, os.path.join(path, 'patient_dimension.csv'),
+                             self.batch_size),
+            encounters=partial(extract.extract_csv_visits, os.path.join(path, 'visit_dimension.csv'), self.batch_size),
         )
 
     ###################################################################################################################

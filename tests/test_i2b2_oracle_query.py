@@ -57,7 +57,7 @@ class TestOracleQueries(unittest.TestCase):
         pretty(query.sql_visit() + query.limit(20))
         pretty(query.count_by_date_group(schema.Table.visit))
         self.assertEqual(
-            'select ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, LOCATION_CD, '
+            'select ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, '
             "to_char(cast(START_DATE as date), 'YYYY-MM-DD') as START_DATE, "
             "to_char(cast(END_DATE as date), 'YYYY-MM-DD') as END_DATE, "
             "to_char(cast(IMPORT_DATE as date), 'YYYY-MM-DD') as IMPORT_DATE, "

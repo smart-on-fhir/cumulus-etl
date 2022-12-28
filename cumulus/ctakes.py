@@ -42,7 +42,11 @@ def symptoms(cache: store.Root, docref: DocumentReference) -> List[Observation]:
         logging.warning('No text/plain content for symptoms')  # ideally would print identifier, but it's PHI...
         return []
 
-    ctakes_json = extract(cache, physician_note)
+    try:
+        ctakes_json = extract(cache, physician_note)
+    except Exception as exc:  # pylint: disable=broad-except
+        logging.error('Could not extract symptoms: %s', exc)
+        return []
 
     observations = []
     for match in ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos):

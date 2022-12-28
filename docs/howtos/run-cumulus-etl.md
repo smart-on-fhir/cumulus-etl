@@ -179,7 +179,7 @@ docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm\
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \
   --output-format=parquet \
-  --batch-size=10000000 \
+  --batch-size=200000 \
   --s3-region=us-east-2 \
   s3://my-us-east-2-input-bucket/ \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \

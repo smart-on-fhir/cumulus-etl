@@ -53,7 +53,8 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('Patient/12345', docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
         self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
-        self.assertEqual(str('NOTE:103933779'), docref.type.text)
+        self.assertEqual('NOTE:103933779', docref.type.coding[0].code)
+        self.assertEqual('Admission note', docref.type.coding[0].display)
 
     def test_to_fhir_observation_lab(self):
         lab_fhir = i2b2_mock_data.observation()

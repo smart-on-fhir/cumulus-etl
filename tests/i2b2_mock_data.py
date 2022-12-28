@@ -39,7 +39,7 @@ def condition_dim() -> transform.ObservationFact:
         'PATIENT_NUM': str(12345),
         'ENCOUNTER_NUM': 67890,
         'CONCEPT_CD': 'ICD10:U07.1',  # COVID19 Diagnosis
-        'START_DATE': '2016-01-01'
+        'START_DATE': '2016-01-01',
     })
 
 
@@ -58,8 +58,8 @@ def documentreference_dim() -> transform.ObservationFact:
             'NOTE:103933779',  # Admission Note Type
         'START_DATE':
             '2016-01-01',
-        'OBSERVATION_BLOB':
-            'Chief complaint: fever and chills. Denies cough.'
+        'OBSERVATION_BLOB': 'Chief complaint: fever and chills. Denies cough.',
+        'TVAL_CHAR': 'Admission note',
     })
 
 

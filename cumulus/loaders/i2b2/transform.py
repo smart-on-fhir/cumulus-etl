@@ -20,7 +20,7 @@ from fhirclient.models.patient import Patient
 from fhirclient.models.period import Period
 
 from cumulus import fhir_common
-from cumulus.loaders.i2b2.resources import external_mappings
+from cumulus.loaders.i2b2 import external_mappings
 from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
 
@@ -58,7 +58,8 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
         })]
 
     if patient.race_cd:
-        race_code = parse_race(patient.race_cd)
+        # race_cd can be either a race or an ethnicity. In FHIR, those are two different extensions.
+        race_code = external_mappings.CDC_RACE.get(patient.race_cd)
         if race_code is not None:
             subject.extension = [Extension({
                 'url': 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race',
@@ -66,8 +67,24 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
                     {
                         'url': 'ombCategory',
                         'valueCoding': {
-                            'system': 'urn:oid:2.16.840.1.113883.6.238',
-                            'code': race_code,
+                            'system': race_code[0],
+                            'code': race_code[1],
+                            'display': patient.race_cd,
+                        },
+                    },
+                ],
+            })]
+
+        ethnicity_code = external_mappings.CDC_ETHNICITY.get(patient.race_cd)
+        if ethnicity_code is not None:
+            subject.extension = [Extension({
+                'url': 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity',
+                'extension': [
+                    {
+                        'url': 'ombCategory',
+                        'valueCoding': {
+                            'system': ethnicity_code[0],
+                            'code': ethnicity_code[1],
                             'display': patient.race_cd,
                         },
                     },
@@ -90,14 +107,10 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     # TODO: status may be site specific, we may need to create mapping dict(s) at some point
     # we should also validate use of finished versus unknown
     encounter.status = 'finished'
-    # TODO: type may be site specific, we may need to create mapping dict(s) at some point
 
-    encounter.type = [CodeableConcept()]
-    encounter.type[0].coding = [Coding({
-        'system': 'http://snomed.info/sct',
-        'code': '308335008',
-        'display': 'Patient encounter procedure'}
-    )]
+    # Most generic encounter type possible, only included because the 'type' field is required in us-core
+    encounter.type = [make_concept('308335008', 'http://snomed.info/sct', 'Patient encounter procedure')]
+
     encounter.period = Period({
         'start': fhir_common.parse_fhir_date_isostring(visit.start_date),
         'end': fhir_common.parse_fhir_date_isostring(visit.end_date)
@@ -109,15 +122,14 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
             'value': parse_fhir_duration(visit.length_of_stay)
         })
 
-    if visit.inout_cd is not None:
+    if visit.inout_cd in external_mappings.SNOMED_ADMISSION:
         encounter.class_fhir = Coding({
             'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
             'code': external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
         })
     else:
-        logging.warning(
-            'skipping encounter.class_fhir.code for i2b2 '
-            'INOUT_CD : %s', visit.inout_cd)
+        logging.warning('skipping encounter.class_fhir.code for i2b2 INOUT_CD : %s', visit.inout_cd)
+
     return encounter
 
 
@@ -152,6 +164,7 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
         obs_system = None
 
     observation.code = make_concept(obs_code, obs_system)
+    observation.category = [make_concept('laboratory', 'http://terminology.hl7.org/CodeSystem/observation-category')]
 
     # lab result
     if obsfact.tval_char in external_mappings.SNOMED_LAB_RESULT:
@@ -202,7 +215,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
         i2b2_sys = 'http://snomed.info/sct'
     else:
         logging.warning('Unknown System')
-        i2b2_sys = '???'
+        i2b2_sys = None
 
     condition.code = make_concept(i2b2_code, i2b2_sys)
 
@@ -229,9 +242,10 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.context = DocumentReferenceContext()
     docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
 
-    docref.type = CodeableConcept({'text': str(obsfact.concept_cd)})  # i2b2 Note Type
+    # It would be nice to get a real mapping for the "NOTE:" concept CD types to a real system.
+    docref.type = make_concept(obsfact.concept_cd, None, obsfact.tval_char)
     docref.created = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
-    docref.status = 'superseded'
+    docref.status = 'current'
 
     blob = obsfact.observation_blob or ''
     content = DocumentReferenceContent()
@@ -268,16 +282,6 @@ def parse_gender(i2b2_sex_cd) -> Optional[str]:
         return external_mappings.FHIR_GENDER.get(i2b2_sex_cd, 'other')
 
 
-def parse_race(i2b2_race_cd) -> Optional[str]:
-    """
-    :param i2b2_race_cd:
-    :return: CDC R5 Race codes or None
-    """
-    if i2b2_race_cd and isinstance(i2b2_race_cd, str):
-        if i2b2_race_cd in external_mappings.CDC_RACE:
-            return external_mappings.CDC_RACE[i2b2_race_cd]
-
-
 def parse_fhir_duration(i2b2_length_of_stay) -> float:
     """
     :param i2b2_length_of_stay: usually an integer like "days"
@@ -292,6 +296,6 @@ def parse_fhir_duration(i2b2_length_of_stay) -> float:
             return i2b2_length_of_stay
 
 
-def make_concept(code: str, system: str, display: str = None) -> CodeableConcept:
+def make_concept(code: str, system: Optional[str], display: str = None) -> CodeableConcept:
     """Syntactic sugar to make a codeable concept"""
     return CodeableConcept({'coding': [{'code': code, 'system': system, 'display': display}]})

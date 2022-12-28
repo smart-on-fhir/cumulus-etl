@@ -1,68 +1,58 @@
 """Read files into data structures"""
 
-from typing import List
 import logging
+from typing import Iterator
+
 import pandas
-from cumulus import common
+
 from cumulus.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
 
-def extract_csv(path_csv: str, sample=1.0) -> pandas.DataFrame:
+def extract_csv(path_csv: str, batch_size: int) -> Iterator[dict]:
     """
     :param path_csv: /path/to/i2b2_formatted_file.csv
-    :param sample: %percentage of file to read
-    :return: pandas Dataframe
+    :param batch_size: how many entries to load into memory at once
+    :return: an iterator over each row from the file
     """
-    return common.extract_csv(path_csv, sample)
+    print(f'Reading csv {path_csv}...')
+    count = 0
+    with pandas.read_csv(path_csv, dtype=str, na_filter=False, chunksize=batch_size) as reader:
+        for chunk in reader:
+            print(f'  Read {count:,} entries...')
+            for _, row in chunk.iterrows():
+                yield dict(row)
+            count += batch_size
+    print(f'Done reading {path_csv} .')
 
 
-def extract_csv_observation_facts(path_csv: str,
-                                  sample=1.0) -> List[ObservationFact]:
+def extract_csv_observation_facts(path_csv: str, batch_size: int) -> Iterator[ObservationFact]:
     """
     :param path_csv: /path/to/file.csv
-    :param sample: %percentage of file to read
+    :param batch_size: how many entries to load into memory at once
     :return: i2b2 ObservationFact table
     """
-    df = extract_csv(path_csv, sample)
-
     logging.info('Transforming text into List[ObservationFact]')
-    facts = []
-    for _, row in df.iterrows():
-        facts.append(ObservationFact(row))
-
-    logging.info('Ready List[ObservationFact]')
-    return facts
+    for row in extract_csv(path_csv, batch_size):
+        yield ObservationFact(row)
 
 
-def extract_csv_patients(path_csv: str, sample=1.0) -> List[PatientDimension]:
+def extract_csv_patients(path_csv: str, batch_size: int) -> Iterator[PatientDimension]:
     """
     :param path_csv: /path/to/file.csv
-    :param sample: %percentage of file to read
+    :param batch_size: how many entries to load into memory at once
     :return: List i2b2 patient dimension table
     """
-    df = extract_csv(path_csv, sample)
-
     logging.info('Transforming text into List[PatientDimension]')
-    patients = []
-    for _, row in df.iterrows():
-        patients.append(PatientDimension(row))
-
-    logging.info('Ready List[PatientDimension]')
-    return patients
+    for row in extract_csv(path_csv, batch_size):
+        yield PatientDimension(row)
 
 
-def extract_csv_visits(path_csv: str, sample=1.0) -> List[VisitDimension]:
+def extract_csv_visits(path_csv: str, batch_size: int) -> Iterator[VisitDimension]:
     """
     :param path_csv: /path/to/file.csv
-    :param sample: %percentage of file to read
+    :param batch_size: how many entries to load into memory at once
     :return: List i2b2 visit dimension table
     """
-    df = extract_csv(path_csv, sample)
-
     logging.info('Transforming text into List[VisitDimension]')
-    visits = []
-    for _, row in df.iterrows():
-        visits.append(VisitDimension(row))
-
-    logging.info('Ready List[VisitDimension]')
-    return visits
+    for row in extract_csv(path_csv, batch_size):
+        yield VisitDimension(row)
