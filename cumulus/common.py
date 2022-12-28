@@ -5,7 +5,7 @@ import json
 import os
 import logging
 import uuid
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 import fsspec
@@ -145,7 +145,7 @@ def write_text(path: str, text: str) -> None:
         f.write(text)
 
 
-def read_json(path: str) -> dict:
+def read_json(path: str) -> Any:
     """
     Reads json from a file
     :param path: filesystem path
@@ -157,7 +157,7 @@ def read_json(path: str) -> dict:
         return json.load(f)
 
 
-def write_json(path: str, data: dict, indent: Optional[int] = None) -> None:
+def write_json(path: str, data: Any, indent: Optional[int] = None) -> None:
     """
     Writes data to the given path, in json format
     :param path: filesystem path

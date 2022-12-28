@@ -146,10 +146,10 @@ class JsonTreeFormat(store.Format):
     ###########################################################################
 
     def _write_symptom(self, observation: pandas.Series) -> None:
-        mrn = observation.subject['reference']
-        enc = observation.encounter['reference']
+        mrn = observation.subject_id
+        enc = observation.encounter_id
         path = os.path.join(self._dir_output_encounter(mrn, enc), f'fhir_symptom_{observation.id}.json')
         observation.to_json(path, storage_options=self.root.fsspec_options())
 
-    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
+    def store_covid_symptom__nlp_results(self, job, observations: pandas.DataFrame, batch: int) -> None:
         self._write_records(job, observations, self._write_symptom)

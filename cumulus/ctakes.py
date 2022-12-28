@@ -9,12 +9,11 @@ from typing import List
 
 import ctakesclient
 from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.observation import Observation
 
 from cumulus import common, fhir_common, store
 
 
-def symptoms(cache: store.Root, docref: DocumentReference) -> List[Observation]:
+def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List[dict]:
     """
     Extract a list of Observations from NLP-detected symptoms in physician notes
 
@@ -42,28 +41,56 @@ def symptoms(cache: store.Root, docref: DocumentReference) -> List[Observation]:
         logging.warning('No text/plain content for symptoms')  # ideally would print identifier, but it's PHI...
         return []
 
+    # Strip this "line feed" character that often shows up in notes and is confusing for cNLP.
+    physician_note = physician_note.replace('¿', ' ')
+
+    # FIXME: Ideally this prefix would be study-specific like 'covid_symptoms', but we use `version1` for
+    #  historical reasons. Ideally we'd also be able to ask ctakesclient for NLP algorithm information as part of
+    #  this prefix. For now, we'll manually update this prefix if/when the cTAKES algorithm we use changes.
+    prefix = 'version1'
+
     try:
-        ctakes_json = extract(cache, physician_note)
+        ctakes_json = extract(cache, prefix, physician_note)
     except Exception as exc:  # pylint: disable=broad-except
         logging.error('Could not extract symptoms: %s', exc)
         return []
 
-    observations = []
-    for match in ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos):
-        observation = ctakesclient.text2fhir.nlp_observation(subject_id, encounter_id, docref_id, match)
-        observation.id = common.fake_id('Observation')
-        observations.append(observation)
-    return observations
+    matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
+
+    # OK we have cTAKES symptoms. But let's also filter through cNLP transformers to remove any that are negated
+    # there too. We have found this to yield better results than cTAKES alone.
+    try:
+        spans = ctakes_json.list_spans(matches)
+        polarities_cnlp = list_polarity(cache, prefix, physician_note, spans)
+    except Exception:  # pylint: disable=broad-except
+        # TODO: Uncomment this exception logging once we ship cnlpt in our docker images.
+        #  Until then, this would be crazy noisy.
+        # logging.exception('Could not check negation')
+        polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
+
+    # Now filter out any non-positive matches
+    positive_matches = []
+    for i, match in enumerate(matches):
+        if polarities_cnlp[i] == ctakesclient.typesystem.Polarity.pos:
+            positive_matches.append({
+                'id': f'{docref_id}.{i}',
+                'docref_id': docref.id,
+                'encounter_id': encounter_id,
+                'subject_id': subject_id,
+                'match': match.as_json(),
+            })
+
+    return positive_matches
 
 
-def extract(cache: store.Root, sentence: str) -> ctakesclient.typesystem.CtakesJSON:
+def extract(cache: store.Root, prefix: str, sentence: str) -> ctakesclient.typesystem.CtakesJSON:
     """
     This is a version of ctakesclient.client.extract() that also uses a cache
 
     This cache is stored as a series of files in the PHI root. If found, the cached results are used.
     If not found, the cTAKES server is asked to parse the sentence, which can take a while (~20s)
     """
-    full_path = cache.joinpath(_target_filename(sentence))
+    full_path = cache.joinpath(_target_filename(prefix, sentence))
 
     try:
         cached_response = common.read_json(full_path)
@@ -76,20 +103,44 @@ def extract(cache: store.Root, sentence: str) -> ctakesclient.typesystem.CtakesJ
     return result
 
 
-def _target_filename(sentence: str) -> str:
+def list_polarity(
+        cache: store.Root,
+        prefix: str,
+        sentence: str,
+        spans: List[tuple],
+) -> List[ctakesclient.typesystem.Polarity]:
+    """
+    This is a version of ctakesclient.transformer.list_polarity() that also uses a cache
+
+    This cache is stored as a series of files in the PHI root. If found, the cached results are used.
+    If not found, the cTAKES server is asked to parse the sentence, which can take a while (~3s)
+    """
+    if not spans:
+        return []
+
+    full_path = cache.joinpath(_target_filename(f'{prefix}-cnlp', sentence))
+
+    try:
+        result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
+    except Exception:  # pylint: disable=broad-except
+        result = ctakesclient.transformer.list_polarity(sentence, spans)
+        cache.makedirs(os.path.dirname(full_path))
+        common.write_json(full_path, [x.value for x in result])
+
+    return result
+
+
+def _target_filename(prefix: str, sentence: str) -> str:
     """Gives the expected cached-result filename for the given sentence"""
 
     # There are a few parts to the filename:
-    # version: an NLP algorithm version number (ideally this gets changed every time we use a new NLP algorithm)
+    # prefix: a study / NLP algorithm version number (unique per study and per NLP algorithm change)
     # partialsum: first 4 characters of the checksum (to help reduce folder sizes where that matters)
     # hashalgo: which hashing algorithm was used
     # checksum: a checksum hash of the whole sentence
     #
     # Resulting in filenames of the form:
-    # ctakes-cache/{version}/{partialsum}/{hashalgo}-{checksum}.json
-
-    # FIXME: Ask ctakesclient for NLP algorithm information. For now, hardcode this and we'll manually update it.
-    version = 'version1'
+    # ctakes-cache/{prefix}/{partialsum}/{hashalgo}-{checksum}.json
 
     # MD5 and SHA1 have both been broken. Which might not be super important, since we are putting these files
     # in a PHI-capable folder. But still, why make it easier to brute-force.
@@ -98,4 +149,4 @@ def _target_filename(sentence: str) -> str:
     checksum = hashlib.sha256(sentence.encode('utf8')).hexdigest()
     partial = checksum[0:4]
 
-    return f'ctakes-cache/{version}/{partial}/sha256-{checksum}.json'
+    return f'ctakes-cache/{prefix}/{partial}/sha256-{checksum}.json'

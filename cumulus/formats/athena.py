@@ -37,8 +37,8 @@ class AthenaFormat(store.Format):
     def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
         self.write_records(job, docrefs, 'documentreference', batch)
 
-    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, observations, 'symptom', batch)
+    def store_covid_symptom__nlp_results(self, job, observations: pandas.DataFrame, batch: int) -> None:
+        self.write_records(job, observations, 'covid_symptom__nlp_results', batch)
 
 
 class AthenaBatchedFileFormat(AthenaFormat):

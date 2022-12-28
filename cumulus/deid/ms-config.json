@@ -6,6 +6,7 @@
     {"path": "nodesByName('modifierExtension')", "method": "keep", "comment": "Cumulus: keep these so we can ignore resources with modifiers we don't understand"},
     {"path": "DocumentReference.nodesByType('Attachment').data", "method": "keep", "comment": "Cumulus: needed to run NLP on physician notes"},
     {"path": "Patient.extension.where(url='http://hl7.org/fhir/us/core/StructureDefinition/us-core-race')", "method": "keep", "comment": "Cumulus: race is useful for studies"},
+    {"path": "Patient.extension.where(url='http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity')", "method": "keep", "comment": "Cumulus: ethnicity is useful for studies"},
     {"path": "Patient.birthDate", "method": "redact", "comment": "Cumulus: only keep year of birth (enablePartialDatesForRedact does that for us)"},
     {"path": "xxx", "method": "redact", "comment": "Cumulus: more changes below, search for the Cumulus: comment prefix"},
 
