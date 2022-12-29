@@ -16,7 +16,7 @@ services:
 
     
   ctakes-covid:
-    image: smartonfhir/ctakes-covid:dev
+    image: smartonfhir/ctakes-covid:1
     environment:
       - ctakes_umlsuser=umls_api_key 
       - ctakes_umlspw=$UMLS_API_KEY
@@ -30,7 +30,7 @@ services:
       - test
 
   cnlp-transformers:
-    build: smartonfhir/ctakes-covid:dev
+    build: smartonfhir/cnlp-transformer:dev
     #platform: linux/amd64
     ports:
       - 8000:8000
