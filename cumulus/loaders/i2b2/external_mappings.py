@@ -69,6 +69,7 @@ SNOMED_ADMISSION = {
     'Day Surgery': 'AMB',
     'Emergency': 'EMER',
     'Inpatient': 'IMP',
+    'Observation': 'OBSENC',
     'Outpatient': 'AMB',
     'Recurring Outpatient Series': 'AMB',
 }

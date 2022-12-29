@@ -122,13 +122,15 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
             'value': parse_fhir_duration(visit.length_of_stay)
         })
 
-    if visit.inout_cd in external_mappings.SNOMED_ADMISSION:
-        encounter.class_fhir = Coding({
-            'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
-            'code': external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
-        })
-    else:
-        logging.warning('skipping encounter.class_fhir.code for i2b2 INOUT_CD : %s', visit.inout_cd)
+    class_fhir = external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
+    if not class_fhir:
+        logging.debug('unknown encounter.class_fhir.code for i2b2 INOUT_CD : %s', visit.inout_cd)
+        class_fhir = '?'  # bogus value, but FHIR demands *some* class value
+
+    encounter.class_fhir = Coding({
+        'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
+        'code': class_fhir,
+    })
 
     return encounter
 
