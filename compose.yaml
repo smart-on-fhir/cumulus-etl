@@ -31,7 +31,7 @@ services:
       - test
 
   cnlp-transformers:
-    build: smartonfhir/cnlp-transformer:dev
+    image: smartonfhir/cnlp-transformer:dev
     #platform: linux/amd64
     ports:
       - 8000:8000
