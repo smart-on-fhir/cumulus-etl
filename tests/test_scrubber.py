@@ -7,6 +7,7 @@ from unittest import mock
 
 from ctakesclient import text2fhir, typesystem
 from fhirclient.models.extension import Extension
+from fhirclient.models.meta import Meta
 
 from cumulus.deid import Scrubber
 from cumulus.deid.codebook import CodebookDB
@@ -128,3 +129,19 @@ class TestScrubber(unittest.TestCase):
             with self.assertRaises(Exception) as context:
                 Scrubber(path)
             self.assertIn('.99', str(context.exception))
+
+    def test_meta_security_cleared(self):
+        """Verify that we drop the Meta.security field"""
+        scrubber = Scrubber()
+        condition = i2b2_mock_data.condition()
+
+        # With another property
+        condition.meta = Meta({'security': [{'code': 'REDACTED'}], 'versionId': 'a'})
+        self.assertTrue(scrubber.scrub_resource(condition))
+        self.assertIsNone(condition.meta.security)
+        self.assertEqual('a', condition.meta.versionId)
+
+        # Without another property
+        condition.meta = Meta({'security': [{'code': 'REDACTED'}]})
+        self.assertTrue(scrubber.scrub_resource(condition))
+        self.assertIsNone(condition.meta)

@@ -113,7 +113,7 @@ class Scrubber:
         # For now, just manually run each operation. If this grows further, we can abstract it more.
         self._check_ids(node, fhir_property, value)
         self._check_modifier_extensions(fhir_property, value)
-        self._check_security(fhir_property, value)
+        self._check_security(node, fhir_property, value)
         if scrub_attachments:
             self._check_attachments(node, fhir_property)
 
@@ -158,7 +158,7 @@ class Scrubber:
             node.data = None
 
     @staticmethod
-    def _check_security(fhir_property: FHIRProperty, value: Any) -> None:
+    def _check_security(node: FHIRAbstractBase, fhir_property: FHIRProperty, value: Any) -> None:
         """
         Strip any security data that the MS tool injects
 
@@ -166,3 +166,8 @@ class Scrubber:
         """
         if fhir_property.name == 'meta' and isinstance(value, Meta):
             value.security = None  # maybe too aggressive -- is there data we care about in meta.security?
+
+            # If we wiped out the only content in Meta, remove it so as not to confuse downstream bits like parquet
+            # writers which try to infer values from an empty struct and fail.
+            if value.as_json() == {}:
+                node.meta = None
