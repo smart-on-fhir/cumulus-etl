@@ -33,7 +33,6 @@ services:
   cnlp-transformers:
     #build: ../cnlp_transformers
     image: smartonfhir/cnlp-transformer:dev
-    #platform: linux/amd64
     ports:
       - 8000:8000
     profiles:
