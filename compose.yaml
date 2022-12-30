@@ -36,7 +36,6 @@ services:
     ports:
       - 8000:8000
     profiles:
-      - etl-support
       - test
     networks:
       - cumulus-etl
