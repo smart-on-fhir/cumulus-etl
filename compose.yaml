@@ -31,9 +31,6 @@ services:
       - etl-support
     networks:
       - cumulus-etl
-    entrypoint: /bin/bash
-
-
 
   # these images are intended specifically for development work
   cumulus-etl-test:
