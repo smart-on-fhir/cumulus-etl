@@ -63,9 +63,7 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
         spans = ctakes_json.list_spans(matches)
         polarities_cnlp = list_polarity(cache, prefix, physician_note, spans)
     except Exception:  # pylint: disable=broad-except
-        # TODO: Uncomment this exception logging once we ship cnlpt in our docker images.
-        #  Until then, this would be crazy noisy.
-        # logging.exception('Could not check negation')
+        logging.exception('Could not check negation')
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
 
     # Now filter out any non-positive matches

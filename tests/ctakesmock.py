@@ -30,6 +30,10 @@ class CtakesMixin(unittest.TestCase):
         self.addCleanup(cnlp_patcher.stop)
         self.cnlp_mock = cnlp_patcher.start()
 
+        check_cnlp_patcher = mock.patch('cumulus.etl.check_cnlpt', return_value=True)
+        self.addCleanup(check_cnlp_patcher.stop)
+        check_cnlp_patcher.start()
+
 
 def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
     """
