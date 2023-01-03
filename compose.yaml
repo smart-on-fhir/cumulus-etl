@@ -59,6 +59,8 @@ services:
     environment:
       - URL_CTAKES_REST=http://ctakes-covid-test:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlp-transformers-test-gpu:8000/negation/process
+    profiles:
+      - test-gpu
 
 
   ctakes-covid-test:
