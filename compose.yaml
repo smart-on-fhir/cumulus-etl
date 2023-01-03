@@ -6,7 +6,7 @@ services:
       target: cumulus-etl
     environment:
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
-      - URL_CNLP_NEGATION=http://cnlp-transformers:8000//negation/process
+      - URL_CNLP_NEGATION=http://cnlp-transformers:8000/negation/process
     # TODO: This platform requirement is due to the dotnet runtime flag.
     # We could investigate dynamically passing the system architecture?
     platform: linux/x86_64
