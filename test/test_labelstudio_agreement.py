@@ -8,7 +8,8 @@ EXPORT_DIR = '/Users/andy/chip/cumulus-etl/NoteType/ED_Nov15_341pm'
 MIN_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-min.json'
 FULL_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-full.json'
 CTAKES_JSON = f'{EXPORT_DIR}/labelstudio-dec14-626-ctakes.json'
-MERGED_JSON = f'{EXPORT_DIR}/labelstudio-merged.json'
+CNLP_JSON = f'{EXPORT_DIR}/labelstudio-ED_Dec20_1044pm-ctakes.pos.cnlp.pos.json'
+MERGED_JSON = f'{EXPORT_DIR}/labelstudio-merged.ctakes.pos.cnlp.pos.json'
 
 class Annotator(Enum):
     """
@@ -355,9 +356,9 @@ class TestLabelstudioAgreement(unittest.TestCase):
 
     def test_merge_simple(self):
         truth = simplify_full(FULL_JSON)
-        predicted = simplify_full(CTAKES_JSON)
+        predicted = simplify_full(CNLP_JSON)
         merged = merge_simple(truth, predicted)
-        path = f'{EXPORT_DIR}/labelstudio-merged.json'
+        path = CNLP_JSON
         common.write_json(path, merged, 4)
         print(path)
 
