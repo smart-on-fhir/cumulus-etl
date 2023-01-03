@@ -94,11 +94,11 @@ services:
       - test-gpu
     networks:
       - cumulus-etl
-#    deploy:
-#      resources:
-#        reservations:
-#          devices:
-#            - capabilities: [gpu]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
 
 networks:
   cumulus-etl:
