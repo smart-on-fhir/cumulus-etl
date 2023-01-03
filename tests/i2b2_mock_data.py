@@ -54,12 +54,11 @@ def documentreference_dim() -> transform.ObservationFact:
             str(12345),
         'ENCOUNTER_NUM':
             67890,
-        'CONCEPT_CD':
-            'NOTE:103933779',  # Admission Note Type
+        'CONCEPT_CD': 'NOTE:149798455',  # emergency room type
         'START_DATE':
             '2016-01-01',
         'OBSERVATION_BLOB': 'Chief complaint: fever and chills. Denies cough.',
-        'TVAL_CHAR': 'Admission note',
+        'TVAL_CHAR': 'Emergency note',
     })
 
 

@@ -14,6 +14,7 @@ from unittest import mock
 import freezegun
 import pytest
 import s3fs
+from ctakesclient.typesystem import Polarity
 from fhirclient.models.condition import Condition
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.extension import Extension
@@ -164,13 +165,31 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
         with mock.patch('cumulus.etl._read_ndjson') as mock_read:
             mock_read.return_value = [docref0, docref1]
-            etl.etl_notes_text2fhir_symptoms(self.config, self.scrubber)
+            etl.etl_covid_symptom__nlp_results(self.config, self.scrubber)
 
         # Confirm that only symptoms from docref 0 got stored
-        self.assertEqual(1, self.format.store_symptoms.call_count)
-        df = self.format.store_symptoms.call_args[0][1]
-        expected_subject = f"Patient/{self.codebook.db.patient('1234')}"
-        self.assertEqual({expected_subject}, {s['reference'] for s in df.subject})
+        self.assertEqual(1, self.format.store_covid_symptom__nlp_results.call_count)
+        df = self.format.store_covid_symptom__nlp_results.call_args[0][1]
+        expected_subject = self.codebook.db.patient('1234')
+        self.assertEqual({expected_subject}, set(df.subject_id))
+
+    def test_non_er_visit_is_skipped_for_covid_symptoms(self):
+        """Verify we ignore non ER visits for the covid symptoms NLP"""
+        docref0 = i2b2_mock_data.documentreference()
+        docref0.id = 'skipped'
+        docref0.type.coding[0].code = 'NOTE:nope'
+        docref1 = i2b2_mock_data.documentreference()
+        docref1.id = 'present'
+
+        with mock.patch('cumulus.etl._read_ndjson') as mock_read:
+            mock_read.return_value = [docref0, docref1]
+            etl.etl_covid_symptom__nlp_results(self.config, self.scrubber)
+
+        # Confirm that only symptoms from docref 'present' got stored
+        self.assertEqual(1, self.format.store_covid_symptom__nlp_results.call_count)
+        df = self.format.store_covid_symptom__nlp_results.call_args[0][1]
+        expected_docref = self.codebook.db.resource_hash('present')
+        self.assertEqual({expected_docref}, set(df.docref_id))
 
     def test_downloaded_phi_is_not_kept(self):
         """Verify we remove all downloaded PHI even if interrupted"""
@@ -393,7 +412,7 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
                 'encounter/encounter.000.parquet',
                 'observation/observation.000.parquet',
                 'patient/patient.000.parquet',
-                'symptom/symptom.000.parquet',
+                'covid_symptom__nlp_results/covid_symptom__nlp_results.000.parquet',
             }, set(all_files))
 
 
@@ -413,7 +432,7 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
             'mockbucket/root/encounter/encounter.000.ndjson',
             'mockbucket/root/observation/observation.000.ndjson',
             'mockbucket/root/patient/patient.000.ndjson',
-            'mockbucket/root/symptom/symptom.000.ndjson',
+            'mockbucket/root/covid_symptom__nlp_results/covid_symptom__nlp_results.000.ndjson',
         }, all_files)
 
         # Confirm we did not accidentally create an 's3:' directory locally
@@ -421,8 +440,8 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
         self.assertFalse(os.path.exists('s3:'))
 
 
-class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
-    """Test case for caching the cTAKES responses"""
+class TestI2b2EtlNlp(BaseI2b2EtlSimple):
+    """Test case for the cTAKES/cNLP responses"""
 
     def setUp(self):
         super().setUp()
@@ -432,8 +451,15 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
             '6466bb1868126fd2b5e357a556fceed075fab1e8d25d5f777abf33144d93c5cf',
         ]
 
-    def path_for_checksum(self, checksum):
-        return os.path.join(self.phi_path, 'ctakes-cache', 'version1', checksum[0:4], f'sha256-{checksum}.json')
+    def path_for_checksum(self, prefix, checksum):
+        return os.path.join(self.phi_path, 'ctakes-cache', prefix, checksum[0:4], f'sha256-{checksum}.json')
+
+    def read_symptoms(self):
+        """Loads the output symptoms ndjson from disk"""
+        path = os.path.join(self.output_path, 'covid_symptom__nlp_results', 'covid_symptom__nlp_results.000.ndjson')
+        with open(path, 'r', encoding='utf8') as f:
+            lines = f.readlines()
+        return [json.loads(line) for line in lines]
 
     def test_stores_cached_json(self):
         self.run_etl(output_format='parquet')
@@ -442,15 +468,21 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
         facts = list(extract.extract_csv_observation_facts(notes_csv_path, 5))
 
         for index, checksum in enumerate(self.expected_checksums):
+            ner = fake_ctakes_extract(facts[index].observation_blob)
+            spans = ner.list_spans(ner.list_sign_symptom(polarity=Polarity.pos))
             self.assertEqual(
-                fake_ctakes_extract(facts[index].observation_blob).as_json(),
-                common.read_json(self.path_for_checksum(checksum))
+                ner.as_json(),
+                common.read_json(self.path_for_checksum('version1', checksum))
+            )
+            self.assertEqual(
+                [0] * len(spans),
+                common.read_json(self.path_for_checksum('version1-cnlp', checksum))
             )
 
     def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
-            filename = self.path_for_checksum(checksum)
+            filename = self.path_for_checksum('version1', checksum)
             os.makedirs(os.path.dirname(filename))
             common.write_json(filename, {
                 'SignSymptomMention': [
@@ -472,16 +504,30 @@ class TestI2b2EtlCachedCtakes(BaseI2b2EtlSimple):
                 ],
             })
 
+            cnlp_filename = self.path_for_checksum('version1-cnlp', checksum)
+            os.makedirs(os.path.dirname(cnlp_filename))
+            common.write_json(cnlp_filename, [0])
+
         self.run_etl()
 
         # We should never have called our mock cTAKES server
         self.assertEqual(0, self.nlp_mock.call_count)
+        self.assertEqual(0, self.cnlp_mock.call_count)
 
         # And we should see our fake cached results in the output
-        with open(os.path.join(self.output_path, 'symptom', 'symptom.000.ndjson'), 'r', encoding='utf8') as f:
-            lines = f.readlines()
-        symptoms = [json.loads(line) for line in lines]
+        symptoms = self.read_symptoms()
         self.assertEqual(2, len(symptoms))
-        self.assertEqual({'foobar0', 'foobar1'}, {x['code']['text'] for x in symptoms})
+        self.assertEqual({'foobar0', 'foobar1'}, {x['match']['text'] for x in symptoms})
         for symptom in symptoms:
-            self.assertEqual({'91058', 'C0304290'}, {x['code'] for x in symptom['code']['coding']})
+            self.assertEqual({('91058', 'C0304290')},
+                             {(x['code'], x['cui']) for x in symptom['match']['conceptAttributes']})
+
+    def test_cnlp_rejects(self):
+        """Verify that if the cnlp server negates a match, it does not show up"""
+        # First match is 'for', second is 'fever' (from 'Notes/Notes2 for fever' strings)
+        self.cnlp_mock.side_effect = lambda _, spans: [Polarity.neg, Polarity.pos]
+        self.run_etl()
+
+        symptoms = self.read_symptoms()
+        self.assertEqual(2, len(symptoms))
+        self.assertEqual({'fever'}, {x['match']['text'] for x in symptoms})

@@ -12,7 +12,7 @@ import socket
 import sys
 import tempfile
 import time
-from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar
+from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar, Union
 from urllib.parse import urlparse
 
 import ctakesclient
@@ -94,7 +94,7 @@ def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
 def _process_job_entries(
     config: JobConfig,
     job_name: str,
-    resources: Iterator[Resource],
+    resources: Iterator[Union[dict, Resource]],
     to_deid: Optional[DeidentifyCallable],
     to_store: StoreFormatCallable,
 ):
@@ -104,15 +104,15 @@ def _process_job_entries(
 
     # De-identify each entry by passing them through our scrubber
     if to_deid:
-        deid_entries = filter(to_deid, resources)
+        deid_json_entries = (x.as_json() for x in filter(to_deid, resources))
     else:
-        deid_entries = resources
+        deid_json_entries = resources
 
     # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
     # We want to batch them up, to allow resuming from interruptions more easily.
-    for index, batch in enumerate(_batch_iterate(deid_entries, config.batch_size)):
+    for index, batch in enumerate(_batch_iterate(deid_json_entries, config.batch_size)):
         # Stuff de-identified FHIR json into one big pandas DataFrame
-        dataframe = pandas.DataFrame(x.as_json() for x in batch)
+        dataframe = pandas.DataFrame(batch)
 
         # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
         to_store(job, dataframe, index)
@@ -204,23 +204,44 @@ def etl_notes_meta(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
     )
 
 
-def load_nlp_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> Iterator[Resource]:
+def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Iterator[Resource]:
     """Passes physician notes through NLP and returns any symptoms found"""
+    # Hard code some i2b2 types that we are interested in (all emergency room codes -- this is not likely very
+    # portable, but it's what we have today).
+    def is_er_coding(coding):
+        return coding.system == 'http://cumulus.smarthealthit.org/i2b2' and coding.code in [
+            'NOTE:149798455', 'NOTE:318198113', 'NOTE:318198110', 'NOTE:3710480', 'NOTE:189094619', 'NOTE:159552404',
+            'NOTE:318198107', 'NOTE:189094644', 'NOTE:3807712', 'NOTE:189094576',
+        ]
+
     for docref in _read_ndjson(config, DocumentReference):
         if not scrubber.scrub_resource(docref, scrub_attachments=False):
             continue
-        symptoms = ctakes.symptoms(config.dir_phi, docref)
+
+        # Check that the note is one of our special allow-listed types (we do this here rather than on the output side
+        # to save needing to run everything through NLP).
+        type_codings = (docref.type and docref.type.coding) or []
+        is_er_note = list(filter(is_er_coding, type_codings))
+        if not is_er_note:
+            continue
+
+        symptoms = ctakes.covid_symptoms_extract(config.dir_phi, docref)
         for symptom in symptoms:
             yield symptom
 
 
-def etl_notes_text2fhir_symptoms(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
+def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
+    if not check_cnlpt():
+        common.print_header(f'{etl_covid_symptom__nlp_results.__name__}()')
+        print('Skipping because cNLP transformers are not available (this is normal for now)')
+        return JobSummary(etl_covid_symptom__nlp_results.__name__)
+
     return _process_job_entries(
         config,
-        etl_notes_text2fhir_symptoms.__name__,
-        load_nlp_symptoms(config, scrubber),
+        etl_covid_symptom__nlp_results.__name__,
+        load_covid_symptoms_nlp(config, scrubber),
         None,  # scrubbing is done in load method
-        config.format.store_symptoms,
+        config.format.store_covid_symptom__nlp_results,
     )
 
 
@@ -239,12 +260,12 @@ TaskDescription = collections.namedtuple(
 def get_task_descriptions(tasks: List[str] = None) -> Iterable[TaskDescription]:
     # Tasks are named after the table they generate on the output side
     available_tasks = {
-        'patient': TaskDescription(etl_patient, ['Patient']),
+        'condition': TaskDescription(etl_condition, ['Condition']),
+        'documentreference': TaskDescription(etl_notes_meta, ['DocumentReference']),
         'encounter': TaskDescription(etl_encounter, ['Encounter']),
         'observation': TaskDescription(etl_lab, ['Observation']),
-        'documentreference': TaskDescription(etl_notes_meta, ['DocumentReference']),
-        'symptom': TaskDescription(etl_notes_text2fhir_symptoms, ['DocumentReference']),
-        'condition': TaskDescription(etl_condition, ['Condition']),
+        'patient': TaskDescription(etl_patient, ['Patient']),
+        'covid_symptom__nlp_results': TaskDescription(etl_covid_symptom__nlp_results, ['DocumentReference']),
     }
 
     if tasks is None:
@@ -303,6 +324,22 @@ def etl_job(config: JobConfig, tasks: Iterable[str] = None) -> List[JobSummary]:
 #
 ###############################################################################
 
+def is_url_available(url: str) -> bool:
+    """Returns whether we are able to make connections to the given URL, with a few retries."""
+    url_parsed = urlparse(url)
+
+    num_tries = 6  # try six times / wait five seconds
+    for i in range(num_tries):
+        try:
+            socket.socket().connect((url_parsed.hostname, url_parsed.port))
+            return True
+        except ConnectionRefusedError:
+            if i < num_tries - 1:
+                time.sleep(1)
+
+    return False
+
+
 def check_ctakes() -> None:
     """
     Verifies that cTAKES is available to receive requests.
@@ -312,21 +349,22 @@ def check_ctakes() -> None:
     # Check if our cTAKES server is ready (it may still not be fully ready once the socket is open, but at least it
     # will accept requests and then block the reply on it finishing its initialization)
     ctakes_url = ctakesclient.client.get_url_ctakes_rest()
-    ctakes_url_parsed = urlparse(ctakes_url)
-
-    num_tries = 6  # try six times / wait five seconds
-    for i in range(num_tries):
-        try:
-            socket.socket().connect((ctakes_url_parsed.hostname, ctakes_url_parsed.port))
-            break
-        except ConnectionRefusedError:
-            if i < num_tries - 1:
-                time.sleep(1)
-    else:
+    if not is_url_available(ctakes_url):
         print(f'A running cTAKES server was not found at:\n    {ctakes_url}\n\n'
               'Please set the URL_CTAKES_REST environment variable to your server.',
               file=sys.stderr)
         raise SystemExit(errors.CTAKES_MISSING)
+
+
+def check_cnlpt() -> bool:
+    """
+    Verifies that the cNLP transformer server is running.
+    """
+    cnlpt_url = ctakesclient.transformer.get_url_cnlp_negation()
+
+    # Once we require the cNLP transformer, we can raise an error here bit and add this check to check_requirements(),
+    # but for now just signal whether it's there.
+    return is_url_available(cnlpt_url)
 
 
 def check_mstool() -> None:

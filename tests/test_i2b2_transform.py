@@ -2,12 +2,15 @@
 
 import unittest
 
+import ddt
 from fhirclient.models.fhirdate import FHIRDate
 
 from cumulus import fhir_common
+from cumulus.loaders.i2b2 import transform
 from tests import i2b2_mock_data
 
 
+@ddt.ddt
 class TestI2b2Transform(unittest.TestCase):
     """Test case for converting from i2b2 to FHIR"""
 
@@ -24,6 +27,31 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('female', subject.gender)
         # pylint: disable-next=unsubscriptable-object
         self.assertEqual('02115', subject.address[0].postalCode)
+
+    @ddt.data(
+        ('Black or African American', 'race', 'urn:oid:2.16.840.1.113883.6.238', '2054-5'),
+        ('Hispanic or Latino', 'ethnicity', 'urn:oid:2.16.840.1.113883.6.238', '2135-2'),
+        ('Declined to Answer', 'ethnicity', 'http://terminology.hl7.org/CodeSystem/v3-NullFlavor', 'ASKU'),
+    )
+    @ddt.unpack
+    def test_patient_race_vs_ethnicity(self, race_cd, url, system, code):
+        i2b2_patient = i2b2_mock_data.patient_dim()
+        i2b2_patient.race_cd = race_cd
+        patient = transform.to_fhir_patient(i2b2_patient)
+
+        self.assertEqual({
+            'url': f'http://hl7.org/fhir/us/core/StructureDefinition/us-core-{url}',
+            'extension': [
+                {
+                    'url': 'ombCategory',
+                    'valueCoding': {
+                        'system': system,
+                        'code': code,
+                        'display': race_cd,
+                    },
+                },
+            ],
+        }, patient.extension[0].as_json())
 
     def test_to_fhir_encounter(self):
         encounter = i2b2_mock_data.encounter()
@@ -53,8 +81,8 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual('Patient/12345', docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
         self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
-        self.assertEqual('NOTE:103933779', docref.type.coding[0].code)
-        self.assertEqual('Admission note', docref.type.coding[0].display)
+        self.assertEqual('NOTE:149798455', docref.type.coding[0].code)
+        self.assertEqual('Emergency note', docref.type.coding[0].display)
 
     def test_to_fhir_observation_lab(self):
         lab_fhir = i2b2_mock_data.observation()

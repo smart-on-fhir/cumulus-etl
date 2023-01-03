@@ -1,6 +1,7 @@
 """Holds mock methods for ctakesclient.client"""
 
 import unittest
+from typing import List
 from unittest import mock
 
 from ctakesclient import typesystem
@@ -23,6 +24,15 @@ class CtakesMixin(unittest.TestCase):
                                  side_effect=fake_ctakes_extract)
         self.addCleanup(nlp_patcher.stop)
         self.nlp_mock = nlp_patcher.start()
+
+        cnlp_patcher = mock.patch('cumulus.ctakes.ctakesclient.transformer.list_polarity',
+                                  side_effect=fake_transformer_list_polarity)
+        self.addCleanup(cnlp_patcher.stop)
+        self.cnlp_mock = cnlp_patcher.start()
+
+        check_cnlp_patcher = mock.patch('cumulus.etl.check_cnlpt', return_value=True)
+        self.addCleanup(check_cnlp_patcher.stop)
+        check_cnlp_patcher.start()
 
 
 def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
@@ -107,3 +117,13 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
     }
 
     return typesystem.CtakesJSON(response)
+
+
+def fake_transformer_list_polarity(sentence: str, spans: List[tuple]) -> List[typesystem.Polarity]:
+    """
+    Simple fake response from cNLP
+
+    The output is quite static, and matches the above fake cTAKES results. By default, we're neg, pos, pos.
+    """
+    del sentence
+    return [typesystem.Polarity.pos] * len(spans)

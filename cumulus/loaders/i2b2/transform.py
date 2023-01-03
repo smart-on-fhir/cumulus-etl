@@ -104,9 +104,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     })
     encounter.id = str(visit.encounter_num)
     encounter.subject = fhir_common.ref_subject(visit.patient_num)
-    # TODO: status may be site specific, we may need to create mapping dict(s) at some point
-    # we should also validate use of finished versus unknown
-    encounter.status = 'finished'
+    encounter.status = 'unknown'
 
     # Most generic encounter type possible, only included because the 'type' field is required in us-core
     encounter.type = [make_concept('308335008', 'http://snomed.info/sct', 'Patient encounter procedure')]
@@ -156,14 +154,14 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     :return: https://www.hl7.org/fhir/observation.html
     """
     observation = to_fhir_observation(obsfact)
-    observation.status = 'final'
+    observation.status = 'unknown'
 
     if obsfact.concept_cd in external_mappings.LOINC_COVID_LAB_TESTS:
         obs_code = external_mappings.LOINC_COVID_LAB_TESTS[obsfact.concept_cd]
         obs_system = 'http://loinc.org'
     else:
         obs_code = obsfact.concept_cd
-        obs_system = None
+        obs_system = 'http://cumulus.smarthealthit.org/i2b2'
 
     observation.code = make_concept(obs_code, obs_system)
     observation.category = [make_concept('laboratory', 'http://terminology.hl7.org/CodeSystem/observation-category')]
@@ -196,6 +194,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
             'http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition'
         ]
     })
+    condition.recordedDate = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
 
     condition.clinicalStatus = make_concept('active', 'http://terminology.hl7.org/CodeSystem/condition-clinical')
     condition.verificationStatus = make_concept('unconfirmed',
@@ -216,8 +215,9 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     elif i2b2_sys in ['SNOMED', 'SNOMED-CT', 'SNOMEDCT', 'SCT']:
         i2b2_sys = 'http://snomed.info/sct'
     else:
-        logging.warning('Unknown System')
-        i2b2_sys = None
+        logging.warning('Condition: unknown system %s', i2b2_sys)
+        i2b2_sys = 'http://cumulus.smarthealthit.org/i2b2'
+        i2b2_code = obsfact.concept_cd
 
     condition.code = make_concept(i2b2_code, i2b2_sys)
 
@@ -243,10 +243,14 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.subject = fhir_common.ref_subject(obsfact.patient_num)
     docref.context = DocumentReferenceContext()
     docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
+    docref.context.period = Period({
+        'start': fhir_common.parse_fhir_date_isostring(obsfact.start_date),
+        'end': fhir_common.parse_fhir_date_isostring(obsfact.end_date),
+    })
 
     # It would be nice to get a real mapping for the "NOTE:" concept CD types to a real system.
-    docref.type = make_concept(obsfact.concept_cd, None, obsfact.tval_char)
-    docref.created = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
+    # But for now, use this custom (and the URL isn't even valid) system to note these i2b2 concepts.
+    docref.type = make_concept(obsfact.concept_cd, 'http://cumulus.smarthealthit.org/i2b2', obsfact.tval_char)
     docref.status = 'current'
 
     blob = obsfact.observation_blob or ''

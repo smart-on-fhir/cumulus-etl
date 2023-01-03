@@ -124,5 +124,5 @@ class Format(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def store_symptoms(self, job, observations: pandas.DataFrame, batch: int) -> None:
+    def store_covid_symptom__nlp_results(self, job, observations: pandas.DataFrame, batch: int) -> None:
         pass
