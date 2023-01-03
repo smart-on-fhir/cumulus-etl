@@ -231,6 +231,11 @@ def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Itera
 
 
 def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
+    if not check_cnlpt():
+        common.print_header(f'{etl_covid_symptom__nlp_results.__name__}()')
+        print('Skipping because cNLP transformers are not available (this is normal for now)')
+        return JobSummary(etl_covid_symptom__nlp_results.__name__)
+
     return _process_job_entries(
         config,
         etl_covid_symptom__nlp_results.__name__,
@@ -319,6 +324,22 @@ def etl_job(config: JobConfig, tasks: Iterable[str] = None) -> List[JobSummary]:
 #
 ###############################################################################
 
+def is_url_available(url: str) -> bool:
+    """Returns whether we are able to make connections to the given URL, with a few retries."""
+    url_parsed = urlparse(url)
+
+    num_tries = 6  # try six times / wait five seconds
+    for i in range(num_tries):
+        try:
+            socket.socket().connect((url_parsed.hostname, url_parsed.port))
+            return True
+        except ConnectionRefusedError:
+            if i < num_tries - 1:
+                time.sleep(1)
+
+    return False
+
+
 def check_ctakes() -> None:
     """
     Verifies that cTAKES is available to receive requests.
@@ -328,21 +349,22 @@ def check_ctakes() -> None:
     # Check if our cTAKES server is ready (it may still not be fully ready once the socket is open, but at least it
     # will accept requests and then block the reply on it finishing its initialization)
     ctakes_url = ctakesclient.client.get_url_ctakes_rest()
-    ctakes_url_parsed = urlparse(ctakes_url)
-
-    num_tries = 6  # try six times / wait five seconds
-    for i in range(num_tries):
-        try:
-            socket.socket().connect((ctakes_url_parsed.hostname, ctakes_url_parsed.port))
-            break
-        except ConnectionRefusedError:
-            if i < num_tries - 1:
-                time.sleep(1)
-    else:
+    if not is_url_available(ctakes_url):
         print(f'A running cTAKES server was not found at:\n    {ctakes_url}\n\n'
               'Please set the URL_CTAKES_REST environment variable to your server.',
               file=sys.stderr)
         raise SystemExit(errors.CTAKES_MISSING)
+
+
+def check_cnlpt() -> bool:
+    """
+    Verifies that the cNLP transformer server is running.
+    """
+    cnlpt_url = ctakesclient.transformer.get_url_cnlp_negation()
+
+    # Once we require the cNLP transformer, we can raise an error here bit and add this check to check_requirements(),
+    # but for now just signal whether it's there.
+    return is_url_available(cnlpt_url)
 
 
 def check_mstool() -> None:
