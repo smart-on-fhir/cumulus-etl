@@ -55,22 +55,10 @@ services:
 
   cumulus-etl-test-gpu:
     extends:
-      service: cumulus-etl
-    build: 
-      context: .
-      target: cumulus-etl-test
+      service: cumulus-etl-test
     environment:
       - URL_CTAKES_REST=http://ctakes-covid-test:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlp-transformers-test-gpu:8000/negation/process
-    volumes: 
-      - ./:/cumulus-etl/
-    profiles:
-      - test-gpu
-    command: 
-      - /cumulus-etl/tests/data/simple/ndjson-input 
-      - /cumulus-etl/example-output 
-      - /cumulus-etl/example-phi-build 
-      - --output-format=ndjson
 
 
   ctakes-covid-test:
@@ -82,7 +70,7 @@ services:
     ports:
       - 8080:8080
 
-  cnlp-transformers-cpu:
+  cnlp-transformers-test:
     image: smartonfhir/cnlp-transformers:latest-cpu
     #build: 
     #  context: ../cnlp_transformers/docker
@@ -94,7 +82,7 @@ services:
     networks:
       - cumulus-etl
 
-  cnlp-transformers-gpu:
+  cnlp-transformers-test-gpu:
     image: smartonfhir/cnlp-transformers:latest-gpu
     #build: 
     #  context: ../cnlp_transformers/docker
@@ -106,11 +94,11 @@ services:
       - test-gpu
     networks:
       - cumulus-etl
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
+#    deploy:
+#      resources:
+#        reservations:
+#          devices:
+#            - capabilities: [gpu]
 
 networks:
   cumulus-etl:
