@@ -61,7 +61,7 @@ services:
       target: cumulus-etl-test
     environment:
       - URL_CTAKES_REST=http://ctakes-covid-test:8080/ctakes-web-rest/service/analyze
-      - URL_CNLP_NEGATION=http://cnlp-transformerss-test-gpu:8000/negation/process
+      - URL_CNLP_NEGATION=http://cnlp-transformers-test-gpu:8000/negation/process
     volumes: 
       - ./:/cumulus-etl/
     profiles:
