@@ -6,7 +6,7 @@ services:
       target: cumulus-etl
     environment:
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
-      - URL_CNLP_NEGATION=http://cnlp-transformers:8000//negation/process
+      - URL_CNLP_NEGATION=http://cnlp-transformerss:8000//negation/process
     # TODO: This platform requirement is due to the dotnet runtime flag.
     # We could investigate dynamically passing the system architecture?
     platform: linux/x86_64
@@ -14,7 +14,6 @@ services:
       - cumulus-etl
     profiles:
       - etl
-
     
   ctakes-covid:
     image: smartonfhir/ctakes-covid:1
@@ -23,34 +22,31 @@ services:
       - ctakes_umlspw=$UMLS_API_KEY
     networks:
       - cumulus-etl
-    # If you need to expose the ctakes server for testing, uncomment this port mapping
-    # ports:
-    #   - 8080:8080
     profiles:
       - etl-support
-      - test
 
   cnlp-transformers:
-    #build: ../cnlp_transformers
-    image: smartonfhir/cnlp-transformer:dev
-    ports:
-      - 8000:8000
+    image: smartonfhir/cnlp-transformers:0.4-cpu
     profiles:
-      - test
+      - etl-support
     networks:
       - cumulus-etl
+    entrypoint: /bin/bash
 
-  # this image is intended specifically for development work
+
+
+  # these images are intended specifically for development work
   cumulus-etl-test:
     extends:
       service: cumulus-etl
     build: 
       context: .
       target: cumulus-etl-test
+    environment:
+      - URL_CTAKES_REST=http://ctakes-covid-test:8080/ctakes-web-rest/service/analyze
+      - URL_CNLP_NEGATION=http://cnlp-transformerss-test:8000/negation/process
     volumes: 
       - ./:/cumulus-etl/
-    ports:
-     - 8080:8080
     working_dir: /cumulus-etl
     profiles:
       - test
@@ -60,6 +56,64 @@ services:
       - /cumulus-etl/example-phi-build 
       - --output-format=ndjson
 
+  cumulus-etl-test-gpu:
+    extends:
+      service: cumulus-etl
+    build: 
+      context: .
+      target: cumulus-etl-test
+    environment:
+      - URL_CTAKES_REST=http://ctakes-covid-test:8080/ctakes-web-rest/service/analyze
+      - URL_CNLP_NEGATION=http://cnlp-transformerss-test-gpu:8000/negation/process
+    volumes: 
+      - ./:/cumulus-etl/
+    profiles:
+      - test-gpu
+    command: 
+      - /cumulus-etl/tests/data/simple/ndjson-input 
+      - /cumulus-etl/example-output 
+      - /cumulus-etl/example-phi-build 
+      - --output-format=ndjson
+
+
+  ctakes-covid-test:
+    extends:
+      service: ctakes-covid
+    profiles:
+      - test
+      - test-gpu
+    ports:
+      - 8080:8080
+
+  cnlp-transformers-cpu:
+    image: smartonfhir/cnlp-transformers:latest-cpu
+    #build: 
+    #  context: ../cnlp_transformers/docker
+    #  dockerfile: Dockerfile.cpu
+    ports:
+      - 8000:8000
+    profiles:
+      - test
+    networks:
+      - cumulus-etl
+
+  cnlp-transformers-gpu:
+    image: smartonfhir/cnlp-transformers:latest-gpu
+    #build: 
+    #  context: ../cnlp_transformers/docker
+    #  dockerfile: Dockerfile.gpu
+    platform: linux/amd64
+    ports:
+      - 8000:8000
+    profiles:
+      - test-gpu
+    networks:
+      - cumulus-etl
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
 
 networks:
   cumulus-etl:
