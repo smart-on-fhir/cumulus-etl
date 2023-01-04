@@ -1,6 +1,6 @@
 services:
   
-  cumulus-etl:
+  cumulus-etl-base:
     build: 
       context: .
       target: cumulus-etl
@@ -13,9 +13,14 @@ services:
     networks:
       - cumulus-etl
     profiles:
+      - base
+
+  cumulus-etl:
+    extends: cumulus-etl-base
+    profiles:
       - etl
     
-  ctakes-covid:
+  ctakes-covid-base:
     image: smartonfhir/ctakes-covid:1
     environment:
       - ctakes_umlsuser=umls_api_key 
@@ -23,7 +28,12 @@ services:
     networks:
       - cumulus-etl
     profiles:
-      - etl-support
+      - base
+
+  ctakes-covid:
+    extends: ctakes-covid-base
+    profiles:
+      - etl-support    
 
   cnlp-transformers:
     image: smartonfhir/cnlp-transformers:0.4-cpu
@@ -35,7 +45,7 @@ services:
   # these images are intended specifically for development work
   cumulus-etl-test:
     extends:
-      service: cumulus-etl
+      service: cumulus-etl-base
     build: 
       context: .
       target: cumulus-etl-test
@@ -45,27 +55,38 @@ services:
     volumes: 
       - ./:/cumulus-etl/
     working_dir: /cumulus-etl
-    profiles:
-      - test
     command: 
       - /cumulus-etl/tests/data/simple/ndjson-input 
       - /cumulus-etl/example-output 
       - /cumulus-etl/example-phi-build 
       - --output-format=ndjson
+    profiles:
+      - test
 
   cumulus-etl-test-gpu:
     extends:
-      service: cumulus-etl-test
+      service: cumulus-etl-base
+    build: 
+      context: .
+      target: cumulus-etl-test
     environment:
       - URL_CTAKES_REST=http://ctakes-covid-test:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlp-transformers-test-gpu:8000/negation/process
+    volumes: 
+      - ./:/cumulus-etl/
+    working_dir: /cumulus-etl
+    command: 
+      - /cumulus-etl/tests/data/simple/ndjson-input 
+      - /cumulus-etl/example-output 
+      - /cumulus-etl/example-phi-build 
+      - --output-format=ndjson
     profiles:
       - test-gpu
 
 
   ctakes-covid-test:
     extends:
-      service: ctakes-covid
+      service: ctakes-covid-base
     profiles:
       - test
       - test-gpu
