@@ -1,5 +1,5 @@
 # Cumulus: Clinical Investigation at Population Scale
-Cumulus will complement, not replace, the many public health Electronic Lab Reporting (ELR) efforts across cities and states in the USA. Whereas existing ELR interfaces from labs and hospitals provide patient level data on a narrower set of mandated reportable conditions, Cumulus will enable the flow of aggregate and de-identified data on a broader set of health conditions and patient population trends over time.
+Cumulus will enable the flow of aggregate and de-identified data on a broad set of health condition and patient population trends over time.
 Cumulus is based out of Boston Children’s Hospital with collaborations in US hospitals and departments of public health.
 
 * [SMART push button population health](https://www.nature.com/articles/s41746-020-00358-4)
