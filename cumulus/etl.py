@@ -231,11 +231,6 @@ def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Itera
 
 
 def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    if not check_cnlpt():
-        common.print_header(f'{etl_covid_symptom__nlp_results.__name__}()')
-        print('Skipping because cNLP transformers are not available (this is normal for now)')
-        return JobSummary(etl_covid_symptom__nlp_results.__name__)
-
     return _process_job_entries(
         config,
         etl_covid_symptom__nlp_results.__name__,
@@ -356,15 +351,17 @@ def check_ctakes() -> None:
         raise SystemExit(errors.CTAKES_MISSING)
 
 
-def check_cnlpt() -> bool:
+def check_cnlpt() -> None:
     """
     Verifies that the cNLP transformer server is running.
     """
     cnlpt_url = ctakesclient.transformer.get_url_cnlp_negation()
 
-    # Once we require the cNLP transformer, we can raise an error here bit and add this check to check_requirements(),
-    # but for now just signal whether it's there.
-    return is_url_available(cnlpt_url)
+    if not is_url_available(cnlpt_url):
+        print(f'A running cNLP transformers server was not found at:\n    {cnlpt_url}\n\n'
+              'Please set the URL_CNLP_NEGATION environment variable to your server.',
+              file=sys.stderr)
+        raise SystemExit(errors.CNLPT_MISSING)
 
 
 def check_mstool() -> None:
@@ -386,6 +383,7 @@ def check_requirements() -> None:
     May block while waiting a bit for them.
     """
     check_ctakes()
+    check_cnlpt()
     check_mstool()
 
 
