@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from typing import List
 
 import pandas
 from pyspark.sql.utils import AnalysisException
@@ -50,6 +51,16 @@ class TestDeltaLake(unittest.TestCase):
         """
         self.deltalake.store_patients(self.job, df, batch)
 
+    @staticmethod
+    def spark_to_records(table) -> List[dict]:
+        table_df = table.toPandas()
+        table_records = table_df.to_dict(orient='records')
+        for r in table_records:
+            # convert spark Row to dict (it's annoying that toPandas() doesn't do that for us)
+            if hasattr(r['value'], 'asDict'):
+                r['value'] = r['value'].asDict()
+        return table_records
+
     def assert_lake_equal(self, df: pandas.DataFrame, when: int = None) -> None:
         table_path = os.path.join(self.output_dir, 'patient')
 
@@ -57,8 +68,8 @@ class TestDeltaLake(unittest.TestCase):
         if when is not None:
             reader = reader.option('versionAsOf', when)
 
-        table_df = reader.format('delta').load(table_path).sort('id').toPandas()
-        self.assertDictEqual(df.to_dict(), table_df.to_dict())
+        table_records = self.spark_to_records(reader.format('delta').load(table_path).sort('id'))
+        self.assertListEqual(df.to_dict(orient='records'), table_records)
 
     def test_creates_if_empty(self):
         """Verify that the lake is created when empty"""
@@ -74,6 +85,32 @@ class TestDeltaLake(unittest.TestCase):
         self.store(self.df(a=1, b=2))
         self.store(self.df(b=20, c=3))
         self.assert_lake_equal(self.df(a=1, b=20, c=3))
+
+    def test_added_field(self):
+        """
+        Verify that new fields can be added.
+
+        By default, Delta Lake does not allow any additions or subtractions.
+        """
+        self.store(self.df(a={'one': 1}))
+        self.store(self.df(b={'one': 1, 'two': 2}))
+        self.assert_lake_equal(self.df(a={'one': 1, 'two': None}, b={'one': 1, 'two': 2}))
+
+    def test_missing_field(self):
+        """
+        Verify that fields can be missing.
+
+        By default, Delta Lake does not allow any additions or subtractions.
+        """
+        self.store(self.df(a={'one': 1, 'two': 2}))
+        self.store(self.df(b={'one': 1}))
+        self.assert_lake_equal(self.df(a={'one': 1, 'two': 2}, b={'one': 1, 'two': None}))
+
+    def test_altered_field(self):
+        """Verify that field types cannot be altered."""
+        self.store(self.df(a={'one': 1}))
+        self.store(self.df(b={'one': 'string'}))
+        self.assert_lake_equal(self.df(a={'one': 1}, b={'one': None}))  # TODO: is this the behavior we want?
 
     def test_schema_has_names(self):
         """Verify that the lake's schemas has valid nested names, which may not always happen with spark"""
