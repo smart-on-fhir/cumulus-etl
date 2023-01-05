@@ -473,6 +473,12 @@ def main(args: List[str]):
     job_context.last_successful_output_dir = root_output.path
     job_context.save()
 
+    # If any task had a failure, flag that for the user
+    failed = any(s.success < s.attempt for s in summaries)
+    if failed:
+        print('** One or more tasks above did not 100% complete! **', file=sys.stderr)
+        raise SystemExit(errors.TASK_FAILED)
+
 
 def main_cli():
     main(sys.argv[1:])
