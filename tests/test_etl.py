@@ -221,6 +221,13 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             self.run_etl(tasks=['blarg'])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
+    def test_failed_task(self):
+        # Make it so any writes will fail
+        with mock.patch('cumulus.formats.ndjson.NdjsonFormat.write_format', side_effect=Exception):
+            with self.assertRaises(SystemExit) as cm:
+                self.run_etl()
+        self.assertEqual(errors.TASK_FAILED, cm.exception.code)
+
     def test_single_task(self):
         # Grab all observations before we mock anything
         observations = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(['Observation'])
