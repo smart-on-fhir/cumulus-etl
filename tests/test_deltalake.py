@@ -74,3 +74,43 @@ class TestDeltaLake(unittest.TestCase):
         self.store(self.df(a=1, b=2))
         self.store(self.df(b=20, c=3))
         self.assert_lake_equal(self.df(a=1, b=20, c=3))
+
+    def test_schema_has_names(self):
+        """Verify that the lake's schemas has valid nested names, which may not always happen with spark"""
+        self.store(self.df(a=[{'one': 1, 'two': 2}]))
+
+        table_path = os.path.join(self.output_dir, 'patient')
+        reader = self.deltalake.spark.read
+        table_df = reader.format('delta').load(table_path)
+        self.assertDictEqual({
+            'type': 'struct',
+            'fields': [
+                {'metadata': {}, 'name': 'id', 'nullable': True, 'type': 'string'},
+                {
+                    'metadata': {},
+                    'name': 'value',
+                    'nullable': True,
+                    'type': {
+                        'containsNull': True,
+                        'elementType': {
+                            'fields': [
+                                {
+                                    'metadata': {},
+                                    'name': 'one',
+                                    'nullable': True,
+                                    'type': 'long',
+                                },
+                                {
+                                    'metadata': {},
+                                    'name': 'two',
+                                    'nullable': True,
+                                    'type': 'long',
+                                },
+                            ],
+                            'type': 'struct',
+                        },
+                        'type': 'array',
+                    },
+                },
+            ],
+        }, table_df.schema.jsonValue())

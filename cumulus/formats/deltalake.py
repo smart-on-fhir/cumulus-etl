@@ -7,6 +7,7 @@ See https://delta.io/
 import contextlib
 import logging
 import os
+import tempfile
 
 import delta
 import pandas
@@ -78,20 +79,30 @@ class DeltaLakeFormat(AthenaFormat):
         full_path = self.root.joinpath(dbname).replace('s3://', 's3a://')  # hadoop uses the s3a: scheme instead of s3:
 
         try:
-            updates = self.spark.createDataFrame(df)
+            # First, convert our pandas dataframe to a spark dataframe.
+            # You'd think that self.spark.createDataFrame(df) would be the right thing to do, but actually, it can't
+            # seem to correctly infer the nested schema (it doesn't give nested fields names, just the types).
+            # But parquet does this well, and spark can read parquet well. So we do this dance of pandas -> parquet ->
+            # sparks.
+            with tempfile.NamedTemporaryFile() as parquet_file:
+                df.to_parquet(parquet_file.name, index=False)
+                updates = self.spark.read.parquet(parquet_file.name)
 
-            try:
-                table = delta.DeltaTable.forPath(self.spark, full_path)
-                if batch == 0:
-                    table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
-                table.alias('table') \
-                    .merge(source=updates.alias('updates'), condition='table.id = updates.id') \
-                    .whenMatchedUpdateAll() \
-                    .whenNotMatchedInsertAll() \
-                    .execute()
-            except AnalysisException:
-                # table does not exist yet, let's make an initial version
-                updates.write.save(path=full_path, format='delta')
+                try:
+                    table = delta.DeltaTable.forPath(self.spark, full_path)
+                    if batch == 0:
+                        table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
+                    table.alias('table') \
+                        .merge(source=updates.alias('updates'), condition='table.id = updates.id') \
+                        .whenMatchedUpdateAll() \
+                        .whenNotMatchedInsertAll() \
+                        .execute()
+                except AnalysisException:
+                    # table does not exist yet, let's make an initial version
+                    updates.write.save(path=full_path, format='delta')
+                    table = delta.DeltaTable.forPath(self.spark, full_path)  # re-load the table to generate symlink
+
+            table.generate('symlink_format_manifest')
 
             job.success += len(df)
             job.success_rate(1)
