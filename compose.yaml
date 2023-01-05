@@ -36,7 +36,7 @@ services:
       - etl-support    
 
   cnlp-transformers:
-    image: smartonfhir/cnlp-transformers:0.4-cpu
+    image: smartonfhir/cnlp-transformers:negation-0.4-cpu
     profiles:
       - etl-support
     networks:
