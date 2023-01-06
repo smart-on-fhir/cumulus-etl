@@ -231,6 +231,7 @@ Resources:
         DeleteBehavior: DEPRECATE_IN_DATABASE
         UpdateBehavior: UPDATE_IN_DATABASE
       Schedule:
+        # Schedule a monthly run to catch any newly-added fields automatically
         ScheduleExpression: "cron(0 8 1 * ? *)"  # 8am on the 1st of the month
       Targets:
         # This S3Targets definition is suitable for parquet files, but we won't actually be using it.
