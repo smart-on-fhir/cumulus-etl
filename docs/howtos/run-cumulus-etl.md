@@ -249,7 +249,9 @@ A JWKS is just a file with some cryptographic keys,
 usually holding a public and private version of the same key.
 FHIR servers use it to grant clients access.
 
-You can generate a JWKS using the RS384 algorithm and a random ID yourself like so:
+You can generate a JWKS using the RS384 algorithm and a random ID by running the command below.
+
+(Make sure you have `jose` installed first.)
 
 ```sh
 jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o rsa.jwks
