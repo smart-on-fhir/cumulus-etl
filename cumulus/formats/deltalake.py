@@ -117,7 +117,7 @@ class DeltaLakeFormat(AthenaFormat):
         self.spark.conf.set('fs.s3a.server-side-encryption-algorithm', 'SSE-KMS')
         kms_key = fsspec_options.get('s3_additional_kwargs', {}).get('SSEKMSKeyId')
         if kms_key:
-            self.spark.conf.set('fs.s3a.sse.kms.keyId', kms_key)
+            self.spark.conf.set('fs.s3a.server-side-encryption.key', kms_key)
         region_name = fsspec_options.get('client_kwargs', {}).get('region_name')
         if region_name:
             self.spark.conf.set('fs.s3a.endpoint.region', region_name)
