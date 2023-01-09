@@ -399,7 +399,7 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
         self.assert_output_equal('ndjson-output')
 
     def test_etl_job_parquet(self):
-        self.run_etl(output_format=None)  # parquet should be default output
+        self.run_etl(output_format='parquet')
 
         # Merely test that the files got created. It's a binary format, so
         # diffs aren't helpful, and looks like it can differ from machine to
@@ -421,6 +421,38 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
                 'patient/patient.000.parquet',
                 'covid_symptom__nlp_results/covid_symptom__nlp_results.000.parquet',
             }, set(all_files))
+
+    def test_etl_job_deltalake(self):
+        self.run_etl(output_format=None)  # deltalake should be default output format
+
+        # Just test that the files got created, for a single table.
+
+        condition_path = os.path.join(self.output_path, 'condition')
+        all_files = {os.path.relpath(os.path.join(root, name), start=condition_path)
+                     for root, dirs, files in os.walk(condition_path)
+                     for name in files}
+
+        metadata_files = {x for x in all_files if x.startswith('_')}
+        data_files = {x for x in all_files if x.startswith('part-')}
+        data_crc_files = {x for x in all_files if x.startswith('.part-')}
+
+        # Just confirm that we sliced them up correctly
+        self.assertEqual(metadata_files | data_files | data_crc_files, all_files)
+
+        # Check metadata files (these have consistent names)
+        self.assertEqual(
+            {
+                '_delta_log/00000000000000000000.json',
+                '_delta_log/.00000000000000000000.json.crc',
+                '_symlink_format_manifest/manifest',
+                '_symlink_format_manifest/.manifest.crc',
+            }, metadata_files)
+
+        self.assertEqual(1, len(data_files))
+        self.assertRegex(data_files.pop(), r'part-00000-.*-c000.snappy.parquet')
+
+        self.assertEqual(1, len(data_crc_files))
+        self.assertRegex(data_crc_files.pop(), r'.part-00000-.*-c000.snappy.parquet.crc')
 
 
 class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):

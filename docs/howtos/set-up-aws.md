@@ -35,7 +35,13 @@ bucket.
 
 You're going to create a database to hold the tables and a crawler that scans the Cumulus ETL
 output bucket, creating the tables.
-This crawler can simply be a manually run job for now.
+
+After the first crawler run that creates the tables & schemas,
+you'll only need to run it again if new tables get added or schemas change
+(maybe your hospital started adding new metadata to FHIR resources).
+
+We'll set this crawler to run once a month, to pick up the occasional schema changes.
+But it can also be run manually when you know a change occurred, or a new table was added.
 
 ### Athena
 
@@ -48,15 +54,16 @@ Athena.
 ## Cloud Formation
 
 The easy way to set this all up is simply use a CloudFormation template.
-Here's an example one that should work for your needs.
+Here's an example template that should work for your needs, but can be customized as you like.
 
 It takes four parameters:
 1. Bucket prefix
 1. ETL Subdirectory, matching the subdirectory you pass to Cumulus ETL
-1. KMS key ID for encryption
+1. KMS key ARN for encryption
 1. Upload Role ARN, matching the user that runs Cumulus ETL
 
-Once you create this CloudFormation stack, your infrastructure will be ready to run Cumulus ETL.
+Once you create this CloudFormation stack, you're almost done.
+There is one step left below this template: updating the Glue crawler.
 
 ```yaml
 AWSTemplateFormatVersion: 2010-09-09
@@ -71,7 +78,7 @@ Parameters:
     Description: 'Subdirectory on the Cumulus ETL output bucket where files will be placed. This should match the path you give when running Cumulus ETL. Using a subdirectory is recommended to allow for test runs of Cumulus ETL in different subdirectories and general future-proofing.'
   KMSMasterKeyID:
     Type: 'String'
-    Description: 'KMS key ID for Cumulus buckets'
+    Description: 'KMS key ARN for Cumulus buckets'
   UploadRoleArn:
     Type: 'String'
     Description: 'ARN for role that is running Cumulus ETL and thus uploading files to S3'
@@ -175,7 +182,7 @@ Resources:
     Properties:
       EncryptionConfiguration:
         S3Encryptions:
-          - KmsKeyArn: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${KMSMasterKeyID}"
+          - KmsKeyArn: !Ref KMSMasterKeyID
             S3EncryptionMode: SSE-KMS
       Name: cumulus-kms
 
@@ -223,12 +230,19 @@ Resources:
       SchemaChangePolicy:
         DeleteBehavior: DEPRECATE_IN_DATABASE
         UpdateBehavior: UPDATE_IN_DATABASE
+      Schedule:
+        # Schedule a monthly run to catch any newly-added fields automatically
+        ScheduleExpression: "cron(0 8 1 * ? *)"  # 8am on the 1st of the month
       Targets:
+        # This S3Targets definition is suitable for parquet files, but we won't actually be using it.
+        # You'll want to use a Delta Lake crawler instead.
+        # CloudFormation requires *a* target be defined, but it does not yet support DeltaTargets.
+        # So we provide a valid definition, for a target that we don't actually intend to use.
+        # We'll later replace these manually with some DeltaTargets.
         S3Targets:
           - Path: !Sub "s3://${S3Bucket}/${EtlSubdir}/"
             Exclusions:
               - "JobConfig/**"
-            SampleSize: 1
 
   ####################################################
   # Athena queries and where to store them
@@ -276,7 +290,7 @@ Resources:
         EnforceWorkGroupConfiguration: True
         PublishCloudWatchMetricsEnabled: True
         EngineVersion:
-          SelectedEngineVersion: "Athena engine version 3"
+          SelectedEngineVersion: "Athena engine version 2"
         ResultConfiguration:
           EncryptionConfiguration:
             EncryptionOption: SSE_KMS
@@ -293,4 +307,24 @@ Outputs:
   AthenaBucketName:
     Description: Cumulus Athena results bucket ID
     Value: !Ref AthenaBucket
+```
+
+## Delta Lake Crawler Support
+
+Cumulus uses Delta Lakes to store your data.
+AWS Glue support for them is fairly new (September 2022),
+and CloudFormation does not yet support that syntax.
+
+But that's easy enough to work around.
+We'll just manually update the crawler to point at our delta lakes.
+
+Run the command below to update the crawler you just defined above,
+and replace `REPLACE_ME` with a bucket path (the bucket name and `EtlSubdir` you used above).
+
+For example, you might use `s3://my-cumulus-prefix-99999999999-us-east-2/subdir1`.
+
+(Make sure you have `jq` installed first.)
+
+```sh
+aws glue update-crawler --name cumulus --targets "`jq -n --arg prefix REPLACE_ME '{"DeltaTargets": [{"DeltaTables": [$prefix+"/condition", $prefix+"/covid_symptom__nlp_results", $prefix+"/documentreference", $prefix+"/encounter", $prefix+"/observation", $prefix+"/patient"], "WriteManifest": false}]}'`"
 ```

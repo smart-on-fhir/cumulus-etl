@@ -400,8 +400,8 @@ def main(args: List[str]):
     parser.add_argument('dir_phi', metavar='/path/to/phi')
     parser.add_argument('--input-format', default='ndjson', choices=['i2b2', 'ndjson'],
                         help='input format (default is ndjson)')
-    parser.add_argument('--output-format', default='parquet', choices=['deltalake', 'json', 'ndjson', 'parquet'],
-                        help='output format (default is parquet)')
+    parser.add_argument('--output-format', default='deltalake', choices=['deltalake', 'json', 'ndjson', 'parquet'],
+                        help='output format (default is deltalake)')
     parser.add_argument('--batch-size', type=int, metavar='SIZE', default=200000,
                         help='how many entries to process at once and thus '
                              'how many to put in one output file (default is 200k)')

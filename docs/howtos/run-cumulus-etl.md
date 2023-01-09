@@ -12,6 +12,7 @@ Before we dive in, you're going to want the following things in place:
 1. A server on which to run Cumulus ETL, with access to your bulk patient data
     * This could be a long-running server or a disposable per-run instance.
       Whatever works for your hospital setup.
+    * If you're running Cumulus ETL in AWS EC2, an `m5.xlarge` instance works well.
 2. A [UMLS](https://www.nlm.nih.gov/research/umls/index.html) API key
     * Your hospital probably already has one, but they are also easy to
       [request](https://www.nlm.nih.gov/databases/umls.html).
@@ -72,7 +73,7 @@ But as an example, here's how you might install it on CentOS:
 ```sh
 yum -y install yum-utils
 yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-yum -y install docker-ce docker-ce-cli containerd.io
+yum -y install docker-ce docker-ce-cli containerd.io docker-scan-plugin docker-compose-plugin docker-ce-rootless-extras
 systemctl start docker
 systemctl enable docker.service
 systemctl enable containerd.service
@@ -178,8 +179,8 @@ docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm\
  cumulus-etl \
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \
-  --output-format=parquet \
-  --batch-size=200000 \
+  --output-format=deltalake \
+  --batch-size=300000 \
   --s3-region=us-east-2 \
   s3://my-us-east-2-input-bucket/ \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
@@ -214,9 +215,9 @@ defaults are subject to change or might not match your situation.
   format. Otherwise, you can use either value to point at a local folder with either FHIR ndjson
   or i2b2 csv files sitting in them, respectively.
 
-* `--output-format`: There are two reasonable values (`ndjson` and `parquet`). For production use,
-  you probably want `parquet` as it is smaller and faster. But `ndjson` is useful when debugging as
-  it is human-readable.
+* `--output-format`: There are three reasonable values (`ndjson`, `parquet`, and `deltalake`).
+  For production use, you want `deltalake` as it is supports incremental, batched updates.
+  But `ndjson` is useful when debugging as it is human-readable.
 
 * `--batch-size`: How many resources to save in a single output file. If there are more resources
   (e.g. more patients) than this limit, multiple output files will be created for that resource
@@ -248,7 +249,9 @@ A JWKS is just a file with some cryptographic keys,
 usually holding a public and private version of the same key.
 FHIR servers use it to grant clients access.
 
-You can generate a JWKS using the RS384 algorithm and a random ID yourself like so:
+You can generate a JWKS using the RS384 algorithm and a random ID by running the command below.
+
+(Make sure you have `jose` installed first.)
 
 ```sh
 jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o rsa.jwks
