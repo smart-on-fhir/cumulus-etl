@@ -7,6 +7,7 @@ import unittest
 from typing import List
 
 import pandas
+import pytest
 from pyspark.sql.utils import AnalysisException
 from cumulus import config, formats, store
 
@@ -106,11 +107,15 @@ class TestDeltaLake(unittest.TestCase):
         self.store(self.df(b={'one': 1}))
         self.assert_lake_equal(self.df(a={'one': 1, 'two': 2}, b={'one': 1, 'two': None}))
 
+    # This currently fails because delta silently drops field data that can't be converted to the correct type.
+    # Here is a request to change this behavior into an error: https://github.com/delta-io/delta/issues/1551
+    # See https://github.com/smart-on-fhir/cumulus-etl/issues/133 for some discussion of this issue.
+    @pytest.mark.xfail
     def test_altered_field(self):
         """Verify that field types cannot be altered."""
         self.store(self.df(a={'one': 1}))
-        self.store(self.df(b={'one': 'string'}))
-        self.assert_lake_equal(self.df(a={'one': 1}, b={'one': None}))  # TODO: is this the behavior we want?
+        self.store(self.df(b={'one': 'string'}))  # should error out / not update
+        self.assert_lake_equal(self.df(a={'one': 1}))
 
     def test_schema_has_names(self):
         """Verify that the lake's schemas has valid nested names, which may not always happen with spark"""
