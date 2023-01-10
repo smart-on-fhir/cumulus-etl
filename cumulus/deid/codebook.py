@@ -5,6 +5,7 @@ import hmac
 import logging
 import os
 import secrets
+import threading
 
 from cumulus import common
 
@@ -85,6 +86,9 @@ class CodebookDB:
         # Modified is true if *either* setting or cached_mapping has changed
         self.modified = True
 
+        # Get a basic threading lock, to guard access to self.modified / save() / adding new cached mappings
+        self._lock = threading.Lock()
+
         if codebook_dir:
             self._load_saved_settings(common.read_json(os.path.join(codebook_dir, "codebook.json")))
             try:
@@ -92,6 +96,17 @@ class CodebookDB:
             except (FileNotFoundError, PermissionError):
                 pass
             self.modified = False
+
+        # Initialize salt if we don't have one yet
+        if "id_salt" not in self.settings:
+            # Create a salt, used when hashing resource IDs.
+            # Some prior art is Microsoft's anonymizer tool which uses a UUID4 salt (with 122 bits of entropy).
+            # Since this is an important salt, it seems reasonable to do a bit more.
+            # Python's docs for the secrets module recommend 256 bits, as of 2015.
+            # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
+            # recommended, so 256 bits seem good (which is 32 bytes).
+            self.settings["id_salt"] = secrets.token_hex(32)
+            self.modified = True
 
     def patient(self, real_id: str) -> str:
         """
@@ -135,11 +150,12 @@ class CodebookDB:
 
         # Save this generated ID mapping so that we can store it for debugging purposes later.
         # Only save if we don't have a legacy mapping, so that we don't have both in memory at the same time.
-        if self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id:
-            # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
-            # but is written defensively in case a bad mapping got saved for some reason.
-            self.cached_mapping[resource_type][real_id] = fake_id
-            self.modified = True
+        with self._lock:
+            if self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id:
+                # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
+                # but is written defensively in case a bad mapping got saved for some reason.
+                self.cached_mapping[resource_type][real_id] = fake_id
+                self.modified = True
 
         return fake_id
 
@@ -155,19 +171,7 @@ class CodebookDB:
 
     def _id_salt(self) -> bytes:
         """Returns the saved salt or creates and saves one if needed"""
-        salt = self.settings.get("id_salt")
-
-        if salt is None:
-            # Create a salt, used when hashing resource IDs.
-            # Some prior art is Microsoft's anonymizer tool which uses a UUID4 salt (with 122 bits of entropy).
-            # Since this is an important salt, it seems reasonable to do a bit more.
-            # Python's docs for the secrets module recommend 256 bits, as of 2015.
-            # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
-            # recommended, so 256 bits seem good (which is 32 bytes).
-            salt = secrets.token_hex(32)
-            self.settings["id_salt"] = salt
-            self.modified = True
-
+        salt = self.settings["id_salt"]
         return binascii.unhexlify(salt)  # revert from doubled hex 64-char string representation back to just 32 bytes
 
     def _load_saved_settings(self, saved: dict) -> None:
@@ -202,16 +206,19 @@ class CodebookDB:
         :param codebook_dir: /path/to/phi/
         :returns: whether a save actually happened (if codebook hasn't changed, nothing is written back)
         """
-        if self.modified:
-            logging.info("Saving codebook to: %s", codebook_dir)
+        saved = False
 
-            codebook_path = os.path.join(codebook_dir, "codebook.json")
-            common.write_json(codebook_path, self.settings)
+        with self._lock:
+            if self.modified:
+                logging.info("Saving codebook to: %s", codebook_dir)
 
-            cached_mapping_path = os.path.join(codebook_dir, "codebook-cached-mappings.json")
-            common.write_json(cached_mapping_path, self.cached_mapping)
+                codebook_path = os.path.join(codebook_dir, "codebook.json")
+                common.write_json(codebook_path, self.settings)
 
-            self.modified = False
-            return True
-        else:
-            return False
+                cached_mapping_path = os.path.join(codebook_dir, "codebook-cached-mappings.json")
+                common.write_json(cached_mapping_path, self.cached_mapping)
+
+                self.modified = False
+                saved = True
+
+        return saved

@@ -1,8 +1,8 @@
 """ETL tasks"""
 
+import concurrent.futures
 import itertools
 import json
-import logging
 import os
 import re
 import sys
@@ -10,7 +10,7 @@ from typing import Iterable, Iterator, List, Set, Type, TypeVar, Union
 
 import pandas
 
-from cumulus import common, config, ctakes, deid, errors
+from cumulus import common, config, ctakes, deid, errors, formats, store
 
 T = TypeVar("T")
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
@@ -190,30 +190,57 @@ class EtlTask:
         It is expected that each task creates a single output table.
         """
         summary = config.JobSummary(self.name)
-        common.print_header(f"{self.name}:")
+        formatter = self.task_config.create_formatter(summary, self.name, self.group_field)
 
         # No data is read or written yet, so do any initial setup the formatter wants
-        self.task_config.format.initialize(summary, self.name)
+        formatter.initialize()
 
         entries = self.read_entries()
 
         # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
         # We want to batch them up, to allow resuming from interruptions more easily.
-        for index, batch in enumerate(_batch_iterate(entries, self.task_config.batch_size)):
-            # Stuff de-identified FHIR json into one big pandas DataFrame
-            dataframe = pandas.DataFrame(batch)
+        #
+        # Since a formatter can take a moment to chew on a batch, we use a thread pool of one to spin off a thread that
+        # writes out a batch while the main thread (us) goes back to reading in the next one.
+        # We don't want too many threads, because each thread batch takes up memory.
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = None
+            for index, batch in enumerate(_batch_iterate(entries, self.task_config.batch_size)):
+                # Collect the batch before submitting it to a thread,
+                # to prevent the worker & the above for loop both iterating at the same time
+                dataframe = pandas.DataFrame(batch)
 
-            # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
-            # updated codebook with no data than data with an inaccurate codebook.
-            self.scrubber.save()
-
-            # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
-            self.write_entries(summary, dataframe, index)
+                # TODO: continue testing this, see if it is worth the complexity (vs just task-threading)
+                #  Also investigate dividing the batch sizes by current number of threads.
+                #  And sending NLP requests in parallel.
+                # Now wait for previous write to finish before submitting the new batch (if we didn't do this, we could
+                # read too many batches into memory at once all queued up)
+                if future:
+                    future.result()
+                future = executor.submit(self.process_one_batch, summary, formatter, index, dataframe)
 
         # All data is written, now do any final cleanup the formatter wants
-        self.task_config.format.finalize(summary, self.name)
+        formatter.finalize()
+        print(f"  ⭐ done with {self.name} ({summary.success:,} processed) ⭐")
 
         return summary
+
+    def process_one_batch(
+        self, summary: config.JobSummary, formatter: formats.Format, index: int, dataframe: pandas.DataFrame
+    ):
+        """
+        Bundles up and sends a single batch of data to the formatter.
+
+        Designed to be called as a threaded worker task.
+        """
+        # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
+        # updated codebook with no data than data with an inaccurate codebook.
+        self.scrubber.save()
+
+        # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
+        formatter.write_records(dataframe, index)
+
+        print(f"  {summary.success:,} processed for {self.name}")
 
     ##########################################################################################
     #
@@ -231,10 +258,6 @@ class EtlTask:
         all_files = os.listdir(self.task_config.dir_input)
         filenames = list(filter(pattern.match, all_files))
 
-        if not filenames:
-            logging.error("Could not find any files for %s in the input folder, skipping that resource.", self.resource)
-            return
-
         for filename in filenames:
             with common.open_file(os.path.join(self.task_config.dir_input, filename), "r") as f:
                 for line in f:
@@ -251,10 +274,6 @@ class EtlTask:
         See comments for EtlTask.group_field for why you might do this.
         """
         return filter(self.scrubber.scrub_resource, self.read_ndjson())
-
-    def write_entries(self, summary: config.JobSummary, dataframe: pandas.DataFrame, index: int) -> None:
-        """Writes a single dataframe to the output"""
-        self.task_config.format.write_records(summary, dataframe, self.name, index, group_field=self.group_field)
 
 
 ##########################################################################################
@@ -321,6 +340,8 @@ class CovidSymptomNlpResultsTask(EtlTask):
 
     def read_entries(self) -> Iterator[Union[List[dict], dict]]:
         """Passes physician notes through NLP and returns any symptoms found"""
+        phi_root = store.Root(self.task_config.dir_phi, create=True)
+
         for docref in self.read_ndjson():
             if not self.scrubber.scrub_resource(docref, scrub_attachments=False):
                 continue
@@ -335,4 +356,4 @@ class CovidSymptomNlpResultsTask(EtlTask):
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield ctakes.covid_symptoms_extract(self.task_config.dir_phi, docref)
+            yield ctakes.covid_symptoms_extract(phi_root, docref)

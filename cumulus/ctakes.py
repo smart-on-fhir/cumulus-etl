@@ -38,7 +38,7 @@ def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
                 physician_note = base64.standard_b64decode(content["attachment"]["data"]).decode(charset)
                 break
     else:
-        logging.warning("No text/plain content for symptoms")  # ideally would print identifier, but it's PHI...
+        logging.warning("No text/plain content in docref %s", docref_id)
         return []
 
     # Strip this "line feed" character that often shows up in notes and is confusing for cNLP.
@@ -58,7 +58,7 @@ def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
     try:
         ctakes_json = extract(cache, ctakes_namespace, physician_note)
     except Exception as exc:  # pylint: disable=broad-except
-        logging.error("Could not extract symptoms: %s", exc)
+        logging.exception("Could not extract symptoms for docref: %s", docref_id)
         return []
 
     matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
@@ -77,7 +77,7 @@ def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
         spans = ctakes_json.list_spans(matches)
         polarities_cnlp = list_polarity(cache, cnlp_namespace, physician_note, spans)
     except Exception:  # pylint: disable=broad-except
-        logging.exception("Could not check negation")
+        logging.exception("Could not check negation for docref %s", docref_id)
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
 
     # Now filter out any non-positive matches

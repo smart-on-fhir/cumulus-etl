@@ -47,6 +47,7 @@ class TestCodebook(unittest.TestCase):
 
 
 @ddt.ddt
+@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")
 class TestCodebookDB(unittest.TestCase):
     """Test case for the CodebookDB class"""
 

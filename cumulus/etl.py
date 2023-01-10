@@ -1,6 +1,7 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
+import concurrent.futures
 import itertools
 import json
 import logging
@@ -10,12 +11,13 @@ import socket
 import sys
 import tempfile
 import time
+from functools import partial
 from typing import List, Type
 from urllib.parse import urlparse
 
 import ctakesclient
 
-from cumulus import common, context, deid, errors, formats, loaders, store, tasks
+from cumulus import common, context, deid, errors, loaders, store, tasks
 from cumulus.config import JobConfig, JobSummary
 
 
@@ -41,9 +43,27 @@ def load_and_deidentify(
 
     # First step is loading all the data into a local ndjson format
     loaded_dir = loader.load_all(list(required_resources))
+    return loaded_dir
 
     # Second step is de-identifying that data (at a bulk level)
-    return deid.Scrubber.scrub_bulk_data(loaded_dir.name)
+    # return deid.Scrubber.scrub_bulk_data(loaded_dir.name)
+
+
+def run_one_task(config: JobConfig, scrubber: deid.Scrubber, task_class: Type[tasks.EtlTask]) -> JobSummary:
+    """
+    Runs one task class to completion and returns the task summary.
+
+    :param config: job config
+    :param scrubber: de-identification scrubber
+    :param task_class: the class of the task to run
+    :return: a list of job summaries
+    """
+    summary = task_class(config, scrubber).run()
+
+    path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
+    common.write_json(path, summary.as_json(), indent=4)
+
+    return summary
 
 
 def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> List[JobSummary]:
@@ -52,18 +72,11 @@ def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> Lis
     :param selected_tasks: the tasks to run
     :return: a list of job summaries
     """
-    summary_list = []
-
-    scrubber = deid.Scrubber(config.dir_phi.path)
-    for task_class in selected_tasks:
-        task = task_class(config, scrubber)
-        summary = task.run()
-        summary_list.append(summary)
-
-        path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
-        common.write_json(path, summary.as_json(), indent=4)
-
-    return summary_list
+    common.print_header(f"Tasks:")
+    scrubber = deid.Scrubber(config.dir_phi)
+    config.initialize_formatter()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(selected_tasks)) as executor:
+        return list(executor.map(partial(run_one_task, config, scrubber), selected_tasks))
 
 
 ###############################################################################
@@ -205,7 +218,6 @@ def main(args: List[str]):
     common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
     root_input = store.Root(args.dir_input)
-    root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 
     job_context = context.JobContext(root_phi.joinpath("context.json"))
@@ -215,13 +227,6 @@ def main(args: List[str]):
         config_loader = loaders.I2b2Loader(root_input, args.batch_size)
     else:
         config_loader = loaders.FhirNdjsonLoader(root_input, client_id=args.smart_client_id, jwks=args.smart_jwks)
-
-    if args.output_format == "deltalake":
-        config_store = formats.DeltaLakeFormat(root_output)
-    elif args.output_format == "parquet":
-        config_store = formats.ParquetFormat(root_output)
-    else:
-        config_store = formats.NdjsonFormat(root_output)
 
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and list(itertools.chain.from_iterable(t.split(",") for t in args.task))
@@ -233,10 +238,12 @@ def main(args: List[str]):
 
     # Prepare config for jobs
     config = JobConfig(
-        config_loader,
+        args.dir_input,
         deid_dir.name,
-        config_store,
-        root_phi,
+        args.dir_output,
+        args.dir_phi,
+        args.input_format,
+        args.output_format,
         comment=args.comment,
         batch_size=args.batch_size,
         timestamp=job_datetime,
@@ -256,8 +263,8 @@ def main(args: List[str]):
 
     # Update job context for future runs
     job_context.last_successful_datetime = job_datetime
-    job_context.last_successful_input_dir = root_input.path
-    job_context.last_successful_output_dir = root_output.path
+    job_context.last_successful_input_dir = args.dir_input
+    job_context.last_successful_output_dir = args.dir_output
     job_context.save()
 
     # If any task had a failure, flag that for the user

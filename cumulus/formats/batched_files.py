@@ -37,29 +37,19 @@ class BatchedFileFormat(Format):
     #
     ##########################################################################################
 
-    def initialize(self, summary, dbname: str) -> None:
+    def initialize(self) -> None:
         """Performs any preparation before any batches have been written."""
         # Let's clear out any existing files before writing any new ones.
         # Note: There is a real issue here where Athena will see invalid results until we've written all
         #       our files out. Use the deltalake format to get atomic updates.
-        parent_dir = self.root.joinpath(dbname)
+        parent_dir = self.root.joinpath(self.dbname)
         try:
             self.root.rm(parent_dir, recursive=True)
         except FileNotFoundError:
             pass
+        self.root.makedirs(parent_dir)
 
-    def write_records(
-        self, summary, dataframe: pandas.DataFrame, dbname: str, batch: int, group_field: str = None
-    ) -> None:
+    def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
         """Writes the whole dataframe to a single file"""
-        summary.attempt += len(dataframe)
-
-        try:
-            full_path = self.root.joinpath(f"{dbname}/{dbname}.{batch:03}.{self.suffix}")
-            self.root.makedirs(os.path.dirname(full_path))
-            self.write_format(dataframe, full_path)
-
-            summary.success += len(dataframe)
-            summary.success_rate(1)
-        except Exception:  # pylint: disable=broad-except
-            logging.exception("Could not process data records")
+        full_path = self.root.joinpath(f"{self.dbname}/{self.dbname}.{batch:03}.{self.suffix}")
+        self.write_format(dataframe, full_path)
