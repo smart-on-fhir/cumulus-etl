@@ -91,7 +91,7 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
 
     end = time.perf_counter()
 
-    print(f"TIME: ctakes: {end - start} total, {post_ctakes - pre_ctakes} ctakes, {post_nlp - pre_nlp} cnlp")
+    print(f"TIME: ctakes: {start - pre_ctakes:.7f} pre, {post_ctakes - pre_ctakes:.7f} ctakes, {pre_nlp-post_ctakes:.7f} mid, {post_nlp - pre_nlp:.7f} cnlp, {end-post_nlp:.7f} post")
 
     return positive_matches
 
