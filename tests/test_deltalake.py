@@ -9,7 +9,8 @@ from typing import List
 import pandas
 import pytest
 from pyspark.sql.utils import AnalysisException
-from cumulus import config, formats, store
+from cumulus import config, store
+from cumulus.formats.deltalake import DeltaLakeFormat
 
 
 class TestDeltaLake(unittest.TestCase):
@@ -25,15 +26,15 @@ class TestDeltaLake(unittest.TestCase):
         output_tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         cls.output_tempdir = output_tempdir
         cls.output_dir = output_tempdir.name
+        cls.root = store.Root(output_tempdir.name)
 
-        # It is expensive to create a DeltaLakeFormat instance because of all the pyspark jar downloading etc.
+        # It is expensive to initialize DeltaLakeFormat because of all the pyspark jar downloading etc.
         # So we only do it once per class suite. (And erase all folder contents per-test)
-        cls.deltalake = formats.DeltaLakeFormat(store.Root(output_tempdir.name))
+        DeltaLakeFormat.initialize_class(cls.root)
 
     def setUp(self):
         super().setUp()
         shutil.rmtree(self.output_dir, ignore_errors=True)
-        self.job = config.JobSummary()
 
     @staticmethod
     def df(**kwargs) -> pandas.DataFrame:
@@ -51,7 +52,8 @@ class TestDeltaLake(unittest.TestCase):
         :param batch: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
         :param group_field: a group field name, used to delete non-matching group rows
         """
-        self.deltalake.write_records(self.job, df, "patient", batch, group_field=group_field)
+        deltalake = DeltaLakeFormat(self.root, config.JobSummary(), "patient", group_field=group_field)
+        deltalake.write_records(df, batch)
 
     @staticmethod
     def spark_to_records(table) -> List[dict]:
@@ -66,7 +68,7 @@ class TestDeltaLake(unittest.TestCase):
     def assert_lake_equal(self, df: pandas.DataFrame, when: int = None) -> None:
         table_path = os.path.join(self.output_dir, "patient")
 
-        reader = self.deltalake.spark.read
+        reader = DeltaLakeFormat.spark.read
         if when is not None:
             reader = reader.option("versionAsOf", when)
 
@@ -123,7 +125,7 @@ class TestDeltaLake(unittest.TestCase):
         self.store(self.df(a=[{"one": 1, "two": 2}]))
 
         table_path = os.path.join(self.output_dir, "patient")
-        reader = self.deltalake.spark.read
+        reader = DeltaLakeFormat.spark.read
         table_df = reader.format("delta").load(table_path)
         self.assertDictEqual(
             {

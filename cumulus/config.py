@@ -5,55 +5,67 @@ import os
 from socket import gethostname
 from typing import List
 
-from cumulus import common, formats, loaders, store
+from cumulus import common, formats, store
 
 
 class JobConfig:
-    """Configuration for an ETL job"""
+    """
+    Configuration for an entire ETL run.
+
+    This only store simple data structures, but can act as a factory for more interesting ones.
+    For example, this config holds the output format slug string, but can spit out a Format class for you.
+    This architecture is designed to make it easier to pass a JobConfig to multiple processes.
+    """
 
     def __init__(
         self,
-        loader: loaders.Loader,
-        dir_input: str,
-        store_format: formats.Format,
-        dir_phi: store.Root,
+        dir_input_orig: str,  # original user-input path
+        dir_input_deid: str,  # temporary dir where we are reading the de-identified data from
+        dir_output: str,
+        dir_phi: str,
+        input_format: str,
+        output_format: str,
         timestamp: datetime.datetime = None,
         comment: str = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
         tasks: List[str] = None,
     ):
-        """
-        :param loader: describes how input files were loaded (e.g. i2b2 or ndjson)
-        :param dir_input: the actual folder to grab input files from, in ndjson format
-        :param store_format: where to place output files and how, like ndjson
-        :param dir_phi: where to place PHI build artifacts like the codebook
-        """
-        self._loader = loader  # only kept around for logging purposes, use dir_input to read data
-        self.dir_input = dir_input
-        self.format = store_format
+        self._dir_input_orig = dir_input_orig
+        self.dir_input = dir_input_deid
+        self._dir_output = dir_output
         self.dir_phi = dir_phi
+        self._input_format = input_format
+        self._output_format = output_format
         self.timestamp = common.timestamp_filename(timestamp)
         self.hostname = gethostname()
         self.comment = comment or ""
         self.batch_size = batch_size
         self.tasks = tasks or []
 
+        # initialize format class
+        self._output_root = store.Root(self._dir_output, create=True)
+        self._format_class = formats.get_format_class(self._output_format)
+        self._format_class.initialize_class(self._output_root)
+
+    def create_formatter(self, summary, dbname: str, group_field: str = None) -> formats.Format:
+        return self._format_class(self._output_root, summary, dbname, group_field)
+
     def path_config(self) -> str:
         return os.path.join(self.dir_job_config(), "job_config.json")
 
     def dir_job_config(self) -> str:
-        path = self.format.root.joinpath(f"JobConfig/{self.timestamp}")
-        self.format.root.makedirs(path)
+        path = self._output_root.joinpath(f"JobConfig/{self.timestamp}")
+        self._output_root.makedirs(path)
         return path
 
     def as_json(self):
         return {
-            "dir_input": self._loader.root.path,  # the original folder, rather than the temp dir holding deid files
-            "dir_output": self.format.root.path,
-            "dir_phi": self.dir_phi.path,
+            "dir_input": self._dir_input_orig,  # the original folder, rather than the temp dir holding deid files
+            "dir_output": self._dir_output,
+            "dir_phi": self.dir_phi,
             "path": self.path_config(),
-            "input_format": type(self._loader).__name__,
-            "output_format": type(self.format).__name__,
+            "input_format": self._input_format,
+            "output_format": self._output_format,
             "comment": self.comment,
             "batch_size": self.batch_size,
             "tasks": ",".join(self.tasks),
@@ -65,35 +77,25 @@ class JobSummary:
 
     def __init__(self, label=None):
         self.label = label
-        self.csv = []
         self.attempt = 0
         self.success = 0
-        self.failed = []
         self.timestamp = common.timestamp_datetime()
         self.hostname = gethostname()
 
-    def success_rate(self, show_every=1000 * 10) -> float:
+    def success_rate(self) -> float:
         """
-        :param show_every: print success rate
-        :return: % success rate
+        :return: % success rate (0.0 to 1.0)
         """
         if not self.attempt:
             return 1.0
 
-        prct = float(self.success) / float(self.attempt)
-
-        if 0 == self.attempt % show_every:
-            print(f"success = {self.success:,} rate % {prct}")
-
-        return prct
+        return float(self.success) / float(self.attempt)
 
     def as_json(self):
         return {
-            "csv": self.csv,
             "label": self.label,
             "attempt": self.attempt,
             "success": self.success,
-            "failed": self.failed,
             "success_rate": self.success_rate(),
             "timestamp": self.timestamp,
             "hostname": self.hostname,

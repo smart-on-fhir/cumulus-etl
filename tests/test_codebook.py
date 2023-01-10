@@ -14,6 +14,7 @@ from cumulus.deid.codebook import Codebook, CodebookDB
 def assert_empty_db(db: CodebookDB):
     assert {
         "version": 1,
+        "id_salt": "31323334",
     } == db.settings
 
 
@@ -47,6 +48,7 @@ class TestCodebook(unittest.TestCase):
 
 
 @ddt.ddt
+@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
 class TestCodebookDB(unittest.TestCase):
     """Test case for the CodebookDB class"""
 
@@ -130,9 +132,7 @@ class TestCodebookDB(unittest.TestCase):
             # But after a save, we are no longer modified
             self.assertFalse(db.save(tmpdir))
 
-            # Resource hashes cause modification once
-            db.resource_hash("1")
-            self.assertTrue(db.save(tmpdir))
+            # Resource hashes don't cause modification
             db.resource_hash("1")
             self.assertFalse(db.save(tmpdir))
 

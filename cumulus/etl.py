@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 import ctakesclient
 
-from cumulus import common, context, deid, errors, formats, loaders, store, tasks
+from cumulus import common, context, deid, errors, loaders, store, tasks
 from cumulus.config import JobConfig, JobSummary
 
 
@@ -54,7 +54,7 @@ def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> Lis
     """
     summary_list = []
 
-    scrubber = deid.Scrubber(config.dir_phi.path)
+    scrubber = deid.Scrubber(config.dir_phi)
     for task_class in selected_tasks:
         task = task_class(config, scrubber)
         summary = task.run()
@@ -205,7 +205,6 @@ def main(args: List[str]):
     common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
     root_input = store.Root(args.dir_input)
-    root_output = store.Root(args.dir_output, create=True)
     root_phi = store.Root(args.dir_phi, create=True)
 
     job_context = context.JobContext(root_phi.joinpath("context.json"))
@@ -215,13 +214,6 @@ def main(args: List[str]):
         config_loader = loaders.I2b2Loader(root_input, args.batch_size)
     else:
         config_loader = loaders.FhirNdjsonLoader(root_input, client_id=args.smart_client_id, jwks=args.smart_jwks)
-
-    if args.output_format == "deltalake":
-        config_store = formats.DeltaLakeFormat(root_output)
-    elif args.output_format == "parquet":
-        config_store = formats.ParquetFormat(root_output)
-    else:
-        config_store = formats.NdjsonFormat(root_output)
 
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and list(itertools.chain.from_iterable(t.split(",") for t in args.task))
@@ -233,10 +225,12 @@ def main(args: List[str]):
 
     # Prepare config for jobs
     config = JobConfig(
-        config_loader,
+        args.dir_input,
         deid_dir.name,
-        config_store,
-        root_phi,
+        args.dir_output,
+        args.dir_phi,
+        args.input_format,
+        args.output_format,
         comment=args.comment,
         batch_size=args.batch_size,
         timestamp=job_datetime,
@@ -256,8 +250,8 @@ def main(args: List[str]):
 
     # Update job context for future runs
     job_context.last_successful_datetime = job_datetime
-    job_context.last_successful_input_dir = root_input.path
-    job_context.last_successful_output_dir = root_output.path
+    job_context.last_successful_input_dir = args.dir_input
+    job_context.last_successful_output_dir = args.dir_output
     job_context.save()
 
     # If any task had a failure, flag that for the user
