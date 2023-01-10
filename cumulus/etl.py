@@ -226,12 +226,12 @@ def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Itera
         is_er_note = list(filter(is_er_coding, type_codings))
         if not is_er_note:
             continue
-        filter = time.perf_counter()
+        post_filter = time.perf_counter()
 
         symptoms = ctakes.covid_symptoms_extract(config.dir_phi, docref)
         end = time.perf_counter()
 
-        print(f"TIME: etl: {end - start} total, {scrub-start} scrub, {filter-scrub} filter, {end-filter} nlp")
+        print(f"TIME: etl: {end - start} total, {scrub-start} scrub, {post_filter-scrub} filter, {end-filter} nlp")
 
         for symptom in symptoms:
             yield symptom
