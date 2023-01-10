@@ -70,12 +70,11 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
     # there too. We have found this to yield better results than cTAKES alone.
     try:
         spans = ctakes_json.list_spans(matches)
-        post_nlp = time.perf_counter()
         polarities_cnlp = list_polarity(cache, prefix, physician_note, spans)
     except Exception:  # pylint: disable=broad-except
-        post_nlp = time.perf_counter()
         logging.exception('Could not check negation')
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
+    post_nlp = time.perf_counter()
 
     # Now filter out any non-positive matches
     positive_matches = []
