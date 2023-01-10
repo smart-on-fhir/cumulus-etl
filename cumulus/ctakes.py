@@ -5,6 +5,7 @@ import cgi
 import hashlib
 import logging
 import os
+import time
 from typing import List
 
 import ctakesclient
@@ -21,6 +22,8 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
     :param docref: Physician Note
     :return: list of NLP results encoded as FHIR observations
     """
+    start = time.perf_counter()
+
     docref_id = docref.id
     _, subject_id = fhir_common.unref_resource(docref.subject)
 
@@ -49,20 +52,28 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
     #  this prefix. For now, we'll manually update this prefix if/when the cTAKES algorithm we use changes.
     prefix = 'version1'
 
+    pre_ctakes = time.perf_counter()
+
     try:
         ctakes_json = extract(cache, prefix, physician_note)
     except Exception as exc:  # pylint: disable=broad-except
         logging.error('Could not extract symptoms: %s', exc)
         return []
 
+    post_ctakes = time.perf_counter()
+
     matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
+
+    pre_nlp = time.perf_counter()
 
     # OK we have cTAKES symptoms. But let's also filter through cNLP transformers to remove any that are negated
     # there too. We have found this to yield better results than cTAKES alone.
     try:
         spans = ctakes_json.list_spans(matches)
+        post_nlp = time.perf_counter()
         polarities_cnlp = list_polarity(cache, prefix, physician_note, spans)
     except Exception:  # pylint: disable=broad-except
+        post_nlp = time.perf_counter()
         logging.exception('Could not check negation')
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
 
@@ -77,6 +88,10 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
                 'subject_id': subject_id,
                 'match': match.as_json(),
             })
+
+    end = time.perf_counter()
+
+    print(f"TIME: ctakes: {end - start} total, {post_ctakes - pre_ctakes} ctakes, {post_nlp - pre_nlp} cnlp")
 
     return positive_matches
 

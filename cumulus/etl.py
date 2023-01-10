@@ -215,8 +215,10 @@ def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Itera
         ]
 
     for docref in _read_ndjson(config, DocumentReference):
+        start = time.perf_counter()
         if not scrubber.scrub_resource(docref, scrub_attachments=False):
             continue
+        scrub = time.perf_counter()
 
         # Check that the note is one of our special allow-listed types (we do this here rather than on the output side
         # to save needing to run everything through NLP).
@@ -224,8 +226,13 @@ def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Itera
         is_er_note = list(filter(is_er_coding, type_codings))
         if not is_er_note:
             continue
+        filter = time.perf_counter()
 
         symptoms = ctakes.covid_symptoms_extract(config.dir_phi, docref)
+        end = time.perf_counter()
+
+        print(f"TIME: etl: {end - start} total, {scrub-start} scrub, {filter-scrub} filter, {end-filter} nlp")
+
         for symptom in symptoms:
             yield symptom
 
