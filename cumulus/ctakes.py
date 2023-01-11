@@ -25,7 +25,7 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
     _, subject_id = fhir_common.unref_resource(docref.subject)
 
     if not docref.context or not docref.context.encounter:
-        logging.warning('No valid encounters for symptoms')  # ideally would print identifier, but it's PHI...
+        logging.warning("No valid encounters for symptoms")  # ideally would print identifier, but it's PHI...
         return []
     _, encounter_id = fhir_common.unref_resource(docref.context.encounter[0])
 
@@ -33,26 +33,26 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
     for content in docref.content:
         if content.attachment.contentType and content.attachment.data:
             mimetype, params = cgi.parse_header(content.attachment.contentType)
-            if mimetype == 'text/plain':  # just grab first text we find
-                charset = params.get('charset', 'utf8')
+            if mimetype == "text/plain":  # just grab first text we find
+                charset = params.get("charset", "utf8")
                 physician_note = base64.standard_b64decode(content.attachment.data).decode(charset)
                 break
     else:
-        logging.warning('No text/plain content for symptoms')  # ideally would print identifier, but it's PHI...
+        logging.warning("No text/plain content for symptoms")  # ideally would print identifier, but it's PHI...
         return []
 
     # Strip this "line feed" character that often shows up in notes and is confusing for cNLP.
-    physician_note = physician_note.replace('¿', ' ')
+    physician_note = physician_note.replace("¿", " ")
 
     # FIXME: Ideally this prefix would be study-specific like 'covid_symptoms', but we use `version1` for
     #  historical reasons. Ideally we'd also be able to ask ctakesclient for NLP algorithm information as part of
     #  this prefix. For now, we'll manually update this prefix if/when the cTAKES algorithm we use changes.
-    prefix = 'version1'
+    prefix = "version1"
 
     try:
         ctakes_json = extract(cache, prefix, physician_note)
     except Exception as exc:  # pylint: disable=broad-except
-        logging.error('Could not extract symptoms: %s', exc)
+        logging.error("Could not extract symptoms: %s", exc)
         return []
 
     matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
@@ -63,20 +63,22 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
         spans = ctakes_json.list_spans(matches)
         polarities_cnlp = list_polarity(cache, prefix, physician_note, spans)
     except Exception:  # pylint: disable=broad-except
-        logging.exception('Could not check negation')
+        logging.exception("Could not check negation")
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
 
     # Now filter out any non-positive matches
     positive_matches = []
     for i, match in enumerate(matches):
         if polarities_cnlp[i] == ctakesclient.typesystem.Polarity.pos:
-            positive_matches.append({
-                'id': f'{docref_id}.{i}',
-                'docref_id': docref.id,
-                'encounter_id': encounter_id,
-                'subject_id': subject_id,
-                'match': match.as_json(),
-            })
+            positive_matches.append(
+                {
+                    "id": f"{docref_id}.{i}",
+                    "docref_id": docref.id,
+                    "encounter_id": encounter_id,
+                    "subject_id": subject_id,
+                    "match": match.as_json(),
+                }
+            )
 
     return positive_matches
 
@@ -102,10 +104,10 @@ def extract(cache: store.Root, prefix: str, sentence: str) -> ctakesclient.types
 
 
 def list_polarity(
-        cache: store.Root,
-        prefix: str,
-        sentence: str,
-        spans: List[tuple],
+    cache: store.Root,
+    prefix: str,
+    sentence: str,
+    spans: List[tuple],
 ) -> List[ctakesclient.typesystem.Polarity]:
     """
     This is a version of ctakesclient.transformer.list_polarity() that also uses a cache
@@ -116,7 +118,7 @@ def list_polarity(
     if not spans:
         return []
 
-    full_path = cache.joinpath(_target_filename(f'{prefix}-cnlp', sentence))
+    full_path = cache.joinpath(_target_filename(f"{prefix}-cnlp", sentence))
 
     try:
         result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
@@ -144,7 +146,7 @@ def _target_filename(prefix: str, sentence: str) -> str:
     # in a PHI-capable folder. But still, why make it easier to brute-force.
     # SHA256 is not yet cryptographically broken and is not much slower. Let's just use it.
     # (Actually, on my machine it is faster. Run 'openssl speed md5 sha1 sha256' to see what you get.)
-    checksum = hashlib.sha256(sentence.encode('utf8')).hexdigest()
+    checksum = hashlib.sha256(sentence.encode("utf8")).hexdigest()
     partial = checksum[0:4]
 
-    return f'ctakes-cache/{prefix}/{partial}/sha256-{checksum}.json'
+    return f"ctakes-cache/{prefix}/{partial}/sha256-{checksum}.json"

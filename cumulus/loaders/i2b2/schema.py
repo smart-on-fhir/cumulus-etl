@@ -12,16 +12,17 @@ class Table(Enum):
     select TABLE_NAME from all_tables
      where tablespace_name = 'I2B2_BLUE_TABLESPACE'
     """
-    patient = 'patient_dimension'
-    patient_map = 'patient_mapping'
-    provider = 'provider_dimension'
-    visit = 'visit_dimension'
-    concept = 'concept_dimension'
-    modifier = 'modifier_dimension'
-    observation_fact = 'observation_fact'
-    i2b2 = 'i2b2'  # metadata
-    mrn_patient_uuid = 'mrn_patuuid_patnum'
-    mrn_patient_failed = 'mrn_patuuid_patnum_failed'
+
+    patient = "patient_dimension"
+    patient_map = "patient_mapping"
+    provider = "provider_dimension"
+    visit = "visit_dimension"
+    concept = "concept_dimension"
+    modifier = "modifier_dimension"
+    observation_fact = "observation_fact"
+    i2b2 = "i2b2"  # metadata
+    mrn_patient_uuid = "mrn_patuuid_patnum"
+    mrn_patient_failed = "mrn_patuuid_patnum_failed"
 
 
 class Dimension:
@@ -63,12 +64,12 @@ class PatientDimension(Dimension):
         if row is None:
             row = {}
 
-        self.patient_num = row.get('PATIENT_NUM')
-        self.birth_date = row.get('BIRTH_DATE')
-        self.death_date = row.get('DEATH_DATE')
-        self.sex_cd = row.get('SEX_CD')
-        self.race_cd = row.get('RACE_CD')
-        self.zip_cd = row.get('ZIP_CD')
+        self.patient_num = row.get("PATIENT_NUM")
+        self.birth_date = row.get("BIRTH_DATE")
+        self.death_date = row.get("DEATH_DATE")
+        self.sex_cd = row.get("SEX_CD")
+        self.race_cd = row.get("RACE_CD")
+        self.zip_cd = row.get("ZIP_CD")
 
         self.table = Table.patient
 
@@ -96,12 +97,12 @@ class ProviderDimension(Dimension):
         if row is None:
             row = {}
 
-        self.provider_path = row.get('PROVIDER_PATH')
-        self.provider_id = row.get('PROVIDER_ID')
-        self.sourcesystem_cd = row.get('SOURCESYSTEM_CD')
-        self.name_char = row.get('NAME_CHAR')
-        self.provider_blob = row.get('PROVIDER_BLOB')
-        self.import_date = row.get('IMPORT_DATE')
+        self.provider_path = row.get("PROVIDER_PATH")
+        self.provider_id = row.get("PROVIDER_ID")
+        self.sourcesystem_cd = row.get("SOURCESYSTEM_CD")
+        self.name_char = row.get("NAME_CHAR")
+        self.provider_blob = row.get("PROVIDER_BLOB")
+        self.import_date = row.get("IMPORT_DATE")
 
         self.table = Table.provider
 
@@ -132,12 +133,12 @@ class VisitDimension(Dimension):
         if row is None:
             row = {}
 
-        self.patient_num = row.get('PATIENT_NUM')
-        self.encounter_num = row.get('ENCOUNTER_NUM')
-        self.start_date = row.get('START_DATE')
-        self.end_date = row.get('END_DATE')
-        self.inout_cd = row.get('INOUT_CD')
-        self.length_of_stay = row.get('LENGTH_OF_STAY')
+        self.patient_num = row.get("PATIENT_NUM")
+        self.encounter_num = row.get("ENCOUNTER_NUM")
+        self.start_date = row.get("START_DATE")
+        self.end_date = row.get("END_DATE")
+        self.inout_cd = row.get("INOUT_CD")
+        self.length_of_stay = row.get("LENGTH_OF_STAY")
 
         self.table = Table.visit
 
@@ -169,12 +170,12 @@ class ConceptDimension(Dimension):
         if row is None:
             row = {}
 
-        self.concept_cd = row.get('CONCEPT_CD')
-        self.name_char = row.get('NAME_CHAR')
-        self.concept_blob = row.get('CONCEPT_BLOB')
-        self.download_date = row.get('DOWNLOAD_DATE')
-        self.import_date = row.get('IMPORT_DATE')
-        self.sourcesystem_cd = row.get('SOURCESYSTEM_CD')
+        self.concept_cd = row.get("CONCEPT_CD")
+        self.name_char = row.get("NAME_CHAR")
+        self.concept_blob = row.get("CONCEPT_BLOB")
+        self.download_date = row.get("DOWNLOAD_DATE")
+        self.import_date = row.get("IMPORT_DATE")
+        self.sourcesystem_cd = row.get("SOURCESYSTEM_CD")
 
         self.table = Table.concept
 
@@ -198,11 +199,12 @@ class ValueType(Enum):
            radiology report NLP result xml objects
         NLP: NLP result xml objects
     """
-    no_value = '@'
-    numeric = 'N'
-    text = 'T'
-    physician_notes = 'B'
-    NLP = 'NLP'
+
+    no_value = "@"
+    numeric = "N"
+    text = "T"
+    physician_notes = "B"
+    NLP = "NLP"
 
 
 class ValueEquality(Enum):
@@ -221,11 +223,12 @@ class ValueEquality(Enum):
         G = Greater than
         GE = Greater than and Equal to
     """
-    equal = 'E'
-    less = 'L'
-    less_equal = 'LE'
-    greater = 'G'
-    greater_equal = 'GE'
+
+    equal = "E"
+    less = "L"
+    less_equal = "LE"
+    greater = "G"
+    greater_equal = "GE"
 
 
 class ValueFlagNormality(Enum):
@@ -242,11 +245,12 @@ class ValueFlagNormality(Enum):
         L = Low
         A = Abnormal
     """
-    no_value = '@'
-    abnormal = 'A'
-    high = 'H'
-    low = 'L'
-    encrypted = 'X'
+
+    no_value = "@"
+    abnormal = "A"
+    high = "H"
+    low = "L"
+    encrypted = "X"
 
 
 class ObservationFact(Dimension):
@@ -282,19 +286,19 @@ class ObservationFact(Dimension):
 
     def __init__(self, row: dict):
         self.table = Table.observation_fact
-        self.instance_num = row.get('INSTANCE_NUM')
-        self.patient_num = row.get('PATIENT_NUM')
-        self.encounter_num = row.get('ENCOUNTER_NUM')
-        self.concept_cd = row.get('CONCEPT_CD')
-        self.start_date = row.get('START_DATE')
-        self.end_date = row.get('END_DATE')
-        self.observation_blob = row.get('OBSERVATION_BLOB')
+        self.instance_num = row.get("INSTANCE_NUM")
+        self.patient_num = row.get("PATIENT_NUM")
+        self.encounter_num = row.get("ENCOUNTER_NUM")
+        self.concept_cd = row.get("CONCEPT_CD")
+        self.start_date = row.get("START_DATE")
+        self.end_date = row.get("END_DATE")
+        self.observation_blob = row.get("OBSERVATION_BLOB")
         #
-        self.valtype_cd = row.get('VALTYPE_CD')
-        self.valueflag_cd = row.get('VALUEFLAG_CD')
-        self.tval_char = row.get('TVAL_CHAR')
-        self.nval_num = row.get('NVAL_NUM')
-        self.modifier_cd = row.get('MODIFIER_CD')
+        self.valtype_cd = row.get("VALTYPE_CD")
+        self.valueflag_cd = row.get("VALUEFLAG_CD")
+        self.tval_char = row.get("TVAL_CHAR")
+        self.nval_num = row.get("NVAL_NUM")
+        self.modifier_cd = row.get("MODIFIER_CD")
 
     def get_value_type(self) -> ValueType:
         return ValueType(self.valtype_cd)

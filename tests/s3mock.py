@@ -22,16 +22,17 @@ from moto import mock_s3
 
 class S3Mixin(unittest.TestCase):
     """Subclass this to automatically support s3:// paths in your tests"""
+
     def setUp(self):
         super().setUp()
 
         # Moto recommends clearing out these variables, to avoid using any
         # real credentials floating around in your environment
-        os.environ['AWS_ACCESS_KEY_ID'] = 'testing'
-        os.environ['AWS_SECRET_ACCESS_KEY'] = 'testing'
-        os.environ['AWS_SECURITY_TOKEN'] = 'testing'
-        os.environ['AWS_SESSION_TOKEN'] = 'testing'
-        os.environ['AWS_DEFAULT_REGION'] = 'us-east-1'
+        os.environ["AWS_ACCESS_KEY_ID"] = "testing"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
+        os.environ["AWS_SECURITY_TOKEN"] = "testing"
+        os.environ["AWS_SESSION_TOKEN"] = "testing"
+        os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
 
         # Work around https://github.com/aio-libs/aiobotocore/issues/755
         aiobmock = patch_aiobotocore()
@@ -51,11 +52,12 @@ class S3Mixin(unittest.TestCase):
 #
 ###############################################################################
 
+
 class MockAWSResponse(aiobotocore.awsrequest.AioAWSResponse):
     """Mock aws response"""
+
     def __init__(self, response: botocore.awsrequest.AWSResponse):
-        super().__init__('', response.status_code, {},
-                         MockHttpClientResponse(response))
+        super().__init__("", response.status_code, {}, MockHttpClientResponse(response))
         self._moto_response = response
 
     # adapt async methods to use moto's response
@@ -68,6 +70,7 @@ class MockAWSResponse(aiobotocore.awsrequest.AioAWSResponse):
 
 class MockHttpClientResponse(aiohttp.client_reqrep.ClientResponse):
     """Mock http response"""
+
     def __init__(self, response: botocore.awsrequest.AWSResponse):
         # pylint: disable=super-init-not-called
 
@@ -88,13 +91,11 @@ class MockHttpClientResponse(aiohttp.client_reqrep.ClientResponse):
 def patch_aiobotocore():
     def factory(original: Callable) -> Callable:
         def patched_convert_to_response_dict(
-            http_response: botocore.awsrequest.AWSResponse,
-            operation_model: botocore.model.OperationModel
+            http_response: botocore.awsrequest.AWSResponse, operation_model: botocore.model.OperationModel
         ):
             return original(MockAWSResponse(http_response), operation_model)
 
         return patched_convert_to_response_dict
 
     original = aiobotocore.endpoint.convert_to_response_dict
-    return patch.object(aiobotocore.endpoint, 'convert_to_response_dict',
-                        new=factory(original))
+    return patch.object(aiobotocore.endpoint, "convert_to_response_dict", new=factory(original))

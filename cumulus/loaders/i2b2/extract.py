@@ -14,15 +14,15 @@ def extract_csv(path_csv: str, batch_size: int) -> Iterator[dict]:
     :param batch_size: how many entries to load into memory at once
     :return: an iterator over each row from the file
     """
-    print(f'Reading csv {path_csv}...')
+    print(f"Reading csv {path_csv}...")
     count = 0
     with pandas.read_csv(path_csv, dtype=str, na_filter=False, chunksize=batch_size) as reader:
         for chunk in reader:
-            print(f'  Read {count:,} entries...')
+            print(f"  Read {count:,} entries...")
             for _, row in chunk.iterrows():
                 yield dict(row)
             count += batch_size
-    print(f'Done reading {path_csv} .')
+    print(f"Done reading {path_csv} .")
 
 
 def extract_csv_observation_facts(path_csv: str, batch_size: int) -> Iterator[ObservationFact]:
@@ -31,7 +31,7 @@ def extract_csv_observation_facts(path_csv: str, batch_size: int) -> Iterator[Ob
     :param batch_size: how many entries to load into memory at once
     :return: i2b2 ObservationFact table
     """
-    logging.info('Transforming text into List[ObservationFact]')
+    logging.info("Transforming text into List[ObservationFact]")
     for row in extract_csv(path_csv, batch_size):
         yield ObservationFact(row)
 
@@ -42,7 +42,7 @@ def extract_csv_patients(path_csv: str, batch_size: int) -> Iterator[PatientDime
     :param batch_size: how many entries to load into memory at once
     :return: List i2b2 patient dimension table
     """
-    logging.info('Transforming text into List[PatientDimension]')
+    logging.info("Transforming text into List[PatientDimension]")
     for row in extract_csv(path_csv, batch_size):
         yield PatientDimension(row)
 
@@ -53,6 +53,6 @@ def extract_csv_visits(path_csv: str, batch_size: int) -> Iterator[VisitDimensio
     :param batch_size: how many entries to load into memory at once
     :return: List i2b2 visit dimension table
     """
-    logging.info('Transforming text into List[VisitDimension]')
+    logging.info("Transforming text into List[VisitDimension]")
     for row in extract_csv(path_csv, batch_size):
         yield VisitDimension(row)

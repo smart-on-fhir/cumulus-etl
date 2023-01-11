@@ -32,7 +32,7 @@ class FhirNdjsonLoader(base.Loader):
 
     def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         # Are we doing a bulk FHIR export from a server?
-        if self.root.protocol in ['http', 'https']:
+        if self.root.protocol in ["http", "https"]:
             return self._load_from_bulk_export(resources)
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
@@ -44,21 +44,21 @@ class FhirNdjsonLoader(base.Loader):
         #
         # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
         # TemporaryDirectory gets discarded), but that seems reasonable.
-        common.print_header('Copying ndjson input files...')
+        common.print_header("Copying ndjson input files...")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         for resource in resources:
-            self.root.get(self.root.joinpath(f'*{resource}*.ndjson'), f'{tmpdir.name}/')
+            self.root.get(self.root.joinpath(f"*{resource}*.ndjson"), f"{tmpdir.name}/")
         return tmpdir
 
     def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         # First, check that the extra arguments we need were provided
         error_list = []
         if not self.client_id:
-            error_list.append('You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.')
+            error_list.append("You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.")
         if not self.jwks:
-            error_list.append('You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.')
+            error_list.append("You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.")
         if error_list:
-            print('\n'.join(error_list), file=sys.stderr)
+            print("\n".join(error_list), file=sys.stderr)
             raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
 
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with

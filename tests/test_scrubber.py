@@ -14,59 +14,60 @@ from cumulus.deid.codebook import CodebookDB
 from tests import i2b2_mock_data
 
 
-@mock.patch('cumulus.deid.codebook.secrets.token_hex', new=lambda x: b'1234')  # just to not waste entropy
+@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: b"1234")  # just to not waste entropy
 class TestScrubber(unittest.TestCase):
     """Test case for the Scrubber class"""
 
     def test_patient(self):
         """Verify a basic patient (saved ids)"""
         patient = i2b2_mock_data.patient()
-        self.assertEqual('12345', patient.id)
+        self.assertEqual("12345", patient.id)
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(patient))
-        self.assertEqual(patient.id, scrubber.codebook.fake_id('Patient', '12345'))
+        self.assertEqual(patient.id, scrubber.codebook.fake_id("Patient", "12345"))
 
     def test_encounter(self):
         """Verify a basic encounter (saved ids)"""
         encounter = i2b2_mock_data.encounter()
-        self.assertEqual('Patient/12345', encounter.subject.reference)
-        self.assertEqual('67890', encounter.id)
+        self.assertEqual("Patient/12345", encounter.subject.reference)
+        self.assertEqual("67890", encounter.id)
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(encounter))
-        self.assertEqual(encounter.id, scrubber.codebook.fake_id('Encounter', '67890'))
+        self.assertEqual(encounter.id, scrubber.codebook.fake_id("Encounter", "67890"))
         self.assertEqual(encounter.subject.reference, f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
 
     def test_condition(self):
         """Verify a basic condition (hashed ids)"""
         condition = i2b2_mock_data.condition()
-        self.assertEqual('4567', condition.id)
-        self.assertEqual('Patient/12345', condition.subject.reference)
-        self.assertEqual('Encounter/67890', condition.encounter.reference)
+        self.assertEqual("4567", condition.id)
+        self.assertEqual("Patient/12345", condition.subject.reference)
+        self.assertEqual("Encounter/67890", condition.encounter.reference)
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertEqual(condition.id, scrubber.codebook.fake_id('Condition', '4567'))
+        self.assertEqual(condition.id, scrubber.codebook.fake_id("Condition", "4567"))
         self.assertEqual(condition.subject.reference, f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
         self.assertEqual(condition.encounter.reference, f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}")
 
     def test_documentreference(self):
         """Test DocumentReference, which is interesting because of its list of encounters and attachments"""
         docref = i2b2_mock_data.documentreference()
-        self.assertEqual('345', docref.id)
-        self.assertEqual('Patient/12345', docref.subject.reference)
+        self.assertEqual("345", docref.id)
+        self.assertEqual("Patient/12345", docref.subject.reference)
         self.assertEqual(1, len(docref.context.encounter))
-        self.assertEqual('Encounter/67890', docref.context.encounter[0].reference)
+        self.assertEqual("Encounter/67890", docref.context.encounter[0].reference)
         self.assertEqual(1, len(docref.content))
         self.assertIsNotNone(docref.content[0].attachment.data)
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(docref))
-        self.assertEqual(docref.id, scrubber.codebook.fake_id('DocumentReference', '345'))
+        self.assertEqual(docref.id, scrubber.codebook.fake_id("DocumentReference", "345"))
         self.assertEqual(docref.subject.reference, f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
-        self.assertEqual(docref.context.encounter[0].reference,
-                         f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}")
+        self.assertEqual(
+            docref.context.encounter[0].reference, f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}"
+        )
         self.assertIsNone(docref.content[0].attachment.data)
 
     def test_unknown_modifier_extension(self):
@@ -77,13 +78,13 @@ class TestScrubber(unittest.TestCase):
         patient.modifierExtension = []
         self.assertTrue(scrubber.scrub_resource(patient))
 
-        patient.modifierExtension = [Extension({'url': 'http://example.org/unknown-extension'})]
+        patient.modifierExtension = [Extension({"url": "http://example.org/unknown-extension"})]
         self.assertFalse(scrubber.scrub_resource(patient))
 
     def test_nlp_extensions_allowed(self):
         """Confirm we that nlp-generated resources are allowed, with their modifier extensions"""
-        match = typesystem.MatchText({'begin': 0, 'end': 1, 'polarity': 0, 'text': 'f', 'type': 'SignSymptomMention'})
-        observation = text2fhir.nlp_observation('1', '2', '3', match)
+        match = typesystem.MatchText({"begin": 0, "end": 1, "polarity": 0, "text": "f", "type": "SignSymptomMention"})
+        observation = text2fhir.nlp_observation("1", "2", "3", match)
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(observation))
@@ -96,40 +97,38 @@ class TestScrubber(unittest.TestCase):
         scrubber.save()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, 'cb.json')
+            path = os.path.join(tmpdir, "cb.json")
 
             # Start with one encounter in db
             db = CodebookDB()
-            db.encounter('1')
+            db.encounter("1")
             db.save(path)
 
             # Confirm we loaded that encounter correctly
             scrubber = Scrubber(path)
             encounter = i2b2_mock_data.encounter()  # patient is 12345
-            encounter.id = '1'
+            encounter.id = "1"
             self.assertTrue(scrubber.scrub_resource(encounter))
-            self.assertEqual(encounter.id, db.encounter('1'))
+            self.assertEqual(encounter.id, db.encounter("1"))
 
             # Save back to disk and confirm that we kept the same IDs
             scrubber.save()
             db2 = CodebookDB(path)
-            self.assertEqual(db.encounter('1'), db2.encounter('1'))
+            self.assertEqual(db.encounter("1"), db2.encounter("1"))
             self.assertEqual(encounter.subject.reference, f"Patient/{db2.patient('12345')}")
 
             # ensure value errors are handled inside scrub_resource:
             encounter_bad = i2b2_mock_data.encounter()
-            encounter_bad.elementProperties = mock.Mock(
-                side_effect=ValueError(1)
-            )
+            encounter_bad.elementProperties = mock.Mock(side_effect=ValueError(1))
             scrubber.scrub_resource(encounter_bad)
 
             # make sure that we raise an error on an unexpected cookbook version
-            db.mapping['version'] = '.99'
+            db.mapping["version"] = ".99"
             db.modified = True
             db.save(path)
             with self.assertRaises(Exception) as context:
                 Scrubber(path)
-            self.assertIn('.99', str(context.exception))
+            self.assertIn(".99", str(context.exception))
 
     def test_meta_security_cleared(self):
         """Verify that we drop the Meta.security field"""
@@ -137,12 +136,12 @@ class TestScrubber(unittest.TestCase):
         condition = i2b2_mock_data.condition()
 
         # With another property
-        condition.meta = Meta({'security': [{'code': 'REDACTED'}], 'versionId': 'a'})
+        condition.meta = Meta({"security": [{"code": "REDACTED"}], "versionId": "a"})
         self.assertTrue(scrubber.scrub_resource(condition))
         self.assertIsNone(condition.meta.security)
-        self.assertEqual('a', condition.meta.versionId)
+        self.assertEqual("a", condition.meta.versionId)
 
         # Without another property
-        condition.meta = Meta({'security': [{'code': 'REDACTED'}]})
+        condition.meta = Meta({"security": [{"code": "REDACTED"}]})
         self.assertTrue(scrubber.scrub_resource(condition))
         self.assertIsNone(condition.meta)

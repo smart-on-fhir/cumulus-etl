@@ -35,8 +35,7 @@ class CohortSelection:
     ObservationFact.CONCEPT_CD = ['u07.1', 'R05.9']
     """
 
-    def __init__(self, patient: PatientDimension, visit: VisitDimension,
-                 observation: ObservationFact):
+    def __init__(self, patient: PatientDimension, visit: VisitDimension, observation: ObservationFact):
         """
         :param patient:
         :param visit:
@@ -48,23 +47,21 @@ class CohortSelection:
 
     def as_json(self):
         out = {
-            'patient': self.patient.as_json(),
-            'visit': self.visit.as_json(),
-            'observation': self.observation.as_json()
+            "patient": self.patient.as_json(),
+            "visit": self.visit.as_json(),
+            "observation": self.observation.as_json(),
         }
 
-        if self.patient.birth_date and isinstance(self.patient.birth_date,
-                                                  Period):
-            out['patient']['birth_date'] = self.patient.birth_date.as_json()
+        if self.patient.birth_date and isinstance(self.patient.birth_date, Period):
+            out["patient"]["birth_date"] = self.patient.birth_date.as_json()
 
-        if self.patient.death_date and isinstance(self.patient.death_date,
-                                                  Period):
-            out['patient']['death_date'] = self.patient.death_date.as_json()
+        if self.patient.death_date and isinstance(self.patient.death_date, Period):
+            out["patient"]["death_date"] = self.patient.death_date.as_json()
 
         if self.visit.start_date and isinstance(self.visit.start_date, Period):
-            out['visit']['start_date'] = self.visit.start_date.as_json()
+            out["visit"]["start_date"] = self.visit.start_date.as_json()
 
         if self.visit.end_date and isinstance(self.visit.end_date, Period):
-            out['visit']['end_date'] = self.visit.end_date.as_json()
+            out["visit"]["end_date"] = self.visit.end_date.as_json()
 
         return out

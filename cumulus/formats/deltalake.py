@@ -50,6 +50,7 @@ class DeltaLakeFormat(AthenaFormat):
     """
     Stores data in a delta lake.
     """
+
     def __init__(self, root: store.Root):
         super().__init__(root)
 
@@ -59,25 +60,29 @@ class DeltaLakeFormat(AthenaFormat):
         # stdout/stderr entirely.
         with _suppress_output():
             # Prep the builder with various config options
-            builder = pyspark.sql.SparkSession.builder \
-                .appName('cumulus-etl') \
-                .config('spark.databricks.delta.schema.autoMerge.enabled', 'true') \
-                .config('spark.driver.memory', '2g') \
-                .config('spark.sql.catalog.spark_catalog', 'org.apache.spark.sql.delta.catalog.DeltaCatalog') \
-                .config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension')
+            builder = (
+                pyspark.sql.SparkSession.builder.appName("cumulus-etl")
+                .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
+                .config("spark.driver.memory", "2g")
+                .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+                .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
+            )
 
             # Now add delta's packages and actually build the session
-            self.spark = delta.configure_spark_with_delta_pip(builder, extra_packages=[
-                'org.apache.hadoop:hadoop-aws:3.3.4',
-            ]).getOrCreate()
+            self.spark = delta.configure_spark_with_delta_pip(
+                builder,
+                extra_packages=[
+                    "org.apache.hadoop:hadoop-aws:3.3.4",
+                ],
+            ).getOrCreate()
 
-        self.spark.sparkContext.setLogLevel('ERROR')
+        self.spark.sparkContext.setLogLevel("ERROR")
         self._configure_fs()
 
     def write_records(self, job, df: pandas.DataFrame, dbname: str, batch: int) -> None:
         """Writes the whole dataframe to a delta lake"""
         job.attempt += len(df)
-        full_path = self.root.joinpath(dbname).replace('s3://', 's3a://')  # hadoop uses the s3a: scheme instead of s3:
+        full_path = self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
 
         try:
             # First, convert our pandas dataframe to a spark dataframe.
@@ -93,31 +98,29 @@ class DeltaLakeFormat(AthenaFormat):
                     table = delta.DeltaTable.forPath(self.spark, full_path)
                     if batch == 0:
                         table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
-                    table.alias('table') \
-                        .merge(source=updates.alias('updates'), condition='table.id = updates.id') \
-                        .whenMatchedUpdateAll() \
-                        .whenNotMatchedInsertAll() \
-                        .execute()
+                    table.alias("table").merge(
+                        source=updates.alias("updates"), condition="table.id = updates.id"
+                    ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
                 except AnalysisException:
                     # table does not exist yet, let's make an initial version
-                    updates.write.save(path=full_path, format='delta')
+                    updates.write.save(path=full_path, format="delta")
                     table = delta.DeltaTable.forPath(self.spark, full_path)  # re-load the table to generate symlink
 
-            table.generate('symlink_format_manifest')
+            table.generate("symlink_format_manifest")
 
             job.success += len(df)
             job.success_rate(1)
         except Exception:  # pylint: disable=broad-except
-            logging.exception('Could not process data records')
+            logging.exception("Could not process data records")
 
     def _configure_fs(self):
         """Tell spark/hadoop how to talk to S3 for us"""
         fsspec_options = self.root.fsspec_options()
-        self.spark.conf.set('fs.s3a.sse.enabled', 'true')
-        self.spark.conf.set('fs.s3a.server-side-encryption-algorithm', 'SSE-KMS')
-        kms_key = fsspec_options.get('s3_additional_kwargs', {}).get('SSEKMSKeyId')
+        self.spark.conf.set("fs.s3a.sse.enabled", "true")
+        self.spark.conf.set("fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
+        kms_key = fsspec_options.get("s3_additional_kwargs", {}).get("SSEKMSKeyId")
         if kms_key:
-            self.spark.conf.set('fs.s3a.server-side-encryption.key', kms_key)
-        region_name = fsspec_options.get('client_kwargs', {}).get('region_name')
+            self.spark.conf.set("fs.s3a.server-side-encryption.key", kms_key)
+        region_name = fsspec_options.get("client_kwargs", {}).get("region_name")
         if region_name:
-            self.spark.conf.set('fs.s3a.endpoint.region', region_name)
+            self.spark.conf.set("fs.s3a.endpoint.region", region_name)

@@ -30,15 +30,14 @@ from cumulus.loaders.i2b2.schema import PatientDimension, VisitDimension, Observ
 #
 ###############################################################################
 
+
 def to_fhir_patient(patient: PatientDimension) -> Patient:
     """
     :param patient: i2b2 Patient Dimension record
     :return: https://www.hl7.org/fhir/patient.html
     """
     subject = Patient()
-    subject.meta = Meta({
-        'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient']
-    })
+    subject.meta = Meta({"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient"]})
     subject.id = patient.patient_num
 
     if patient.birth_date:
@@ -52,44 +51,49 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
 
     # TODO: verify that i2b2 always has a single patient address, always in US
     if patient.zip_cd:
-        subject.address = [Address({
-            'country': 'US',
-            'postalCode': parse_zip_code(patient.zip_cd)
-        })]
+        subject.address = [Address({"country": "US", "postalCode": parse_zip_code(patient.zip_cd)})]
 
     if patient.race_cd:
         # race_cd can be either a race or an ethnicity. In FHIR, those are two different extensions.
         race_code = external_mappings.CDC_RACE.get(patient.race_cd)
         if race_code is not None:
-            subject.extension = [Extension({
-                'url': 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-race',
-                'extension': [
+            subject.extension = [
+                Extension(
                     {
-                        'url': 'ombCategory',
-                        'valueCoding': {
-                            'system': race_code[0],
-                            'code': race_code[1],
-                            'display': patient.race_cd,
-                        },
-                    },
-                ],
-            })]
+                        "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
+                        "extension": [
+                            {
+                                "url": "ombCategory",
+                                "valueCoding": {
+                                    "system": race_code[0],
+                                    "code": race_code[1],
+                                    "display": patient.race_cd,
+                                },
+                            },
+                        ],
+                    }
+                )
+            ]
 
         ethnicity_code = external_mappings.CDC_ETHNICITY.get(patient.race_cd)
         if ethnicity_code is not None:
-            subject.extension = [Extension({
-                'url': 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity',
-                'extension': [
+            subject.extension = [
+                Extension(
                     {
-                        'url': 'ombCategory',
-                        'valueCoding': {
-                            'system': ethnicity_code[0],
-                            'code': ethnicity_code[1],
-                            'display': patient.race_cd,
-                        },
-                    },
-                ],
-            })]
+                        "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+                        "extension": [
+                            {
+                                "url": "ombCategory",
+                                "valueCoding": {
+                                    "system": ethnicity_code[0],
+                                    "code": ethnicity_code[1],
+                                    "display": patient.race_cd,
+                                },
+                            },
+                        ],
+                    }
+                )
+            ]
     return subject
 
 
@@ -99,36 +103,35 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     :return: https://www.hl7.org/fhir/encounter.html
     """
     encounter = Encounter()
-    encounter.meta = Meta({
-        'profile': ['http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter']
-    })
+    encounter.meta = Meta({"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter"]})
     encounter.id = str(visit.encounter_num)
     encounter.subject = fhir_common.ref_subject(visit.patient_num)
-    encounter.status = 'unknown'
+    encounter.status = "unknown"
 
     # Most generic encounter type possible, only included because the 'type' field is required in us-core
-    encounter.type = [make_concept('308335008', 'http://snomed.info/sct', 'Patient encounter procedure')]
+    encounter.type = [make_concept("308335008", "http://snomed.info/sct", "Patient encounter procedure")]
 
-    encounter.period = Period({
-        'start': fhir_common.parse_fhir_date_isostring(visit.start_date),
-        'end': fhir_common.parse_fhir_date_isostring(visit.end_date)
-    })
+    encounter.period = Period(
+        {
+            "start": fhir_common.parse_fhir_date_isostring(visit.start_date),
+            "end": fhir_common.parse_fhir_date_isostring(visit.end_date),
+        }
+    )
 
     if visit.length_of_stay:  # days
-        encounter.length = Duration({
-            'unit': 'd',
-            'value': parse_fhir_duration(visit.length_of_stay)
-        })
+        encounter.length = Duration({"unit": "d", "value": parse_fhir_duration(visit.length_of_stay)})
 
     class_fhir = external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
     if not class_fhir:
-        logging.debug('unknown encounter.class_fhir.code for i2b2 INOUT_CD : %s', visit.inout_cd)
-        class_fhir = '?'  # bogus value, but FHIR demands *some* class value
+        logging.debug("unknown encounter.class_fhir.code for i2b2 INOUT_CD : %s", visit.inout_cd)
+        class_fhir = "?"  # bogus value, but FHIR demands *some* class value
 
-    encounter.class_fhir = Coding({
-        'system': 'http://terminology.hl7.org/CodeSystem/v3-ActCode',
-        'code': class_fhir,
-    })
+    encounter.class_fhir = Coding(
+        {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+            "code": class_fhir,
+        }
+    )
 
     return encounter
 
@@ -142,8 +145,7 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     observation.id = obsfact.instance_num
     observation.subject = fhir_common.ref_subject(obsfact.patient_num)
     observation.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
-    observation.effectiveDateTime = FHIRDate(
-        fhir_common.parse_fhir_date_isostring(obsfact.start_date))
+    observation.effectiveDateTime = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
 
     return observation
 
@@ -154,25 +156,26 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> Observation:
     :return: https://www.hl7.org/fhir/observation.html
     """
     observation = to_fhir_observation(obsfact)
-    observation.status = 'unknown'
+    observation.status = "unknown"
 
     if obsfact.concept_cd in external_mappings.LOINC_COVID_LAB_TESTS:
         obs_code = external_mappings.LOINC_COVID_LAB_TESTS[obsfact.concept_cd]
-        obs_system = 'http://loinc.org'
+        obs_system = "http://loinc.org"
     else:
         obs_code = obsfact.concept_cd
-        obs_system = 'http://cumulus.smarthealthit.org/i2b2'
+        obs_system = "http://cumulus.smarthealthit.org/i2b2"
 
     observation.code = make_concept(obs_code, obs_system)
-    observation.category = [make_concept('laboratory', 'http://terminology.hl7.org/CodeSystem/observation-category')]
+    observation.category = [make_concept("laboratory", "http://terminology.hl7.org/CodeSystem/observation-category")]
 
     # lab result
     if obsfact.tval_char in external_mappings.SNOMED_LAB_RESULT:
         lab_result = obsfact.tval_char
     else:
-        lab_result = 'Absent'
+        lab_result = "Absent"
     observation.valueCodeableConcept = make_concept(
-        external_mappings.SNOMED_LAB_RESULT[lab_result], 'http://snomed.info/sct', display=lab_result)
+        external_mappings.SNOMED_LAB_RESULT[lab_result], "http://snomed.info/sct", display=lab_result
+    )
 
     return observation
 
@@ -189,34 +192,35 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition.subject = fhir_common.ref_subject(obsfact.patient_num)
     condition.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
 
-    condition.meta = Meta({
-        'profile': [
-            'http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition'
-        ]
-    })
+    condition.meta = Meta({"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition"]})
     condition.recordedDate = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
 
-    condition.clinicalStatus = make_concept('active', 'http://terminology.hl7.org/CodeSystem/condition-clinical')
-    condition.verificationStatus = make_concept('unconfirmed',
-                                                'http://terminology.hl7.org/CodeSystem/condition-ver-status')
+    condition.clinicalStatus = make_concept("active", "http://terminology.hl7.org/CodeSystem/condition-clinical")
+    condition.verificationStatus = make_concept(
+        "unconfirmed", "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+    )
 
     # Category
-    condition.category = [make_concept('encounter-diagnosis',
-                                       'http://terminology.hl7.org/CodeSystem/condition-category',
-                                       display='Encounter Diagnosis')]
+    condition.category = [
+        make_concept(
+            "encounter-diagnosis",
+            "http://terminology.hl7.org/CodeSystem/condition-category",
+            display="Encounter Diagnosis",
+        )
+    ]
 
     # Code
-    i2b2_sys, i2b2_code = obsfact.concept_cd.split(':')
+    i2b2_sys, i2b2_code = obsfact.concept_cd.split(":")
 
-    if i2b2_sys in ['ICD10', 'ICD-10']:
-        i2b2_sys = 'http://hl7.org/fhir/sid/icd-10-cm'
-    elif i2b2_sys in ['ICD9', 'ICD-9']:
-        i2b2_sys = 'http://hl7.org/fhir/sid/icd-9-cm'
-    elif i2b2_sys in ['SNOMED', 'SNOMED-CT', 'SNOMEDCT', 'SCT']:
-        i2b2_sys = 'http://snomed.info/sct'
+    if i2b2_sys in ["ICD10", "ICD-10"]:
+        i2b2_sys = "http://hl7.org/fhir/sid/icd-10-cm"
+    elif i2b2_sys in ["ICD9", "ICD-9"]:
+        i2b2_sys = "http://hl7.org/fhir/sid/icd-9-cm"
+    elif i2b2_sys in ["SNOMED", "SNOMED-CT", "SNOMEDCT", "SCT"]:
+        i2b2_sys = "http://snomed.info/sct"
     else:
-        logging.warning('Condition: unknown system %s', i2b2_sys)
-        i2b2_sys = 'http://cumulus.smarthealthit.org/i2b2'
+        logging.warning("Condition: unknown system %s", i2b2_sys)
+        i2b2_sys = "http://cumulus.smarthealthit.org/i2b2"
         i2b2_code = obsfact.concept_cd
 
     condition.code = make_concept(i2b2_code, i2b2_sys)
@@ -229,6 +233,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
 # Physician Notes and NLP
 #
 ###############################################################################
+
 
 def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     """
@@ -243,21 +248,23 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.subject = fhir_common.ref_subject(obsfact.patient_num)
     docref.context = DocumentReferenceContext()
     docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
-    docref.context.period = Period({
-        'start': fhir_common.parse_fhir_date_isostring(obsfact.start_date),
-        'end': fhir_common.parse_fhir_date_isostring(obsfact.end_date),
-    })
+    docref.context.period = Period(
+        {
+            "start": fhir_common.parse_fhir_date_isostring(obsfact.start_date),
+            "end": fhir_common.parse_fhir_date_isostring(obsfact.end_date),
+        }
+    )
 
     # It would be nice to get a real mapping for the "NOTE:" concept CD types to a real system.
     # But for now, use this custom (and the URL isn't even valid) system to note these i2b2 concepts.
-    docref.type = make_concept(obsfact.concept_cd, 'http://cumulus.smarthealthit.org/i2b2', obsfact.tval_char)
-    docref.status = 'current'
+    docref.type = make_concept(obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2", obsfact.tval_char)
+    docref.status = "current"
 
-    blob = obsfact.observation_blob or ''
+    blob = obsfact.observation_blob or ""
     content = DocumentReferenceContent()
     content.attachment = Attachment()
-    content.attachment.contentType = 'text/plain'
-    content.attachment.data = base64.standard_b64encode(blob.encode('utf8')).decode('ascii')
+    content.attachment.contentType = "text/plain"
+    content.attachment.data = base64.standard_b64encode(blob.encode("utf8")).decode("ascii")
     docref.content = [content]
 
     return docref
@@ -268,6 +275,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
 # parse i2b2 inputs to FHIR types
 #
 ###############################################################################
+
 
 def parse_zip_code(i2b2_zip_code) -> Optional[str]:
     """
@@ -285,7 +293,7 @@ def parse_gender(i2b2_sex_cd) -> Optional[str]:
     :return: FHIR AdministrativeGender code
     """
     if i2b2_sex_cd and isinstance(i2b2_sex_cd, str):
-        return external_mappings.FHIR_GENDER.get(i2b2_sex_cd, 'other')
+        return external_mappings.FHIR_GENDER.get(i2b2_sex_cd, "other")
 
 
 def parse_fhir_duration(i2b2_length_of_stay) -> float:
@@ -304,4 +312,4 @@ def parse_fhir_duration(i2b2_length_of_stay) -> float:
 
 def make_concept(code: str, system: Optional[str], display: str = None) -> CodeableConcept:
     """Syntactic sugar to make a codeable concept"""
-    return CodeableConcept({'coding': [{'code': code, 'system': system, 'display': display}]})
+    return CodeableConcept({"coding": [{"code": code, "system": system, "display": display}]})

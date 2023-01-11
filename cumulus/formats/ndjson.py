@@ -10,7 +10,7 @@ class NdjsonFormat(AthenaBatchedFileFormat):
 
     @property
     def suffix(self) -> str:
-        return 'ndjson'
+        return "ndjson"
 
     def write_format(self, df: pandas.DataFrame, path: str) -> None:
-        df.to_json(path, orient='records', lines=True, storage_options=self.root.fsspec_options())
+        df.to_json(path, orient="records", lines=True, storage_options=self.root.fsspec_options())

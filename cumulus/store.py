@@ -33,7 +33,7 @@ class Root:
         self.path = path
 
         parsed = urlparse(path)
-        self.protocol = parsed.scheme or 'file'  # assume local if no obvious scheme
+        self.protocol = parsed.scheme or "file"  # assume local if no obvious scheme
 
         try:
             self.fs = fsspec.filesystem(self.protocol, **self.fsspec_options())
@@ -73,7 +73,7 @@ class Root:
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
         self._confirm_in_root(path)
-        if self.protocol == 's3':
+        if self.protocol == "s3":
             # s3 doesn't really care about folders, and if we try to make one,
             # fsspec would want the CreateBucket permission as it goes up the tree
             return
