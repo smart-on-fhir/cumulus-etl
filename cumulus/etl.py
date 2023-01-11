@@ -12,7 +12,7 @@ import socket
 import sys
 import tempfile
 import time
-from typing import Callable, Iterable, Iterator, List, Optional, Type, TypeVar, Union
+from typing import Callable, Iterable, Iterator, List, Type, TypeVar, Union
 from urllib.parse import urlparse
 
 import ctakesclient
@@ -37,7 +37,6 @@ from cumulus.config import JobConfig, JobSummary
 T = TypeVar('T')
 AnyFhir = TypeVar('AnyFhir', bound=FHIRAbstractBase)
 AnyResource = TypeVar('AnyResource', bound=Resource)
-DeidentifyCallable = Callable[[AnyFhir], bool]
 StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
@@ -95,16 +94,17 @@ def _process_job_entries(
     config: JobConfig,
     job_name: str,
     resources: Iterator[Union[dict, Resource]],
-    to_deid: Optional[DeidentifyCallable],
+    scrubber: deid.Scrubber,
     to_store: StoreFormatCallable,
+    deidentify_resources=True,
 ):
     job = JobSummary(job_name)
 
     common.print_header(f'{job_name}()')
 
     # De-identify each entry by passing them through our scrubber
-    if to_deid:
-        deid_json_entries = (x.as_json() for x in filter(to_deid, resources))
+    if deidentify_resources:
+        deid_json_entries = (x.as_json() for x in filter(scrubber.scrub_resource, resources))
     else:
         deid_json_entries = resources
 
@@ -113,6 +113,10 @@ def _process_job_entries(
     for index, batch in enumerate(_batch_iterate(deid_json_entries, config.batch_size)):
         # Stuff de-identified FHIR json into one big pandas DataFrame
         dataframe = pandas.DataFrame(batch)
+
+        # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
+        # updated codebook with no data than data with an inaccurate codebook.
+        scrubber.save()
 
         # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
         to_store(job, dataframe, index)
@@ -132,7 +136,7 @@ def etl_patient(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         config,
         etl_patient.__name__,
         _read_ndjson(config, Patient),
-        scrubber.scrub_resource,
+        scrubber,
         config.format.store_patients,
     )
 
@@ -149,7 +153,7 @@ def etl_encounter(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         config,
         etl_encounter.__name__,
         _read_ndjson(config, Encounter),
-        scrubber.scrub_resource,
+        scrubber,
         config.format.store_encounters,
     )
 
@@ -166,7 +170,7 @@ def etl_lab(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         config,
         etl_lab.__name__,
         _read_ndjson(config, Observation),
-        scrubber.scrub_resource,
+        scrubber,
         config.format.store_labs,
     )
 
@@ -183,7 +187,7 @@ def etl_condition(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         config,
         etl_condition.__name__,
         _read_ndjson(config, Condition),
-        scrubber.scrub_resource,
+        scrubber,
         config.format.store_conditions,
     )
 
@@ -199,7 +203,7 @@ def etl_notes_meta(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         config,
         etl_notes_meta.__name__,
         _read_ndjson(config, DocumentReference),
-        scrubber.scrub_resource,
+        scrubber,
         config.format.store_docrefs,
     )
 
@@ -235,8 +239,9 @@ def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -
         config,
         etl_covid_symptom__nlp_results.__name__,
         load_covid_symptoms_nlp(config, scrubber),
-        None,  # scrubbing is done in load method
+        scrubber,
         config.format.store_covid_symptom__nlp_results,
+        deidentify_resources=False,  # scrubbing is done in load method
     )
 
 
@@ -304,8 +309,6 @@ def etl_job(config: JobConfig, tasks: Iterable[str] = None) -> List[JobSummary]:
     for task_desc in get_task_descriptions(tasks):
         summary = task_desc.func(config, scrubber)
         summary_list.append(summary)
-
-        scrubber.save()
 
         path = os.path.join(config.dir_job_config(), f'{summary.label}.json')
         common.write_json(path, summary.as_json(), indent=4)

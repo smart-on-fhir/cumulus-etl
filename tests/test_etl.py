@@ -263,6 +263,25 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         self.assertEqual(['observation.000.ndjson'], os.listdir(os.path.join(self.output_path, 'observation')))
         self.assertEqual(['patient.000.ndjson'], os.listdir(os.path.join(self.output_path, 'patient')))
 
+    def test_codebook_is_saved_during(self):
+        """Verify that we are saving the codebook as we go"""
+        # Clear out the saved test codebook first
+        codebook_path = os.path.join(self.phi_path, 'codebook.json')
+        os.remove(codebook_path)
+
+        # Cause a system exit as soon as we try to write a file.
+        # The goal is that the codebook is already in place by this time.
+        with self.assertRaises(SystemExit):
+            with mock.patch('cumulus.formats.ndjson.NdjsonFormat.write_format', side_effect=SystemExit):
+                self.run_etl(tasks=['patient'])
+
+        # Ensure we wrote a valid codebook out
+        codebook = common.read_json(codebook_path)
+        self.assertDictEqual({
+            '323456': '3114c436-dd5d-8d0e-07cb-d5c72a2d861f',
+            '3234567': '6e56e5d2-89bb-84f5-f8ca-e4b19aa0ffc1',
+        }, codebook['Patient'])
+
 
 class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
     """Test case for the job config logging data"""
