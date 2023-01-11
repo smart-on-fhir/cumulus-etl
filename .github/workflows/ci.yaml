@@ -49,9 +49,10 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install linters
+        # black is synced with the .pre-commit-hooks version
         run: |
           python -m pip install --upgrade pip
-          pip install bandit[toml] pycodestyle pylint
+          pip install bandit[toml] pycodestyle pylint black==22.12.0
 
       - name: Run pycodestyle
         run: |
@@ -66,3 +67,8 @@ jobs:
         if: success() || failure() # still run bandit if above checks fail
         run: |
           bandit -c pyproject.toml -r .
+
+      - name: Run black
+        if: success() || failure() # still run black if above checks fails
+        run: |
+          black --check --verbose --line-length 120 .

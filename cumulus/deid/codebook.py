@@ -43,9 +43,9 @@ class Codebook:
         and a random salt/secret. This is the same algorithm used by Microsoft's anonymization tools for FHIR.
         We use a hash rather than a stored mapping purely for memory reasons.
         """
-        if resource_type == 'Patient':
+        if resource_type == "Patient":
             return self.db.patient(real_id)
-        elif resource_type == 'Encounter':
+        elif resource_type == "Encounter":
             return self.db.encounter(real_id)
         else:
             return self.db.resource_hash(real_id)
@@ -56,6 +56,7 @@ class Codebook:
 # Database for the codebook
 #
 ###############################################################################
+
 
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
@@ -73,9 +74,9 @@ class CodebookDB:
         """
         self.mapping = {
             # If you change the saved format, bump this number and add your new format loader in _load_saved()
-            'version': 1,
-            'Patient': {},
-            'Encounter': {},
+            "version": 1,
+            "Patient": {},
+            "Encounter": {},
         }
         self.modified = True
 
@@ -90,7 +91,7 @@ class CodebookDB:
         :param real_id: patient resource ID
         :return: fake ID
         """
-        return self._fake_id('Patient', real_id)
+        return self._fake_id("Patient", real_id)
 
     def encounter(self, real_id: str) -> str:
         """
@@ -99,7 +100,7 @@ class CodebookDB:
         :param real_id: encounter resource ID
         :return: fake ID
         """
-        return self._fake_id('Encounter', real_id)
+        return self._fake_id("Encounter", real_id)
 
     def _fake_id(self, resource_type: str, real_id: str) -> str:
         """
@@ -129,11 +130,11 @@ class CodebookDB:
         :return: hashed ID, using the saved salt
         """
         # This will be exactly 64 characters long, the maximum FHIR id length
-        return hmac.new(self._id_salt(), digestmod='sha256', msg=real_id.encode('utf8')).hexdigest()
+        return hmac.new(self._id_salt(), digestmod="sha256", msg=real_id.encode("utf8")).hexdigest()
 
     def _id_salt(self) -> bytes:
         """Returns the saved salt or creates and saves one if needed"""
-        salt = self.mapping.get('id_salt')
+        salt = self.mapping.get("id_salt")
 
         if salt is None:
             # Create a salt, used when hashing resource IDs.
@@ -143,7 +144,7 @@ class CodebookDB:
             # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
             # recommended, so 256 bits seem good (which is 32 bytes).
             salt = secrets.token_hex(32)
-            self.mapping['id_salt'] = salt
+            self.mapping["id_salt"] = salt
             self.modified = True
 
         return binascii.unhexlify(salt)  # revert from doubled hex 64-char string representation back to just 32 bytes
@@ -154,7 +155,7 @@ class CodebookDB:
                       [patient][encounter]
         :return:
         """
-        version = saved.get('version', 0)
+        version = saved.get("version", 0)
         if version == 0:
             self._load_version0(saved)
         elif version == 1:
@@ -164,11 +165,11 @@ class CodebookDB:
 
     def _load_version0(self, saved: dict) -> None:
         """Loads version 0 of the codebook database format"""
-        for patient_id, patient_data in saved['mrn'].items():
-            self.mapping['Patient'][patient_id] = patient_data['deid']
+        for patient_id, patient_data in saved["mrn"].items():
+            self.mapping["Patient"][patient_id] = patient_data["deid"]
 
-            for enc_id, enc_data in patient_data.get('encounter', {}).items():
-                self.mapping['Encounter'][enc_id] = enc_data['deid']
+            for enc_id, enc_data in patient_data.get("encounter", {}).items():
+                self.mapping["Encounter"][enc_id] = enc_data["deid"]
 
     def _load_version1(self, saved: dict) -> None:
         """Loads version 1 of the codebook database format"""
@@ -181,7 +182,7 @@ class CodebookDB:
         :returns: whether a save actually happened (if codebook hasn't changed, nothing is written back)
         """
         if self.modified:
-            logging.info('Saving codebook to: %s', path)
+            logging.info("Saving codebook to: %s", path)
             common.write_json(path, self.mapping)
             self.modified = False
             return True

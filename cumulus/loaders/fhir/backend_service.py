@@ -22,6 +22,7 @@ class BackendServiceServer:
 
     See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
     """
+
     def __init__(self, url: str, client_id: str, jwks: dict, resources: List[str]):
         """
         Initialize and authorize a BackendServiceServer instance.
@@ -33,12 +34,12 @@ class BackendServiceServer:
         """
         super().__init__()
         self._base_url = url  # all requests are relative to this URL
-        if not self._base_url.endswith('/'):
-            self._base_url += '/'
+        if not self._base_url.endswith("/"):
+            self._base_url += "/"
         # The base URL may not be the server root (like it may be a Group export URL). Let's find the root.
         self._server_root = self._base_url
-        self._server_root = re.sub(r'/Patient/$', '/', self._server_root)
-        self._server_root = re.sub(r'/Group/[^/]+/$', '/', self._server_root)
+        self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
+        self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
         self._client_id = client_id
         self._jwks = jwks
         self._resources = list(resources)
@@ -64,8 +65,8 @@ class BackendServiceServer:
         url = urllib.parse.urljoin(self._base_url, path)
 
         final_headers = {
-            'Accept': 'application/fhir+json',
-            'Accept-Charset': 'UTF-8',
+            "Accept": "application/fhir+json",
+            "Accept-Charset": "UTF-8",
         }
         # merge in user headers with defaults
         final_headers.update(headers or {})
@@ -90,10 +91,10 @@ class BackendServiceServer:
             message = None
             try:
                 json_response = exc.response.json()
-                if json_response.get('resourceType') == 'OperationOutcome':
-                    issue = json_response['issue'][0]  # just grab first issue
-                    message = issue.get('details', {}).get('text')
-                    message = message or issue.get('diagnostics')
+                if json_response.get("resourceType") == "OperationOutcome":
+                    issue = json_response["issue"][0]  # just grab first issue
+                    message = issue.get("details", {}).get("text")
+                    message = message or issue.get("diagnostics")
             except JSONDecodeError:
                 message = exc.response.text
             if not message:
@@ -116,13 +117,15 @@ class BackendServiceServer:
         See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
         """
         signed_jwt = self._make_signed_jwt()
-        scope = ' '.join([f'system/{resource}.read' for resource in self._resources])
-        client = FHIRClient(settings={
-            'api_base': self._server_root,
-            'app_id': self._client_id,
-            'jwt_token': signed_jwt,
-            'scope': scope,
-        })
+        scope = " ".join([f"system/{resource}.read" for resource in self._resources])
+        client = FHIRClient(
+            settings={
+                "api_base": self._server_root,
+                "app_id": self._client_id,
+                "jwt_token": signed_jwt,
+                "scope": scope,
+            }
+        )
         client.wants_patient = False
         client.prepare()
 
@@ -131,13 +134,13 @@ class BackendServiceServer:
         except Exception as exc:  # pylint: disable=broad-except
             # This handles both the normal HTTPError and the custom errors that fhirclient uses
             message = None
-            if hasattr(exc, 'response') and exc.response:
+            if hasattr(exc, "response") and exc.response:
                 response_json = exc.response.json()
-                message = response_json.get('error_description')  # oauth2 error field
+                message = response_json.get("error_description")  # oauth2 error field
             if not message:
                 message = str(exc)
 
-            raise FatalError(f'Could not authenticate with the FHIR server: {message}') from exc
+            raise FatalError(f"Could not authenticate with the FHIR server: {message}") from exc
 
         self._server = client.server
 
@@ -164,9 +167,9 @@ class BackendServiceServer:
         :returns: URL for the server's oauth2 token endpoint
         """
         response = requests.get(
-            urllib.parse.urljoin(self._server_root, '.well-known/smart-configuration'),
+            urllib.parse.urljoin(self._server_root, ".well-known/smart-configuration"),
             headers={
-                'Accept': 'application/json',
+                "Accept": "application/json",
             },
             timeout=300,  # five minutes
         )
@@ -177,13 +180,13 @@ class BackendServiceServer:
         # capability keyword, so let's not bother checking for it. But we can confirm that the pieces are there.
         config = response.json()
         if (
-                'private_key_jwt' not in config.get('token_endpoint_auth_methods_supported', []) or
-                not {'ES384', 'RS384'} & set(config.get('token_endpoint_auth_signing_alg_values_supported', [])) or
-                not config.get('token_endpoint')
+            "private_key_jwt" not in config.get("token_endpoint_auth_methods_supported", [])
+            or not {"ES384", "RS384"} & set(config.get("token_endpoint_auth_signing_alg_values_supported", []))
+            or not config.get("token_endpoint")
         ):
-            raise FatalError(f'Server {self._server_root} does not support the client-confidential-asymmetric protocol')
+            raise FatalError(f"Server {self._server_root} does not support the client-confidential-asymmetric protocol")
 
-        return config['token_endpoint']
+        return config["token_endpoint"]
 
     def _make_signed_jwt(self) -> str:
         """
@@ -194,24 +197,24 @@ class BackendServiceServer:
         :returns: a signed JWT string, ready for authentication with the FHIR server
         """
         # Find a usable singing JWK from JWKS
-        for key in self._jwks.get('keys', []):
-            if key.get('alg') in ['ES384', 'RS384'] and 'sign' in key.get('key_ops', []) and key.get('kid'):
+        for key in self._jwks.get("keys", []):
+            if key.get("alg") in ["ES384", "RS384"] and "sign" in key.get("key_ops", []) and key.get("kid"):
                 break
         else:  # no valid private JWK found
-            raise FatalError('No private ES384 or RS384 key found in the provided JWKS file.')
+            raise FatalError("No private ES384 or RS384 key found in the provided JWKS file.")
 
         # Now generate a signed JWT based off the given JWK
         header = {
-            'alg': key['alg'],
-            'kid': key['kid'],
-            'typ': 'JWT',
+            "alg": key["alg"],
+            "kid": key["kid"],
+            "typ": "JWT",
         }
         claims = {
-            'iss': self._client_id,
-            'sub': self._client_id,
-            'aud': self._token_endpoint,
-            'exp': int(time.time()) + 299,  # expires inside five minutes
-            'jti': str(uuid.uuid4()),
+            "iss": self._client_id,
+            "sub": self._client_id,
+            "aud": self._token_endpoint,
+            "exp": int(time.time()) + 299,  # expires inside five minutes
+            "jti": str(uuid.uuid4()),
         }
         token = jwt.JWT(header=header, claims=claims)
         token.make_signed_token(key=jwk.JWK(**key))

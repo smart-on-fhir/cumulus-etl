@@ -23,22 +23,22 @@ class AthenaFormat(store.Format):
         """Writes the whole dataframe to the output database folder"""
 
     def store_patients(self, job, patients: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, patients, 'patient', batch)
+        self.write_records(job, patients, "patient", batch)
 
     def store_encounters(self, job, encounters: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, encounters, 'encounter', batch)
+        self.write_records(job, encounters, "encounter", batch)
 
     def store_labs(self, job, labs: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, labs, 'observation', batch)
+        self.write_records(job, labs, "observation", batch)
 
     def store_conditions(self, job, conditions: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, conditions, 'condition', batch)
+        self.write_records(job, conditions, "condition", batch)
 
     def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, docrefs, 'documentreference', batch)
+        self.write_records(job, docrefs, "documentreference", batch)
 
     def store_covid_symptom__nlp_results(self, job, observations: pandas.DataFrame, batch: int) -> None:
-        self.write_records(job, observations, 'covid_symptom__nlp_results', batch)
+        self.write_records(job, observations, "covid_symptom__nlp_results", batch)
 
 
 class AthenaBatchedFileFormat(AthenaFormat):
@@ -86,11 +86,11 @@ class AthenaBatchedFileFormat(AthenaFormat):
                 pass
 
         try:
-            full_path = self.root.joinpath(f'{dbname}/{dbname}.{batch:03}.{self.suffix}')
+            full_path = self.root.joinpath(f"{dbname}/{dbname}.{batch:03}.{self.suffix}")
             self.root.makedirs(os.path.dirname(full_path))
             self.write_format(df, full_path)
 
             job.success += len(df)
             job.success_rate(1)
         except Exception:  # pylint: disable=broad-except
-            logging.exception('Could not process data records')
+            logging.exception("Could not process data records")

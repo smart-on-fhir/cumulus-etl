@@ -15,13 +15,13 @@ from cumulus import store
 ###############################################################################
 def merge_cohort(filepath) -> list:
     if not os.path.exists(filepath):
-        raise Exception(f'not found! {filepath}')
+        raise Exception(f"not found! {filepath}")
 
-    cohort = store.read_json(filepath).get('cohort')
+    cohort = store.read_json(filepath).get("cohort")
 
-    print(f'{filepath}')
-    print(f'cohort list # {len(cohort)}')
-    print(f'cohort set  # {len(set(cohort))}')
+    print(f"{filepath}")
+    print(f"cohort list # {len(cohort)}")
+    print(f"cohort set  # {len(set(cohort))}")
 
     contents = []
     for f in set(cohort):
@@ -40,11 +40,9 @@ def merge_cohort(filepath) -> list:
 class LabelStudio:
     """LabelStudio document annotation"""
 
-    def __init__(self,
-                 physician_note: str,
-                 response_ctakes,
-                 filter_cui=None,
-                 filter_semtype=UmlsTypeMention.SignSymptom.value):
+    def __init__(
+        self, physician_note: str, response_ctakes, filter_cui=None, filter_semtype=UmlsTypeMention.SignSymptom.value
+    ):
         """
         LabelStudio document annotation.
         https://labelstud.io/guide/tasks.html#Basic-Label-Studio-JSON-format
@@ -64,13 +62,13 @@ class LabelStudio:
         self.response_ctakes = response_ctakes
         self.filter_cui = filter_cui
         self.filter_semtype = filter_semtype
-        self.model_version = 'ctakes-covid'
+        self.model_version = "ctakes-covid"
         self.result = []
 
         # Physician note can be either raw text or path to a file
         if physician_note and (5 < len(physician_note) < 255):
             if os.path.exists(physician_note):
-                with open(physician_note, 'r', encoding='utf8') as f:
+                with open(physician_note, "r", encoding="utf8") as f:
                     self.note_text = f.read()
                     self.note_file = physician_note
 
@@ -78,7 +76,7 @@ class LabelStudio:
         # file.
         if response_ctakes and isinstance(response_ctakes, str):
             if os.path.exists(response_ctakes):
-                with open(response_ctakes, 'r', encoding='utf8') as f:
+                with open(response_ctakes, "r", encoding="utf8") as f:
                     self.response_ctakes = CtakesJSON(json.load(f))
         elif response_ctakes and isinstance(response_ctakes, dict):
             self.response_ctakes = CtakesJSON(response_ctakes)
@@ -104,41 +102,29 @@ class LabelStudio:
 
     def add_match(self, match: MatchText, labels):
         ner_spans = {
-            'id': f'ss{len(self.result)}',
-            'from_name': 'label',
-            'to_name': 'text',
-            'type': 'labels',
-            'value': {
-                'start': match.begin,
-                'end': match.end,
-                'score': 1.0,
-                'text': match.text,
-                'labels': [labels]
-            }
+            "id": f"ss{len(self.result)}",
+            "from_name": "label",
+            "to_name": "text",
+            "type": "labels",
+            "value": {"start": match.begin, "end": match.end, "score": 1.0, "text": match.text, "labels": [labels]},
         }
         self.result.append(ner_spans)
 
     def add_concept(self, labels: set):
         whole_doc = {
-            'id': f'ss{len(self.result)}',
-            'from_name': 'symptoms',
-            'to_name': 'text',
-            'type': 'choices',
-            'value': {
-                'choices': list(labels),
-            }
+            "id": f"ss{len(self.result)}",
+            "from_name": "symptoms",
+            "to_name": "text",
+            "type": "choices",
+            "value": {
+                "choices": list(labels),
+            },
         }
 
         self.result.append(whole_doc)
 
     def as_json(self):
         return {
-            'data': {
-                'text': self.note_text,
-                'file': self.note_file
-            },
-            'predictions': [{
-                'model_version': self.model_version,
-                'result': self.result
-            }]
+            "data": {"text": self.note_text, "file": self.note_file},
+            "predictions": [{"model_version": self.model_version, "result": self.result}],
         }

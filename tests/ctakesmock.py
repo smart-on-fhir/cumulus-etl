@@ -13,20 +13,21 @@ class CtakesMixin(unittest.TestCase):
 
     See the docstring for fake_ctakes_extract() for guidance on the fake results this generates.
     """
+
     def setUp(self):
         super().setUp()
 
-        version_patcher = mock.patch('ctakesclient.__version__', new='1.2.0')  # just freeze this in place
+        version_patcher = mock.patch("ctakesclient.__version__", new="1.2.0")  # just freeze this in place
         self.addCleanup(version_patcher.stop)
         version_patcher.start()
 
-        nlp_patcher = mock.patch('cumulus.ctakes.ctakesclient.client.extract',
-                                 side_effect=fake_ctakes_extract)
+        nlp_patcher = mock.patch("cumulus.ctakes.ctakesclient.client.extract", side_effect=fake_ctakes_extract)
         self.addCleanup(nlp_patcher.stop)
         self.nlp_mock = nlp_patcher.start()
 
-        cnlp_patcher = mock.patch('cumulus.ctakes.ctakesclient.transformer.list_polarity',
-                                  side_effect=fake_transformer_list_polarity)
+        cnlp_patcher = mock.patch(
+            "cumulus.ctakes.ctakesclient.transformer.list_polarity", side_effect=fake_transformer_list_polarity
+        )
         self.addCleanup(cnlp_patcher.stop)
         self.cnlp_mock = cnlp_patcher.start()
 
@@ -60,54 +61,54 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
 
     # Response template inspired by response to "Patient has a fever and an itch"
     response = {
-        'SignSymptomMention': [
+        "SignSymptomMention": [
             {
-                'begin': fever_begin,
-                'end': fever_end,
-                'text': fever_word,
-                'polarity': 0,
-                'conceptAttributes': [
-                    {'code': '386661006', 'cui': 'C0015967', 'codingScheme': 'SNOMEDCT_US', 'tui': 'T184'},
-                    {'code': '50177009', 'cui': 'C0015967', 'codingScheme': 'SNOMEDCT_US', 'tui': 'T184'},
+                "begin": fever_begin,
+                "end": fever_end,
+                "text": fever_word,
+                "polarity": 0,
+                "conceptAttributes": [
+                    {"code": "386661006", "cui": "C0015967", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {"code": "50177009", "cui": "C0015967", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
                 ],
-                'type': 'SignSymptomMention'
+                "type": "SignSymptomMention",
             },
             {
-                'begin': itch_begin,
-                'end': itch_end,
-                'text': itch_word,
-                'polarity': 0,
-                'conceptAttributes': [
-                    {'code': '418290006', 'cui': 'C0033774', 'codingScheme': 'SNOMEDCT_US', 'tui': 'T184'},
-                    {'code': '279333002', 'cui': 'C0033774', 'codingScheme': 'SNOMEDCT_US', 'tui': 'T184'},
-                    {'code': '424492005', 'cui': 'C0033774', 'codingScheme': 'SNOMEDCT_US', 'tui': 'T184'},
-                    {'code': '418363000', 'cui': 'C0033774', 'codingScheme': 'SNOMEDCT_US', 'tui': 'T184'},
+                "begin": itch_begin,
+                "end": itch_end,
+                "text": itch_word,
+                "polarity": 0,
+                "conceptAttributes": [
+                    {"code": "418290006", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {"code": "279333002", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {"code": "424492005", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {"code": "418363000", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
                 ],
-                'type': 'SignSymptomMention',
+                "type": "SignSymptomMention",
             },
         ],
-        'IdentifiedAnnotation': [
+        "IdentifiedAnnotation": [
             {
-                'begin': patient_begin,
-                'end': patient_end,
-                'text': patient_word,
-                'polarity': 0,
-                'conceptAttributes': [
-                    {'code': 'n/a', 'cui': 'CE_64', 'codingScheme': 'custom', 'tui': 'T0NA'},
+                "begin": patient_begin,
+                "end": patient_end,
+                "text": patient_word,
+                "polarity": 0,
+                "conceptAttributes": [
+                    {"code": "n/a", "cui": "CE_64", "codingScheme": "custom", "tui": "T0NA"},
                 ],
-                'type': 'IdentifiedAnnotation'
+                "type": "IdentifiedAnnotation",
             },
             {
-                'begin': fever_begin,
-                'end': fever_end,
-                'text': fever_word,
-                'polarity': 0,
-                'conceptAttributes': [
-                    {'code': 'n/a', 'cui': 'a0_27', 'codingScheme': 'custom', 'tui': 'T0NA'},
-                    {'code': 'n/a', 'cui': 'DIS_31', 'codingScheme': 'custom', 'tui': 'T0NA'},
-                    {'code': 'n/a', 'cui': 'a0_36', 'codingScheme': 'custom', 'tui': 'T0NA'},
+                "begin": fever_begin,
+                "end": fever_end,
+                "text": fever_word,
+                "polarity": 0,
+                "conceptAttributes": [
+                    {"code": "n/a", "cui": "a0_27", "codingScheme": "custom", "tui": "T0NA"},
+                    {"code": "n/a", "cui": "DIS_31", "codingScheme": "custom", "tui": "T0NA"},
+                    {"code": "n/a", "cui": "a0_36", "codingScheme": "custom", "tui": "T0NA"},
                 ],
-                'type': 'IdentifiedAnnotation'
+                "type": "IdentifiedAnnotation",
             },
         ],
     }

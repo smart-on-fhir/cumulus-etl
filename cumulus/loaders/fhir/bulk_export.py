@@ -52,36 +52,38 @@ class BulkExporter:
         See http://hl7.org/fhir/uv/bulkdata/export/index.html for details.
         """
         # Initiate bulk export
-        common.print_header('Starting bulk FHIR export...')
+        common.print_header("Starting bulk FHIR export...")
         # Use a crazy old _since value because we want *everything* and some EHRs will assume a value if absent.
         # (e.g. Smile will default 24h.)
-        response = self._request_with_delay(f'$export?_type={",".join(self._resources)}&_since=1800-01-01T00:00:00Z',
-                                            headers={'Prefer': 'respond-async'},
-                                            target_status_code=202)
+        response = self._request_with_delay(
+            f'$export?_type={",".join(self._resources)}&_since=1800-01-01T00:00:00Z',
+            headers={"Prefer": "respond-async"},
+            target_status_code=202,
+        )
 
         # Grab the poll location URL for status updates
-        poll_location = response.headers['Content-Location']
+        poll_location = response.headers["Content-Location"]
 
         try:
             # Request status report, until export is done
-            response = self._request_with_delay(poll_location, headers={'Accept': 'application/json'})
+            response = self._request_with_delay(poll_location, headers={"Accept": "application/json"})
 
             # Finished! We're done waiting and can download all the files
             response_json = response.json()
 
             # Were there any server-side errors during the export?
-            errors = response_json.get('error', [])
+            errors = response_json.get("error", [])
             if errors:
-                message = 'Errors occurred during export:'
+                message = "Errors occurred during export:"
                 for error in errors:
-                    if error.get('type') == 'OperationOutcome':  # per spec as of writing, the only allowed type
-                        outcome = self._request_with_delay(error['url']).json()
+                    if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
+                        outcome = self._request_with_delay(error["url"]).json()
                         message += f"\n - {outcome['issue'][0]['diagnostics']}"
                 raise FatalError(message)
 
             # Download all the files
-            print('Bulk FHIR export finished, now downloading resources...')
-            files = response_json.get('output', [])
+            print("Bulk FHIR export finished, now downloading resources...")
+            files = response_json.get("output", [])
             self._download_all_ndjson_files(files)
         finally:
             self._delete_export(poll_location)
@@ -95,13 +97,14 @@ class BulkExporter:
     def _delete_export(self, poll_url: str) -> None:
         """As a kindness, send a DELETE to the polling location. Then the server knows it can delete the files."""
         try:
-            self._request_with_delay(poll_url, method='DELETE', target_status_code=202)
+            self._request_with_delay(poll_url, method="DELETE", target_status_code=202)
         except FatalError:
             # Ignore any fatal issue with this, since we don't actually need this to succeed
             pass
 
-    def _request_with_delay(self, path: str, headers: dict = None, target_status_code: int = 200,
-                            method: str = 'GET') -> requests.Response:
+    def _request_with_delay(
+        self, path: str, headers: dict = None, target_status_code: int = 200, method: str = "GET"
+    ) -> requests.Response:
         """
         Requests a file, while respecting any requests to wait longer.
 
@@ -123,7 +126,7 @@ class BulkExporter:
                 print(f'  {response.headers.get("X-Progress", "waiting...")} ({self._total_wait_time}s so far)')
 
                 # And wait as long as the server requests
-                delay = int(response.headers.get('Retry-After', 60))
+                delay = int(response.headers.get("Retry-After", 60))
                 time.sleep(delay)
                 self._total_wait_time += delay
 
@@ -131,9 +134,9 @@ class BulkExporter:
                 # It feels silly to abort on an unknown *success* code, but the spec has such clear guidance on
                 # what the expected response codes are, that it's not clear if a code outside those parameters means
                 # we should keep waiting or stop waiting. So let's be strict here for now.
-                raise FatalError(f'Unexpected status code {response.status_code} from the bulk FHIR export server.')
+                raise FatalError(f"Unexpected status code {response.status_code} from the bulk FHIR export server.")
 
-        raise FatalError('Timed out waiting for the bulk FHIR export to finish.')
+        raise FatalError("Timed out waiting for the bulk FHIR export to finish.")
 
     def _download_all_ndjson_files(self, files: List[dict]) -> None:
         """
@@ -143,11 +146,11 @@ class BulkExporter:
         """
         resource_counts = {}  # how many of each resource we've seen
         for file in files:
-            count = resource_counts.get(file['type'], -1) + 1
-            resource_counts[file['type']] = count
+            count = resource_counts.get(file["type"], -1) + 1
+            resource_counts[file["type"]] = count
             filename = f'{file["type"]}.{count:03}.ndjson'
-            self._download_ndjson_file(file['url'], os.path.join(self._destination, filename))
-            print(f'  Downloaded {filename}')
+            self._download_ndjson_file(file["url"], os.path.join(self._destination, filename))
+            print(f"  Downloaded {filename}")
 
     def _download_ndjson_file(self, url: str, filename: str) -> None:
         """
@@ -156,10 +159,10 @@ class BulkExporter:
         :param url: URL location of file to download
         :param filename: local path to write data to
         """
-        response = self._server.request('GET', url, headers={'Accept': 'application/fhir+ndjson'}, stream=True)
-        with open(filename, 'w', encoding='utf8') as file:
+        response = self._server.request("GET", url, headers={"Accept": "application/fhir+ndjson"}, stream=True)
+        with open(filename, "w", encoding="utf8") as file:
             # Make sure iter_content() returns a string (rather than bytes) by enforcing an encoding
-            response.encoding = response.encoding or 'utf8'
+            response.encoding = response.encoding or "utf8"
 
             # Now actually iterate over the stream and write straight to disk
             for block in response.iter_content(chunk_size=None, decode_unicode=True):

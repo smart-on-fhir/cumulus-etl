@@ -10,7 +10,7 @@ class ParquetFormat(AthenaBatchedFileFormat):
 
     @property
     def suffix(self) -> str:
-        return 'parquet'
+        return "parquet"
 
     def write_format(self, df: pandas.DataFrame, path: str) -> None:
         df.to_parquet(path, index=False, storage_options=self.root.fsspec_options())

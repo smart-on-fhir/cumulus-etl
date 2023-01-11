@@ -47,6 +47,9 @@ include = [
 [tool.bandit]
 exclude_dirs = ["tests"]
 
+[tool.black]
+line-length = 120
+
 [project.optional-dependencies]
 tests = [
     "coverage",
@@ -56,4 +59,7 @@ tests = [
     "pytest",
     "responses",
     "urllib3",
+]
+dev = [
+    "pre-commit",
 ]

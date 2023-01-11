@@ -12,15 +12,15 @@ class JobConfig:
     """Configuration for an ETL job"""
 
     def __init__(
-            self,
-            loader: loaders.Loader,
-            dir_input: str,
-            store_format: store.Format,
-            dir_phi: store.Root,
-            timestamp: datetime.datetime = None,
-            comment: str = None,
-            batch_size: int = 1,  # this default is never really used - overridden by command line args
-            tasks: List[str] = None,
+        self,
+        loader: loaders.Loader,
+        dir_input: str,
+        store_format: store.Format,
+        dir_phi: store.Root,
+        timestamp: datetime.datetime = None,
+        comment: str = None,
+        batch_size: int = 1,  # this default is never really used - overridden by command line args
+        tasks: List[str] = None,
     ):
         """
         :param loader: describes how input files were loaded (e.g. i2b2 or ndjson)
@@ -34,33 +34,33 @@ class JobConfig:
         self.dir_phi = dir_phi
         self.timestamp = common.timestamp_filename(timestamp)
         self.hostname = gethostname()
-        self.comment = comment or ''
+        self.comment = comment or ""
         self.batch_size = batch_size
         self.tasks = tasks or []
 
     def path_codebook(self) -> str:
-        return self.dir_phi.joinpath('codebook.json')
+        return self.dir_phi.joinpath("codebook.json")
 
     def path_config(self) -> str:
-        return os.path.join(self.dir_job_config(), 'job_config.json')
+        return os.path.join(self.dir_job_config(), "job_config.json")
 
     def dir_job_config(self) -> str:
-        path = self.format.root.joinpath(f'JobConfig/{self.timestamp}')
+        path = self.format.root.joinpath(f"JobConfig/{self.timestamp}")
         self.format.root.makedirs(path)
         return path
 
     def as_json(self):
         return {
-            'dir_input': self._loader.root.path,  # the original folder, rather than the temp dir holding deid files
-            'dir_output': self.format.root.path,
-            'dir_phi': self.dir_phi.path,
-            'path': self.path_config(),
-            'codebook': self.path_codebook(),
-            'input_format': type(self._loader).__name__,
-            'output_format': type(self.format).__name__,
-            'comment': self.comment,
-            'batch_size': self.batch_size,
-            'tasks': ','.join(self.tasks),
+            "dir_input": self._loader.root.path,  # the original folder, rather than the temp dir holding deid files
+            "dir_output": self.format.root.path,
+            "dir_phi": self.dir_phi.path,
+            "path": self.path_config(),
+            "codebook": self.path_codebook(),
+            "input_format": type(self._loader).__name__,
+            "output_format": type(self.format).__name__,
+            "comment": self.comment,
+            "batch_size": self.batch_size,
+            "tasks": ",".join(self.tasks),
         }
 
 
@@ -87,18 +87,18 @@ class JobSummary:
         prct = float(self.success) / float(self.attempt)
 
         if 0 == self.attempt % show_every:
-            print(f'success = {self.success:,} rate % {prct}')
+            print(f"success = {self.success:,} rate % {prct}")
 
         return prct
 
     def as_json(self):
         return {
-            'csv': self.csv,
-            'label': self.label,
-            'attempt': self.attempt,
-            'success': self.success,
-            'failed': self.failed,
-            'success_rate': self.success_rate(),
-            'timestamp': self.timestamp,
-            'hostname': self.hostname
+            "csv": self.csv,
+            "label": self.label,
+            "attempt": self.attempt,
+            "success": self.success,
+            "failed": self.failed,
+            "success_rate": self.success_rate(),
+            "timestamp": self.timestamp,
+            "hostname": self.hostname,
         }

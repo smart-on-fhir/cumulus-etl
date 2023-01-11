@@ -13,13 +13,14 @@ from fhirclient.models.range import Range
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
-RELATIVE_REFERENCE_REGEX = re.compile('[A-Za-z]+[/?].+')
-RELATIVE_SEPARATOR_REGEX = re.compile('[/?]')
+RELATIVE_REFERENCE_REGEX = re.compile("[A-Za-z]+[/?].+")
+RELATIVE_SEPARATOR_REGEX = re.compile("[/?]")
 
 
 ###############################################################################
 # Standard FHIR References are ResourceType/id
 ###############################################################################
+
 
 def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
     """
@@ -29,8 +30,8 @@ def ref_resource(resource_type: str, resource_id: str) -> FHIRReference:
     :return: FHIRReference as Resource/$id
     """
     if not resource_id:
-        raise ValueError('Missing resource ID')
-    return FHIRReference({'reference': f'{resource_type}/{resource_id}'})
+        raise ValueError("Missing resource ID")
+    return FHIRReference({"reference": f"{resource_type}/{resource_id}"})
 
 
 def ref_subject(subject_id: str) -> FHIRReference:
@@ -39,7 +40,7 @@ def ref_subject(subject_id: str) -> FHIRReference:
     :param subject_id: ID for patient (isa REF can be UUID)
     :return: FHIRReference as Patient/$id
     """
-    return ref_resource('Patient', subject_id)
+    return ref_resource("Patient", subject_id)
 
 
 def ref_encounter(encounter_id: str) -> FHIRReference:
@@ -48,7 +49,7 @@ def ref_encounter(encounter_id: str) -> FHIRReference:
     :param encounter_id: ID for encounter (isa REF can be UUID)
     :return: FHIRReference as Encounter/$id
     """
-    return ref_resource('Encounter', encounter_id)
+    return ref_resource("Encounter", encounter_id)
 
 
 def unref_resource(ref: FHIRReference) -> (str, str):
@@ -63,7 +64,7 @@ def unref_resource(ref: FHIRReference) -> (str, str):
     """
     # FIXME: Support contained resources like '#p1' and absolute resources like
     #        http://fhir.hl7.org/svc/StructureDefinition/c8973a22-2b5b-4e76-9c66-00639c99e61b
-    if not ref.reference or ref.reference.startswith('#'):
+    if not ref.reference or ref.reference.startswith("#"):
         raise ValueError(f'Reference type not handled: "{ref.reference}"')
 
     if not RELATIVE_REFERENCE_REGEX.match(ref.reference) and not ref.type:
@@ -82,6 +83,7 @@ def unref_resource(ref: FHIRReference) -> (str, str):
 # FHIR Coding and CodeableConcept
 ###############################################################################
 
+
 def fhir_concept(text: str, coded: List[Coding], extension=None) -> CodeableConcept:
     """
     Helper function, simplifies FHIR semantics for when to use types/json
@@ -91,7 +93,7 @@ def fhir_concept(text: str, coded: List[Coding], extension=None) -> CodeableConc
     :return: Concept including human readable 'text' and list of codes
     """
     as_json = [c.as_json() for c in coded]
-    concept = CodeableConcept({'text': text, 'coding': as_json})
+    concept = CodeableConcept({"text": text, "coding": as_json})
 
     if extension:
         concept.extension = [extension]
@@ -108,14 +110,15 @@ def fhir_coding(vocab: str, code: str, display=None) -> Coding:
     :return: FHIR Coding for the NLP coded response.
     """
     if display:
-        return Coding({'system': vocab, 'code': code, 'display': display})
+        return Coding({"system": vocab, "code": code, "display": display})
     else:
-        return Coding({'system': vocab, 'code': code})
+        return Coding({"system": vocab, "code": code})
 
 
 ###############################################################################
 # FHIR Dates, Periods, and Ranges
 ###############################################################################
+
 
 def fhir_date_now() -> FHIRDate:
     """

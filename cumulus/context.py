@@ -23,9 +23,9 @@ class JobContext:
     This is stored in the phi/build directory and is thus safe to store possible PHI.
     """
 
-    _LAST_SUCCESSFUL_DATETIME = 'last_successful_datetime'
-    _LAST_SUCCESSFUL_INPUT_DIR = 'last_successful_input_dir'
-    _LAST_SUCCESSFUL_OUTPUT_DIR = 'last_successful_output_dir'
+    _LAST_SUCCESSFUL_DATETIME = "last_successful_datetime"
+    _LAST_SUCCESSFUL_INPUT_DIR = "last_successful_input_dir"
+    _LAST_SUCCESSFUL_OUTPUT_DIR = "last_successful_output_dir"
 
     def __init__(self, path: str):
         """

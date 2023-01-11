@@ -15,6 +15,7 @@ class Loader(abc.ABC):
 
     All methods return an iterator over FHIR resources.
     """
+
     def __init__(self, root: Root):
         """
         Initialize a new Loader class

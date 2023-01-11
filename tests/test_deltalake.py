@@ -40,7 +40,7 @@ class TestDeltaLake(unittest.TestCase):
         """
         Creates a dummy DataFrame with ids & values equal to each kwarg provided.
         """
-        rows = [{'id': k, 'value': v} for k, v in kwargs.items()]
+        rows = [{"id": k, "value": v} for k, v in kwargs.items()]
         return pandas.DataFrame(rows)
 
     def store(self, df: pandas.DataFrame, batch: int = 10) -> None:
@@ -55,22 +55,22 @@ class TestDeltaLake(unittest.TestCase):
     @staticmethod
     def spark_to_records(table) -> List[dict]:
         table_df = table.toPandas()
-        table_records = table_df.to_dict(orient='records')
+        table_records = table_df.to_dict(orient="records")
         for r in table_records:
             # convert spark Row to dict (it's annoying that toPandas() doesn't do that for us)
-            if hasattr(r['value'], 'asDict'):
-                r['value'] = r['value'].asDict()
+            if hasattr(r["value"], "asDict"):
+                r["value"] = r["value"].asDict()
         return table_records
 
     def assert_lake_equal(self, df: pandas.DataFrame, when: int = None) -> None:
-        table_path = os.path.join(self.output_dir, 'patient')
+        table_path = os.path.join(self.output_dir, "patient")
 
         reader = self.deltalake.spark.read
         if when is not None:
-            reader = reader.option('versionAsOf', when)
+            reader = reader.option("versionAsOf", when)
 
-        table_records = self.spark_to_records(reader.format('delta').load(table_path).sort('id'))
-        self.assertListEqual(df.to_dict(orient='records'), table_records)
+        table_records = self.spark_to_records(reader.format("delta").load(table_path).sort("id"))
+        self.assertListEqual(df.to_dict(orient="records"), table_records)
 
     def test_creates_if_empty(self):
         """Verify that the lake is created when empty"""
@@ -93,9 +93,9 @@ class TestDeltaLake(unittest.TestCase):
 
         By default, Delta Lake does not allow any additions or subtractions.
         """
-        self.store(self.df(a={'one': 1}))
-        self.store(self.df(b={'one': 1, 'two': 2}))
-        self.assert_lake_equal(self.df(a={'one': 1, 'two': None}, b={'one': 1, 'two': 2}))
+        self.store(self.df(a={"one": 1}))
+        self.store(self.df(b={"one": 1, "two": 2}))
+        self.assert_lake_equal(self.df(a={"one": 1, "two": None}, b={"one": 1, "two": 2}))
 
     def test_missing_field(self):
         """
@@ -103,9 +103,9 @@ class TestDeltaLake(unittest.TestCase):
 
         By default, Delta Lake does not allow any additions or subtractions.
         """
-        self.store(self.df(a={'one': 1, 'two': 2}))
-        self.store(self.df(b={'one': 1}))
-        self.assert_lake_equal(self.df(a={'one': 1, 'two': 2}, b={'one': 1, 'two': None}))
+        self.store(self.df(a={"one": 1, "two": 2}))
+        self.store(self.df(b={"one": 1}))
+        self.assert_lake_equal(self.df(a={"one": 1, "two": 2}, b={"one": 1, "two": None}))
 
     # This currently fails because delta silently drops field data that can't be converted to the correct type.
     # Here is a request to change this behavior into an error: https://github.com/delta-io/delta/issues/1551
@@ -113,46 +113,49 @@ class TestDeltaLake(unittest.TestCase):
     @pytest.mark.xfail
     def test_altered_field(self):
         """Verify that field types cannot be altered."""
-        self.store(self.df(a={'one': 1}))
-        self.store(self.df(b={'one': 'string'}))  # should error out / not update
-        self.assert_lake_equal(self.df(a={'one': 1}))
+        self.store(self.df(a={"one": 1}))
+        self.store(self.df(b={"one": "string"}))  # should error out / not update
+        self.assert_lake_equal(self.df(a={"one": 1}))
 
     def test_schema_has_names(self):
         """Verify that the lake's schemas has valid nested names, which may not always happen with spark"""
-        self.store(self.df(a=[{'one': 1, 'two': 2}]))
+        self.store(self.df(a=[{"one": 1, "two": 2}]))
 
-        table_path = os.path.join(self.output_dir, 'patient')
+        table_path = os.path.join(self.output_dir, "patient")
         reader = self.deltalake.spark.read
-        table_df = reader.format('delta').load(table_path)
-        self.assertDictEqual({
-            'type': 'struct',
-            'fields': [
-                {'metadata': {}, 'name': 'id', 'nullable': True, 'type': 'string'},
-                {
-                    'metadata': {},
-                    'name': 'value',
-                    'nullable': True,
-                    'type': {
-                        'containsNull': True,
-                        'elementType': {
-                            'fields': [
-                                {
-                                    'metadata': {},
-                                    'name': 'one',
-                                    'nullable': True,
-                                    'type': 'long',
-                                },
-                                {
-                                    'metadata': {},
-                                    'name': 'two',
-                                    'nullable': True,
-                                    'type': 'long',
-                                },
-                            ],
-                            'type': 'struct',
+        table_df = reader.format("delta").load(table_path)
+        self.assertDictEqual(
+            {
+                "type": "struct",
+                "fields": [
+                    {"metadata": {}, "name": "id", "nullable": True, "type": "string"},
+                    {
+                        "metadata": {},
+                        "name": "value",
+                        "nullable": True,
+                        "type": {
+                            "containsNull": True,
+                            "elementType": {
+                                "fields": [
+                                    {
+                                        "metadata": {},
+                                        "name": "one",
+                                        "nullable": True,
+                                        "type": "long",
+                                    },
+                                    {
+                                        "metadata": {},
+                                        "name": "two",
+                                        "nullable": True,
+                                        "type": "long",
+                                    },
+                                ],
+                                "type": "struct",
+                            },
+                            "type": "array",
                         },
-                        'type': 'array',
                     },
-                },
-            ],
-        }, table_df.schema.jsonValue())
+                ],
+            },
+            table_df.schema.jsonValue(),
+        )
