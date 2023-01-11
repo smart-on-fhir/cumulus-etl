@@ -77,9 +77,11 @@ class CodebookDB:
             'Patient': {},
             'Encounter': {},
         }
+        self.modified = True
 
         if saved:
             self._load_saved(common.read_json(saved))
+            self.modified = False
 
     def patient(self, real_id: str) -> str:
         """
@@ -115,6 +117,7 @@ class CodebookDB:
             # The ID does not need to be cryptographically random, since the real_id is not encoded in it at all.
             fake_id = common.fake_id(resource_type)
             type_mapping[real_id] = fake_id
+            self.modified = True
 
         return fake_id
 
@@ -141,6 +144,7 @@ class CodebookDB:
             # recommended, so 256 bits seem good (which is 32 bytes).
             salt = secrets.token_hex(32)
             self.mapping['id_salt'] = salt
+            self.modified = True
 
         return binascii.unhexlify(salt)  # revert from doubled hex 64-char string representation back to just 32 bytes
 
@@ -170,10 +174,16 @@ class CodebookDB:
         """Loads version 1 of the codebook database format"""
         self.mapping = saved
 
-    def save(self, path: str) -> None:
+    def save(self, path: str) -> bool:
         """
         Save the CodebookDB database as JSON
         :param path: /path/to/codebook.json
+        :returns: whether a save actually happened (if codebook hasn't changed, nothing is written back)
         """
-        logging.info('Saving codebook to: %s', path)
-        common.write_json(path, self.mapping)
+        if self.modified:
+            logging.info('Saving codebook to: %s', path)
+            common.write_json(path, self.mapping)
+            self.modified = False
+            return True
+        else:
+            return False

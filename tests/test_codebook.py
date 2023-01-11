@@ -81,6 +81,33 @@ class TestCodebookDB(unittest.TestCase):
         self.assertEqual(e1, db2.encounter('1'))
         self.assertEqual(e2, db2.encounter('2'))
 
+    def test_does_not_save_if_not_modified(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, 'cb.json')
+
+            # Confirm that an empty book starts modified
+            db = CodebookDB()
+            self.assertTrue(db.save(path))
+
+            # But after a save, we are no longer modified
+            self.assertFalse(db.save(path))
+
+            # Change it again, and we can save
+            db.patient('1')
+            self.assertTrue(db.save(path))
+
+            # But if we make a call that doesn't modify the db, don't save
+            db.patient('1')
+            self.assertFalse(db.save(path))
+
+            # Resource hashes also cause modification
+            db.resource_hash('1')
+            self.assertTrue(db.save(path))
+
+            # And encounters
+            db.encounter('1')
+            self.assertTrue(db.save(path))
+
     def test_version0(self):
         script_dir = os.path.dirname(__file__)
         db_path = os.path.join(script_dir, 'data', 'codebook0.json')
