@@ -94,7 +94,7 @@ services:
       - 8080:8080
 
   cnlp-transformers-test:
-    image: smartonfhir/cnlp-transformers:latest-cpu
+    image: smartonfhir/cnlp-transformers:negation-latest-cpu
     #build: 
     #  context: ../cnlp_transformers/docker
     #  dockerfile: Dockerfile.cpu
@@ -106,7 +106,7 @@ services:
       - cumulus-etl
 
   cnlp-transformers-test-gpu:
-    image: smartonfhir/cnlp-transformers:latest-gpu
+    image: smartonfhir/cnlp-transformers:negation-latest-gpu
     #build: 
     #  context: ../cnlp_transformers/docker
     #  dockerfile: Dockerfile.gpu
