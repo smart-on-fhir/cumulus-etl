@@ -5,8 +5,10 @@ RUN git clone https://github.com/microsoft/Tools-for-Health-Data-Anonymization.g
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS ms-tool
 COPY --from=ms-tool-src /app /app
-RUN dotnet publish \
-  --runtime=linux-x64 \
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/x64/) && dotnet publish \
+  --runtime=linux-${arch} \
   --self-contained=true \
   --configuration=Release \
   -p:InvariantGlobalization=true \
