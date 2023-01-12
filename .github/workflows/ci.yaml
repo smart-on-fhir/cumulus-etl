@@ -31,6 +31,7 @@ jobs:
 
       - name: Build MS tool
         run: |
+          sudo apt-get update
           sudo apt-get install dotnet6
           dotnet publish \
             --runtime=linux-x64 \
