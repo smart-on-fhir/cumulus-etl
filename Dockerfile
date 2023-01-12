@@ -5,9 +5,10 @@ RUN git clone https://github.com/microsoft/Tools-for-Health-Data-Anonymization.g
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS ms-tool
 COPY --from=ms-tool-src /app /app
-
+# This will force builds to fail if the environment piping breaks for some reason
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/x64/) && dotnet publish \
+RUN arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/x64/) && \
+  dotnet publish \
   --runtime=linux-${arch} \
   --self-contained=true \
   --configuration=Release \
