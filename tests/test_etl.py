@@ -13,17 +13,12 @@ import freezegun
 import pytest
 import s3fs
 from ctakesclient.typesystem import Polarity
-from fhirclient.models.condition import Condition
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.extension import Extension
-from fhirclient.models.patient import Patient
 
 from cumulus import common, config, context, deid, errors, etl, loaders, store
 from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
-from tests import i2b2_mock_data
 from tests.utils import TreeCompareMixin
 
 
@@ -115,60 +110,9 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         phi_root = store.Root(self.phi_path)
         self.config = config.JobConfig(self.loader, self.dir_input, self.format, phi_root, batch_size=5)
 
-    def test_unknown_modifier_extensions_skipped_for_patients(self):
-        """Verify we ignore unknown modifier extensions during a normal etl job flow (like patients)"""
-        patient0 = i2b2_mock_data.patient()
-        patient0.id = "0"
-        patient1 = i2b2_mock_data.patient()
-        patient1.id = "1"
-        patient1.modifierExtension = [Extension({"url": "unrecognized"})]
-
-        with mock.patch("cumulus.etl._read_ndjson") as mock_read:
-            mock_read.return_value = [patient0, patient1]
-            etl.etl_patient(self.config, self.scrubber)
-
-        # Confirm that only patient 0 got stored
-        self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][1]
-        self.assertEqual([self.codebook.db.patient("0")], list(df.id))
-
-    def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
-        """Verify we ignore unknown modifier extensions during a custom etl job flow (nlp symptoms)"""
-        docref0 = i2b2_mock_data.documentreference()
-        docref0.id = "0"
-        docref0.subject.reference = "Patient/1234"
-        docref1 = i2b2_mock_data.documentreference()
-        docref1.id = "1"
-        docref1.subject.reference = "Patient/5678"
-        docref1.modifierExtension = [Extension({"url": "unrecognized"})]
-
-        with mock.patch("cumulus.etl._read_ndjson") as mock_read:
-            mock_read.return_value = [docref0, docref1]
-            etl.etl_covid_symptom__nlp_results(self.config, self.scrubber)
-
-        # Confirm that only symptoms from docref 0 got stored
-        self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][1]
-        expected_subject = self.codebook.db.patient("1234")
-        self.assertEqual({expected_subject}, set(df.subject_id))
-
-    def test_non_er_visit_is_skipped_for_covid_symptoms(self):
-        """Verify we ignore non ER visits for the covid symptoms NLP"""
-        docref0 = i2b2_mock_data.documentreference()
-        docref0.id = "skipped"
-        docref0.type.coding[0].code = "NOTE:nope"
-        docref1 = i2b2_mock_data.documentreference()
-        docref1.id = "present"
-
-        with mock.patch("cumulus.etl._read_ndjson") as mock_read:
-            mock_read.return_value = [docref0, docref1]
-            etl.etl_covid_symptom__nlp_results(self.config, self.scrubber)
-
-        # Confirm that only symptoms from docref 'present' got stored
-        self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][1]
-        expected_docref = self.codebook.db.resource_hash("present")
-        self.assertEqual({expected_docref}, set(df.docref_id))
+    def test_batched_output(self):
+        self.run_etl(batch_size=1)
+        self.assert_output_equal("batched-ndjson-output")
 
     def test_downloaded_phi_is_not_kept(self):
         """Verify we remove all downloaded PHI even if interrupted"""
@@ -317,85 +261,6 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
 
         # Confirm we didn't change anything
         self.assertEqual(input_context, common.read_json(self.context_path))
-
-
-class TestI2b2EtlUtils(BaseI2b2EtlSimple):
-    """Test case for etl utility methods"""
-
-    def test_batched_output(self):
-        self.run_etl(batch_size=1)
-        self.assert_output_equal("batched-ndjson-output")
-
-    def test_batch_iterate(self):
-        """Check a bunch of edge cases for the _batch_iterate helper"""
-        # pylint: disable=protected-access
-
-        self.assertEqual([], [list(x) for x in etl._batch_iterate([], 2)])
-
-        self.assertEqual(
-            [
-                [1, 2],
-                [3, 4],
-            ],
-            [list(x) for x in etl._batch_iterate([1, 2, 3, 4], 2)],
-        )
-
-        self.assertEqual(
-            [
-                [1, 2],
-                [3, 4],
-                [5],
-            ],
-            [list(x) for x in etl._batch_iterate([1, 2, 3, 4, 5], 2)],
-        )
-
-        self.assertEqual(
-            [
-                [1, 2, 3],
-                [4],
-            ],
-            [list(x) for x in etl._batch_iterate([1, 2, 3, 4], 3)],
-        )
-
-        self.assertEqual(
-            [
-                [1],
-                [2],
-                [3],
-            ],
-            [list(x) for x in etl._batch_iterate([1, 2, 3], 1)],
-        )
-
-        with self.assertRaises(ValueError):
-            list(etl._batch_iterate([1, 2, 3], 0))
-
-        with self.assertRaises(ValueError):
-            list(etl._batch_iterate([1, 2, 3], -1))
-
-    def test_read_ndjson(self):
-        """Verify we recognize all expected ndjson filename formats"""
-        # pylint: disable=protected-access
-
-        def make_json(path, filename, resource_id):
-            common.write_json(os.path.join(path, filename), {"id": resource_id})
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            make_json(tmpdir, "11.Condition.ndjson", "11")
-            make_json(tmpdir, "Condition.12.ndjson", "12")
-            make_json(tmpdir, "13.Condition.13.ndjson", "13")
-            make_json(tmpdir, "Patient.14.ndjson", "14")
-
-            job_config = mock.MagicMock()
-            job_config.dir_input = tmpdir
-
-            resources = etl._read_ndjson(job_config, Condition)
-            self.assertEqual({"11", "12", "13"}, {r.id for r in resources})
-
-            resources = etl._read_ndjson(job_config, Patient)
-            self.assertEqual({"14"}, {r.id for r in resources})
-
-            resources = etl._read_ndjson(job_config, Encounter)
-            self.assertEqual([], list(resources))
 
 
 class TestI2b2EtlFormats(BaseI2b2EtlSimple):

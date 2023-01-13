@@ -1,256 +1,22 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
-import collections
 import itertools
 import json
 import logging
 import os
-import re
 import shutil
 import socket
 import sys
 import tempfile
 import time
-from typing import Iterable, Iterator, List, Type, TypeVar, Union
+from typing import List, Type
 from urllib.parse import urlparse
 
 import ctakesclient
-import pandas
-from fhirclient.models.condition import Condition
-from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.fhirabstractbase import FHIRAbstractBase
-from fhirclient.models.observation import Observation
-from fhirclient.models.patient import Patient
-from fhirclient.models.resource import Resource
 
-from cumulus import common, context, ctakes, deid, errors, formats, loaders, store
+from cumulus import common, context, deid, errors, formats, loaders, store, tasks
 from cumulus.config import JobConfig, JobSummary
-
-###############################################################################
-#
-# Helpers
-#
-###############################################################################
-
-T = TypeVar("T")
-AnyFhir = TypeVar("AnyFhir", bound=FHIRAbstractBase)
-AnyResource = TypeVar("AnyResource", bound=Resource)
-
-
-def _read_ndjson(config: JobConfig, resource_type: Type[AnyResource]) -> Iterator[AnyResource]:
-    """
-    Grabs all ndjson files from a folder, of a particular resource type.
-
-    Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
-    """
-    resource_name = resource_type.__name__
-
-    pattern = re.compile(rf"([0-9]+.)?{resource_name}(.[0-9]+)?.ndjson")
-    all_files = os.listdir(config.dir_input)
-    filenames = filter(pattern.match, all_files)
-
-    if not filenames:
-        logging.error("Could not find any files for %s in the input folder, skipping that resource.", resource_name)
-        return
-
-    for filename in filenames:
-        with common.open_file(os.path.join(config.dir_input, filename), "r") as f:
-            for line in f:
-                yield resource_type(jsondict=json.loads(line), strict=False)
-
-
-def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
-    """
-    Yields sub-iterators, each with {size} elements or less from iterable
-
-    The whole iterable is never fully loaded into memory. Rather we load only one element at a time.
-
-    Example:
-        for batch in _batch_iterate([1, 2, 3, 4, 5], 2):
-            print(list(batch))
-
-    Results in:
-        [1, 2]
-        [3, 4]
-        [5]
-    """
-    if size < 1:
-        raise ValueError("Must iterate by at least a batch of 1")
-
-    true_iterable = iter(iterable)  # in case it's actually a list (we want to iterate only once through)
-    while True:
-        iter_slice = itertools.islice(true_iterable, size)
-        try:
-            peek = next(iter_slice)
-        except StopIteration:
-            return  # we're done!
-        yield itertools.chain([peek], iter_slice)
-
-
-def _process_job_entries(
-    config: JobConfig,
-    job_name: str,
-    resources: Iterator[Union[dict, Resource]],
-    scrubber: deid.Scrubber,
-    dbname: str,
-    deidentify_resources=True,
-):
-    job = JobSummary(job_name)
-
-    common.print_header(f"{job_name}()")
-
-    # De-identify each entry by passing them through our scrubber
-    if deidentify_resources:
-        deid_json_entries = (x.as_json() for x in filter(scrubber.scrub_resource, resources))
-    else:
-        deid_json_entries = resources
-
-    # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
-    # We want to batch them up, to allow resuming from interruptions more easily.
-    for index, batch in enumerate(_batch_iterate(deid_json_entries, config.batch_size)):
-        # Stuff de-identified FHIR json into one big pandas DataFrame
-        dataframe = pandas.DataFrame(batch)
-
-        # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
-        # updated codebook with no data than data with an inaccurate codebook.
-        scrubber.save()
-
-        # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
-        config.format.write_records(job, dataframe, dbname, index)
-
-    return job
-
-
-###############################################################################
-#
-# FHIR Patient
-#
-###############################################################################
-
-
-def etl_patient(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    return _process_job_entries(
-        config,
-        etl_patient.__name__,
-        _read_ndjson(config, Patient),
-        scrubber,
-        "patient",
-    )
-
-
-###############################################################################
-#
-# FHIR Encounter
-#
-###############################################################################
-
-
-def etl_encounter(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    return _process_job_entries(
-        config,
-        etl_encounter.__name__,
-        _read_ndjson(config, Encounter),
-        scrubber,
-        "encounter",
-    )
-
-
-###############################################################################
-#
-# FHIR Observation (Lab Result)
-#
-###############################################################################
-
-
-def etl_lab(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    return _process_job_entries(
-        config,
-        etl_lab.__name__,
-        _read_ndjson(config, Observation),
-        scrubber,
-        "observation",
-    )
-
-
-###############################################################################
-#
-# FHIR Condition
-#
-###############################################################################
-
-
-def etl_condition(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    return _process_job_entries(
-        config,
-        etl_condition.__name__,
-        _read_ndjson(config, Condition),
-        scrubber,
-        "condition",
-    )
-
-
-###############################################################################
-#
-# FHIR DocumentReference
-#
-###############################################################################
-
-
-def etl_notes_meta(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    return _process_job_entries(
-        config,
-        etl_notes_meta.__name__,
-        _read_ndjson(config, DocumentReference),
-        scrubber,
-        "documentreference",
-    )
-
-
-def load_covid_symptoms_nlp(config: JobConfig, scrubber: deid.Scrubber) -> Iterator[Resource]:
-    """Passes physician notes through NLP and returns any symptoms found"""
-    # Hard code some i2b2 types that we are interested in (all emergency room codes -- this is not likely very
-    # portable, but it's what we have today).
-    def is_er_coding(coding):
-        return coding.system == "http://cumulus.smarthealthit.org/i2b2" and coding.code in [
-            "NOTE:149798455",
-            "NOTE:318198113",
-            "NOTE:318198110",
-            "NOTE:3710480",
-            "NOTE:189094619",
-            "NOTE:159552404",
-            "NOTE:318198107",
-            "NOTE:189094644",
-            "NOTE:3807712",
-            "NOTE:189094576",
-        ]
-
-    for docref in _read_ndjson(config, DocumentReference):
-        if not scrubber.scrub_resource(docref, scrub_attachments=False):
-            continue
-
-        # Check that the note is one of our special allow-listed types (we do this here rather than on the output side
-        # to save needing to run everything through NLP).
-        type_codings = (docref.type and docref.type.coding) or []
-        is_er_note = list(filter(is_er_coding, type_codings))
-        if not is_er_note:
-            continue
-
-        symptoms = ctakes.covid_symptoms_extract(config.dir_phi, docref)
-        for symptom in symptoms:
-            yield symptom
-
-
-def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
-    return _process_job_entries(
-        config,
-        etl_covid_symptom__nlp_results.__name__,
-        load_covid_symptoms_nlp(config, scrubber),
-        scrubber,
-        "covid_symptom__nlp_results",
-        deidentify_resources=False,  # scrubbing is done in load method
-    )
 
 
 ###############################################################################
@@ -259,35 +25,10 @@ def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -
 #
 ###############################################################################
 
-TaskDescription = collections.namedtuple(
-    "TaskDescription",
-    ["func", "resources"],
-)
 
-
-def get_task_descriptions(tasks: List[str] = None) -> Iterable[TaskDescription]:
-    # Tasks are named after the table they generate on the output side
-    available_tasks = {
-        "condition": TaskDescription(etl_condition, ["Condition"]),
-        "documentreference": TaskDescription(etl_notes_meta, ["DocumentReference"]),
-        "encounter": TaskDescription(etl_encounter, ["Encounter"]),
-        "observation": TaskDescription(etl_lab, ["Observation"]),
-        "patient": TaskDescription(etl_patient, ["Patient"]),
-        "covid_symptom__nlp_results": TaskDescription(etl_covid_symptom__nlp_results, ["DocumentReference"]),
-    }
-
-    if tasks is None:
-        return available_tasks.values()
-
-    try:
-        return [available_tasks[k] for k in tasks]
-    except KeyError as exc:
-        names = "\n".join(sorted(f"  {key}" for key in available_tasks))
-        print(f"Unknown task name given. Valid task names:\n{names}", file=sys.stderr)
-        raise SystemExit(errors.TASK_UNKNOWN) from exc
-
-
-def load_and_deidentify(loader: loaders.Loader, tasks: List[str] = None) -> tempfile.TemporaryDirectory:
+def load_and_deidentify(
+    loader: loaders.Loader, selected_tasks: List[Type[tasks.EtlTask]]
+) -> tempfile.TemporaryDirectory:
     """
     Loads the input directory and does a first-pass de-identification
 
@@ -296,7 +37,7 @@ def load_and_deidentify(loader: loaders.Loader, tasks: List[str] = None) -> temp
     :returns: a temporary directory holding the de-identified files in FHIR ndjson format
     """
     # Grab a list of all required resource types for the tasks we are running
-    required_resources = set(itertools.chain.from_iterable(t.resources for t in get_task_descriptions(tasks)))
+    required_resources = set(t.resource.__name__ for t in selected_tasks)
 
     # First step is loading all the data into a local ndjson format
     loaded_dir = loader.load_all(list(required_resources))
@@ -305,17 +46,18 @@ def load_and_deidentify(loader: loaders.Loader, tasks: List[str] = None) -> temp
     return deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
-def etl_job(config: JobConfig, tasks: Iterable[str] = None) -> List[JobSummary]:
+def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> List[JobSummary]:
     """
     :param config: job config
-    :param tasks: if specified, only the listed tasks are run
+    :param selected_tasks: the tasks to run
     :return: a list of job summaries
     """
     summary_list = []
 
     scrubber = deid.Scrubber(config.dir_phi.path)
-    for task_desc in get_task_descriptions(tasks):
-        summary = task_desc.func(config, scrubber)
+    for task_class in selected_tasks:
+        task = task_class(config, scrubber)
+        summary = task.run()
         summary_list.append(summary)
 
         path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
@@ -443,6 +185,12 @@ def main(args: List[str]):
     )
     parser.add_argument("--smart-jwks", metavar="/path/to/jwks", help="JWKS file registered with SMART FHIR server")
     parser.add_argument("--task", action="append", help="Only update the given output tables (comma separated)")
+    parser.add_argument(
+        "--task-filter",
+        action="append",
+        choices=["covid_symptom", "cpu", "gpu"],
+        help="Restrict tasks to only the given sets (comma separated)",
+    )
     parser.add_argument("--skip-init-checks", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(args)
 
@@ -476,10 +224,12 @@ def main(args: List[str]):
         config_store = formats.NdjsonFormat(root_output)
 
     # Check which tasks are being run, allowing comma-separated values
-    tasks = args.task and list(itertools.chain.from_iterable(t.split(",") for t in args.task))
+    task_names = args.task and list(itertools.chain.from_iterable(t.split(",") for t in args.task))
+    task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
+    selected_tasks = tasks.EtlTask.get_selected_tasks(task_names, task_filters)
 
     # Pull down resources and run the MS tool on them
-    deid_dir = load_and_deidentify(config_loader, tasks=tasks)
+    deid_dir = load_and_deidentify(config_loader, selected_tasks)
 
     # Prepare config for jobs
     config = JobConfig(
@@ -490,14 +240,14 @@ def main(args: List[str]):
         comment=args.comment,
         batch_size=args.batch_size,
         timestamp=job_datetime,
-        tasks=tasks,
+        tasks=[t.name for t in selected_tasks],
     )
     common.write_json(config.path_config(), config.as_json(), indent=4)
     common.print_header("Configuration:")
     print(json.dumps(config.as_json(), indent=4))
 
     # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-    summaries = etl_job(config, tasks=tasks)
+    summaries = etl_job(config, selected_tasks)
 
     # Print results to the console
     common.print_header("Results:")
