@@ -1,6 +1,5 @@
 """Tests for the scrubber module"""
 
-import os
 import tempfile
 import unittest
 from unittest import mock
@@ -14,7 +13,7 @@ from cumulus.deid.codebook import CodebookDB
 from tests import i2b2_mock_data
 
 
-@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: b"1234")  # just to not waste entropy
+@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # just to not waste entropy
 class TestScrubber(unittest.TestCase):
     """Test case for the Scrubber class"""
 
@@ -97,15 +96,13 @@ class TestScrubber(unittest.TestCase):
         scrubber.save()
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "cb.json")
-
             # Start with one encounter in db
             db = CodebookDB()
             db.encounter("1")
-            db.save(path)
+            db.save(tmpdir)
 
             # Confirm we loaded that encounter correctly
-            scrubber = Scrubber(path)
+            scrubber = Scrubber(tmpdir)
             encounter = i2b2_mock_data.encounter()  # patient is 12345
             encounter.id = "1"
             self.assertTrue(scrubber.scrub_resource(encounter))
@@ -113,7 +110,7 @@ class TestScrubber(unittest.TestCase):
 
             # Save back to disk and confirm that we kept the same IDs
             scrubber.save()
-            db2 = CodebookDB(path)
+            db2 = CodebookDB(tmpdir)
             self.assertEqual(db.encounter("1"), db2.encounter("1"))
             self.assertEqual(encounter.subject.reference, f"Patient/{db2.patient('12345')}")
 
@@ -123,11 +120,11 @@ class TestScrubber(unittest.TestCase):
             scrubber.scrub_resource(encounter_bad)
 
             # make sure that we raise an error on an unexpected cookbook version
-            db.mapping["version"] = ".99"
+            db.settings["version"] = ".99"
             db.modified = True
-            db.save(path)
+            db.save(tmpdir)
             with self.assertRaises(Exception) as context:
-                Scrubber(path)
+                Scrubber(tmpdir)
             self.assertIn(".99", str(context.exception))
 
     def test_meta_security_cleared(self):

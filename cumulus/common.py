@@ -4,7 +4,6 @@ import datetime
 import json
 import os
 import logging
-import uuid
 from typing import Any, Optional
 from urllib.parse import urlparse
 
@@ -54,19 +53,6 @@ def find_by_name(folder, path_contains="filemask", progress_bar=1000) -> list:
                     print(f"found: {len(found)}")
                     print(path)
     return found
-
-
-def fake_id(category: str) -> str:
-    """
-    Randomly generate a linked Patient identifier
-
-    This ID is not cryptographically random.
-
-    :param category: the resource type for this ID
-    :return: long universally unique ID
-    """
-    del category  # unused outside of tests
-    return str(uuid.uuid4())
 
 
 ###############################################################################

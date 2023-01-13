@@ -314,7 +314,7 @@ def etl_job(config: JobConfig, tasks: Iterable[str] = None) -> List[JobSummary]:
     """
     summary_list = []
 
-    scrubber = deid.Scrubber(config.path_codebook())
+    scrubber = deid.Scrubber(config.dir_phi.path)
     for task_desc in get_task_descriptions(tasks):
         summary = task_desc.func(config, scrubber)
         summary_list.append(summary)

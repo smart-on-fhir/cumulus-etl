@@ -3,11 +3,9 @@
 import filecmp
 import json
 import os
-import random
 import shutil
 import tempfile
 import unittest
-import uuid
 from typing import Optional
 from unittest import mock
 
@@ -92,33 +90,6 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
         # codebook, this is all we'd need to do.
         os.makedirs(self.phi_path)
         shutil.copy(os.path.join(self.data_dir, "codebook.json"), self.phi_path)
-
-        # Enforce reproducible UUIDs by mocking out uuid4(). Setting a global
-        # random seed does not work in this case - we need to mock it out.
-        # This helps with UUIDs that don't get recorded in the codebook, like observations.
-        # Note that we only mock out the fake_id calls in codebook.py -- this is
-        # intentional, as while we do use fake_id() elsewhere when generating new FHIR
-        # objects, those are arbitrary real IDs before de-identification. If those
-        # make it through to the end of etl test output, we have a problem anyway
-        # and the flakiness of those IDs is a feature not a bug.
-        self.category_seeds = {}
-        uuid4_mock = mock.patch("cumulus.deid.codebook.common.fake_id", new=self.reliable_fake_id)
-        self.addCleanup(uuid4_mock.stop)
-        uuid4_mock.start()
-
-    def reliable_fake_id(self, category: str) -> str:
-        """
-        A version of common.fake_id that uses a new seed per category
-
-        This helps reduce churn as each category has its own random generator.
-        Without this, adding a new call to common.fake_id() early in the pipeline
-        would change the result of every single call to common.fake_id() afterward.
-
-        This was causing a lot of test file churn, so now we silo each random
-        generator in each category. There is still churn in each category, but :shrug:.
-        """
-        rd = self.category_seeds.setdefault(category, random.Random(category))
-        return str(uuid.UUID(int=rd.getrandbits(128)))
 
     def assert_output_equal(self, folder: str):
         """Compares the etl output with the expected json structure"""
@@ -271,6 +242,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
         self.assertEqual(["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient")))
 
+    @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")
     def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
         # Clear out the saved test codebook first
@@ -285,12 +257,14 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
         # Ensure we wrote a valid codebook out
         codebook = common.read_json(codebook_path)
+        self.assertEqual("1234", codebook["id_salt"])
+        mappings = common.read_json(os.path.join(self.phi_path, "codebook-cached-mappings.json"))
         self.assertDictEqual(
             {
-                "323456": "3114c436-dd5d-8d0e-07cb-d5c72a2d861f",
-                "3234567": "6e56e5d2-89bb-84f5-f8ca-e4b19aa0ffc1",
+                "323456": "58d7507019c4ebe8daaf70f796578d12284de4a0e0fd85b968cda8ef85dee949",
+                "3234567": "21bf1d599a1d856eb911cdf681c05e848a6afc8a726038be6b1535286edd7444",
             },
-            codebook["Patient"],
+            mappings["Patient"],
         )
 
 
