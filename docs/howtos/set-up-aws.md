@@ -26,7 +26,11 @@ You're going to create two buckets. One for the de-identified Cumulus ETL output
 artifacts (which holds PHI).
 They'll each need similar security policies, but Glue will only look at the output bucket.
 
-The buckets will require encryption and grant access to the user role that is running Cumulus ETL.
+You also don't _need_ to store your build artifacts in this S3 bucket.
+Once you get to actually running Cumulus ETL, there will be an on-premises option for that.
+Though you do need to use an S3 bucket for the de-identified Cumulus ETL output.
+
+These buckets will require encryption and allow access to the user role that is running Cumulus ETL.
 
 ### Glue
 

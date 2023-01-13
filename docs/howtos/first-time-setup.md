@@ -6,6 +6,7 @@ Welcome to Cumulus!
 Let's get you set up.
 
 This guide assumes you have administrative access to your AWS environment.
+Much of Cumulus can be run on-premises, but some pieces do need to be hosted in AWS.
 
 ## AWS Infrastructure
 

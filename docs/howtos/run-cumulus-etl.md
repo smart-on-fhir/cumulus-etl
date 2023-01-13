@@ -5,6 +5,22 @@
 This guide will explain how to install and run Cumulus ETL inside your hospital's infrastructure.
 It assumes you are familiar with the command line.
 
+## On-Premises Runs
+
+But first, a word about on-premises vs in-cloud runs of Cumulus ETL.
+
+Your hospital may be more comfortable keeping any semblance of PHI off of AWS.
+That's fine! The entire ETL process can be run on-premises.
+
+There are two output folders that Cumulus ETL generates:
+one is the main de-identified output
+and the other holds build artifacts (which may include PHI).
+Only the de-identified output needs to be put in the cloud.
+We'll talk about this more later.
+
+You can follow these steps below on your own desktop or a server you have access to.
+Likewise, when you set this up for production use, you can run it on-premises or a cloud machine.
+
 ## Setup
 
 Before we dive in, you're going to want the following things in place:
@@ -13,6 +29,7 @@ Before we dive in, you're going to want the following things in place:
     * This could be a long-running server or a disposable per-run instance.
       Whatever works for your hospital setup.
     * If you're running Cumulus ETL in AWS EC2, an `m5.xlarge` instance works well.
+    * If you're running on-premises or in another cloud, at least 16GB memory is recommended.
 2. A [UMLS](https://www.nlm.nih.gov/research/umls/index.html) API key
     * Your hospital probably already has one, but they are also easy to
       [request](https://www.nlm.nih.gov/databases/umls.html).
@@ -161,7 +178,9 @@ Run this command, but replace:
 * and `subdir1` with the ETL subdirectory you used when setting up AWS
 
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm cumulus-etl \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
+  run --volume $CUMULUS_REPO_PATH:/cumulus-etl --rm \
+  cumulus-etl \
   --s3-region=us-east-2 \
   /cumulus-etl/tests/data/simple/ndjson-input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
@@ -170,12 +189,19 @@ docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm cumulus-etl \
 
 You should now be able to see some (very small) output files in your S3 buckets!
 
+Obviously, this was just example data.
+But if you'd prefer to keep PHI off of AWS when you deploy for real,
+that last argument (the PHI bucket path) can be replaced with a path to persistent local storage.
+Just remember to provide a `--volume` argument for any local paths you want to map into the
+container, like we did above for the input folder.
+
 ### More Realistic Example Command
 
 Here's a more realistic and complete command, as a starting point for your own version.
 
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml run --rm\
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
+ run --rm \
  cumulus-etl \
   --comment="Any interesting logging data you like, like which user launched this" \
   --input-format=ndjson \
@@ -215,14 +241,14 @@ defaults are subject to change or might not match your situation.
   format. Otherwise, you can use either value to point at a local folder with either FHIR ndjson
   or i2b2 csv files sitting in them, respectively.
 
-* `--output-format`: There are three reasonable values (`ndjson`, `parquet`, and `deltalake`).
+* `--output-format`: There are two reasonable values (`ndjson` and `deltalake`).
   For production use, you want `deltalake` as it is supports incremental, batched updates.
   But `ndjson` is useful when debugging as it is human-readable.
 
 * `--batch-size`: How many resources to save in a single output file. If there are more resources
   (e.g. more patients) than this limit, multiple output files will be created for that resource
   type. The larger the better for performance reasons, but that will also take more memory.
-  So this number is highly environment specific.
+  So this number is highly environment specific. For 16GB of memory, we recommend `300000`.
 
 ### Optional Arguments
 
