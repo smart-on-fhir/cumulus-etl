@@ -38,9 +38,6 @@ class JobConfig:
         self.batch_size = batch_size
         self.tasks = tasks or []
 
-    def path_codebook(self) -> str:
-        return self.dir_phi.joinpath("codebook.json")
-
     def path_config(self) -> str:
         return os.path.join(self.dir_job_config(), "job_config.json")
 
@@ -55,7 +52,6 @@ class JobConfig:
             "dir_output": self.format.root.path,
             "dir_phi": self.dir_phi.path,
             "path": self.path_config(),
-            "codebook": self.path_codebook(),
             "input_format": type(self._loader).__name__,
             "output_format": type(self.format).__name__,
             "comment": self.comment,

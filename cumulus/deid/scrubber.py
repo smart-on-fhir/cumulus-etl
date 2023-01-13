@@ -43,9 +43,9 @@ class Scrubber:
        the resource is fully de-identified.
     """
 
-    def __init__(self, codebook_path: str = None):
-        self.codebook = codebook.Codebook(codebook_path)
-        self.codebook_path = codebook_path
+    def __init__(self, codebook_dir: str = None):
+        self.codebook = codebook.Codebook(codebook_dir)
+        self.codebook_dir = codebook_dir
 
     @staticmethod
     def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
@@ -84,8 +84,8 @@ class Scrubber:
 
     def save(self) -> None:
         """Saves any resources used to persist across runs (like the codebook)"""
-        if self.codebook_path:
-            self.codebook.db.save(self.codebook_path)
+        if self.codebook_dir:
+            self.codebook.db.save(self.codebook_dir)
 
     ###############################################################################
     #

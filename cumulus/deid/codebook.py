@@ -3,6 +3,7 @@
 import binascii
 import hmac
 import logging
+import os
 import secrets
 
 from cumulus import common
@@ -17,12 +18,12 @@ class Codebook:
     Some IDs may be cryptographically hashed versions of the real ID, some may be entirely random.
     """
 
-    def __init__(self, saved: str = None):
+    def __init__(self, codebook_dir: str = None):
         """
-        :param saved: saved codebook path or None (initialize empty)
+        :param codebook_dir: saved codebook path or None (initialize empty)
         """
         try:
-            self.db = CodebookDB(saved)
+            self.db = CodebookDB(codebook_dir)
         except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
@@ -61,7 +62,7 @@ class Codebook:
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
 
-    def __init__(self, saved: str = None):
+    def __init__(self, codebook_dir: str = None):
         """
         Create a codebook database.
 
@@ -70,18 +71,26 @@ class CodebookDB:
         Codebook replaces sensitive PHI identifiers with DEID linked identifiers.
         https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2244902
 
-        :param saved: filename to load from (optional)
+        :param codebook_dir: folder to load from (optional)
         """
-        self.mapping = {
+        self.settings = {
             # If you change the saved format, bump this number and add your new format loader in _load_saved()
             "version": 1,
+        }
+        self.cached_mapping = {
             "Patient": {},
             "Encounter": {},
         }
+
+        # Modified is true if *either* setting or cached_mapping has changed
         self.modified = True
 
-        if saved:
-            self._load_saved(common.read_json(saved))
+        if codebook_dir:
+            self._load_saved_settings(common.read_json(os.path.join(codebook_dir, "codebook.json")))
+            try:
+                self.cached_mapping = common.read_json(os.path.join(codebook_dir, "codebook-cached-mappings.json"))
+            except (FileNotFoundError, PermissionError):
+                pass
             self.modified = False
 
     def patient(self, real_id: str) -> str:
@@ -91,7 +100,7 @@ class CodebookDB:
         :param real_id: patient resource ID
         :return: fake ID
         """
-        return self._fake_id("Patient", real_id)
+        return self._preserved_resource_hash("Patient", real_id)
 
     def encounter(self, real_id: str) -> str:
         """
@@ -100,24 +109,36 @@ class CodebookDB:
         :param real_id: encounter resource ID
         :return: fake ID
         """
-        return self._fake_id("Encounter", real_id)
+        return self._preserved_resource_hash("Encounter", real_id)
 
-    def _fake_id(self, resource_type: str, real_id: str) -> str:
+    def _preserved_resource_hash(self, resource_type: str, real_id: str) -> str:
         """
-        Get a random fake ID and preserve the mapping
+        Get a hashed ID and preserve the mapping.
+
+        If an existing legacy random (non-hashed) ID is found, that is used instead. We used to do make this kind of
+        random ID for Encounters and Patients, but using hashes means there is fewer disparate bits of code writing
+        to the codebook, and we can more easily separate out the ID mappings to a separate file that can be deleted.
+
         :param resource_type: FHIR resource name
         :param real_id: patient resource ID
         :return: fake ID
         """
-        type_mapping = self.mapping.setdefault(resource_type, {})
+        # We used to store random (not hash-based) mappings in the codebook itself.
+        # See if we have such a legacy mapping and use that if so, to not break existing data.
+        # TODO: remove this path at some point. It's believed only BCH is using this.
+        fake_id = self.settings.get(resource_type, {}).get(real_id)
+        if fake_id:
+            return fake_id
 
-        fake_id = type_mapping.get(real_id)
-        if not fake_id:
-            # We could have just called setdefault() above instead of get(), but to avoid calling fake_id() more often
-            # than necessary, only create new IDs as needed.
-            # The ID does not need to be cryptographically random, since the real_id is not encoded in it at all.
-            fake_id = common.fake_id(resource_type)
-            type_mapping[real_id] = fake_id
+        # Fall back to a normal resource hash
+        fake_id = self.resource_hash(real_id)
+
+        # Save this generated ID mapping so that we can store it for debugging purposes later.
+        # Only save if we don't have a legacy mapping, so that we don't have both in memory at the same time.
+        if self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id:
+            # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
+            # but is written defensively in case a bad mapping got saved for some reason.
+            self.cached_mapping[resource_type][real_id] = fake_id
             self.modified = True
 
         return fake_id
@@ -134,7 +155,7 @@ class CodebookDB:
 
     def _id_salt(self) -> bytes:
         """Returns the saved salt or creates and saves one if needed"""
-        salt = self.mapping.get("id_salt")
+        salt = self.settings.get("id_salt")
 
         if salt is None:
             # Create a salt, used when hashing resource IDs.
@@ -144,46 +165,52 @@ class CodebookDB:
             # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
             # recommended, so 256 bits seem good (which is 32 bytes).
             salt = secrets.token_hex(32)
-            self.mapping["id_salt"] = salt
+            self.settings["id_salt"] = salt
             self.modified = True
 
         return binascii.unhexlify(salt)  # revert from doubled hex 64-char string representation back to just 32 bytes
 
-    def _load_saved(self, saved: dict) -> None:
+    def _load_saved_settings(self, saved: dict) -> None:
         """
-        :param saved: dictionary containing structure
-                      [patient][encounter]
-        :return:
+        :param saved: dictionary of preserved settings (like salt, version)
         """
         version = saved.get("version", 0)
         if version == 0:
-            self._load_version0(saved)
+            self._load_version0_settings(saved)
         elif version == 1:
-            self._load_version1(saved)
+            self._load_version1_settings(saved)
         else:
             raise Exception(f'Unknown codebook version: "{version}"')
 
-    def _load_version0(self, saved: dict) -> None:
+    def _load_version0_settings(self, saved: dict) -> None:
         """Loads version 0 of the codebook database format"""
+        self.settings["Patient"] = {}
+        self.settings["Encounter"] = {}
         for patient_id, patient_data in saved["mrn"].items():
-            self.mapping["Patient"][patient_id] = patient_data["deid"]
+            self.settings["Patient"][patient_id] = patient_data["deid"]
 
             for enc_id, enc_data in patient_data.get("encounter", {}).items():
-                self.mapping["Encounter"][enc_id] = enc_data["deid"]
+                self.settings["Encounter"][enc_id] = enc_data["deid"]
 
-    def _load_version1(self, saved: dict) -> None:
+    def _load_version1_settings(self, saved: dict) -> None:
         """Loads version 1 of the codebook database format"""
-        self.mapping = saved
+        self.settings = saved
 
-    def save(self, path: str) -> bool:
+    def save(self, codebook_dir: str) -> bool:
         """
         Save the CodebookDB database as JSON
-        :param path: /path/to/codebook.json
+        :param codebook_dir: /path/to/phi/
         :returns: whether a save actually happened (if codebook hasn't changed, nothing is written back)
         """
         if self.modified:
-            logging.info("Saving codebook to: %s", path)
-            common.write_json(path, self.mapping)
+            logging.info("Saving codebook to: %s", codebook_dir)
+
+            codebook_path = os.path.join(codebook_dir, "codebook.json")
+            common.write_json(codebook_path, self.settings)
+
+            cached_mapping_path = os.path.join(codebook_dir, "codebook-cached-mappings.json")
+            common.write_json(cached_mapping_path, self.cached_mapping)
+
             self.modified = False
             return True
         else:

@@ -109,11 +109,14 @@ Other identifiers (like
 [patient identifiers](https://www.hl7.org/fhir/patient-definitions.html#Patient.identifier))
 are always stripped out entirely.
 
-Different resources are treated separately:
+These resource IDs are one-way securely hashed for anonymity.
+This is the same algorithm that Microsoft's tool uses, but with even more entropy.
+(Specifically, Cumulus uses the HMAC-SHA256 hash with a 256 bit salt.)
 
 #### Patients and Encounters
 
-Patient and Encounter resources are anonymized to an entirely random string, with a big proviso.
+Patient and Encounter resources are anonymized like any other resource.
+But with one difference.
 
 A mapping from the old to the new IDs is kept for debugging purposes.
 If there is ever a concern about data integrity or oddities are observed in the
@@ -126,14 +129,8 @@ And you control where that PHI directory lives (an S3 bucket, a local disk, etc.
 so that it can be locked down as tightly as you like.
 It never leaves your institution's control.
 
-#### All Other Resources
-
 Any other resource is usually already tied to a patient or encounter.
-So it's less important that Cumulus keeps a mapping there.
-
-Instead, all such resource IDs are one-way securely hashed for anonymity.
-This is the same algorithm that Microsoft's tool uses, but with even more entropy.
-(Specifically, Cumulus uses the HMAC-SHA256 hash with a 256 bit salt.)
+So Cumulus does not bother keeping a mapping for those.
 
 ### NLP on Physician Notes
 

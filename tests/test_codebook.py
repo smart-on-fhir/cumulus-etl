@@ -7,15 +7,14 @@ from unittest import mock
 
 import ddt
 
+from cumulus import common
 from cumulus.deid.codebook import Codebook, CodebookDB
 
 
 def assert_empty_db(db: CodebookDB):
     assert {
         "version": 1,
-        "Encounter": {},
-        "Patient": {},
-    } == db.mapping
+    } == db.settings
 
 
 @ddt.ddt
@@ -29,8 +28,8 @@ class TestCodebook(unittest.TestCase):
         fake_id = cb.fake_id(resource_type, "1")
         self.assertEqual(fake_id, cb.fake_id(resource_type, "1"))
         self.assertNotEqual(fake_id, cb.fake_id(resource_type, "2"))
-        self.assertNotEqual(fake_id, cb.fake_id("Observation", "1"))
-        self.assertEqual(fake_id, cb.db.mapping[resource_type]["1"])
+        self.assertNotEqual(fake_id, cb.fake_id("Observation", "2"))
+        self.assertEqual(fake_id, cb.db.cached_mapping[resource_type]["1"])
 
     def test_hashed_type(self):
         cb = Codebook()
@@ -39,11 +38,11 @@ class TestCodebook(unittest.TestCase):
         self.assertNotEqual(fake_id, cb.fake_id("Condition", "2"))
         self.assertEqual(fake_id, cb.fake_id("Observation", "1"))  # '1' hashes the same across types
         self.assertEqual("ee1b8555df1476e7512bc31940148a7821edae6e152e92037e6e8d7e948800a4", fake_id)
-        self.assertEqual("31323334", cb.db.mapping.get("id_salt"))
+        self.assertEqual("31323334", cb.db.settings.get("id_salt"))
 
     def test_missing_db_file(self):
         """Ensure we gracefully handle a saved db file that doesn't exist yet"""
-        cb = Codebook("/missing-codebook-file.json")
+        cb = Codebook("/")
         assert_empty_db(cb.db)
 
 
@@ -64,6 +63,30 @@ class TestCodebookDB(unittest.TestCase):
         self.assertEqual(v1, call("1"))
         self.assertNotEqual(v1, call("2"))
 
+    def test_use_legacy_random_mappings(self):
+        """Verify that we keep and use any old patient/encounter mappings that were wholly random and not hash based"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            common.write_json(
+                os.path.join(tmpdir, "codebook.json"),
+                {
+                    "version": 1,
+                    "Encounter": {
+                        "42": "yup",
+                    },
+                    "Patient": {
+                        "abc": "xyz",
+                    },
+                },
+            )
+
+            db = CodebookDB(tmpdir)
+            self.assertEqual(db.encounter("42"), "yup")
+            self.assertEqual(db.patient("abc"), "xyz")
+
+            # confirm we don't cache legacy mappings
+            self.assertNotIn("42", db.cached_mapping["Encounter"])
+            self.assertNotIn("abc", db.cached_mapping["Patient"])
+
     def test_save_and_load(self):
         db = CodebookDB()
         p1 = db.patient("1")
@@ -71,10 +94,27 @@ class TestCodebookDB(unittest.TestCase):
         e1 = db.encounter("1")
         e2 = db.encounter("2")
 
+        expected_mapping = {
+            "Encounter": {
+                "1": e1,
+                "2": e2,
+            },
+            "Patient": {
+                "1": p1,
+                "2": p2,
+            },
+        }
+
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "cb.json")
-            db.save(path)
-            db2 = CodebookDB(path)
+            db.save(tmpdir)
+
+            # Verify that we saved the cached mapping to disk too
+            self.assertEqual(expected_mapping, common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")))
+
+            db2 = CodebookDB(tmpdir)
+
+            # And that we loaded the cached mapping
+            self.assertEqual(expected_mapping, db2.cached_mapping)
 
         self.assertEqual(p1, db2.patient("1"))
         self.assertEqual(p2, db2.patient("2"))
@@ -83,34 +123,34 @@ class TestCodebookDB(unittest.TestCase):
 
     def test_does_not_save_if_not_modified(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "cb.json")
-
             # Confirm that an empty book starts modified
             db = CodebookDB()
-            self.assertTrue(db.save(path))
+            self.assertTrue(db.save(tmpdir))
 
             # But after a save, we are no longer modified
-            self.assertFalse(db.save(path))
+            self.assertFalse(db.save(tmpdir))
 
-            # Change it again, and we can save
+            # Resource hashes cause modification once
+            db.resource_hash("1")
+            self.assertTrue(db.save(tmpdir))
+            db.resource_hash("1")
+            self.assertFalse(db.save(tmpdir))
+
+            # Add a new patient, and we can save (because cached mapping changed)
             db.patient("1")
-            self.assertTrue(db.save(path))
+            self.assertTrue(db.save(tmpdir))
 
             # But if we make a call that doesn't modify the db, don't save
             db.patient("1")
-            self.assertFalse(db.save(path))
-
-            # Resource hashes also cause modification
-            db.resource_hash("1")
-            self.assertTrue(db.save(path))
+            self.assertFalse(db.save(tmpdir))
 
             # And encounters
             db.encounter("1")
-            self.assertTrue(db.save(path))
+            self.assertTrue(db.save(tmpdir))
 
     def test_version0(self):
         script_dir = os.path.dirname(__file__)
-        db_path = os.path.join(script_dir, "data", "codebook0.json")
+        db_path = os.path.join(script_dir, "data", "codebook0")
         db = CodebookDB(db_path)
 
         # Patients
@@ -127,4 +167,4 @@ class TestCodebookDB(unittest.TestCase):
         self.assertEqual("4e9e5e14-a289-0d0d-81ee-8062b8b984c3", db.encounter("212"))
 
         # But we are now version 1 going forward
-        self.assertEqual(1, db.mapping["version"])
+        self.assertEqual(1, db.settings["version"])
