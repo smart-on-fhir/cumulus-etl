@@ -5,7 +5,7 @@ import os
 from socket import gethostname
 from typing import List
 
-from cumulus import common, loaders, store
+from cumulus import common, formats, loaders, store
 
 
 class JobConfig:
@@ -15,7 +15,7 @@ class JobConfig:
         self,
         loader: loaders.Loader,
         dir_input: str,
-        store_format: store.Format,
+        store_format: formats.Format,
         dir_phi: store.Root,
         timestamp: datetime.datetime = None,
         comment: str = None,

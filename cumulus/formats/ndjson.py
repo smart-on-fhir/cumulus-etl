@@ -2,10 +2,10 @@
 
 import pandas
 
-from .athena import AthenaBatchedFileFormat
+from cumulus.formats.batched_files import BatchedFileFormat
 
 
-class NdjsonFormat(AthenaBatchedFileFormat):
+class NdjsonFormat(BatchedFileFormat):
     """Stores output files in a few flat ndjson files"""
 
     @property

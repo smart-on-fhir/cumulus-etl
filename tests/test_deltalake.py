@@ -50,7 +50,7 @@ class TestDeltaLake(unittest.TestCase):
         :param df: the data to insert
         :param batch: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
         """
-        self.deltalake.store_patients(self.job, df, batch)
+        self.deltalake.write_records(self.job, df, "patient", batch)
 
     @staticmethod
     def spark_to_records(table) -> List[dict]:

@@ -2,10 +2,10 @@
 
 import pandas
 
-from .athena import AthenaBatchedFileFormat
+from cumulus.formats.batched_files import BatchedFileFormat
 
 
-class ParquetFormat(AthenaBatchedFileFormat):
+class ParquetFormat(BatchedFileFormat):
     """Stores output files in a few flat parquet files"""
 
     @property

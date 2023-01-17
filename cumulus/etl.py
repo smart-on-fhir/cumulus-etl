@@ -12,7 +12,7 @@ import socket
 import sys
 import tempfile
 import time
-from typing import Callable, Iterable, Iterator, List, Type, TypeVar, Union
+from typing import Iterable, Iterator, List, Type, TypeVar, Union
 from urllib.parse import urlparse
 
 import ctakesclient
@@ -37,7 +37,6 @@ from cumulus.config import JobConfig, JobSummary
 T = TypeVar("T")
 AnyFhir = TypeVar("AnyFhir", bound=FHIRAbstractBase)
 AnyResource = TypeVar("AnyResource", bound=Resource)
-StoreFormatCallable = Callable[[JobSummary, pandas.DataFrame, int], None]
 
 
 def _read_ndjson(config: JobConfig, resource_type: Type[AnyResource]) -> Iterator[AnyResource]:
@@ -95,7 +94,7 @@ def _process_job_entries(
     job_name: str,
     resources: Iterator[Union[dict, Resource]],
     scrubber: deid.Scrubber,
-    to_store: StoreFormatCallable,
+    dbname: str,
     deidentify_resources=True,
 ):
     job = JobSummary(job_name)
@@ -119,7 +118,7 @@ def _process_job_entries(
         scrubber.save()
 
         # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
-        to_store(job, dataframe, index)
+        config.format.write_records(job, dataframe, dbname, index)
 
     return job
 
@@ -137,7 +136,7 @@ def etl_patient(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         etl_patient.__name__,
         _read_ndjson(config, Patient),
         scrubber,
-        config.format.store_patients,
+        "patient",
     )
 
 
@@ -154,7 +153,7 @@ def etl_encounter(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         etl_encounter.__name__,
         _read_ndjson(config, Encounter),
         scrubber,
-        config.format.store_encounters,
+        "encounter",
     )
 
 
@@ -171,7 +170,7 @@ def etl_lab(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         etl_lab.__name__,
         _read_ndjson(config, Observation),
         scrubber,
-        config.format.store_labs,
+        "observation",
     )
 
 
@@ -188,7 +187,7 @@ def etl_condition(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         etl_condition.__name__,
         _read_ndjson(config, Condition),
         scrubber,
-        config.format.store_conditions,
+        "condition",
     )
 
 
@@ -205,7 +204,7 @@ def etl_notes_meta(config: JobConfig, scrubber: deid.Scrubber) -> JobSummary:
         etl_notes_meta.__name__,
         _read_ndjson(config, DocumentReference),
         scrubber,
-        config.format.store_docrefs,
+        "documentreference",
     )
 
 
@@ -249,7 +248,7 @@ def etl_covid_symptom__nlp_results(config: JobConfig, scrubber: deid.Scrubber) -
         etl_covid_symptom__nlp_results.__name__,
         load_covid_symptoms_nlp(config, scrubber),
         scrubber,
-        config.format.store_covid_symptom__nlp_results,
+        "covid_symptom__nlp_results",
         deidentify_resources=False,  # scrubbing is done in load method
     )
 
@@ -424,7 +423,7 @@ def main(args: List[str]):
     parser.add_argument(
         "--output-format",
         default="deltalake",
-        choices=["deltalake", "json", "ndjson", "parquet"],
+        choices=["deltalake", "ndjson", "parquet"],
         help="output format (default is deltalake)",
     )
     parser.add_argument(
@@ -471,8 +470,6 @@ def main(args: List[str]):
 
     if args.output_format == "deltalake":
         config_store = formats.DeltaLakeFormat(root_output)
-    elif args.output_format == "json":
-        config_store = formats.JsonTreeFormat(root_output)
     elif args.output_format == "parquet":
         config_store = formats.ParquetFormat(root_output)
     else:
