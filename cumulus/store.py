@@ -1,11 +1,9 @@
 """Abstraction for where to write and read data"""
 
-import abc
 import os
 from urllib.parse import urlparse
 
 import fsspec
-import pandas
 
 from cumulus import common
 
@@ -87,42 +85,3 @@ class Root:
     def fsspec_options(self) -> dict:
         """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
         return common.get_fs_options(self.protocol)
-
-
-class Format(abc.ABC):
-    """
-    An abstraction for how to write cumulus output
-
-    Subclass this to provide a different output format (like ndjson or parquet).
-    """
-
-    def __init__(self, root: Root):
-        """
-        Initialize a new Format class
-        :param root: the base location to write data to
-        """
-        self.root = root
-
-    @abc.abstractmethod
-    def store_conditions(self, job, conditions: pandas.DataFrame, batch: int) -> None:
-        pass
-
-    @abc.abstractmethod
-    def store_docrefs(self, job, docrefs: pandas.DataFrame, batch: int) -> None:
-        pass
-
-    @abc.abstractmethod
-    def store_encounters(self, job, encounters: pandas.DataFrame, batch: int) -> None:
-        pass
-
-    @abc.abstractmethod
-    def store_labs(self, job, labs: pandas.DataFrame, batch: int) -> None:
-        pass
-
-    @abc.abstractmethod
-    def store_patients(self, job, patients: pandas.DataFrame, batch: int) -> None:
-        pass
-
-    @abc.abstractmethod
-    def store_covid_symptom__nlp_results(self, job, observations: pandas.DataFrame, batch: int) -> None:
-        pass

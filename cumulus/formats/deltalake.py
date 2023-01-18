@@ -15,8 +15,7 @@ import pyspark
 from pyspark.sql.utils import AnalysisException
 
 from cumulus import store
-
-from .athena import AthenaFormat
+from cumulus.formats.base import Format
 
 # This class would be a lot simpler if we could use fsspec & pandas directly, since that's what the rest of our code
 # uses and expects (in terms of filesystem writing).
@@ -46,7 +45,7 @@ def _suppress_output():
         os.dup2(stderr, 2)
 
 
-class DeltaLakeFormat(AthenaFormat):
+class DeltaLakeFormat(Format):
     """
     Stores data in a delta lake.
     """
@@ -79,9 +78,9 @@ class DeltaLakeFormat(AthenaFormat):
         self.spark.sparkContext.setLogLevel("ERROR")
         self._configure_fs()
 
-    def write_records(self, job, df: pandas.DataFrame, dbname: str, batch: int) -> None:
+    def write_records(self, summary, dataframe: pandas.DataFrame, dbname: str, batch: int) -> None:
         """Writes the whole dataframe to a delta lake"""
-        job.attempt += len(df)
+        summary.attempt += len(dataframe)
         full_path = self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
 
         try:
@@ -91,7 +90,7 @@ class DeltaLakeFormat(AthenaFormat):
             # But parquet does this well, and spark can read parquet well. So we do this dance of pandas -> parquet ->
             # sparks.
             with tempfile.NamedTemporaryFile() as parquet_file:
-                df.to_parquet(parquet_file.name, index=False)
+                dataframe.to_parquet(parquet_file.name, index=False)
                 updates = self.spark.read.parquet(parquet_file.name)
 
                 try:
@@ -108,8 +107,8 @@ class DeltaLakeFormat(AthenaFormat):
 
             table.generate("symlink_format_manifest")
 
-            job.success += len(df)
-            job.success_rate(1)
+            summary.success += len(dataframe)
+            summary.success_rate(1)
         except Exception:  # pylint: disable=broad-except
             logging.exception("Could not process data records")
 

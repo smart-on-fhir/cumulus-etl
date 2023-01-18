@@ -128,8 +128,8 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             etl.etl_patient(self.config, self.scrubber)
 
         # Confirm that only patient 0 got stored
-        self.assertEqual(1, self.format.store_patients.call_count)
-        df = self.format.store_patients.call_args[0][1]
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][1]
         self.assertEqual([self.codebook.db.patient("0")], list(df.id))
 
     def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
@@ -147,8 +147,8 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             etl.etl_covid_symptom__nlp_results(self.config, self.scrubber)
 
         # Confirm that only symptoms from docref 0 got stored
-        self.assertEqual(1, self.format.store_covid_symptom__nlp_results.call_count)
-        df = self.format.store_covid_symptom__nlp_results.call_args[0][1]
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][1]
         expected_subject = self.codebook.db.patient("1234")
         self.assertEqual({expected_subject}, set(df.subject_id))
 
@@ -165,8 +165,8 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             etl.etl_covid_symptom__nlp_results(self.config, self.scrubber)
 
         # Confirm that only symptoms from docref 'present' got stored
-        self.assertEqual(1, self.format.store_covid_symptom__nlp_results.call_count)
-        df = self.format.store_covid_symptom__nlp_results.call_args[0][1]
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][1]
         expected_docref = self.codebook.db.resource_hash("present")
         self.assertEqual({expected_docref}, set(df.docref_id))
 
@@ -400,10 +400,6 @@ class TestI2b2EtlUtils(BaseI2b2EtlSimple):
 
 class TestI2b2EtlFormats(BaseI2b2EtlSimple):
     """Test case for each of the formats we support"""
-
-    def test_etl_job_json(self):
-        self.run_etl(output_format="json")
-        self.assert_output_equal("json-output")
 
     def test_etl_job_ndjson(self):
         self.run_etl(output_format="ndjson")
