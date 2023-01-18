@@ -1,5 +1,5 @@
 services:
-  
+
   cumulus-etl-base:
     build: 
       context: .
@@ -19,7 +19,14 @@ services:
     extends: cumulus-etl-base
     profiles:
       - etl
-    
+
+  cumulus-etl-gpu:
+    extends: cumulus-etl-base
+    environment:
+      - URL_CNLP_NEGATION=http://cnlp-transformers-gpu:8000/negation/process
+    profiles:
+      - etl-gpu
+
   ctakes-covid-base:
     image: smartonfhir/ctakes-covid:1
     environment:
@@ -33,7 +40,8 @@ services:
   ctakes-covid:
     extends: ctakes-covid-base
     profiles:
-      - etl-support    
+      - etl-support
+      - etl-support-gpu
 
   cnlp-transformers:
     image: smartonfhir/cnlp-transformers:negation-0.4-cpu
@@ -41,6 +49,18 @@ services:
       - etl-support
     networks:
       - cumulus-etl
+
+  cnlp-transformers-gpu:
+    image: smartonfhir/cnlp-transformers:negation-0.4-gpu
+    profiles:
+      - etl-support-gpu
+    networks:
+      - cumulus-etl
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
 
   # these images are intended specifically for development work
   cumulus-etl-test:
@@ -110,7 +130,6 @@ services:
     #build: 
     #  context: ../cnlp_transformers/docker
     #  dockerfile: Dockerfile.gpu
-    platform: linux/amd64
     ports:
       - 8000:8000
     profiles:

@@ -255,6 +255,11 @@ defaults are subject to change or might not match your situation.
 * `--comment`: You can add any comment you like here, it will be saved in a logging folder on the
 output path (`JobConfig/`). Might help when debugging an issue.
 
+### Performance
+
+For tips and tricks around what hardware to use or how to run Cumulus on a GPU for faster natural language processing,
+see the separate [performance how-to](etl-performance.md).
+
 ### Bulk FHIR Export
 
 A common task is to point Cumulus ETL at your bulk FHIR export server, rather than pointing it
@@ -301,3 +306,13 @@ And for Cumulus ETL's input path argument,
 you will give your server's URL address,
 including a Group identifier if you want to scope the export
 (e.g. `https://example.com/fhir` or `https://example.com/fhir/Group/1234`).
+
+#### External Bulk Export
+
+Instead of using Cumulus ETL to drive your bulk export itself, you can instead do the bulk export externally,
+and then just feed the resulting files to Cumulus ETL.
+
+The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client) is a great tool with more
+options than Cumulus ETL's built-in exporter offers.
+
+If you use this tool, pass Cumulus ETL the folder that holds the downloaded data as the input path.
