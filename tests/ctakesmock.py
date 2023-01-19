@@ -62,6 +62,7 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
     # Response template inspired by response to "Patient has a fever and an itch"
     response = {
         "SignSymptomMention": [
+            # A first normal symptom match on fever
             {
                 "begin": fever_begin,
                 "end": fever_end,
@@ -73,6 +74,18 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
                 ],
                 "type": "SignSymptomMention",
             },
+            # A second covid symptom match on nausea (for the same word as above), just for more matches during testing
+            {
+                "begin": fever_begin,
+                "end": fever_end,
+                "text": fever_word,
+                "polarity": 0,
+                "conceptAttributes": [
+                    {"code": "422587007", "cui": "C0027497", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                ],
+                "type": "SignSymptomMention",
+            },
+            # This itch word will be stripped from symptom list after our ETL code receives it, since it is non-covid
             {
                 "begin": itch_begin,
                 "end": itch_end,
