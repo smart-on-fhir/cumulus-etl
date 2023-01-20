@@ -1,6 +1,7 @@
 """Tests for etl.py"""
 
 import filecmp
+import itertools
 import json
 import os
 import shutil
@@ -389,21 +390,20 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         return [json.loads(line) for line in lines]
 
     def test_stores_cached_json(self):
-        self.run_etl(output_format="parquet")
+        self.run_etl(output_format="parquet", tasks=["covid_symptom__nlp_results"])
 
         notes_csv_path = os.path.join(self.input_path, "observation_fact_notes.csv")
         facts = list(extract.extract_csv_observation_facts(notes_csv_path, 5))
 
         for index, checksum in enumerate(self.expected_checksums):
             ner = fake_ctakes_extract(facts[index].observation_blob)
-            spans = ner.list_spans(ner.list_sign_symptom(polarity=Polarity.pos))
-            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("version1", checksum)))
-            self.assertEqual([0] * len(spans), common.read_json(self.path_for_checksum("version1-cnlp", checksum)))
+            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("covid_symptom_v1", checksum)))
+            self.assertEqual([0, 0], common.read_json(self.path_for_checksum("covid_symptom_v1-cnlp_v2", checksum)))
 
     def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
-            filename = self.path_for_checksum("version1", checksum)
+            filename = self.path_for_checksum("covid_symptom_v1", checksum)
             os.makedirs(os.path.dirname(filename))
             common.write_json(
                 filename,
@@ -416,18 +416,18 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
                             "polarity": 0,
                             "type": "SignSymptomMention",
                             "conceptAttributes": [
-                                {"code": "91058", "cui": "C0304290", "codingScheme": "RXNORM", "tui": "T122"},
+                                {"code": "68235000", "cui": "C0027424", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
                             ],
                         }
                     ],
                 },
             )
 
-            cnlp_filename = self.path_for_checksum("version1-cnlp", checksum)
+            cnlp_filename = self.path_for_checksum("covid_symptom_v1-cnlp_v2", checksum)
             os.makedirs(os.path.dirname(cnlp_filename))
             common.write_json(cnlp_filename, [0])
 
-        self.run_etl()
+        self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         # We should never have called our mock cTAKES server
         self.assertEqual(0, self.nlp_mock.call_count)
@@ -439,15 +439,28 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         self.assertEqual({"foobar0", "foobar1"}, {x["match"]["text"] for x in symptoms})
         for symptom in symptoms:
             self.assertEqual(
-                {("91058", "C0304290")}, {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]}
+                {("68235000", "C0027424")}, {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]}
             )
 
     def test_cnlp_rejects(self):
         """Verify that if the cnlp server negates a match, it does not show up"""
-        # First match is 'for', second is 'fever' (from 'Notes/Notes2 for fever' strings)
+        # First match is fever, second is nausea
         self.cnlp_mock.side_effect = lambda _, spans: [Polarity.neg, Polarity.pos]
-        self.run_etl()
+        self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         symptoms = self.read_symptoms()
         self.assertEqual(2, len(symptoms))
-        self.assertEqual({"fever"}, {x["match"]["text"] for x in symptoms})
+        # Confirm that the only symptom to survive was the second nausea one
+        self.assertEqual(
+            {("422587007", "C0027497")}, {(x["code"], x["cui"]) for x in symptoms[0]["match"]["conceptAttributes"]}
+        )
+
+    def test_non_covid_symptoms_skipped(self):
+        """Verify that the 'itch' symptom in our mock response does not make it to the output table"""
+        self.run_etl(tasks=["covid_symptom__nlp_results"])
+
+        symptoms = self.read_symptoms()
+        self.assertEqual({"for"}, {x["match"]["text"] for x in symptoms})  # the second word ("for") is the fever word
+        attributes = itertools.chain.from_iterable(symptom["match"]["conceptAttributes"] for symptom in symptoms)
+        cuis = {x["cui"] for x in attributes}
+        self.assertEqual({"C0027497", "C0015967"}, cuis)  # notably, no C0033774 itch CUI
