@@ -6,7 +6,7 @@ import logging
 import os
 import re
 import sys
-from typing import Iterable, Iterator, List, Set, Type, TypeVar
+from typing import Iterable, Iterator, List, Set, Type, TypeVar, Union
 
 import pandas
 
@@ -24,18 +24,44 @@ AnyResource = TypeVar("AnyResource", bound=Resource)
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
 
 
-def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
+def _batch_slice(iterable: Iterable[Union[List[T], T]], n: int) -> Iterator[T]:
     """
-    Yields sub-iterators, each with {size} elements or less from iterable
+    Returns the first n elements of iterable, flattening lists, but including an entire list if we would end in middle.
+
+    For example, list(_batch_slice([1, [2.1, 2.1], 3], 2)) returns [1, 2.1, 2.2]
+
+    Note that this will only flatten elements that are actual Python lists (isinstance list is True)
+    """
+    count = 0
+    for item in iterable:
+        if isinstance(item, list):
+            yield from item
+            count += len(item)
+        else:
+            yield item
+            count += 1
+
+        if count >= n:
+            return
+
+
+def _batch_iterate(iterable: Iterable[Union[List[T], T]], size: int) -> Iterator[Iterator[T]]:
+    """
+    Yields sub-iterators, each roughly {size} elements from iterable.
+
+    Sub-iterators might be less, if we have reached the end.
+    Sub-iterators might be more, if a list is encountered in the source iterable.
+    In that case, all elements of the list are included in the same sub-iterator batch, which might put us over size.
+    See the comments for the EtlTask.group_field class attribute for why we support this.
 
     The whole iterable is never fully loaded into memory. Rather we load only one element at a time.
 
     Example:
-        for batch in _batch_iterate([1, 2, 3, 4, 5], 2):
+        for batch in _batch_iterate([1, [2.1, 2.2], 3, 4, 5], 2):
             print(list(batch))
 
     Results in:
-        [1, 2]
+        [1, 2.1, 2.2]
         [3, 4]
         [5]
     """
@@ -44,7 +70,7 @@ def _batch_iterate(iterable: Iterable[T], size: int) -> Iterator[Iterator[T]]:
 
     true_iterable = iter(iterable)  # in case it's actually a list (we want to iterate only once through)
     while True:
-        iter_slice = itertools.islice(true_iterable, size)
+        iter_slice = _batch_slice(true_iterable, size)
         try:
             peek = next(iter_slice)
         except StopIteration:
@@ -62,6 +88,26 @@ class EtlTask:
     name: str = None
     resource: Type[AnyResource] = None
     tags: Set[str] = []
+
+    # *** group_field ***
+    # Set group_field if your task generates a group of interdependent records (like NLP results from a document).
+    # In that example, you might set group_field to "docref_id", as that identifies a single group.
+    # See CovidSymptomNlpResultsTask for an example, but keep reading for more details.
+    #
+    # The goal here is to allow Format classes to remove any old records of this group when reprocessing a task.
+    # Consider the case where the NLP logic changes and now your task only generates four records, where it used to
+    # generate five. How does Cumulus ETL know to go and delete that fifth record?
+    #
+    # By specifying group_field (which EtlTask passes to the formatter), you are telling the formatter that it can
+    # delete any old members that match on the group field when appending data.
+    #
+    # This has some implications for how your task streams records from read_entries() though.
+    # Instead of streaming record-by-record, stream (yield) a list of records at a time (i.e. a group at a time).
+    # See CovidSymptomNlpResultsTask for an example.
+    #
+    # This will tell the code that creates batches to not break up your group, so that the formatter gets a whole
+    # group at one time, and not split across batches.
+    group_field = None
 
     ##########################################################################################
     #
@@ -152,7 +198,10 @@ class EtlTask:
         It is expected that each task creates a single output table.
         """
         summary = config.JobSummary(self.name)
-        common.print_header(f"{self.name}()")
+        common.print_header(f"{self.name}:")
+
+        # No data is read or written yet, so do any initial setup the formatter wants
+        self.task_config.format.initialize(summary, self.name)
 
         entries = self.read_entries()
 
@@ -168,6 +217,9 @@ class EtlTask:
 
             # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
             self.write_entries(summary, dataframe, index)
+
+        # All data is written, now do any final cleanup the formatter wants
+        self.task_config.format.finalize(summary, self.name)
 
         return summary
 
@@ -198,18 +250,22 @@ class EtlTask:
                 for line in f:
                     yield self.resource(jsondict=json.loads(line), strict=False)  # pylint: disable=not-callable
 
-    def read_entries(self) -> Iterator[dict]:
+    def read_entries(self) -> Iterator[Union[List[dict], dict]]:
         """
         Reads input entries for the job.
 
         Defaults to reading ndjson files for our resource types and de-identifying/scrubbing them.
+
+        If you override this in a subclass, you can optionally include a sub-list of data,
+        the elements of which will be guaranteed to all be in the same output batch.
+        See comments for EtlTask.group_field for why you might do this.
         """
         ndjson_entries = self.read_ndjson()
         return (x.as_json() for x in filter(self.scrubber.scrub_resource, ndjson_entries))
 
     def write_entries(self, summary: config.JobSummary, dataframe: pandas.DataFrame, index: int) -> None:
         """Writes a single dataframe to the output"""
-        self.task_config.format.write_records(summary, dataframe, self.name, index)
+        self.task_config.format.write_records(summary, dataframe, self.name, index, group_field=self.group_field)
 
 
 ##########################################################################################
@@ -255,6 +311,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
     name = "covid_symptom__nlp_results"
     resource = DocumentReference
     tags = {"covid_symptom", "gpu"}
+    group_field = "docref_id"
 
     @staticmethod
     def is_ed_coding(coding):
@@ -273,7 +330,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
             "NOTE:189094576",
         ]
 
-    def read_entries(self) -> Iterator[dict]:
+    def read_entries(self) -> Iterator[Union[List[dict], dict]]:
         """Passes physician notes through NLP and returns any symptoms found"""
         for docref in self.read_ndjson():
             if not self.scrubber.scrub_resource(docref, scrub_attachments=False):
@@ -286,6 +343,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
             if not is_er_note:
                 continue
 
-            symptoms = ctakes.covid_symptoms_extract(self.task_config.dir_phi, docref)
-            for symptom in symptoms:
-                yield symptom
+            # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
+            # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
+            # The Format class will replace all existing symptoms from this note at once (because we set group_field).
+            yield ctakes.covid_symptoms_extract(self.task_config.dir_phi, docref)

@@ -78,10 +78,12 @@ class DeltaLakeFormat(Format):
         self.spark.sparkContext.setLogLevel("ERROR")
         self._configure_fs()
 
-    def write_records(self, summary, dataframe: pandas.DataFrame, dbname: str, batch: int) -> None:
+    def write_records(
+        self, summary, dataframe: pandas.DataFrame, dbname: str, batch: int, group_field: str = None
+    ) -> None:
         """Writes the whole dataframe to a delta lake"""
         summary.attempt += len(dataframe)
-        full_path = self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
+        full_path = self._table_path(dbname)
 
         try:
             # First, convert our pandas dataframe to a spark dataframe.
@@ -94,12 +96,31 @@ class DeltaLakeFormat(Format):
                 updates = self.spark.read.parquet(parquet_file.name)
 
                 try:
+                    # Load table -- this will trigger an AnalysisException if the table doesn't exist yet
                     table = delta.DeltaTable.forPath(self.spark, full_path)
-                    if batch == 0:
-                        table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
+
+                    if group_field:
+                        # Delete any existing groups about to be overwritten. This leaves a small gap where if we
+                        # crash before inserting new rows, we will have deleted data without a replacement.
+                        # But a re-run of the ETL will correct that mistake. So it's not the worst gap to have.
+                        #
+                        # Ideally we'd be able to do both in the same MERGE statement for maximum atomicity.
+                        # But delta lake won't let us, as it tries to detect possibly undefined behavior,
+                        # and a line like the following will trip on it, worried about updating multiple rows at once:
+                        #  whenMatchedUpdateAll("table.id = updates.id").whenMatchedDelete().whenNotMatchedInsertAll()
+                        #
+                        # TODO: Once delta-spark 2.3 releases, we can do everything in one MERGE:
+                        #  - step 1: gather all group_field values in the source dataframe
+                        #  - step 2: add whenNotMatchedBySourceDelete(f"{group_field} in {all_source_values}")
+                        table.alias("table").merge(
+                            updates.alias("updates"), f"table.{group_field} = updates.{group_field}"
+                        ).whenMatchedDelete().execute()
+
+                    # Merge in new data
                     table.alias("table").merge(
                         source=updates.alias("updates"), condition="table.id = updates.id"
                     ).whenMatchedUpdateAll().whenNotMatchedInsertAll().execute()
+
                 except AnalysisException:
                     # table does not exist yet, let's make an initial version
                     updates.write.save(path=full_path, format="delta")
@@ -111,6 +132,21 @@ class DeltaLakeFormat(Format):
             summary.success_rate(1)
         except Exception:  # pylint: disable=broad-except
             logging.exception("Could not process data records")
+
+    def finalize(self, summary, dbname: str) -> None:
+        """Performs any necessary cleanup after all batches have been written"""
+        full_path = self._table_path(dbname)
+
+        try:
+            table = delta.DeltaTable.forPath(self.spark, full_path)
+            table.optimize().executeCompaction()  # gather small files into larger files for better query performance
+            table.generate("symlink_format_manifest")
+            table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
+        except AnalysisException:
+            logging.exception("Could not finalize Delta Lake table %s", dbname)
+
+    def _table_path(self, dbname: str) -> str:
+        return self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
 
     def _configure_fs(self):
         """Tell spark/hadoop how to talk to S3 for us"""
