@@ -15,7 +15,7 @@ import pytest
 import s3fs
 from ctakesclient.typesystem import Polarity
 
-from cumulus import common, config, context, deid, errors, etl, loaders, store
+from cumulus import common, config, context, deid, errors, etl, formats, loaders, store
 from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
@@ -464,3 +464,39 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         attributes = itertools.chain.from_iterable(symptom["match"]["conceptAttributes"] for symptom in symptoms)
         cuis = {x["cui"] for x in attributes}
         self.assertEqual({"C0027497", "C0015967"}, cuis)  # notably, no C0033774 itch CUI
+
+    def test_group_updates(self):
+        """Verify that if we generate a smaller set of NLP symptoms, any old unused rows get deleted"""
+        # This test uses delta lake even though it is a bit slow, just because that's the only current output format
+        # that supports this feature (EtlTask.group_field). Other output formats just delete the full table each run.
+
+        path = os.path.join(self.output_path, "covid_symptom__nlp_results")
+        deltalake = formats.DeltaLakeFormat(store.Root(path))  # FYI this is slow (downloads jars etc.)
+
+        def table_ids():
+            df = deltalake.spark.read.format("delta").load(path).sort("id").toPandas()
+            return [row["id"] for _, row in df.iterrows()]
+
+        # Get a baseline, with two symptoms per document
+        self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
+        self.assertEqual(
+            [
+                "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.0",
+                "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.1",
+                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd.0",
+                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd.1",
+            ],
+            table_ids(),
+        )
+
+        # Now negate the second symptom, and notice that it has been dropped in the results for each docref
+        shutil.rmtree(os.path.join(self.phi_path, "ctakes-cache"))  # clear cached results
+        self.cnlp_mock.side_effect = lambda _, spans: [Polarity.pos, Polarity.neg]
+        self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
+        self.assertEqual(
+            [
+                "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.0",
+                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd.0",
+            ],
+            table_ids(),
+        )

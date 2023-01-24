@@ -43,14 +43,15 @@ class TestDeltaLake(unittest.TestCase):
         rows = [{"id": k, "value": v} for k, v in kwargs.items()]
         return pandas.DataFrame(rows)
 
-    def store(self, df: pandas.DataFrame, batch: int = 10) -> None:
+    def store(self, df: pandas.DataFrame, batch: int = 10, group_field: str = None) -> None:
         """
         Writes a single batch of data to the data lake.
 
         :param df: the data to insert
         :param batch: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
+        :param group_field: a group field name, used to delete non-matching group rows
         """
-        self.deltalake.write_records(self.job, df, "patient", batch)
+        self.deltalake.write_records(self.job, df, "patient", batch, group_field=group_field)
 
     @staticmethod
     def spark_to_records(table) -> List[dict]:
@@ -158,4 +159,23 @@ class TestDeltaLake(unittest.TestCase):
                 ],
             },
             table_df.schema.jsonValue(),
+        )
+
+    def test_group_field(self):
+        """Verify that we can safely delete some data from the lake using groups"""
+        self.store(
+            self.df(aa={"group": 1, "val": 5}, ab={"group": 1, "val": 10}, b={"group": 2, "val": 1}),
+            group_field="value.group",
+        )
+        self.store(
+            self.df(ab={"group": 1, "val": 11}, ac={"group": 1, "val": 16}, c={"group": 3, "val": 2}),
+            group_field="value.group",
+        )
+        self.assert_lake_equal(
+            self.df(
+                ab={"group": 1, "val": 11},
+                ac={"group": 1, "val": 16},
+                b={"group": 2, "val": 1},
+                c={"group": 3, "val": 2},
+            )
         )

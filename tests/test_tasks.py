@@ -54,36 +54,45 @@ class TestTasks(CtakesMixin, unittest.TestCase):
 
         self.assertEqual(
             [
-                [1, 2],
+                [1, 2.1, 2.2],
                 [3, 4],
             ],
-            [list(x) for x in tasks._batch_iterate([1, 2, 3, 4], 2)],
+            [list(x) for x in tasks._batch_iterate([1, [2.1, 2.2], 3, 4], 2)],
         )
 
         self.assertEqual(
             [
-                [1, 2],
+                [1.1, 1.2],
+                [2.1, 2.2],
+                [3, 4],
+            ],
+            [list(x) for x in tasks._batch_iterate([[1.1, 1.2], [2.1, 2.2], 3, 4], 2)],
+        )
+
+        self.assertEqual(
+            [
+                [1, 2.1, 2.2],
                 [3, 4],
                 [5],
             ],
-            [list(x) for x in tasks._batch_iterate([1, 2, 3, 4, 5], 2)],
+            [list(x) for x in tasks._batch_iterate([1, [2.1, 2.2], 3, 4, 5], 2)],
         )
 
         self.assertEqual(
             [
-                [1, 2, 3],
-                [4],
+                [1, 2.1, 2.2],
+                [3, 4],
             ],
-            [list(x) for x in tasks._batch_iterate([1, 2, 3, 4], 3)],
+            [list(x) for x in tasks._batch_iterate([1, [2.1, 2.2], 3, 4], 3)],
         )
 
         self.assertEqual(
             [
                 [1],
-                [2],
+                [2.1, 2.2],
                 [3],
             ],
-            [list(x) for x in tasks._batch_iterate([1, 2, 3], 1)],
+            [list(x) for x in tasks._batch_iterate([1, [2.1, 2.2], 3], 1)],
         )
 
         with self.assertRaises(ValueError):
