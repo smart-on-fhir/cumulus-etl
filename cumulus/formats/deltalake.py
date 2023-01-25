@@ -139,6 +139,10 @@ class DeltaLakeFormat(Format):
 
         try:
             table = delta.DeltaTable.forPath(self.spark, full_path)
+        except AnalysisException:
+            return  # if the table doesn't exist because we didn't write anything, that's fine - just bail
+
+        try:
             table.optimize().executeCompaction()  # gather small files into larger files for better query performance
             table.generate("symlink_format_manifest")
             table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)

@@ -37,7 +37,7 @@ def load_and_deidentify(
     :returns: a temporary directory holding the de-identified files in FHIR ndjson format
     """
     # Grab a list of all required resource types for the tasks we are running
-    required_resources = set(t.resource.__name__ for t in selected_tasks)
+    required_resources = set(t.resource for t in selected_tasks)
 
     # First step is loading all the data into a local ndjson format
     loaded_dir = loader.load_all(list(required_resources))

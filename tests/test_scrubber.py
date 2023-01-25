@@ -5,8 +5,6 @@ import unittest
 from unittest import mock
 
 from ctakesclient import text2fhir, typesystem
-from fhirclient.models.extension import Extension
-from fhirclient.models.meta import Meta
 
 from cumulus.deid import Scrubber
 from cumulus.deid.codebook import CodebookDB
@@ -19,75 +17,78 @@ class TestScrubber(unittest.TestCase):
 
     def test_patient(self):
         """Verify a basic patient (saved ids)"""
-        patient = i2b2_mock_data.patient()
-        self.assertEqual("12345", patient.id)
+        patient = i2b2_mock_data.patient().as_json()
+        self.assertEqual("12345", patient["id"])
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(patient))
-        self.assertEqual(patient.id, scrubber.codebook.fake_id("Patient", "12345"))
+        self.assertEqual(patient["id"], scrubber.codebook.fake_id("Patient", "12345"))
 
     def test_encounter(self):
         """Verify a basic encounter (saved ids)"""
-        encounter = i2b2_mock_data.encounter()
-        self.assertEqual("Patient/12345", encounter.subject.reference)
-        self.assertEqual("67890", encounter.id)
+        encounter = i2b2_mock_data.encounter().as_json()
+        self.assertEqual("Patient/12345", encounter["subject"]["reference"])
+        self.assertEqual("67890", encounter["id"])
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(encounter))
-        self.assertEqual(encounter.id, scrubber.codebook.fake_id("Encounter", "67890"))
-        self.assertEqual(encounter.subject.reference, f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
+        self.assertEqual(encounter["id"], scrubber.codebook.fake_id("Encounter", "67890"))
+        self.assertEqual(encounter["subject"]["reference"], f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
 
     def test_condition(self):
         """Verify a basic condition (hashed ids)"""
-        condition = i2b2_mock_data.condition()
-        self.assertEqual("4567", condition.id)
-        self.assertEqual("Patient/12345", condition.subject.reference)
-        self.assertEqual("Encounter/67890", condition.encounter.reference)
+        condition = i2b2_mock_data.condition().as_json()
+        self.assertEqual("4567", condition["id"])
+        self.assertEqual("Patient/12345", condition["subject"]["reference"])
+        self.assertEqual("Encounter/67890", condition["encounter"]["reference"])
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertEqual(condition.id, scrubber.codebook.fake_id("Condition", "4567"))
-        self.assertEqual(condition.subject.reference, f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
-        self.assertEqual(condition.encounter.reference, f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}")
+        self.assertEqual(condition["id"], scrubber.codebook.fake_id("Condition", "4567"))
+        self.assertEqual(condition["subject"]["reference"], f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
+        self.assertEqual(
+            condition["encounter"]["reference"], f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}"
+        )
 
     def test_documentreference(self):
         """Test DocumentReference, which is interesting because of its list of encounters and attachments"""
-        docref = i2b2_mock_data.documentreference()
-        self.assertEqual("345", docref.id)
-        self.assertEqual("Patient/12345", docref.subject.reference)
-        self.assertEqual(1, len(docref.context.encounter))
-        self.assertEqual("Encounter/67890", docref.context.encounter[0].reference)
-        self.assertEqual(1, len(docref.content))
-        self.assertIsNotNone(docref.content[0].attachment.data)
+        docref = i2b2_mock_data.documentreference().as_json()
+        self.assertEqual("345", docref["id"])
+        self.assertEqual("Patient/12345", docref["subject"]["reference"])
+        self.assertEqual(1, len(docref["context"]["encounter"]))
+        self.assertEqual("Encounter/67890", docref["context"]["encounter"][0]["reference"])
+        self.assertEqual(1, len(docref["content"]))
+        self.assertIsNotNone(docref["content"][0]["attachment"]["data"])
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(docref))
-        self.assertEqual(docref.id, scrubber.codebook.fake_id("DocumentReference", "345"))
-        self.assertEqual(docref.subject.reference, f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
+        self.assertEqual(docref["id"], scrubber.codebook.fake_id("DocumentReference", "345"))
+        self.assertEqual(docref["subject"]["reference"], f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
         self.assertEqual(
-            docref.context.encounter[0].reference, f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}"
+            docref["context"]["encounter"][0]["reference"],
+            f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}",
         )
-        self.assertIsNone(docref.content[0].attachment.data)
+        self.assertNotIn("data", docref["content"][0]["attachment"])
 
     def test_unknown_modifier_extension(self):
         """Confirm we skip resources with unknown modifier extensions"""
-        patient = i2b2_mock_data.patient()
+        patient = i2b2_mock_data.patient().as_json()
         scrubber = Scrubber()
 
-        patient.modifierExtension = []
+        patient["modifierExtension"] = []
         self.assertTrue(scrubber.scrub_resource(patient))
 
-        patient.modifierExtension = [Extension({"url": "http://example.org/unknown-extension"})]
+        patient["modifierExtension"] = [{"url": "http://example.org/unknown-extension"}]
         self.assertFalse(scrubber.scrub_resource(patient))
 
     def test_nlp_extensions_allowed(self):
         """Confirm we that nlp-generated resources are allowed, with their modifier extensions"""
         match = typesystem.MatchText({"begin": 0, "end": 1, "polarity": 0, "text": "f", "type": "SignSymptomMention"})
-        observation = text2fhir.nlp_observation("1", "2", "3", match)
+        observation = text2fhir.nlp_observation("1", "2", "3", match).as_json()
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(observation))
-        self.assertGreater(len(observation.modifierExtension), 0)
+        self.assertGreater(len(observation["modifierExtension"]), 0)
 
     def test_load_and_save(self):
         """Verify that loading from and saving to a file works"""
@@ -103,20 +104,20 @@ class TestScrubber(unittest.TestCase):
 
             # Confirm we loaded that encounter correctly
             scrubber = Scrubber(tmpdir)
-            encounter = i2b2_mock_data.encounter()  # patient is 12345
-            encounter.id = "1"
+            encounter = i2b2_mock_data.encounter().as_json()  # patient is 12345
+            encounter["id"] = "1"
             self.assertTrue(scrubber.scrub_resource(encounter))
-            self.assertEqual(encounter.id, db.encounter("1"))
+            self.assertEqual(encounter["id"], db.encounter("1"))
 
             # Save back to disk and confirm that we kept the same IDs
             scrubber.save()
             db2 = CodebookDB(tmpdir)
             self.assertEqual(db.encounter("1"), db2.encounter("1"))
-            self.assertEqual(encounter.subject.reference, f"Patient/{db2.patient('12345')}")
+            self.assertEqual(encounter["subject"]["reference"], f"Patient/{db2.patient('12345')}")
 
             # ensure value errors are handled inside scrub_resource:
-            encounter_bad = i2b2_mock_data.encounter()
-            encounter_bad.elementProperties = mock.Mock(side_effect=ValueError(1))
+            encounter_bad = mock.Mock()
+            encounter_bad.items = mock.Mock(side_effect=ValueError(1))
             scrubber.scrub_resource(encounter_bad)
 
             # make sure that we raise an error on an unexpected cookbook version
@@ -130,15 +131,15 @@ class TestScrubber(unittest.TestCase):
     def test_meta_security_cleared(self):
         """Verify that we drop the Meta.security field"""
         scrubber = Scrubber()
-        condition = i2b2_mock_data.condition()
+        condition = i2b2_mock_data.condition().as_json()
 
         # With another property
-        condition.meta = Meta({"security": [{"code": "REDACTED"}], "versionId": "a"})
+        condition["meta"] = {"security": [{"code": "REDACTED"}], "versionId": "a"}
         self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertIsNone(condition.meta.security)
-        self.assertEqual("a", condition.meta.versionId)
+        self.assertNotIn("security", condition["meta"])
+        self.assertEqual("a", condition["meta"]["versionId"])
 
         # Without another property
-        condition.meta = Meta({"security": [{"code": "REDACTED"}]})
+        condition["meta"] = {"security": [{"code": "REDACTED"}]}
         self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertIsNone(condition.meta)
+        self.assertNotIn("meta", condition)

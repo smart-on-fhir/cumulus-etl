@@ -10,17 +10,9 @@ from typing import Iterable, Iterator, List, Set, Type, TypeVar, Union
 
 import pandas
 
-from fhirclient.models.condition import Condition
-from fhirclient.models.documentreference import DocumentReference
-from fhirclient.models.encounter import Encounter
-from fhirclient.models.observation import Observation
-from fhirclient.models.patient import Patient
-from fhirclient.models.resource import Resource
-
 from cumulus import common, config, ctakes, deid, errors
 
 T = TypeVar("T")
-AnyResource = TypeVar("AnyResource", bound=Resource)
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
 
 
@@ -86,7 +78,7 @@ class EtlTask:
     """
 
     name: str = None
-    resource: Type[AnyResource] = None
+    resource: str = None
     tags: Set[str] = []
 
     # *** group_field ***
@@ -229,26 +221,24 @@ class EtlTask:
     #
     ##########################################################################################
 
-    def read_ndjson(self) -> Iterator[AnyResource]:
+    def read_ndjson(self) -> Iterator[dict]:
         """
         Grabs all ndjson files from a folder, of a particular resource type.
 
         Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
         """
-        resource_name = self.resource.__name__
-
-        pattern = re.compile(rf"([0-9]+.)?{resource_name}(.[0-9]+)?.ndjson")
+        pattern = re.compile(rf"([0-9]+.)?{self.resource}(.[0-9]+)?.ndjson")
         all_files = os.listdir(self.task_config.dir_input)
-        filenames = filter(pattern.match, all_files)
+        filenames = list(filter(pattern.match, all_files))
 
         if not filenames:
-            logging.error("Could not find any files for %s in the input folder, skipping that resource.", resource_name)
+            logging.error("Could not find any files for %s in the input folder, skipping that resource.", self.resource)
             return
 
         for filename in filenames:
             with common.open_file(os.path.join(self.task_config.dir_input, filename), "r") as f:
                 for line in f:
-                    yield self.resource(jsondict=json.loads(line), strict=False)  # pylint: disable=not-callable
+                    yield json.loads(line)
 
     def read_entries(self) -> Iterator[Union[List[dict], dict]]:
         """
@@ -260,8 +250,7 @@ class EtlTask:
         the elements of which will be guaranteed to all be in the same output batch.
         See comments for EtlTask.group_field for why you might do this.
         """
-        ndjson_entries = self.read_ndjson()
-        return (x.as_json() for x in filter(self.scrubber.scrub_resource, ndjson_entries))
+        return filter(self.scrubber.scrub_resource, self.read_ndjson())
 
     def write_entries(self, summary: config.JobSummary, dataframe: pandas.DataFrame, index: int) -> None:
         """Writes a single dataframe to the output"""
@@ -277,31 +266,31 @@ class EtlTask:
 
 class ConditionTask(EtlTask):
     name = "condition"
-    resource = Condition
+    resource = "Condition"
     tags = {"cpu"}
 
 
 class DocumentReferenceTask(EtlTask):
     name = "documentreference"
-    resource = DocumentReference
+    resource = "DocumentReference"
     tags = {"cpu"}
 
 
 class EncounterTask(EtlTask):
     name = "encounter"
-    resource = Encounter
+    resource = "Encounter"
     tags = {"cpu"}
 
 
 class ObservationTask(EtlTask):
     name = "observation"
-    resource = Observation
+    resource = "Observation"
     tags = {"cpu"}
 
 
 class PatientTask(EtlTask):
     name = "patient"
-    resource = Patient
+    resource = "Patient"
     tags = {"cpu"}
 
 
@@ -309,7 +298,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
     """Covid Symptom study task, to generate symptom lists from ED notes using NLP"""
 
     name = "covid_symptom__nlp_results"
-    resource = DocumentReference
+    resource = "DocumentReference"
     tags = {"covid_symptom", "gpu"}
     group_field = "docref_id"
 
@@ -317,7 +306,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
     def is_ed_coding(coding):
         # Hard code some i2b2 types that we are interested in (all emergency dept codes -- this is not likely very
         # portable, but it's what we have today).
-        return coding.system == "http://cumulus.smarthealthit.org/i2b2" and coding.code in [
+        return coding.get("system") == "http://cumulus.smarthealthit.org/i2b2" and coding.get("code") in [
             "NOTE:149798455",
             "NOTE:318198113",
             "NOTE:318198110",
@@ -338,7 +327,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
 
             # Check that the note is one of our special allow-listed types (we do this here rather than on the output
             # side to save needing to run everything through NLP).
-            type_codings = (docref.type and docref.type.coding) or []
+            type_codings = docref.get("type", {}).get("coding", [])
             is_er_note = list(filter(self.is_ed_coding, type_codings))
             if not is_er_note:
                 continue

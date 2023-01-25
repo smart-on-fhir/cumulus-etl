@@ -1,5 +1,6 @@
 """Ndjson FHIR loader"""
 
+import logging
 import sys
 import tempfile
 from typing import List
@@ -47,7 +48,10 @@ class FhirNdjsonLoader(base.Loader):
         common.print_header("Copying ndjson input files...")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         for resource in resources:
-            self.root.get(self.root.joinpath(f"*{resource}*.ndjson"), f"{tmpdir.name}/")
+            try:
+                self.root.get(self.root.joinpath(f"*{resource}*.ndjson"), f"{tmpdir.name}/")
+            except FileNotFoundError:
+                logging.warning("No resources found for %s", resource)
         return tmpdir
 
     def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:

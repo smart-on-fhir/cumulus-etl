@@ -5,7 +5,6 @@ import unittest
 import ddt
 from fhirclient.models.fhirdate import FHIRDate
 
-from cumulus import fhir_common
 from cumulus.loaders.i2b2 import transform
 from tests import i2b2_mock_data
 
@@ -112,12 +111,18 @@ class TestI2b2Transform(unittest.TestCase):
 
         timestamp = "2020-01-02 12:00:00.000"
 
-        self.assertEqual("2020-01-02", fhir_common.parse_fhir_date(timestamp).isostring)
+        self.assertEqual("2020-01-02", transform.parse_fhir_date(timestamp).isostring)
 
         timezone = "2020-01-02T16:00:00+00:00"
 
-        self.assertEqual("2020-01-02", fhir_common.parse_fhir_date(timezone).isostring)
+        self.assertEqual("2020-01-02", transform.parse_fhir_date(timezone).isostring)
 
         datepart = "2020-01-02"
 
-        self.assertEqual("2020-01-02", fhir_common.parse_fhir_date(datepart).isostring)
+        self.assertEqual("2020-01-02", transform.parse_fhir_date(datepart).isostring)
+
+    def test_ref_subject(self):
+        self.assertEqual({"reference": "Patient/123"}, transform.ref_subject("123").as_json())
+
+    def test_ref_encounter(self):
+        self.assertEqual({"reference": "Encounter/123"}, transform.ref_encounter("123").as_json())

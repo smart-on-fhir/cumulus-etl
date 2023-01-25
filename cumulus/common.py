@@ -8,8 +8,6 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 import fsspec
-from fhirclient.models.resource import Resource
-from fhirclient.models.fhirabstractbase import FHIRAbstractBase
 
 
 ###############################################################################
@@ -175,22 +173,6 @@ def debug_mode():
 def warn_mode():
     logging.basicConfig()
     logging.getLogger().setLevel(logging.WARN)
-
-
-def error_fhir(fhir_resource):
-    if isinstance(fhir_resource, Resource):
-        logging.error(json.dumps(fhir_resource.as_json(), indent=4))
-    else:
-        logging.error("expected FHIR Resource got %s", type(fhir_resource))
-
-
-def print_json(jsonable):
-    if isinstance(jsonable, dict):
-        print(json.dumps(jsonable, indent=4))
-    if isinstance(jsonable, list):
-        print(json.dumps(jsonable, indent=4))
-    if isinstance(jsonable, FHIRAbstractBase):
-        print(json.dumps(jsonable.as_json(), indent=4))
 
 
 _first_header = True
