@@ -6,8 +6,6 @@ import tempfile
 import unittest
 from unittest import mock
 
-from fhirclient.models.extension import Extension
-
 from cumulus import common, config, deid, errors, store, tasks
 
 from tests.ctakesmock import CtakesMixin
@@ -134,12 +132,12 @@ class TestTasks(CtakesMixin, unittest.TestCase):
     def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
         """Verify we ignore unknown modifier extensions during a custom read task (nlp symptoms)"""
         docref0 = i2b2_mock_data.documentreference()
-        docref0.subject.reference = "Patient/1234"
-        self.make_json("DocumentReference.0", "0", **docref0.as_json())
+        docref0["subject"]["reference"] = "Patient/1234"
+        self.make_json("DocumentReference.0", "0", **docref0)
         docref1 = i2b2_mock_data.documentreference()
-        docref1.subject.reference = "Patient/5678"
-        docref1.modifierExtension = [Extension({"url": "unrecognized"})]
-        self.make_json("DocumentReference.1", "1", **docref1.as_json())
+        docref1["subject"]["reference"] = "Patient/5678"
+        docref1["modifierExtension"] = [{"url": "unrecognized"}]
+        self.make_json("DocumentReference.1", "1", **docref1)
 
         tasks.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
@@ -152,11 +150,11 @@ class TestTasks(CtakesMixin, unittest.TestCase):
     def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
         docref0 = i2b2_mock_data.documentreference()
-        docref0.type.coding[0].code = "NOTE:nope"  # pylint: disable=unsubscriptable-object
-        self.make_json("DocumentReference.0", "skipped", **docref0.as_json())
+        docref0["type"]["coding"][0]["code"] = "NOTE:nope"  # pylint: disable=unsubscriptable-object
+        self.make_json("DocumentReference.0", "skipped", **docref0)
         docref1 = i2b2_mock_data.documentreference()
-        docref1.type.coding[0].code = "NOTE:149798455"  # pylint: disable=unsubscriptable-object
-        self.make_json("DocumentReference.1", "present", **docref1.as_json())
+        docref1["type"]["coding"][0]["code"] = "NOTE:149798455"  # pylint: disable=unsubscriptable-object
+        self.make_json("DocumentReference.1", "present", **docref1)
 
         tasks.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 

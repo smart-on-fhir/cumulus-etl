@@ -16,7 +16,7 @@ def patient_dim() -> transform.PatientDimension:
     )
 
 
-def patient() -> transform.Patient:
+def patient() -> dict:
     return transform.to_fhir_patient(patient_dim())
 
 
@@ -33,7 +33,7 @@ def encounter_dim() -> transform.VisitDimension:
     )
 
 
-def encounter() -> transform.Encounter:
+def encounter() -> dict:
     return transform.to_fhir_encounter(encounter_dim())
 
 
@@ -49,7 +49,7 @@ def condition_dim() -> transform.ObservationFact:
     )
 
 
-def condition() -> transform.Condition:
+def condition() -> dict:
     return transform.to_fhir_condition(condition_dim())
 
 
@@ -67,7 +67,7 @@ def documentreference_dim() -> transform.ObservationFact:
     )
 
 
-def documentreference() -> transform.DocumentReference:
+def documentreference() -> dict:
     return transform.to_fhir_documentreference(documentreference_dim())
 
 
@@ -85,5 +85,5 @@ def observation_dim() -> transform.ObservationFact:
     )
 
 
-def observation() -> transform.Observation:
+def observation() -> dict:
     return transform.to_fhir_observation_lab(observation_dim())

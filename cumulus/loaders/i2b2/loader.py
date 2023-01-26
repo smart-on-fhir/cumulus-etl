@@ -6,8 +6,6 @@ import tempfile
 from functools import partial
 from typing import Callable, Iterable, List, TypeVar
 
-from fhirclient.models.resource import Resource
-
 from cumulus import store
 from cumulus.loaders.base import Loader
 from cumulus.loaders.i2b2 import extract, schema, transform
@@ -16,7 +14,7 @@ from cumulus.loaders.i2b2.oracle import extract as oracle_extract
 AnyDimension = TypeVar("AnyDimension", bound=schema.Dimension)
 I2b2ExtractorCallable = Callable[[], Iterable[schema.Dimension]]
 CsvToI2b2Callable = Callable[[str], Iterable[schema.Dimension]]
-I2b2ToFhirCallable = Callable[[AnyDimension], Resource]
+I2b2ToFhirCallable = Callable[[AnyDimension], dict]
 
 
 class I2b2Loader(Loader):
@@ -110,10 +108,10 @@ class I2b2Loader(Loader):
             # Now write each FHIR resource line by line to the output
             # (we do this all line by line via generators to avoid loading everything in memory at once)
             for resource in fhir_resources:
-                if resource.id in ids:
+                if resource["id"] in ids:
                     continue
-                ids.add(resource.id)
-                json.dump(resource.as_json(), output_file)
+                ids.add(resource["id"])
+                json.dump(resource, output_file)
                 output_file.write("\n")
 
     ###################################################################################################################

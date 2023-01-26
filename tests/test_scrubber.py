@@ -17,7 +17,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_patient(self):
         """Verify a basic patient (saved ids)"""
-        patient = i2b2_mock_data.patient().as_json()
+        patient = i2b2_mock_data.patient()
         self.assertEqual("12345", patient["id"])
 
         scrubber = Scrubber()
@@ -26,7 +26,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_encounter(self):
         """Verify a basic encounter (saved ids)"""
-        encounter = i2b2_mock_data.encounter().as_json()
+        encounter = i2b2_mock_data.encounter()
         self.assertEqual("Patient/12345", encounter["subject"]["reference"])
         self.assertEqual("67890", encounter["id"])
 
@@ -37,7 +37,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_condition(self):
         """Verify a basic condition (hashed ids)"""
-        condition = i2b2_mock_data.condition().as_json()
+        condition = i2b2_mock_data.condition()
         self.assertEqual("4567", condition["id"])
         self.assertEqual("Patient/12345", condition["subject"]["reference"])
         self.assertEqual("Encounter/67890", condition["encounter"]["reference"])
@@ -52,7 +52,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_documentreference(self):
         """Test DocumentReference, which is interesting because of its list of encounters and attachments"""
-        docref = i2b2_mock_data.documentreference().as_json()
+        docref = i2b2_mock_data.documentreference()
         self.assertEqual("345", docref["id"])
         self.assertEqual("Patient/12345", docref["subject"]["reference"])
         self.assertEqual(1, len(docref["context"]["encounter"]))
@@ -72,7 +72,7 @@ class TestScrubber(unittest.TestCase):
 
     def test_unknown_modifier_extension(self):
         """Confirm we skip resources with unknown modifier extensions"""
-        patient = i2b2_mock_data.patient().as_json()
+        patient = i2b2_mock_data.patient()
         scrubber = Scrubber()
 
         patient["modifierExtension"] = []
@@ -104,7 +104,7 @@ class TestScrubber(unittest.TestCase):
 
             # Confirm we loaded that encounter correctly
             scrubber = Scrubber(tmpdir)
-            encounter = i2b2_mock_data.encounter().as_json()  # patient is 12345
+            encounter = i2b2_mock_data.encounter()  # patient is 12345
             encounter["id"] = "1"
             self.assertTrue(scrubber.scrub_resource(encounter))
             self.assertEqual(encounter["id"], db.encounter("1"))
@@ -131,7 +131,7 @@ class TestScrubber(unittest.TestCase):
     def test_meta_security_cleared(self):
         """Verify that we drop the Meta.security field"""
         scrubber = Scrubber()
-        condition = i2b2_mock_data.condition().as_json()
+        condition = i2b2_mock_data.condition()
 
         # With another property
         condition["meta"] = {"security": [{"code": "REDACTED"}], "versionId": "a"}
