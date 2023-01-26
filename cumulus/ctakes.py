@@ -8,12 +8,11 @@ import os
 from typing import List
 
 import ctakesclient
-from fhirclient.models.documentreference import DocumentReference
 
 from cumulus import common, fhir_common, store
 
 
-def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List[dict]:
+def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
     """
     Extract a list of Observations from NLP-detected symptoms in physician notes
 
@@ -21,21 +20,22 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
     :param docref: Physician Note
     :return: list of NLP results encoded as FHIR observations
     """
-    docref_id = docref.id
-    _, subject_id = fhir_common.unref_resource(docref.subject)
+    docref_id = docref["id"]
+    _, subject_id = fhir_common.unref_resource(docref["subject"])
 
-    if not docref.context or not docref.context.encounter:
+    encounters = docref.get("context", {}).get("encounter", [])
+    if not encounters:
         logging.warning("No valid encounters for symptoms")  # ideally would print identifier, but it's PHI...
         return []
-    _, encounter_id = fhir_common.unref_resource(docref.context.encounter[0])
+    _, encounter_id = fhir_common.unref_resource(encounters[0])
 
     # Find the physician note among the attachments
-    for content in docref.content:
-        if content.attachment.contentType and content.attachment.data:
-            mimetype, params = cgi.parse_header(content.attachment.contentType)
+    for content in docref["content"]:
+        if "contentType" in content["attachment"] and "data" in content["attachment"]:
+            mimetype, params = cgi.parse_header(content["attachment"]["contentType"])
             if mimetype == "text/plain":  # just grab first text we find
                 charset = params.get("charset", "utf8")
-                physician_note = base64.standard_b64decode(content.attachment.data).decode(charset)
+                physician_note = base64.standard_b64decode(content["attachment"]["data"]).decode(charset)
                 break
     else:
         logging.warning("No text/plain content for symptoms")  # ideally would print identifier, but it's PHI...
@@ -87,7 +87,7 @@ def covid_symptoms_extract(cache: store.Root, docref: DocumentReference) -> List
             positive_matches.append(
                 {
                     "id": f"{docref_id}.{i}",
-                    "docref_id": docref.id,
+                    "docref_id": docref_id,
                     "encounter_id": encounter_id,
                     "subject_id": subject_id,
                     "match": match.as_json(),

@@ -44,7 +44,9 @@ class TestTasks(CtakesMixin, unittest.TestCase):
         self.tmpdir = None
 
     def make_json(self, filename, resource_id, **kwargs):
-        common.write_json(os.path.join(self.input_dir, f"{filename}.ndjson"), {**kwargs, "id": resource_id})
+        common.write_json(
+            os.path.join(self.input_dir, f"{filename}.ndjson"), {"resourceType": "Test", **kwargs, "id": resource_id}
+        )
 
     def test_batch_iterate(self):
         """Check a bunch of edge cases for the _batch_iterate helper"""
@@ -109,10 +111,10 @@ class TestTasks(CtakesMixin, unittest.TestCase):
         self.make_json("Patient.14", "14")
 
         resources = tasks.ConditionTask(self.job_config, self.scrubber).read_ndjson()
-        self.assertEqual({"11", "12", "13"}, {r.id for r in resources})
+        self.assertEqual({"11", "12", "13"}, {r["id"] for r in resources})
 
         resources = tasks.PatientTask(self.job_config, self.scrubber).read_ndjson()
-        self.assertEqual({"14"}, {r.id for r in resources})
+        self.assertEqual({"14"}, {r["id"] for r in resources})
 
         resources = tasks.EncounterTask(self.job_config, self.scrubber).read_ndjson()
         self.assertEqual([], list(resources))

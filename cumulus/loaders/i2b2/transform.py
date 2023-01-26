@@ -14,6 +14,7 @@ from fhirclient.models.duration import Duration
 from fhirclient.models.encounter import Encounter
 from fhirclient.models.extension import Extension
 from fhirclient.models.fhirdate import FHIRDate
+from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.meta import Meta
 from fhirclient.models.observation import Observation
 from fhirclient.models.patient import Patient
@@ -41,10 +42,10 @@ def to_fhir_patient(patient: PatientDimension) -> Patient:
     subject.id = patient.patient_num
 
     if patient.birth_date:
-        subject.birthDate = fhir_common.parse_fhir_date(patient.birth_date)
+        subject.birthDate = parse_fhir_date(patient.birth_date)
 
     if patient.death_date:
-        subject.deceasedDateTime = fhir_common.parse_fhir_date(patient.death_date)
+        subject.deceasedDateTime = parse_fhir_date(patient.death_date)
 
     if patient.sex_cd:
         subject.gender = parse_gender(patient.sex_cd)
@@ -105,7 +106,7 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
     encounter = Encounter()
     encounter.meta = Meta({"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter"]})
     encounter.id = str(visit.encounter_num)
-    encounter.subject = fhir_common.ref_subject(visit.patient_num)
+    encounter.subject = ref_subject(visit.patient_num)
     encounter.status = "unknown"
 
     # Most generic encounter type possible, only included because the 'type' field is required in us-core
@@ -113,8 +114,8 @@ def to_fhir_encounter(visit: VisitDimension) -> Encounter:
 
     encounter.period = Period(
         {
-            "start": fhir_common.parse_fhir_date_isostring(visit.start_date),
-            "end": fhir_common.parse_fhir_date_isostring(visit.end_date),
+            "start": parse_fhir_date_isostring(visit.start_date),
+            "end": parse_fhir_date_isostring(visit.end_date),
         }
     )
 
@@ -143,9 +144,9 @@ def to_fhir_observation(obsfact: ObservationFact) -> Observation:
     """
     observation = Observation()
     observation.id = obsfact.instance_num
-    observation.subject = fhir_common.ref_subject(obsfact.patient_num)
-    observation.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
-    observation.effectiveDateTime = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
+    observation.subject = ref_subject(obsfact.patient_num)
+    observation.encounter = ref_encounter(obsfact.encounter_num)
+    observation.effectiveDateTime = parse_fhir_date(obsfact.start_date)
 
     return observation
 
@@ -189,11 +190,11 @@ def to_fhir_condition(obsfact: ObservationFact) -> Condition:
     condition = Condition()
     condition.id = obsfact.instance_num
 
-    condition.subject = fhir_common.ref_subject(obsfact.patient_num)
-    condition.encounter = fhir_common.ref_encounter(obsfact.encounter_num)
+    condition.subject = ref_subject(obsfact.patient_num)
+    condition.encounter = ref_encounter(obsfact.encounter_num)
 
     condition.meta = Meta({"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition"]})
-    condition.recordedDate = FHIRDate(fhir_common.parse_fhir_date_isostring(obsfact.start_date))
+    condition.recordedDate = parse_fhir_date(obsfact.start_date)
 
     condition.clinicalStatus = make_concept("active", "http://terminology.hl7.org/CodeSystem/condition-clinical")
     condition.verificationStatus = make_concept(
@@ -245,13 +246,13 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> DocumentReference:
     docref.indexed = FHIRDate()
 
     docref.id = obsfact.instance_num
-    docref.subject = fhir_common.ref_subject(obsfact.patient_num)
+    docref.subject = ref_subject(obsfact.patient_num)
     docref.context = DocumentReferenceContext()
-    docref.context.encounter = [fhir_common.ref_encounter(obsfact.encounter_num)]
+    docref.context.encounter = [ref_encounter(obsfact.encounter_num)]
     docref.context.period = Period(
         {
-            "start": fhir_common.parse_fhir_date_isostring(obsfact.start_date),
-            "end": fhir_common.parse_fhir_date_isostring(obsfact.end_date),
+            "start": parse_fhir_date_isostring(obsfact.start_date),
+            "end": parse_fhir_date_isostring(obsfact.end_date),
         }
     )
 
@@ -308,6 +309,43 @@ def parse_fhir_duration(i2b2_length_of_stay) -> float:
             return float(i2b2_length_of_stay)
         if isinstance(i2b2_length_of_stay, float):
             return i2b2_length_of_stay
+
+
+def parse_fhir_date(yyyy_mm_dd: str) -> Optional[FHIRDate]:
+    """
+    :param yyyy_mm_dd: YEAR Month Date
+    :return: FHIR Date with only the date part.
+    """
+    if yyyy_mm_dd and isinstance(yyyy_mm_dd, str):
+        yyyy_mm_dd = yyyy_mm_dd[:10]  # ignore the time portion
+        return FHIRDate(yyyy_mm_dd)
+
+
+def parse_fhir_date_isostring(yyyy_mm_dd: str) -> Optional[str]:
+    """
+    :param yyyy_mm_dd:
+    :return: str version of the
+    """
+    parsed = parse_fhir_date(yyyy_mm_dd)
+    return parsed.isostring if parsed else None
+
+
+def ref_subject(subject_id: str) -> FHIRReference:
+    """
+    Patient Reference the FHIR proper way
+    :param subject_id: ID for patient (isa REF can be UUID)
+    :return: FHIRReference as Patient/$id
+    """
+    return FHIRReference(fhir_common.ref_resource("Patient", subject_id))
+
+
+def ref_encounter(encounter_id: str) -> FHIRReference:
+    """
+    Encounter Reference the FHIR proper way
+    :param encounter_id: ID for encounter (isa REF can be UUID)
+    :return: FHIRReference as Encounter/$id
+    """
+    return FHIRReference(fhir_common.ref_resource("Encounter", encounter_id))
 
 
 def make_concept(code: str, system: Optional[str], display: str = None) -> CodeableConcept:

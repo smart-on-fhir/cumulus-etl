@@ -1,24 +1,11 @@
 """Cleans (de-identifies) a single resource node recursively"""
 
-import collections
 import logging
 import tempfile
 from typing import Any
 
-from fhirclient.models.attachment import Attachment
-from fhirclient.models.fhirabstractbase import FHIRAbstractBase
-from fhirclient.models.fhirabstractresource import FHIRAbstractResource
-from fhirclient.models.fhirreference import FHIRReference
-from fhirclient.models.meta import Meta
-
 from cumulus import fhir_common
 from cumulus.deid import codebook, mstool
-
-
-FHIRProperty = collections.namedtuple(
-    "FHIRProperty",
-    ["name", "json_name", "type", "is_list", "of_many", "not_optional"],
-)
 
 
 class SkipResource(Exception):
@@ -60,7 +47,7 @@ class Scrubber:
         mstool.run_mstool(input_dir, tmpdir.name)
         return tmpdir
 
-    def scrub_resource(self, node: FHIRAbstractBase, scrub_attachments: bool = True) -> bool:
+    def scrub_resource(self, node: dict, scrub_attachments: bool = True) -> bool:
         """
         Cleans/de-identifies resource (in-place) and returns False if it should be rejected
 
@@ -72,7 +59,7 @@ class Scrubber:
         :returns: whether this resource is allowed to be used
         """
         try:
-            self._scrub_node(node, scrub_attachments=scrub_attachments)
+            self._scrub_node("root", node, scrub_attachments=scrub_attachments)
         except SkipResource as exc:
             logging.warning("Ignoring resource of type %s: %s", node.__class__.__name__, exc)
             return False
@@ -93,35 +80,31 @@ class Scrubber:
     #
     ###############################################################################
 
-    def _scrub_node(self, node: FHIRAbstractBase, scrub_attachments: bool) -> None:
+    def _scrub_node(self, node_path: str, node: dict, scrub_attachments: bool) -> None:
         """Examines all properties of a node"""
-        fhir_properties = node.elementProperties()
-        for fhir_property in map(FHIRProperty._make, fhir_properties):
-            values = getattr(node, fhir_property.name)
+        for key, values in list(node.items()):
             if values is None:
                 continue
 
-            if not fhir_property.is_list:
+            if not isinstance(values, list):
                 # Make everything a list for ease of the next bit where we iterate a list
                 values = [values]
 
             for value in values:
-                self._scrub_single_value(node, fhir_property, value, scrub_attachments=scrub_attachments)
+                self._scrub_single_value(node_path, node, key, value, scrub_attachments=scrub_attachments)
 
-    def _scrub_single_value(
-        self, node: FHIRAbstractBase, fhir_property: FHIRProperty, value: Any, scrub_attachments: bool
-    ) -> None:
+    def _scrub_single_value(self, node_path: str, node: dict, key: str, value: Any, scrub_attachments: bool) -> None:
         """Examines one single property of a node"""
         # For now, just manually run each operation. If this grows further, we can abstract it more.
-        self._check_ids(node, fhir_property, value)
-        self._check_modifier_extensions(fhir_property, value)
-        self._check_security(node, fhir_property, value)
+        self._check_ids(node_path, node, key, value)
+        self._check_modifier_extensions(key, value)
+        self._check_security(node_path, node, key, value)
         if scrub_attachments:
-            self._check_attachments(node, fhir_property)
+            self._check_attachments(node_path, node, key)
 
-        # Recurse if we are holding a real FHIR object (instead of, say, a string)
-        if isinstance(value, FHIRAbstractBase):
-            self._scrub_node(value, scrub_attachments=scrub_attachments)
+        # Recurse if we are holding another FHIR object (i.e. a dict instead of a string)
+        if isinstance(value, dict):
+            self._scrub_node(f"{node_path}.{key}", value, scrub_attachments=scrub_attachments)
 
     ###############################################################################
     #
@@ -130,46 +113,48 @@ class Scrubber:
     ###############################################################################
 
     @staticmethod
-    def _check_modifier_extensions(fhir_property: FHIRProperty, value: Any) -> None:
+    def _check_modifier_extensions(key: str, value: Any) -> None:
         """If there's any unrecognized modifierExtensions, raise a SkipResource exception"""
-        if fhir_property.name == "modifierExtension":
+        if key == "modifierExtension" and isinstance(value, dict):
             known_extensions = [
                 "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity",
                 "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source",
             ]
-            url = getattr(value, "url", None)
+            url = value.get("url")
             if url not in known_extensions:
                 raise SkipResource(f'Unrecognized modifierExtension with URL "{url}"')
 
-    def _check_ids(self, node: FHIRAbstractBase, fhir_property: FHIRProperty, value: Any) -> None:
+    def _check_ids(self, node_path: str, node: dict, key: str, value: Any) -> None:
         """Converts any IDs and references to a de-identified version"""
-        # ID values
-        if isinstance(node, FHIRAbstractResource) and fhir_property.name == "id":
-            node.id = self.codebook.fake_id(node.resource_type, value)
+        # ID values ("id" is only ever used as a resource ID)
+        if node_path == "root" and key == "id":
+            node["id"] = self.codebook.fake_id(node["resourceType"], value)
 
         # References
-        elif isinstance(node, FHIRReference) and fhir_property.name == "reference":
+        # "reference" can sometimes be a URL or non-FHIRReference element -- at some point we'll need to be smarter.
+        elif key == "reference":
             resource_type, real_id = fhir_common.unref_resource(node)
             fake_id = self.codebook.fake_id(resource_type, real_id)
-            node.reference = fhir_common.ref_resource(resource_type, fake_id).reference
+            node["reference"] = fhir_common.ref_resource(resource_type, fake_id)["reference"]
 
     @staticmethod
-    def _check_attachments(node: FHIRAbstractBase, fhir_property: FHIRProperty) -> None:
+    def _check_attachments(node_path: str, node: dict, key: str) -> None:
         """Strip any attachment data"""
-        if isinstance(node, Attachment) and fhir_property.name == "data":
-            node.data = None
+        if node_path == "root.content.attachment" and key == "data":
+            del node["data"]
 
     @staticmethod
-    def _check_security(node: FHIRAbstractBase, fhir_property: FHIRProperty, value: Any) -> None:
+    def _check_security(node_path: str, node: dict, key: str, value: Any) -> None:
         """
         Strip any security data that the MS tool injects
 
         It takes up space in the result and anyone using Cumulus ETL understands that there was ETL applied.
         """
-        if fhir_property.name == "meta" and isinstance(value, Meta):
-            value.security = None  # maybe too aggressive -- is there data we care about in meta.security?
+        if node_path == "root" and key == "meta":
+            if "security" in value:
+                del value["security"]  # maybe too aggressive -- is there data we care about in meta.security?
 
             # If we wiped out the only content in Meta, remove it so as not to confuse downstream bits like parquet
             # writers which try to infer values from an empty struct and fail.
-            if value.as_json() == {}:
-                node.meta = None
+            if not value:
+                del node["meta"]

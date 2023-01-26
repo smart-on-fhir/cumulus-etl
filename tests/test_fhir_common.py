@@ -3,7 +3,6 @@
 import unittest
 
 import ddt
-from fhirclient.models.fhirreference import FHIRReference
 
 from cumulus import fhir_common
 
@@ -20,8 +19,7 @@ class TestReferenceHandlers(unittest.TestCase):
     )
     @ddt.unpack
     def test_unref_successes(self, full_reference, expected_type, expected_id):
-        fhir_reference = FHIRReference(full_reference)
-        parsed = fhir_common.unref_resource(fhir_reference)
+        parsed = fhir_common.unref_resource(full_reference)
         self.assertEqual((expected_type, expected_id), parsed)
 
     @ddt.data(
@@ -33,15 +31,8 @@ class TestReferenceHandlers(unittest.TestCase):
         "http://example.com/Patient/123",
     )
     def test_unref_failures(self, reference):
-        fhir_reference = FHIRReference({"reference": reference})
         with self.assertRaises(ValueError):
-            fhir_common.unref_resource(fhir_reference)
+            fhir_common.unref_resource({"reference": reference})
 
     def test_ref_resource(self):
-        self.assertEqual({"reference": "Patient/123"}, fhir_common.ref_resource("Patient", "123").as_json())
-
-    def test_ref_subject(self):
-        self.assertEqual({"reference": "Patient/123"}, fhir_common.ref_subject("123").as_json())
-
-    def test_ref_encounter(self):
-        self.assertEqual({"reference": "Encounter/123"}, fhir_common.ref_encounter("123").as_json())
+        self.assertEqual({"reference": "Patient/123"}, fhir_common.ref_resource("Patient", "123"))
