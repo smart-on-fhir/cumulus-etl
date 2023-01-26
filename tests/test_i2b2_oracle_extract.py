@@ -102,12 +102,6 @@ class TestOracleExtraction(unittest.TestCase):
             set(os.listdir(tmpdir.name)),
         )
 
-        self.assertEqual(
-            i2b2_mock_data.condition().as_json(), common.read_json(os.path.join(tmpdir.name, "Condition.ndjson"))
-        )
-        self.assertEqual(
-            i2b2_mock_data.encounter().as_json(), common.read_json(os.path.join(tmpdir.name, "Encounter.ndjson"))
-        )
-        self.assertEqual(
-            i2b2_mock_data.patient().as_json(), common.read_json(os.path.join(tmpdir.name, "Patient.ndjson"))
-        )
+        self.assertEqual(i2b2_mock_data.condition(), common.read_json(os.path.join(tmpdir.name, "Condition.ndjson")))
+        self.assertEqual(i2b2_mock_data.encounter(), common.read_json(os.path.join(tmpdir.name, "Encounter.ndjson")))
+        self.assertEqual(i2b2_mock_data.patient(), common.read_json(os.path.join(tmpdir.name, "Patient.ndjson")))
