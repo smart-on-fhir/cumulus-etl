@@ -15,7 +15,7 @@ from cumulus import store
 ###############################################################################
 def merge_cohort(filepath) -> list:
     if not os.path.exists(filepath):
-        raise Exception(f"not found! {filepath}")
+        raise FileNotFoundError(f"not found! {filepath}")
 
     cohort = store.read_json(filepath).get("cohort")
 

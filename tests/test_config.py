@@ -16,8 +16,6 @@ class TestConfigSummary(unittest.TestCase):
         summary = config.JobSummary("empty")
         expected = {
             "attempt": 0,
-            "csv": [],
-            "failed": [],
             "hostname": gethostname(),
             "label": "empty",
             "success": 0,

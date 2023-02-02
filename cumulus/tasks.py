@@ -2,7 +2,6 @@
 
 import itertools
 import json
-import logging
 import os
 import re
 import sys
@@ -10,7 +9,7 @@ from typing import Iterable, Iterator, List, Set, Type, TypeVar, Union
 
 import pandas
 
-from cumulus import common, config, ctakes, deid, errors
+from cumulus import common, config, ctakes, deid, errors, store
 
 T = TypeVar("T")
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
@@ -193,7 +192,7 @@ class EtlTask:
         common.print_header(f"{self.name}:")
 
         # No data is read or written yet, so do any initial setup the formatter wants
-        self.task_config.format.initialize(summary, self.name)
+        formatter = self.task_config.create_formatter(summary, self.name, self.group_field)
 
         entries = self.read_entries()
 
@@ -208,10 +207,13 @@ class EtlTask:
             self.scrubber.save()
 
             # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
-            self.write_entries(summary, dataframe, index)
+            formatter.write_records(dataframe, index)
+
+            print(f"  {summary.success:,} processed for {self.name}")
 
         # All data is written, now do any final cleanup the formatter wants
-        self.task_config.format.finalize(summary, self.name)
+        formatter.finalize()
+        print(f"  ⭐ done with {self.name} ({summary.success:,} processed) ⭐")
 
         return summary
 
@@ -231,10 +233,6 @@ class EtlTask:
         all_files = os.listdir(self.task_config.dir_input)
         filenames = list(filter(pattern.match, all_files))
 
-        if not filenames:
-            logging.error("Could not find any files for %s in the input folder, skipping that resource.", self.resource)
-            return
-
         for filename in filenames:
             with common.open_file(os.path.join(self.task_config.dir_input, filename), "r") as f:
                 for line in f:
@@ -251,10 +249,6 @@ class EtlTask:
         See comments for EtlTask.group_field for why you might do this.
         """
         return filter(self.scrubber.scrub_resource, self.read_ndjson())
-
-    def write_entries(self, summary: config.JobSummary, dataframe: pandas.DataFrame, index: int) -> None:
-        """Writes a single dataframe to the output"""
-        self.task_config.format.write_records(summary, dataframe, self.name, index, group_field=self.group_field)
 
 
 ##########################################################################################
@@ -321,10 +315,9 @@ class CovidSymptomNlpResultsTask(EtlTask):
 
     def read_entries(self) -> Iterator[Union[List[dict], dict]]:
         """Passes physician notes through NLP and returns any symptoms found"""
-        for docref in self.read_ndjson():
-            if not self.scrubber.scrub_resource(docref, scrub_attachments=False):
-                continue
+        phi_root = store.Root(self.task_config.dir_phi, create=True)
 
+        for docref in self.read_ndjson():
             # Check that the note is one of our special allow-listed types (we do this here rather than on the output
             # side to save needing to run everything through NLP).
             type_codings = docref.get("type", {}).get("coding", [])
@@ -332,7 +325,10 @@ class CovidSymptomNlpResultsTask(EtlTask):
             if not is_er_note:
                 continue
 
+            if not self.scrubber.scrub_resource(docref, scrub_attachments=False):
+                continue
+
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield ctakes.covid_symptoms_extract(self.task_config.dir_phi, docref)
+            yield ctakes.covid_symptoms_extract(phi_root, docref)

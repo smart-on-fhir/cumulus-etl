@@ -15,7 +15,8 @@ import pytest
 import s3fs
 from ctakesclient.typesystem import Polarity
 
-from cumulus import common, config, context, deid, errors, etl, formats, loaders, store
+from cumulus import common, context, deid, errors, etl, loaders, store
+from cumulus.formats.deltalake import DeltaLakeFormat
 from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
@@ -100,16 +101,6 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
 
 class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
     """Test case for the sequence of data through the system"""
-
-    def setUp(self):
-        super().setUp()
-        self.scrubber = deid.Scrubber()
-        self.codebook = self.scrubber.codebook
-        self.loader = mock.MagicMock()
-        self.dir_input = mock.MagicMock()
-        self.format = mock.MagicMock()
-        phi_root = store.Root(self.phi_path)
-        self.config = config.JobConfig(self.loader, self.dir_input, self.format, phi_root, batch_size=5)
 
     def test_batched_output(self):
         self.run_etl(batch_size=1)
@@ -470,11 +461,9 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         # This test uses delta lake even though it is a bit slow, just because that's the only current output format
         # that supports this feature (EtlTask.group_field). Other output formats just delete the full table each run.
 
-        path = os.path.join(self.output_path, "covid_symptom__nlp_results")
-        deltalake = formats.DeltaLakeFormat(store.Root(path))  # FYI this is slow (downloads jars etc.)
-
         def table_ids():
-            df = deltalake.spark.read.format("delta").load(path).sort("id").toPandas()
+            path = os.path.join(self.output_path, "covid_symptom__nlp_results")
+            df = DeltaLakeFormat.spark.read.format("delta").load(path).sort("id").toPandas()
             return [row["id"] for _, row in df.iterrows()]
 
         # Get a baseline, with two symptoms per document

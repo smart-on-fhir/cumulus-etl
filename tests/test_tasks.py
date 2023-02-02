@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from cumulus import common, config, deid, errors, store, tasks
+from cumulus import common, config, deid, errors, tasks
 
 from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
@@ -26,10 +26,12 @@ class TestTasks(CtakesMixin, unittest.TestCase):
         os.makedirs(self.input_dir)
         os.makedirs(self.phi_dir)
 
-        self.loader = mock.MagicMock()
+        self.job_config = config.JobConfig(
+            self.input_dir, self.input_dir, self.tmpdir.name, self.phi_dir, "ndjson", "ndjson", batch_size=5
+        )
+
         self.format = mock.MagicMock()
-        phi_root = store.Root(self.phi_dir)
-        self.job_config = config.JobConfig(self.loader, self.input_dir, self.format, phi_root, batch_size=5)
+        self.job_config.create_formatter = mock.MagicMock(return_value=self.format)
 
         self.scrubber = deid.Scrubber()
         self.codebook = self.scrubber.codebook
@@ -126,7 +128,7 @@ class TestTasks(CtakesMixin, unittest.TestCase):
 
         # Confirm that only patient 0 got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][1]
+        df = self.format.write_records.call_args[0][0]
         self.assertEqual([self.codebook.db.patient("0")], list(df.id))
 
     def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
@@ -143,7 +145,7 @@ class TestTasks(CtakesMixin, unittest.TestCase):
 
         # Confirm that only symptoms from docref 0 got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][1]
+        df = self.format.write_records.call_args[0][0]
         expected_subject = self.codebook.db.patient("1234")
         self.assertEqual({expected_subject}, set(df.subject_id))
 
@@ -160,7 +162,7 @@ class TestTasks(CtakesMixin, unittest.TestCase):
 
         # Confirm that only symptoms from docref 'present' got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][1]
+        df = self.format.write_records.call_args[0][0]
         expected_docref = self.codebook.db.resource_hash("present")
         self.assertEqual({expected_docref}, set(df.docref_id))
 
