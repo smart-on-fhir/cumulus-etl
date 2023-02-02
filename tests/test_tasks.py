@@ -6,12 +6,15 @@ import tempfile
 import unittest
 from unittest import mock
 
+import ddt
+
 from cumulus import common, config, deid, errors, tasks
 
 from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
 
 
+@ddt.ddt
 class TestTasks(CtakesMixin, unittest.TestCase):
     """Test case for task methods"""
 
@@ -148,6 +151,37 @@ class TestTasks(CtakesMixin, unittest.TestCase):
         df = self.format.write_records.call_args[0][0]
         expected_subject = self.codebook.db.patient("1234")
         self.assertEqual({expected_subject}, set(df.subject_id))
+
+    @ddt.data(
+        # (coding, expected valid note)
+        # Invalid codes
+        ([], False),
+        ([{"system": "http://cumulus.smarthealthit.org/i2b2", "code": "NOTE:0"}], False),
+        ([{"system": "http://loinc.org", "code": "00000-0"}], False),
+        ([{"system": "http://example.org", "code": "nope"}], False),
+        # Valid codes
+        ([{"system": "http://cumulus.smarthealthit.org/i2b2", "code": "NOTE:3710480"}], True),
+        ([{"system": "http://loinc.org", "code": "57053-1"}], True),
+        ([{"system": "nope", "code": "nope"}, {"system": "http://loinc.org", "code": "57053-1"}], True),
+    )
+    @ddt.unpack
+    def test_ed_note_filtering_for_nlp(self, codings, expected):
+        """Verify we filter out any non-emergency-department note"""
+        # Use one doc with category set, and one with type set. Either should work.
+        docref0 = i2b2_mock_data.documentreference()
+        docref0["category"] = {"coding": codings}
+        del docref0["type"]
+        self.make_json("DocumentReference.0", "0", **docref0)
+        docref1 = i2b2_mock_data.documentreference()
+        docref1["type"] = {"coding": codings}
+        self.make_json("DocumentReference.1", "1", **docref1)
+
+        tasks.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(1 if expected else 0, self.format.write_records.call_count)
+        if expected:
+            df = self.format.write_records.call_args[0][0]
+            self.assertEqual(4, len(df))
 
     def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""

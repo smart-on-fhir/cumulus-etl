@@ -296,22 +296,41 @@ class CovidSymptomNlpResultsTask(EtlTask):
     tags = {"covid_symptom", "gpu"}
     group_field = "docref_id"
 
-    @staticmethod
-    def is_ed_coding(coding):
-        # Hard code some i2b2 types that we are interested in (all emergency dept codes -- this is not likely very
-        # portable, but it's what we have today).
-        return coding.get("system") == "http://cumulus.smarthealthit.org/i2b2" and coding.get("code") in [
-            "NOTE:149798455",
-            "NOTE:318198113",
-            "NOTE:318198110",
+    # List of recognized emergency department note types. We'll add more as we discover them in use.
+    ED_CODES = {
+        "http://cumulus.smarthealthit.org/i2b2": {
             "NOTE:3710480",
-            "NOTE:189094619",
-            "NOTE:159552404",
-            "NOTE:318198107",
-            "NOTE:189094644",
             "NOTE:3807712",
+            "NOTE:149798455",
+            "NOTE:159552404",
             "NOTE:189094576",
-        ]
+            "NOTE:189094619",
+            "NOTE:189094644",
+            "NOTE:318198107",
+            "NOTE:318198110",
+            "NOTE:318198113",
+        },
+        "http://loinc.org": {
+            "18842-5",  # Discharge Summary
+            "28568-4",  # Physician Emergency department Note
+            "34111-5",  # Emergency department Note
+            "34878-9",  # Emergency medicine Note
+            "51846-4",  # Emergency department Consult note
+            "54094-8",  # Emergency department Triage note
+            "57053-1",  # Nurse Emergency department Note
+            "57054-9",  # Nurse Emergency department Triage+care note
+            "59258-4",  # Emergency department Discharge summary
+            "60280-5",  # Emergency department Discharge instructions
+            "68552-9",  # Emergency medicine Emergency department Admission evaluation note
+            "74187-6",  # InterRAI Emergency Screener for Psychiatry (ESP) Document
+            "74211-4",  # Summary of episode note Emergency department+Hospital
+        },
+    }
+
+    @classmethod
+    def is_ed_coding(cls, coding):
+        """Returns true if this is a coding for an emergency department note"""
+        return coding.get("code") in cls.ED_CODES.get(coding.get("system"), {})
 
     def read_entries(self) -> Iterator[Union[List[dict], dict]]:
         """Passes physician notes through NLP and returns any symptoms found"""
@@ -320,8 +339,10 @@ class CovidSymptomNlpResultsTask(EtlTask):
         for docref in self.read_ndjson():
             # Check that the note is one of our special allow-listed types (we do this here rather than on the output
             # side to save needing to run everything through NLP).
-            type_codings = docref.get("type", {}).get("coding", [])
-            is_er_note = list(filter(self.is_ed_coding, type_codings))
+            # We check both type and category for safety -- we aren't sure yet how EHRs are using these fields.
+            codings = docref.get("category", {}).get("coding", [])
+            codings += docref.get("type", {}).get("coding", [])
+            is_er_note = any(self.is_ed_coding(x) for x in codings)
             if not is_er_note:
                 continue
 
