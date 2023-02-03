@@ -154,7 +154,8 @@ def check_requirements() -> None:
 ###############################################################################
 
 
-def main(args: List[str]):
+def make_parser() -> argparse.ArgumentParser:
+    """Creates an ArgumentParser for Cumulus ETL"""
     parser = argparse.ArgumentParser()
     parser.add_argument("dir_input", metavar="/path/to/input")
     parser.add_argument("dir_output", metavar="/path/to/processed")
@@ -176,22 +177,43 @@ def main(args: List[str]):
         help="how many entries to process at once and thus " "how many to put in one output file (default is 200k)",
     )
     parser.add_argument("--comment", help="add the comment to the log file")
-    parser.add_argument("--s3-region", help="if using S3 paths (s3://...), this is their region")
-    parser.add_argument("--s3-kms-key", help="if using S3 paths (s3://...), this is the KMS key ID to use")
-    parser.add_argument(
+
+    aws = parser.add_argument_group("AWS")
+    aws.add_argument("--s3-region", metavar="REGION", help="if using S3 paths (s3://...), this is their region")
+    aws.add_argument("--s3-kms-key", metavar="KEY", help="if using S3 paths (s3://...), this is the KMS key ID to use")
+
+    export = parser.add_argument_group("bulk export")
+    export.add_argument(
         "--smart-client-id",
-        metavar="CLIENT_ID",
-        help="Client ID registered with SMART FHIR server " "(can be a filename with ID inside it",
+        metavar="ID",
+        help="Client ID for SMART authentication",
     )
-    parser.add_argument("--smart-jwks", metavar="/path/to/jwks", help="JWKS file registered with SMART FHIR server")
-    parser.add_argument("--task", action="append", help="Only update the given output tables (comma separated)")
-    parser.add_argument(
+    export.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
+    export.add_argument(
+        "--bearer-token",
+        metavar="PATH",
+        help="Bearer token for custom bearer authentication",
+    )
+    export.add_argument("--since", help="Start date for export from the FHIR server")
+    export.add_argument("--until", help="End date for export from the FHIR server")
+
+    task = parser.add_argument_group("task selection")
+    task.add_argument("--task", action="append", help="Only update the given output tables (comma separated)")
+    task.add_argument(
         "--task-filter",
         action="append",
         choices=["covid_symptom", "cpu", "gpu"],
         help="Restrict tasks to only the given sets (comma separated)",
     )
-    parser.add_argument("--skip-init-checks", action="store_true", help=argparse.SUPPRESS)
+
+    debug = parser.add_argument_group("debugging")
+    debug.add_argument("--skip-init-checks", action="store_true", help=argparse.SUPPRESS)
+
+    return parser
+
+
+def main(args: List[str]):
+    parser = make_parser()
     args = parser.parse_args(args)
 
     logging.info("Input Directory: %s", args.dir_input)
@@ -213,7 +235,14 @@ def main(args: List[str]):
     if args.input_format == "i2b2":
         config_loader = loaders.I2b2Loader(root_input, args.batch_size)
     else:
-        config_loader = loaders.FhirNdjsonLoader(root_input, client_id=args.smart_client_id, jwks=args.smart_jwks)
+        config_loader = loaders.FhirNdjsonLoader(
+            root_input,
+            client_id=args.smart_client_id,
+            jwks=args.smart_jwks,
+            bearer_token=args.bearer_token,
+            since=args.since,
+            until=args.until,
+        )
 
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and list(itertools.chain.from_iterable(t.split(",") for t in args.task))
