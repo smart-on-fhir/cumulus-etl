@@ -82,29 +82,18 @@ class TestBulkLoader(unittest.TestCase):
                     "--input-format=ndjson",
                     "--smart-client-id=x",
                     "--smart-jwks=y",
+                    "--bearer-token=bt",
+                    "--since=2018",
+                    "--until=2020",
                 ]
             )
 
         self.assertEqual(1, mock_loader.call_count)
         self.assertEqual("x", mock_loader.call_args[1]["client_id"])
         self.assertEqual("y", mock_loader.call_args[1]["jwks"])
-
-    def test_required_arguments(self):
-        """Verify that we require both a client ID and a JWK Set"""
-        # No SMART args at all
-        with self.assertRaises(SystemExit):
-            loaders.FhirNdjsonLoader(self.root).load_all([])
-
-        # No JWKS
-        with self.assertRaises(SystemExit):
-            loaders.FhirNdjsonLoader(self.root, client_id="foo").load_all([])
-
-        # No client ID
-        with self.assertRaises(SystemExit):
-            loaders.FhirNdjsonLoader(self.root, jwks=self.jwks_path).load_all([])
-
-        # Works fine if both given
-        loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path).load_all([])
+        self.assertEqual("bt", mock_loader.call_args[1]["bearer_token"])
+        self.assertEqual("2018", mock_loader.call_args[1]["since"])
+        self.assertEqual("2020", mock_loader.call_args[1]["until"])
 
     def test_reads_client_id_from_file(self):
         """Verify that we require both a client ID and a JWK Set."""
@@ -118,6 +107,14 @@ class TestBulkLoader(unittest.TestCase):
             file.flush()
             loader = loaders.FhirNdjsonLoader(self.root, client_id=file.name)
             self.assertEqual("inside-file", loader.client_id)
+
+    def test_reads_bearer_token(self):
+        """Verify that we read the bearer token file"""
+        with tempfile.NamedTemporaryFile() as file:
+            file.write(b"\ninside-file\n")
+            file.flush()
+            loader = loaders.FhirNdjsonLoader(self.root, bearer_token=file.name)
+            self.assertEqual("inside-file", loader.bearer_token)
 
     def test_export_flow(self):
         """
@@ -139,8 +136,14 @@ class TestBulkLoader(unittest.TestCase):
             "Encounter",
         ]
 
-        self.assertEqual(1, self.mock_server.call_count)
-        self.assertEqual(((self.root.path, "foo", {"fake": "jwks"}, expected_resources),), self.mock_server.call_args)
+        self.assertEqual(
+            [
+                mock.call(
+                    self.root.path, expected_resources, client_id="foo", jwks={"fake": "jwks"}, bearer_token=None
+                ),
+            ],
+            self.mock_server.call_args_list,
+        )
 
         self.assertEqual(1, self.mock_exporter.call_count)
         self.assertEqual(mock_server_instance, self.mock_exporter.call_args[0][0])
@@ -224,9 +227,26 @@ class TestBulkServer(unittest.TestCase):
         self.mock_client_class = client_patcher.start()  # FHIRClient class
         self.mock_client_class.return_value = self.mock_client
 
+    def test_required_arguments(self):
+        """Verify that we require both a client ID and a JWK Set"""
+        # No SMART args at all
+        with self.assertRaises(SystemExit):
+            BackendServiceServer(self.server_url, [])
+
+        # No JWKS
+        with self.assertRaises(SystemExit):
+            BackendServiceServer(self.server_url, [], client_id="foo")
+
+        # No client ID
+        with self.assertRaises(SystemExit):
+            BackendServiceServer(self.server_url, [], jwks=self.jwks)
+
+        # Works fine if both given
+        BackendServiceServer(self.server_url, [], client_id="foo", jwks=self.jwks)
+
     def test_auth_initial_authorize(self):
         """Verify that we authorize correctly upon class initialization"""
-        BackendServiceServer(self.server_url, self.client_id, self.jwks, ["Condition", "Patient"])
+        BackendServiceServer(self.server_url, ["Condition", "Patient"], client_id=self.client_id, jwks=self.jwks)
 
         # Check initialization of FHIRClient
         self.assertListEqual(
@@ -248,15 +268,27 @@ class TestBulkServer(unittest.TestCase):
         self.assertListEqual([mock.call()], self.mock_client.prepare.call_args_list)
         self.assertListEqual([mock.call()], self.mock_client.authorize.call_args_list)
 
+    def test_auth_with_bearer_token(self):
+        """Verify that we pass along the bearer token to the server"""
+        self.responses.get(
+            f"{self.server_url}/foo",
+            match=[matchers.header_matcher({"Authorization": "Bearer foo"})],
+        )
+
+        server = BackendServiceServer(self.server_url, ["Condition", "Patient"], bearer_token="foo")
+        server.request("GET", "foo")
+
     def test_get_with_new_header(self):
         """Verify that we issue a GET correctly for the happy path"""
-        server = BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
         # This is mostly confirming that we call mocks correctly, but that's important since we're mocking out all
         # of fhirclient. Since we do that, we need to confirm we're driving it well.
 
-        # With new header and stream
-        server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
+        with mock.patch.object(server, "_session") as mock_session:
+            # With new header and stream
+            server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
+
         self.assertEqual(
             [
                 mock.call(
@@ -278,15 +310,17 @@ class TestBulkServer(unittest.TestCase):
                     stream=True,
                 )
             ],
-            self.mock_server.session.request.call_args_list,
+            mock_session.request.call_args_list,
         )
 
     def test_get_with_overriden_header(self):
         """Verify that we issue a GET correctly for the happy path"""
-        server = BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
         # With overriding a header and default stream (False)
-        server.request("GET", "bar", headers={"Accept": "text/plain"})
+        with mock.patch.object(server, "_session") as mock_session:
+            server.request("GET", "bar", headers={"Accept": "text/plain"})
+
         self.assertEqual(
             [
                 mock.call(
@@ -307,7 +341,7 @@ class TestBulkServer(unittest.TestCase):
                     stream=False,
                 )
             ],
-            self.mock_server.session.request.call_args_list,
+            mock_session.request.call_args_list,
         )
 
     @ddt.data(
@@ -319,7 +353,7 @@ class TestBulkServer(unittest.TestCase):
     )
     def test_jwks_without_suitable_key(self, bad_jwks):
         with self.assertRaisesRegex(FatalError, "No private ES384 or RS384 key found"):
-            BackendServiceServer(self.server_url, self.client_id, bad_jwks, [])
+            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=bad_jwks)
 
     @ddt.data(
         {"token_endpoint_auth_methods_supported": None},
@@ -345,7 +379,7 @@ class TestBulkServer(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(FatalError, "does not support the client-confidential-asymmetric protocol"):
-            BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
     def test_authorize_error_with_response(self):
         """Verify that we translate authorize http response errors into FatalErrors."""
@@ -354,23 +388,24 @@ class TestBulkServer(unittest.TestCase):
         error.response.json.return_value = {"error_description": "Ouch!"}
         self.mock_client.authorize.side_effect = error
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: Ouch!"):
-            BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
     def test_authorize_error_without_response(self):
         """Verify that we translate authorize non-response errors into FatalErrors."""
         self.mock_client.authorize.side_effect = Exception("no memory")
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: no memory"):
-            BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
     def test_get_error_401(self):
         """Verify that an expired token is refreshed."""
-        server = BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
-
-        self.mock_server.session.request.side_effect = [make_response(status_code=401), make_response()]
-        self.mock_server.reauthorize.return_value = None  # fhirclient gives None if there is no refresh token
+        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
         # Check that we correctly tried to re-authenticate
-        self.assertEqual(200, server.request("GET", "foo").status_code)
+        with mock.patch.object(server, "_session") as mock_session:
+            mock_session.request.side_effect = [make_response(status_code=401), make_response()]
+            self.mock_server.reauthorize.return_value = None  # fhirclient gives None if there is no refresh token
+            self.assertEqual(200, server.request("GET", "foo").status_code)
+
         self.assertEqual(1, self.mock_server.reauthorize.call_count)
         self.assertEqual(2, self.mock_client_class.call_count)
         self.assertEqual(2, self.mock_client.prepare.call_count)
@@ -378,16 +413,18 @@ class TestBulkServer(unittest.TestCase):
 
     def test_get_error_429(self):
         """Verify that 429 errors are passed through and not treated as exceptions."""
-        server = BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
         # Confirm 429 passes
-        self.mock_server.session.request.return_value = make_response(status_code=429)
-        self.assertEqual(429, server.request("GET", "foo").status_code)
+        with mock.patch.object(server, "_session") as mock_session:
+            mock_session.request.return_value = make_response(status_code=429)
+            self.assertEqual(429, server.request("GET", "foo").status_code)
 
         # Sanity check that 430 does not
-        self.mock_server.session.request.return_value = make_response(status_code=430)
-        with self.assertRaises(FatalError):
-            server.request("GET", "foo")
+        with mock.patch.object(server, "_session") as mock_session:
+            mock_session.request.return_value = make_response(status_code=430)
+            with self.assertRaises(FatalError):
+                server.request("GET", "foo")
 
     @ddt.data(
         {"json": {"resourceType": "OperationOutcome", "issue": [{"diagnostics": "testmsg"}]}},  # OperationOutcome
@@ -397,11 +434,12 @@ class TestBulkServer(unittest.TestCase):
     )
     def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
-        server = BackendServiceServer(self.server_url, self.client_id, self.jwks, [])
+        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
 
-        self.mock_server.session.request.return_value = make_response(status_code=500, **response_args)
-        with self.assertRaisesRegex(FatalError, "testmsg"):
-            server.request("GET", "foo")
+        with mock.patch.object(server, "_session") as mock_session:
+            mock_session.request.return_value = make_response(status_code=500, **response_args)
+            with self.assertRaisesRegex(FatalError, "testmsg"):
+                server.request("GET", "foo")
 
 
 @ddt.ddt
@@ -417,7 +455,14 @@ class TestBulkExporter(unittest.TestCase):
         super().setUp()
         self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         self.server = mock.MagicMock()
-        self.exporter = BulkExporter(self.server, ["Condition", "Patient"], self.tmpdir.name)
+
+    def make_exporter(self, **kwargs) -> BulkExporter:
+        return BulkExporter(self.server, ["Condition", "Patient"], self.tmpdir.name, **kwargs)
+
+    def export(self, **kwargs) -> BulkExporter:
+        exporter = self.make_exporter(**kwargs)
+        exporter.export()
+        return exporter
 
     def test_happy_path(self):
         """Verify an end-to-end bulk export with no problems and no waiting works as expected"""
@@ -438,13 +483,13 @@ class TestBulkExporter(unittest.TestCase):
             make_response(status_code=202),  # delete request
         ]
 
-        self.exporter.export()
+        self.export()
 
         self.assertListEqual(
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition,Patient&_since=1800-01-01T00:00:00Z",
+                    "$export?_type=Condition%2CPatient",
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
@@ -465,6 +510,24 @@ class TestBulkExporter(unittest.TestCase):
         self.assertEqual({"type": "Condition1"}, common.read_json(f"{self.tmpdir.name}/Condition.000.ndjson"))
         self.assertEqual({"type": "Condition2"}, common.read_json(f"{self.tmpdir.name}/Condition.001.ndjson"))
         self.assertEqual({"type": "Patient1"}, common.read_json(f"{self.tmpdir.name}/Patient.000.ndjson"))
+
+    def test_since_until(self):
+        """Verify that we send since & until parameters correctly to the server"""
+        self.server.request.side_effect = (make_response(status_code=500),)  # early exit
+
+        with self.assertRaises(FatalError):
+            self.export(since="2000-01-01T00:00:00+00.00", until="2010")
+
+        self.assertListEqual(
+            [
+                mock.call(
+                    "GET",
+                    "$export?_type=Condition%2CPatient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
+                    headers={"Prefer": "respond-async"},
+                ),
+            ],
+            self.server.request.call_args_list,
+        )
 
     def test_export_error(self):
         """Verify that we download and present any server-reported errors during the bulk export"""
@@ -487,13 +550,13 @@ class TestBulkExporter(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(FatalError, "Errors occurred during export:\n - errmsg1\n - errmsg2"):
-            self.exporter.export()
+            self.export()
 
         self.assertListEqual(
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition,Patient&_since=1800-01-01T00:00:00Z",
+                    "$export?_type=Condition%2CPatient",
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
@@ -508,7 +571,7 @@ class TestBulkExporter(unittest.TestCase):
         """Verify that we bail if we see a successful code we don't understand"""
         self.server.request.return_value = make_response(status_code=204)  # "no content"
         with self.assertRaisesRegex(FatalError, "Unexpected status code 204"):
-            self.exporter.export()
+            self.export()
 
     @mock.patch("cumulus.loaders.fhir.bulk_export.time.sleep")
     def test_delay(self, mock_sleep):
@@ -523,11 +586,12 @@ class TestBulkExporter(unittest.TestCase):
             make_response(status_code=429, headers={"Retry-After": "64800"}),  # 18 hours (putting us over a day)
         ]
 
+        exporter = self.make_exporter()
         with self.assertRaisesRegex(FatalError, "Timed out waiting"):
-            self.exporter.export()
+            exporter.export()
 
         # 86460 == 24 hours + one minute
-        self.assertEqual(86460, self.exporter._total_wait_time)  # pylint: disable=protected-access
+        self.assertEqual(86460, exporter._total_wait_time)  # pylint: disable=protected-access
 
         self.assertListEqual(
             [
@@ -548,13 +612,13 @@ class TestBulkExporter(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(FatalError, "Test Status Call Failed"):
-            self.exporter.export()
+            self.export()
 
         self.assertListEqual(
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition,Patient&_since=1800-01-01T00:00:00Z",
+                    "$export?_type=Condition%2CPatient",
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
@@ -653,7 +717,6 @@ class TestBulkExportEndToEnd(unittest.TestCase):
                 matchers.query_param_matcher(
                     {
                         "_type": "Patient",
-                        "_since": "1800-01-01T00:00:00Z",
                     }
                 ),
             ],

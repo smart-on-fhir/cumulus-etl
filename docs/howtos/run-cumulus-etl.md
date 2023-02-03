@@ -307,6 +307,21 @@ you will give your server's URL address,
 including a Group identifier if you want to scope the export
 (e.g. `https://example.com/fhir` or `https://example.com/fhir/Group/1234`).
 
+#### Narrowing Export Scope
+
+You can pass `--since=` and/or `--until=` to narrow your bulk export to a date range.
+
+Note that support for these parameters among EHRs is not super common.
+- `--since=` is in the FHIR spec but is not required by law.
+  (And notably, it's not supported by Epic.)
+- `--until=` is not even in the FHIR spec yet. No major EHR supports it.
+
+But if you are lucky enough to be working with an EHR that supports either one,
+you can pass in a time like `--since=2023-01-16T20:32:48Z`.
+
+If your server supports neither parameter,
+you will have to manually adjust your server-side Group definition's date range.
+
 #### External Bulk Export
 
 Instead of using Cumulus ETL to drive your bulk export itself, you can instead do the bulk export externally,

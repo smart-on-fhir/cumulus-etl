@@ -2,6 +2,7 @@
 
 import os
 import time
+import urllib.parse
 from typing import List
 
 import requests
@@ -21,19 +22,25 @@ class BulkExporter:
 
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
 
-    def __init__(self, server: BackendServiceServer, resources: List[str], destination: str):
+    def __init__(
+        self, server: BackendServiceServer, resources: List[str], destination: str, since: str = None, until: str = None
+    ):
         """
         Initialize a bulk exporter (but does not start an export).
 
         :param server: a server instance ready to make requests
         :param resources: a list of resource names to export
         :param destination: a local folder to store all the files
+        :param since: start date for export
+        :param until: end date for export
         """
         super().__init__()
         self._server = server
         self._resources = resources
         self._destination = destination
         self._total_wait_time = 0  # in seconds, across all our requests
+        self._since = since
+        self._until = until
 
     def export(self) -> None:
         """
@@ -53,10 +60,17 @@ class BulkExporter:
         """
         # Initiate bulk export
         common.print_header("Starting bulk FHIR export...")
-        # Use a crazy old _since value because we want *everything* and some EHRs will assume a value if absent.
-        # (e.g. Smile will default 24h.)
+
+        params = {"_type": ",".join(self._resources)}
+        if self._since:
+            params["_since"] = self._since
+        if self._until:
+            # This parameter is not part of the FHIR spec and is unlikely to be supported by your server.
+            # But some servers do support it, and it is a possible future addition to the spec.
+            params["_until"] = self._until
+
         response = self._request_with_delay(
-            f'$export?_type={",".join(self._resources)}&_since=1800-01-01T00:00:00Z',
+            f"$export?{urllib.parse.urlencode(params)}",
             headers={"Prefer": "respond-async"},
             target_status_code=202,
         )

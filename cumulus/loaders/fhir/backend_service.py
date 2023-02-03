@@ -1,121 +1,60 @@
 """Support for SMART App Launch Backend Services"""
 
+import abc
 import re
+import sys
 import time
 import urllib.parse
 import uuid
 from json import JSONDecodeError
-from typing import List
+from typing import List, Optional
 
 import requests
 from fhirclient.client import FHIRClient
 from jwcrypto import jwk, jwt
+
+from cumulus import errors
 
 
 class FatalError(Exception):
     """An unrecoverable error"""
 
 
-class BackendServiceServer:
-    """
-    Manages authentication and requests for a server that supports the Backend Service SMART profile.
+class Auth(abc.ABC):
+    """Abstracted authentication for a FHIR server"""
 
-    See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
-    """
+    @abc.abstractmethod
+    def authorize(self) -> None:
+        """Authorize (or re-authorize) against the server"""
 
-    def __init__(self, url: str, client_id: str, jwks: dict, resources: List[str]):
-        """
-        Initialize and authorize a BackendServiceServer instance.
+    @abc.abstractmethod
+    def sign_headers(self, headers: Optional[dict]) -> dict:
+        """Add signature token to request headers"""
 
-        :param url: base URL of the SMART FHIR server
-        :param client_id: the ID assigned by the FHIR server when registering a new backend service app
-        :param jwks: content of a JWK Set file, containing the private key for the registered public key
-        :param resources: a list of FHIR resource names to tightly scope our own permissions
-        """
+
+class JwksAuth(Auth):
+    """Authentication with a JWK Set (typical backend service profile)"""
+
+    def __init__(self, server_root: str, client_id: str, jwks: dict, resources: List[str]):
         super().__init__()
-        self._base_url = url  # all requests are relative to this URL
-        if not self._base_url.endswith("/"):
-            self._base_url += "/"
-        # The base URL may not be the server root (like it may be a Group export URL). Let's find the root.
-        self._server_root = self._base_url
-        self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
-        self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
+        self._server_root = server_root
         self._client_id = client_id
         self._jwks = jwks
         self._resources = list(resources)
         self._server = None
         self._token_endpoint = self._get_token_endpoint()
-        self._authorize()
 
-    def request(self, method: str, path: str, headers: dict = None, stream: bool = False) -> requests.Response:
-        """
-        Issues an HTTP request.
-
-        This is a lightly modified version of FHIRServer._get(), but additionally supports streaming and
-        reauthorization.
-
-        Will raise a FatalError for an HTTP error, except for 429 which gets returned like a success code.
-
-        :param method: HTTP method to issue
-        :param path: relative path from the server root to request
-        :param headers: optional header dictionary
-        :param stream: whether to stream content in or load it all into memory at once
-        :returns: The response object
-        """
-        url = urllib.parse.urljoin(self._base_url, path)
-
-        final_headers = {
-            "Accept": "application/fhir+json",
-            "Accept-Charset": "UTF-8",
-        }
-        # merge in user headers with defaults
-        final_headers.update(headers or {})
-
-        response = self._request_with_signed_headers(method, url, final_headers, stream=stream)
-
-        # Check if our access token expired and thus needs to be refreshed
-        if response.status_code == 401:
-            if not self._server.reauthorize():
-                # We must not have been issued a refresh token, let's just authorize from scratch
-                self._authorize()
-            response = self._request_with_signed_headers(method, url, final_headers, stream=stream)
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as exc:
-            if exc.response.status_code == 429:
-                # 429 is a special kind of error -- it's not fatal, just a request to wait a bit. So let it pass.
-                return exc.response
-
-            # All other 4xx or 5xx codes are treated as fatal errors
-            message = None
-            try:
-                json_response = exc.response.json()
-                if json_response.get("resourceType") == "OperationOutcome":
-                    issue = json_response["issue"][0]  # just grab first issue
-                    message = issue.get("details", {}).get("text")
-                    message = message or issue.get("diagnostics")
-            except JSONDecodeError:
-                message = exc.response.text
-            if not message:
-                message = str(exc)
-
-            raise FatalError(f'An error occurred when connecting to "{url}": {message}') from exc
-
-        return response
-
-    ###################################################################################################################
-    #
-    # Helpers
-    #
-    ###################################################################################################################
-
-    def _authorize(self) -> None:
+    def authorize(self) -> None:
         """
         Authenticates against a SMART FHIR server using the Backend Services profile.
 
         See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
         """
+        # Have we authorized before?
+        if self._server is not None and self._server.reauthorize():
+            return
+        # Else we must not have been issued a refresh token, let's just authorize from scratch below
+
         signed_jwt = self._make_signed_jwt()
         scope = " ".join([f"system/{resource}.read" for resource in self._resources])
         client = FHIRClient(
@@ -144,17 +83,9 @@ class BackendServiceServer:
 
         self._server = client.server
 
-    def _request_with_signed_headers(self, method: str, url: str, headers: dict = None, **kwargs) -> requests.Response:
-        """
-        Issues a GET request and sign the headers with the current access token.
-
-        :param method: HTTP method to issue
-        :param url: full server url to request
-        :param headers: header dictionary
-        :returns: The response object
-        """
-        headers = self._server.auth.signed_headers(headers)
-        return self._server.session.request(method, url, headers=headers, **kwargs)
+    def sign_headers(self, headers: Optional[dict]) -> dict:
+        """Add signature token to request headers"""
+        return self._server.auth.signed_headers(headers)
 
     def _get_token_endpoint(self) -> str:
         """
@@ -219,3 +150,146 @@ class BackendServiceServer:
         token = jwt.JWT(header=header, claims=claims)
         token.make_signed_token(key=jwk.JWK(**key))
         return token.serialize()
+
+
+class BearerAuth(Auth):
+    """Authentication with a static bearer token"""
+
+    def __init__(self, bearer_token: str):
+        super().__init__()
+        self._bearer_token = bearer_token
+
+    def authorize(self) -> None:
+        pass
+
+    def sign_headers(self, headers: Optional[dict]) -> dict:
+        headers = headers or {}
+        headers["Authorization"] = f"Bearer {self._bearer_token}"
+        return headers
+
+
+class BackendServiceServer:
+    """
+    Manages authentication and requests for a server that supports the Backend Service SMART profile.
+
+    See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
+    """
+
+    def __init__(
+        self, url: str, resources: List[str], client_id: str = None, jwks: dict = None, bearer_token: str = None
+    ):
+        """
+        Initialize and authorize a BackendServiceServer instance.
+
+        :param url: base URL of the SMART FHIR server
+        :param client_id: the ID assigned by the FHIR server when registering a new backend service app
+        :param jwks: content of a JWK Set file, containing the private key for the registered public key
+        :param resources: a list of FHIR resource names to tightly scope our own permissions
+        """
+        super().__init__()
+        self._base_url = url  # all requests are relative to this URL
+        if not self._base_url.endswith("/"):
+            self._base_url += "/"
+        # The base URL may not be the server root (like it may be a Group export URL). Let's find the root.
+        self._server_root = self._base_url
+        self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
+        self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
+        self._session = requests.Session()
+
+        self._auth = self._make_auth(resources, client_id, jwks, bearer_token)
+        self._auth.authorize()
+
+    def _make_auth(self, resources: List[str], client_id: str, jwks: dict, bearer_token: str) -> Auth:
+        """Determine which auth method to use based on user provided arguments"""
+
+        if bearer_token and (client_id or jwks):
+            print("--bearer-token cannot be used with --smart-client-id or --smart-jwks", file=sys.stderr)
+            raise SystemExit(errors.ARGS_CONFLICT)
+
+        if bearer_token:
+            return BearerAuth(bearer_token)
+
+        # Confirm that all required SMART arguments were provided
+        error_list = []
+        if not client_id:
+            error_list.append("You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.")
+        if jwks is None:
+            error_list.append("You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.")
+        if error_list:
+            print("\n".join(error_list), file=sys.stderr)
+            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
+
+        return JwksAuth(self._server_root, client_id, jwks, resources)
+
+    def request(self, method: str, path: str, headers: dict = None, stream: bool = False) -> requests.Response:
+        """
+        Issues an HTTP request.
+
+        This is a lightly modified version of FHIRServer._get(), but additionally supports streaming and
+        reauthorization.
+
+        Will raise a FatalError for an HTTP error, except for 429 which gets returned like a success code.
+
+        :param method: HTTP method to issue
+        :param path: relative path from the server root to request
+        :param headers: optional header dictionary
+        :param stream: whether to stream content in or load it all into memory at once
+        :returns: The response object
+        """
+        url = urllib.parse.urljoin(self._base_url, path)
+
+        final_headers = {
+            "Accept": "application/fhir+json",
+            "Accept-Charset": "UTF-8",
+        }
+        # merge in user headers with defaults
+        final_headers.update(headers or {})
+
+        response = self._request_with_signed_headers(method, url, final_headers, stream=stream)
+
+        # Check if our access token expired and thus needs to be refreshed
+        if response.status_code == 401:
+            self._auth.authorize()
+            response = self._request_with_signed_headers(method, url, final_headers, stream=stream)
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as exc:
+            if exc.response.status_code == 429:
+                # 429 is a special kind of error -- it's not fatal, just a request to wait a bit. So let it pass.
+                return exc.response
+
+            # All other 4xx or 5xx codes are treated as fatal errors
+            message = None
+            try:
+                json_response = exc.response.json()
+                if json_response.get("resourceType") == "OperationOutcome":
+                    issue = json_response["issue"][0]  # just grab first issue
+                    message = issue.get("details", {}).get("text")
+                    message = message or issue.get("diagnostics")
+            except JSONDecodeError:
+                message = exc.response.text
+            if not message:
+                message = str(exc)
+
+            raise FatalError(f'An error occurred when connecting to "{url}": {message}') from exc
+
+        return response
+
+    ###################################################################################################################
+    #
+    # Helpers
+    #
+    ###################################################################################################################
+
+    def _request_with_signed_headers(self, method: str, url: str, headers: dict = None, **kwargs) -> requests.Response:
+        """
+        Issues a GET request and sign the headers with the current access token.
+
+        :param method: HTTP method to issue
+        :param url: full server url to request
+        :param headers: header dictionary
+        :returns: The response object
+        """
+        headers = self._auth.sign_headers(headers)
+        return self._session.request(method, url, headers=headers, **kwargs)

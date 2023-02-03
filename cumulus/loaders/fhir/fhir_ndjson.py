@@ -19,22 +19,48 @@ class FhirNdjsonLoader(base.Loader):
     (i.e. Condition.000.ndjson or Condition.ndjson)
     """
 
-    def __init__(self, root: store.Root, client_id: str = None, jwks: str = None):
+    def __init__(
+        self,
+        root: store.Root,
+        client_id: str = None,
+        jwks: str = None,
+        bearer_token: str = None,
+        since: str = None,
+        until: str = None,
+    ):
         """
         :param root: location to load ndjson from
-        :param jwks: path to a JWKS file, used if root points at a FHIR server
+        :param client_id: client ID for a SMART server
+        :param jwks: path to a JWKS file for a SMART server
+        :param bearer_token: path to a file with a bearer token for a FHIR server
+        :param since: export start date for a FHIR server
+        :param until: export end date for a FHIR server
         """
         super().__init__(root)
+
         try:
-            self.client_id = common.read_text(client_id).strip() if client_id else None
-        except FileNotFoundError:
-            self.client_id = client_id
-        self.jwks = common.read_json(jwks) if jwks else None
+            try:
+                self.client_id = common.read_text(client_id).strip() if client_id else None
+            except FileNotFoundError:
+                self.client_id = client_id
+
+            self.jwks = common.read_json(jwks) if jwks else None
+            self.bearer_token = common.read_text(bearer_token).strip() if bearer_token else None
+        except OSError as exc:
+            print(exc, file=sys.stderr)
+            raise SystemExit(errors.ARGS_INVALID) from exc
+
+        self.since = since
+        self.until = until
 
     def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
             return self._load_from_bulk_export(resources)
+
+        if self.client_id or self.jwks or self.bearer_token or self.since or self.until:
+            print("You provided FHIR bulk export parameters but did not provide a FHIR server", file=sys.stderr)
+            raise SystemExit(errors.ARGS_CONFLICT)
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
@@ -55,21 +81,13 @@ class FhirNdjsonLoader(base.Loader):
         return tmpdir
 
     def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
-        # First, check that the extra arguments we need were provided
-        error_list = []
-        if not self.client_id:
-            error_list.append("You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.")
-        if not self.jwks:
-            error_list.append("You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.")
-        if error_list:
-            print("\n".join(error_list), file=sys.stderr)
-            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
-
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            server = BackendServiceServer(self.root.path, self.client_id, self.jwks, resources)
-            bulk_exporter = BulkExporter(server, resources, tmpdir.name)
+            server = BackendServiceServer(
+                self.root.path, resources, client_id=self.client_id, jwks=self.jwks, bearer_token=self.bearer_token
+            )
+            bulk_exporter = BulkExporter(server, resources, tmpdir.name, self.since, self.until)
             bulk_exporter.export()
         except FatalError as exc:
             print(str(exc), file=sys.stderr)
