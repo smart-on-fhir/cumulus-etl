@@ -9,7 +9,7 @@ from cumulus.loaders.i2b2.oracle import extract, query
 from tests import i2b2_mock_data
 
 
-class TestOracleExtraction(unittest.TestCase):
+class TestOracleExtraction(unittest.IsolatedAsyncioTestCase):
     """Test case for sql queries"""
 
     def setUp(self) -> None:
@@ -82,7 +82,7 @@ class TestOracleExtraction(unittest.TestCase):
         self.assertEqual([mock.call(query.sql_provider())], self.mock_execute.call_args_list)
 
     @mock.patch("cumulus.loaders.i2b2.loader.oracle_extract")
-    def test_loader(self, mock_extract):
+    async def test_loader(self, mock_extract):
         """Verify that when our i2b2 loader is given an Oracle URL, it runs SQL against it and drops it to ndjson"""
         mock_extract.list_observation_fact.return_value = [i2b2_mock_data.condition_dim()]
         mock_extract.list_patient.return_value = [i2b2_mock_data.patient_dim()]
@@ -90,7 +90,7 @@ class TestOracleExtraction(unittest.TestCase):
 
         root = store.Root("tcp://localhost/foo")
         oracle_loader = loader.I2b2Loader(root, 5)
-        tmpdir = oracle_loader.load_all(["Condition", "Encounter", "Patient"])
+        tmpdir = await oracle_loader.load_all(["Condition", "Encounter", "Patient"])
 
         # Check results
         self.assertEqual(

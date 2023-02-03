@@ -1,11 +1,11 @@
 """Support for FHIR bulk exports"""
 
+import asyncio
 import os
-import time
 import urllib.parse
 from typing import List
 
-import requests
+import httpx
 
 from cumulus import common
 from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
@@ -42,7 +42,7 @@ class BulkExporter:
         self._since = since
         self._until = until
 
-    def export(self) -> None:
+    async def export(self) -> None:
         """
         Bulk export resources from a FHIR server into local ndjson files.
 
@@ -69,7 +69,7 @@ class BulkExporter:
             # But some servers do support it, and it is a possible future addition to the spec.
             params["_until"] = self._until
 
-        response = self._request_with_delay(
+        response = await self._request_with_delay(
             f"$export?{urllib.parse.urlencode(params)}",
             headers={"Prefer": "respond-async"},
             target_status_code=202,
@@ -80,7 +80,7 @@ class BulkExporter:
 
         try:
             # Request status report, until export is done
-            response = self._request_with_delay(poll_location, headers={"Accept": "application/json"})
+            response = await self._request_with_delay(poll_location, headers={"Accept": "application/json"})
 
             # Finished! We're done waiting and can download all the files
             response_json = response.json()
@@ -91,16 +91,17 @@ class BulkExporter:
                 message = "Errors occurred during export:"
                 for error in errors:
                     if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
-                        outcome = self._request_with_delay(error["url"]).json()
+                        outcome_response = await self._request_with_delay(error["url"])
+                        outcome = outcome_response.json()
                         message += f"\n - {outcome['issue'][0]['diagnostics']}"
                 raise FatalError(message)
 
             # Download all the files
             print("Bulk FHIR export finished, now downloading resources...")
             files = response_json.get("output", [])
-            self._download_all_ndjson_files(files)
+            await self._download_all_ndjson_files(files)
         finally:
-            self._delete_export(poll_location)
+            await self._delete_export(poll_location)
 
     ###################################################################################################################
     #
@@ -108,17 +109,17 @@ class BulkExporter:
     #
     ###################################################################################################################
 
-    def _delete_export(self, poll_url: str) -> None:
+    async def _delete_export(self, poll_url: str) -> None:
         """As a kindness, send a DELETE to the polling location. Then the server knows it can delete the files."""
         try:
-            self._request_with_delay(poll_url, method="DELETE", target_status_code=202)
+            await self._request_with_delay(poll_url, method="DELETE", target_status_code=202)
         except FatalError:
             # Ignore any fatal issue with this, since we don't actually need this to succeed
             pass
 
-    def _request_with_delay(
+    async def _request_with_delay(
         self, path: str, headers: dict = None, target_status_code: int = 200, method: str = "GET"
-    ) -> requests.Response:
+    ) -> httpx.Response:
         """
         Requests a file, while respecting any requests to wait longer.
 
@@ -129,7 +130,7 @@ class BulkExporter:
         :returns: the HTTP response
         """
         while self._total_wait_time < self._TIMEOUT_THRESHOLD:
-            response = self._server.request(method, path, headers=headers)
+            response = await self._server.request(method, path, headers=headers)
 
             if response.status_code == target_status_code:
                 return response
@@ -141,7 +142,7 @@ class BulkExporter:
 
                 # And wait as long as the server requests
                 delay = int(response.headers.get("Retry-After", 60))
-                time.sleep(delay)
+                await asyncio.sleep(delay)
                 self._total_wait_time += delay
 
             else:
@@ -152,7 +153,7 @@ class BulkExporter:
 
         raise FatalError("Timed out waiting for the bulk FHIR export to finish.")
 
-    def _download_all_ndjson_files(self, files: List[dict]) -> None:
+    async def _download_all_ndjson_files(self, files: List[dict]) -> None:
         """
         Downloads all exported ndjson files from the bulk export server.
 
@@ -163,21 +164,20 @@ class BulkExporter:
             count = resource_counts.get(file["type"], -1) + 1
             resource_counts[file["type"]] = count
             filename = f'{file["type"]}.{count:03}.ndjson'
-            self._download_ndjson_file(file["url"], os.path.join(self._destination, filename))
+            await self._download_ndjson_file(file["url"], os.path.join(self._destination, filename))
             print(f"  Downloaded {filename}")
 
-    def _download_ndjson_file(self, url: str, filename: str) -> None:
+    async def _download_ndjson_file(self, url: str, filename: str) -> None:
         """
         Downloads a single ndjson file from the bulk export server.
 
         :param url: URL location of file to download
         :param filename: local path to write data to
         """
-        response = self._server.request("GET", url, headers={"Accept": "application/fhir+ndjson"}, stream=True)
-        with open(filename, "w", encoding="utf8") as file:
-            # Make sure iter_content() returns a string (rather than bytes) by enforcing an encoding
-            response.encoding = response.encoding or "utf8"
-
-            # Now actually iterate over the stream and write straight to disk
-            for block in response.iter_content(chunk_size=None, decode_unicode=True):
-                file.write(block)
+        response = await self._server.request("GET", url, headers={"Accept": "application/fhir+ndjson"}, stream=True)
+        try:
+            with open(filename, "w", encoding="utf8") as file:
+                async for block in response.aiter_text():
+                    file.write(block)
+        finally:
+            await response.aclose()

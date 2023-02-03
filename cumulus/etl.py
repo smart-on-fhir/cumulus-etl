@@ -1,6 +1,7 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
+import asyncio
 import itertools
 import json
 import logging
@@ -26,7 +27,7 @@ from cumulus.config import JobConfig, JobSummary
 ###############################################################################
 
 
-def load_and_deidentify(
+async def load_and_deidentify(
     loader: loaders.Loader, selected_tasks: List[Type[tasks.EtlTask]]
 ) -> tempfile.TemporaryDirectory:
     """
@@ -40,10 +41,10 @@ def load_and_deidentify(
     required_resources = set(t.resource for t in selected_tasks)
 
     # First step is loading all the data into a local ndjson format
-    loaded_dir = loader.load_all(list(required_resources))
+    loaded_dir = await loader.load_all(list(required_resources))
 
     # Second step is de-identifying that data (at a bulk level)
-    return deid.Scrubber.scrub_bulk_data(loaded_dir.name)
+    return await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
 def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> List[JobSummary]:
@@ -212,7 +213,7 @@ def make_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(args: List[str]):
+async def main(args: List[str]):
     parser = make_parser()
     args = parser.parse_args(args)
 
@@ -250,7 +251,7 @@ def main(args: List[str]):
     selected_tasks = tasks.EtlTask.get_selected_tasks(task_names, task_filters)
 
     # Pull down resources and run the MS tool on them
-    deid_dir = load_and_deidentify(config_loader, selected_tasks)
+    deid_dir = await load_and_deidentify(config_loader, selected_tasks)
 
     # Prepare config for jobs
     config = JobConfig(
@@ -291,7 +292,7 @@ def main(args: List[str]):
 
 
 def main_cli():
-    main(sys.argv[1:])
+    asyncio.run(main(sys.argv[1:]))
 
 
 if __name__ == "__main__":

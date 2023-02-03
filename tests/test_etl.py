@@ -26,7 +26,7 @@ from tests.utils import TreeCompareMixin
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45", tz_offset=-4)
-class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
+class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
     """
     Base test case for basic runs of etl methods
 
@@ -51,7 +51,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
 
         self.enforce_consistent_uuids()
 
-    def run_etl(
+    async def run_etl(
         self,
         input_path=None,
         output_path=None,
@@ -78,7 +78,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
             args.append(f"--batch-size={batch_size}")
         if tasks:
             args.append(f'--task={",".join(tasks)}')
-        etl.main(args)
+        await etl.main(args)
 
     def enforce_consistent_uuids(self):
         """Make sure that UUIDs will be the same from run to run"""
@@ -102,11 +102,11 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.TestCase):
 class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
     """Test case for the sequence of data through the system"""
 
-    def test_batched_output(self):
-        self.run_etl(batch_size=1)
+    async def test_batched_output(self):
+        await self.run_etl(batch_size=1)
         self.assert_output_equal("batched-ndjson-output")
 
-    def test_downloaded_phi_is_not_kept(self):
+    async def test_downloaded_phi_is_not_kept(self):
         """Verify we remove all downloaded PHI even if interrupted"""
         internal_phi_dir = None
 
@@ -126,24 +126,24 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
         with mock.patch("cumulus.etl.deid.Scrubber.scrub_bulk_data", new=fake_scrub):
             with self.assertRaises(KeyboardInterrupt):
-                self.run_etl()
+                await self.run_etl()
 
         self.assertIsNotNone(internal_phi_dir)
         self.assertFalse(os.path.exists(internal_phi_dir))
 
-    def test_unknown_task(self):
+    async def test_unknown_task(self):
         with self.assertRaises(SystemExit) as cm:
-            self.run_etl(tasks=["blarg"])
+            await self.run_etl(tasks=["blarg"])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
-    def test_failed_task(self):
+    async def test_failed_task(self):
         # Make it so any writes will fail
         with mock.patch("cumulus.formats.ndjson.NdjsonFormat.write_format", side_effect=Exception):
             with self.assertRaises(SystemExit) as cm:
-                self.run_etl()
+                await self.run_etl()
         self.assertEqual(errors.TASK_FAILED, cm.exception.code)
 
-    def test_single_task(self):
+    async def test_single_task(self):
         # Grab all observations before we mock anything
         observations = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(["Observation"])
 
@@ -154,13 +154,13 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             return observations
 
         with mock.patch.object(loaders.I2b2Loader, "load_all", new=fake_load_all):
-            self.run_etl(tasks=["observation"])
+            await self.run_etl(tasks=["observation"])
 
         # Confirm we only wrote the one resource
         self.assertEqual({"observation", "JobConfig"}, set(os.listdir(self.output_path)))
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
 
-    def test_multiple_tasks(self):
+    async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
         loaded = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(["Observation", "Patient"])
 
@@ -171,7 +171,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             return loaded
 
         with mock.patch.object(loaders.I2b2Loader, "load_all", new=fake_load_all):
-            self.run_etl(tasks=["observation", "patient"])
+            await self.run_etl(tasks=["observation", "patient"])
 
         # Confirm we only wrote the one resource
         self.assertEqual({"observation", "patient", "JobConfig"}, set(os.listdir(self.output_path)))
@@ -179,7 +179,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         self.assertEqual(["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient")))
 
     @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")
-    def test_codebook_is_saved_during(self):
+    async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
         # Clear out the saved test codebook first
         codebook_path = os.path.join(self.phi_path, "codebook.json")
@@ -189,7 +189,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         # The goal is that the codebook is already in place by this time.
         with self.assertRaises(SystemExit):
             with mock.patch("cumulus.formats.ndjson.NdjsonFormat.write_format", side_effect=SystemExit):
-                self.run_etl(tasks=["patient"])
+                await self.run_etl(tasks=["patient"])
 
         # Ensure we wrote a valid codebook out
         codebook = common.read_json(codebook_path)
@@ -216,9 +216,9 @@ class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
         with open(full_path, "r", encoding="utf8") as f:
             return json.load(f)
 
-    def test_comment(self):
+    async def test_comment(self):
         """Verify that a comment makes it from command line to the log file"""
-        self.run_etl(comment="Run by foo on machine bar")
+        await self.run_etl(comment="Run by foo on machine bar")
         config_file = self.read_config_file("job_config.json")
         self.assertEqual(config_file["comment"], "Run by foo on machine bar")
 
@@ -230,15 +230,15 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
         super().setUp()
         self.context_path = os.path.join(self.phi_path, "context.json")
 
-    def test_context_updated_on_success(self):
+    async def test_context_updated_on_success(self):
         """Verify that we update the success timestamp etc. when the job succeeds"""
-        self.run_etl()
+        await self.run_etl()
         job_context = context.JobContext(self.context_path)
         self.assertEqual("2021-09-14T21:23:45+00:00", job_context.last_successful_datetime.isoformat())
         self.assertEqual(self.input_path, job_context.last_successful_input_dir)
         self.assertEqual(self.output_path, job_context.last_successful_output_dir)
 
-    def test_context_not_updated_on_failure(self):
+    async def test_context_not_updated_on_failure(self):
         """Verify that we don't update the success timestamp etc. when the job fails"""
         input_context = {
             "last_successful_datetime": "2000-01-01T10:10:10+00:00",
@@ -249,7 +249,7 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
 
         with mock.patch("cumulus.etl.etl_job", side_effect=ZeroDivisionError):
             with self.assertRaises(ZeroDivisionError):
-                self.run_etl()
+                await self.run_etl()
 
         # Confirm we didn't change anything
         self.assertEqual(input_context, common.read_json(self.context_path))
@@ -258,17 +258,17 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
 class TestI2b2EtlFormats(BaseI2b2EtlSimple):
     """Test case for each of the formats we support"""
 
-    def test_etl_job_ndjson(self):
-        self.run_etl(output_format="ndjson")
+    async def test_etl_job_ndjson(self):
+        await self.run_etl(output_format="ndjson")
         self.assert_output_equal("ndjson-output")
 
-    def test_etl_job_input_ndjson(self):
+    async def test_etl_job_input_ndjson(self):
         self.input_path = os.path.join(self.data_dir, "ndjson-input")
-        self.run_etl(input_format=None)  # ndjson should be default input
+        await self.run_etl(input_format=None)  # ndjson should be default input
         self.assert_output_equal("ndjson-output")
 
-    def test_etl_job_parquet(self):
-        self.run_etl(output_format="parquet")
+    async def test_etl_job_parquet(self):
+        await self.run_etl(output_format="parquet")
 
         # Merely test that the files got created. It's a binary format, so
         # diffs aren't helpful, and looks like it can differ from machine to
@@ -295,8 +295,8 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
             set(all_files),
         )
 
-    def test_etl_job_deltalake(self):
-        self.run_etl(output_format=None)  # deltalake should be default output format
+    async def test_etl_job_deltalake(self):
+        await self.run_etl(output_format=None)  # deltalake should be default output format
 
         # Just test that the files got created, for a single table.
 
@@ -335,11 +335,11 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
 class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
     """Test case for our support of writing to S3"""
 
-    def test_etl_job_s3(self):
+    async def test_etl_job_s3(self):
         fs = s3fs.S3FileSystem()
         fs.makedirs("s3://mockbucket/")
 
-        self.run_etl(output_path="s3://mockbucket/root")
+        await self.run_etl(output_path="s3://mockbucket/root")
 
         all_files = {x for x in fs.find("mockbucket/root") if "/JobConfig/" not in x}
         self.assertEqual(
@@ -380,8 +380,8 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
             lines = f.readlines()
         return [json.loads(line) for line in lines]
 
-    def test_stores_cached_json(self):
-        self.run_etl(output_format="parquet", tasks=["covid_symptom__nlp_results"])
+    async def test_stores_cached_json(self):
+        await self.run_etl(output_format="parquet", tasks=["covid_symptom__nlp_results"])
 
         notes_csv_path = os.path.join(self.input_path, "observation_fact_notes.csv")
         facts = list(extract.extract_csv_observation_facts(notes_csv_path, 5))
@@ -391,7 +391,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
             self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("covid_symptom_v1", checksum)))
             self.assertEqual([0, 0], common.read_json(self.path_for_checksum("covid_symptom_v1-cnlp_v2", checksum)))
 
-    def test_does_not_hit_server_if_cache_exists(self):
+    async def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
             filename = self.path_for_checksum("covid_symptom_v1", checksum)
@@ -418,7 +418,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
             os.makedirs(os.path.dirname(cnlp_filename))
             common.write_json(cnlp_filename, [0])
 
-        self.run_etl(tasks=["covid_symptom__nlp_results"])
+        await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         # We should never have called our mock cTAKES server
         self.assertEqual(0, self.nlp_mock.call_count)
@@ -433,11 +433,11 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
                 {("68235000", "C0027424")}, {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]}
             )
 
-    def test_cnlp_rejects(self):
+    async def test_cnlp_rejects(self):
         """Verify that if the cnlp server negates a match, it does not show up"""
         # First match is fever, second is nausea
         self.cnlp_mock.side_effect = lambda _, spans: [Polarity.neg, Polarity.pos]
-        self.run_etl(tasks=["covid_symptom__nlp_results"])
+        await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         symptoms = self.read_symptoms()
         self.assertEqual(2, len(symptoms))
@@ -446,9 +446,9 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
             {("422587007", "C0027497")}, {(x["code"], x["cui"]) for x in symptoms[0]["match"]["conceptAttributes"]}
         )
 
-    def test_non_covid_symptoms_skipped(self):
+    async def test_non_covid_symptoms_skipped(self):
         """Verify that the 'itch' symptom in our mock response does not make it to the output table"""
-        self.run_etl(tasks=["covid_symptom__nlp_results"])
+        await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         symptoms = self.read_symptoms()
         self.assertEqual({"for"}, {x["match"]["text"] for x in symptoms})  # the second word ("for") is the fever word
@@ -456,7 +456,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         cuis = {x["cui"] for x in attributes}
         self.assertEqual({"C0027497", "C0015967"}, cuis)  # notably, no C0033774 itch CUI
 
-    def test_group_updates(self):
+    async def test_group_updates(self):
         """Verify that if we generate a smaller set of NLP symptoms, any old unused rows get deleted"""
         # This test uses delta lake even though it is a bit slow, just because that's the only current output format
         # that supports this feature (EtlTask.group_field). Other output formats just delete the full table each run.
@@ -467,7 +467,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
             return [row["id"] for _, row in df.iterrows()]
 
         # Get a baseline, with two symptoms per document
-        self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
+        await self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
         self.assertEqual(
             [
                 "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.0",
@@ -481,7 +481,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         # Now negate the second symptom, and notice that it has been dropped in the results for each docref
         shutil.rmtree(os.path.join(self.phi_path, "ctakes-cache"))  # clear cached results
         self.cnlp_mock.side_effect = lambda _, spans: [Polarity.pos, Polarity.neg]
-        self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
+        await self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
         self.assertEqual(
             [
                 "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.0",
