@@ -1,5 +1,7 @@
 """Tests for bulk export support"""
 
+import contextlib
+import io
 import os
 import tempfile
 import time
@@ -556,12 +558,18 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
                     ],
                 }
             ),  # status
-            make_response(json={"type": "OperationOutcome", "issue": [{"diagnostics": "errmsg1"}]}),  # error
-            make_response(json={"type": "OperationOutcome", "issue": [{"diagnostics": "errmsg2"}]}),  # error
+            # errors
+            make_response(json={"type": "OperationOutcome", "issue": [{"severity": "error", "diagnostics": "err1"}]}),
+            make_response(
+                text='{"type": "OperationOutcome", "issue": [{"severity": "fatal", "details": {"text": "err2"}}]}\n'
+                '{"type": "OperationOutcome", "issue": [{"severity": "warning", "diagnostics": "warning1"}]}\n'
+                '{"type": "OperationOutcome", "issue": ['
+                '{"severity": "error", "code": "err3"}, {"severity": "fatal", "code": "err4"}]}\n'
+            ),
             make_response(status_code=202),  # delete request
         ]
 
-        with self.assertRaisesRegex(FatalError, "Errors occurred during export:\n - errmsg1\n - errmsg2"):
+        with self.assertRaisesRegex(FatalError, "Errors occurred during export:\n - err1\n - err2\n - err3\n - err4"):
             await self.export()
 
         self.assertListEqual(
@@ -572,12 +580,36 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
-                mock.call("GET", "https://example.com/err1", headers=None),
-                mock.call("GET", "https://example.com/err2", headers=None),
+                mock.call("GET", "https://example.com/err1", headers={"Accept": "application/fhir+ndjson"}),
+                mock.call("GET", "https://example.com/err2", headers={"Accept": "application/fhir+ndjson"}),
                 mock.call("DELETE", "https://example.com/poll", headers=None),
             ],
             self.server.request.call_args_list,
         )
+
+    async def test_export_warning(self):
+        """Verify that we download and present any server-reported warnings during the bulk export"""
+        self.server.request.side_effect = [
+            make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
+            make_response(
+                json={
+                    "error": [
+                        {"type": "OperationOutcome", "url": "https://example.com/warning1"},
+                    ],
+                }
+            ),  # status
+            # warning
+            make_response(
+                json={"type": "OperationOutcome", "issue": [{"severity": "warning", "diagnostics": "warning1"}]}
+            ),
+            make_response(status_code=202),  # delete request
+        ]
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            await self.export()
+
+        self.assertIn("Messages from server:\n - warning1\n", stdout.getvalue())
 
     async def test_unexpected_status_code(self):
         """Verify that we bail if we see a successful code we don't understand"""
