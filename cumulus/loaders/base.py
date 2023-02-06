@@ -24,7 +24,7 @@ class Loader(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    async def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         """
         Loads the listed remote resources and places them into a local folder as FHIR ndjson
 

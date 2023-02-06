@@ -35,7 +35,7 @@ class Scrubber:
         self.codebook_dir = codebook_dir
 
     @staticmethod
-    def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
+    async def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
         """
         Bulk de-identification of all input data
 
@@ -44,7 +44,7 @@ class Scrubber:
         :returns: a temporary directory holding the de-identified results, in FHIR ndjson format
         """
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        mstool.run_mstool(input_dir, tmpdir.name)
+        await mstool.run_mstool(input_dir, tmpdir.name)
         return tmpdir
 
     def scrub_resource(self, node: dict, scrub_attachments: bool = True) -> bool:

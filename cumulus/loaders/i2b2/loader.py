@@ -39,7 +39,7 @@ class I2b2Loader(Loader):
         super().__init__(root)
         self.batch_size = batch_size
 
-    def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    async def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         if self.root.protocol in ["tcp"]:
             return self._load_all_from_oracle(resources)
 

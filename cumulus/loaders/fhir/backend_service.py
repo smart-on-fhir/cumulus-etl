@@ -9,7 +9,7 @@ import uuid
 from json import JSONDecodeError
 from typing import List, Optional
 
-import requests
+import httpx
 from fhirclient.client import FHIRClient
 from jwcrypto import jwk, jwt
 
@@ -24,7 +24,7 @@ class Auth(abc.ABC):
     """Abstracted authentication for a FHIR server"""
 
     @abc.abstractmethod
-    def authorize(self) -> None:
+    async def authorize(self, session: httpx.AsyncClient) -> None:
         """Authorize (or re-authorize) against the server"""
 
     @abc.abstractmethod
@@ -42,15 +42,17 @@ class JwksAuth(Auth):
         self._jwks = jwks
         self._resources = list(resources)
         self._server = None
-        self._token_endpoint = self._get_token_endpoint()
+        self._token_endpoint = None
 
-    def authorize(self) -> None:
+    async def authorize(self, session: httpx.AsyncClient) -> None:
         """
         Authenticates against a SMART FHIR server using the Backend Services profile.
 
         See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
         """
         # Have we authorized before?
+        if self._token_endpoint is None:
+            self._token_endpoint = await self._get_token_endpoint(session)
         if self._server is not None and self._server.reauthorize():
             return
         # Else we must not have been issued a refresh token, let's just authorize from scratch below
@@ -87,7 +89,7 @@ class JwksAuth(Auth):
         """Add signature token to request headers"""
         return self._server.auth.signed_headers(headers)
 
-    def _get_token_endpoint(self) -> str:
+    async def _get_token_endpoint(self, session: httpx.AsyncClient) -> str:
         """
         Returns the oauth2 token endpoint for a SMART FHIR server.
 
@@ -97,7 +99,7 @@ class JwksAuth(Auth):
 
         :returns: URL for the server's oauth2 token endpoint
         """
-        response = requests.get(
+        response = await session.get(
             urllib.parse.urljoin(self._server_root, ".well-known/smart-configuration"),
             headers={
                 "Accept": "application/json",
@@ -159,7 +161,7 @@ class BearerAuth(Auth):
         super().__init__()
         self._bearer_token = bearer_token
 
-    def authorize(self) -> None:
+    async def authorize(self, session: httpx.AsyncClient) -> None:
         pass
 
     def sign_headers(self, headers: Optional[dict]) -> dict:
@@ -172,6 +174,8 @@ class BackendServiceServer:
     """
     Manages authentication and requests for a server that supports the Backend Service SMART profile.
 
+    Use this as a context manager (like you would an httpx.AsyncClient instance).
+
     See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
     """
 
@@ -179,14 +183,14 @@ class BackendServiceServer:
         self, url: str, resources: List[str], client_id: str = None, jwks: dict = None, bearer_token: str = None
     ):
         """
-        Initialize and authorize a BackendServiceServer instance.
+        Initialize and authorize a BackendServiceServer context manager.
 
         :param url: base URL of the SMART FHIR server
+        :param resources: a list of FHIR resource names to tightly scope our own permissions
         :param client_id: the ID assigned by the FHIR server when registering a new backend service app
         :param jwks: content of a JWK Set file, containing the private key for the registered public key
-        :param resources: a list of FHIR resource names to tightly scope our own permissions
+        :param bearer_token: a bearer token, containing the secret key to sign https requests (instead of JWKS)
         """
-        super().__init__()
         self._base_url = url  # all requests are relative to this URL
         if not self._base_url.endswith("/"):
             self._base_url += "/"
@@ -194,10 +198,17 @@ class BackendServiceServer:
         self._server_root = self._base_url
         self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
         self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
-        self._session = requests.Session()
-
         self._auth = self._make_auth(resources, client_id, jwks, bearer_token)
-        self._auth.authorize()
+        self._session: Optional[httpx.AsyncClient] = None
+
+    async def __aenter__(self):
+        self._session = httpx.AsyncClient()
+        await self._auth.authorize(self._session)
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        if self._session:
+            await self._session.aclose()
 
     def _make_auth(self, resources: List[str], client_id: str, jwks: dict, bearer_token: str) -> Auth:
         """Determine which auth method to use based on user provided arguments"""
@@ -221,7 +232,7 @@ class BackendServiceServer:
 
         return JwksAuth(self._server_root, client_id, jwks, resources)
 
-    def request(self, method: str, path: str, headers: dict = None, stream: bool = False) -> requests.Response:
+    async def request(self, method: str, path: str, headers: dict = None, stream: bool = False) -> httpx.Response:
         """
         Issues an HTTP request.
 
@@ -245,19 +256,24 @@ class BackendServiceServer:
         # merge in user headers with defaults
         final_headers.update(headers or {})
 
-        response = self._request_with_signed_headers(method, url, final_headers, stream=stream)
+        response = await self._request_with_signed_headers(method, url, final_headers, stream=stream)
 
         # Check if our access token expired and thus needs to be refreshed
         if response.status_code == 401:
-            self._auth.authorize()
-            response = self._request_with_signed_headers(method, url, final_headers, stream=stream)
+            await self._auth.authorize(self._session)
+            if stream:
+                await response.aclose()
+            response = await self._request_with_signed_headers(method, url, final_headers, stream=stream)
 
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as exc:
+        except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429:
                 # 429 is a special kind of error -- it's not fatal, just a request to wait a bit. So let it pass.
                 return exc.response
+
+            if stream:
+                await response.aclose()
 
             # All other 4xx or 5xx codes are treated as fatal errors
             message = None
@@ -282,7 +298,9 @@ class BackendServiceServer:
     #
     ###################################################################################################################
 
-    def _request_with_signed_headers(self, method: str, url: str, headers: dict = None, **kwargs) -> requests.Response:
+    async def _request_with_signed_headers(
+        self, method: str, url: str, headers: dict = None, **kwargs
+    ) -> httpx.Response:
         """
         Issues a GET request and sign the headers with the current access token.
 
@@ -292,4 +310,7 @@ class BackendServiceServer:
         :returns: The response object
         """
         headers = self._auth.sign_headers(headers)
-        return self._session.request(method, url, headers=headers, **kwargs)
+        request = self._session.build_request(method, url, headers=headers)
+        # Follow redirects by default -- some EHRs definitely use them for bulk download files,
+        # and might use them in other cases, who knows.
+        return await self._session.send(request, follow_redirects=True, **kwargs)

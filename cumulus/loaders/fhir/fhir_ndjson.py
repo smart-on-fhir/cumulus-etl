@@ -53,10 +53,10 @@ class FhirNdjsonLoader(base.Loader):
         self.since = since
         self.until = until
 
-    def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    async def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
-            return self._load_from_bulk_export(resources)
+            return await self._load_from_bulk_export(resources)
 
         if self.client_id or self.jwks or self.bearer_token or self.since or self.until:
             print("You provided FHIR bulk export parameters but did not provide a FHIR server", file=sys.stderr)
@@ -80,15 +80,15 @@ class FhirNdjsonLoader(base.Loader):
                 logging.warning("No resources found for %s", resource)
         return tmpdir
 
-    def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    async def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            server = BackendServiceServer(
+            async with BackendServiceServer(
                 self.root.path, resources, client_id=self.client_id, jwks=self.jwks, bearer_token=self.bearer_token
-            )
-            bulk_exporter = BulkExporter(server, resources, tmpdir.name, self.since, self.until)
-            bulk_exporter.export()
+            ) as server:
+                bulk_exporter = BulkExporter(server, resources, tmpdir.name, self.since, self.until)
+                await bulk_exporter.export()
         except FatalError as exc:
             print(str(exc), file=sys.stderr)
             raise SystemExit(errors.BULK_EXPORT_FAILED) from exc

@@ -4,41 +4,42 @@ import os
 import tempfile
 import time
 import unittest
-from io import BytesIO
 from json import dumps
 from unittest import mock
 
 import ddt
 import freezegun
+import httpx
 import responses
+import respx
 from jwcrypto import jwk, jwt
-from requests.adapters import HTTPAdapter
-from responses import matchers
-from urllib3 import HTTPResponse
 
 from cumulus import common, errors, etl, loaders, store
 from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
 
 
-def make_response(status_code=200, json=None, text=None, reason=None, headers=None):
+def make_response(status_code=200, json=None, text=None, reason=None, headers=None, stream=False):
     """Makes a fake response for ease of testing"""
     headers = dict(headers or {})
     headers.setdefault("Content-Type", "application/json" if json else "text/plain; charset=utf-8")
     json = dumps(json) if json else None
     body = (json or text or "").encode("utf8")
-    http_response = HTTPResponse(
-        status=status_code,
-        body=BytesIO(body),
-        reason=reason,
+    stream_contents = None
+    if stream:
+        stream_contents = httpx.ByteStream(body)
+        body = None
+    return respx.MockResponse(
+        status_code=status_code,
+        content=body,
+        stream=stream_contents,
+        extensions=reason and {"reason_phrase": reason.encode("utf8")},
         headers=headers or {},
+        request=httpx.Request("GET", "fake_request_url"),
     )
-    response = HTTPAdapter().build_response(mock.MagicMock(url="fake_request_url"), http_response)
-    response.raw = BytesIO(body)
-    return response
 
 
-class TestBulkLoader(unittest.TestCase):
+class TestBulkLoader(unittest.IsolatedAsyncioTestCase):
     """
     Test case for bulk export support in the etl pipeline and ndjson loader.
 
@@ -68,12 +69,12 @@ class TestBulkLoader(unittest.TestCase):
         self.mock_exporter = exporter_patcher.start()
 
     @mock.patch("cumulus.etl.loaders.FhirNdjsonLoader")
-    def test_etl_passes_args(self, mock_loader):
+    async def test_etl_passes_args(self, mock_loader):
         """Verify that we are passed the client ID and JWKS from the command line"""
         mock_loader.side_effect = ValueError  # just to stop the etl pipeline once we get this far
 
         with self.assertRaises(ValueError):
-            etl.main(
+            await etl.main(
                 [
                     "http://localhost:9999",
                     "/tmp/output",
@@ -116,7 +117,7 @@ class TestBulkLoader(unittest.TestCase):
             loader = loaders.FhirNdjsonLoader(self.root, bearer_token=file.name)
             self.assertEqual("inside-file", loader.bearer_token)
 
-    def test_export_flow(self):
+    async def test_export_flow(self):
         """
         Verify that we make all the right calls into the bulk export helper classes.
 
@@ -124,12 +125,13 @@ class TestBulkLoader(unittest.TestCase):
         the other test cases can focus on just the helper classes and trust that the flow works, without us needing to
         do the full flow each time.
         """
-        mock_server_instance = mock.MagicMock()
+        mock_server_instance = mock.AsyncMock()
         self.mock_server.return_value = mock_server_instance
-        mock_exporter_instance = mock.MagicMock()
+        mock_exporter_instance = mock.AsyncMock()
         self.mock_exporter.return_value = mock_exporter_instance
 
-        loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path).load_all(["Condition", "Encounter"])
+        loader = loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path)
+        await loader.load_all(["Condition", "Encounter"])
 
         expected_resources = [
             "Condition",
@@ -146,17 +148,16 @@ class TestBulkLoader(unittest.TestCase):
         )
 
         self.assertEqual(1, self.mock_exporter.call_count)
-        self.assertEqual(mock_server_instance, self.mock_exporter.call_args[0][0])
         self.assertEqual(expected_resources, self.mock_exporter.call_args[0][1])
 
         self.assertEqual(1, mock_exporter_instance.export.call_count)
 
-    def test_fatal_errors_are_fatal(self):
+    async def test_fatal_errors_are_fatal(self):
         """Verify that when a FatalError is raised, we do really quit"""
         self.mock_server.side_effect = FatalError
 
         with self.assertRaises(SystemExit) as cm:
-            loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path).load_all(["Patient"])
+            await loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path).load_all(["Patient"])
 
         self.assertEqual(1, self.mock_server.call_count)
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
@@ -165,7 +166,7 @@ class TestBulkLoader(unittest.TestCase):
 @ddt.ddt
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
 @mock.patch("cumulus.loaders.fhir.backend_service.uuid.uuid4", new=lambda: "1234")
-class TestBulkServer(unittest.TestCase):
+class TestBulkServer(unittest.IsolatedAsyncioTestCase):
     """
     Test case for bulk export server oauth2 / request support.
 
@@ -202,9 +203,9 @@ class TestBulkServer(unittest.TestCase):
         self.expected_jwt = token.serialize()
 
         # Initialize responses mock
-        self.responses = responses.RequestsMock(assert_all_requests_are_fired=False)
-        self.addCleanup(self.responses.stop)
-        self.responses.start()
+        self.respx_mock = respx.mock(assert_all_called=False)
+        self.addCleanup(self.respx_mock.stop)
+        self.respx_mock.start()
 
         # We ask for smart-configuration to discover the token endpoint
         self.smart_configuration = {
@@ -213,9 +214,10 @@ class TestBulkServer(unittest.TestCase):
             "token_endpoint_auth_methods_supported": ["private_key_jwt"],
             "token_endpoint_auth_signing_alg_values_supported": ["RS384"],
         }
-        self.responses.get(
+        self.respx_mock.get(
             f"{self.server_url}/.well-known/smart-configuration",
-            match=[matchers.header_matcher({"Accept": "application/json"})],
+            headers={"Accept": "application/json"},
+        ).respond(
             json=self.smart_configuration,
         )
 
@@ -227,26 +229,39 @@ class TestBulkServer(unittest.TestCase):
         self.mock_client_class = client_patcher.start()  # FHIRClient class
         self.mock_client_class.return_value = self.mock_client
 
-    def test_required_arguments(self):
+    @staticmethod
+    def mock_session(server, *args, **kwargs):
+        session = mock.AsyncMock(spec=httpx.AsyncClient)
+        session.send.return_value = make_response(*args, **kwargs)
+        return mock.patch.object(server, "_session", session)
+
+    async def test_required_arguments(self):
         """Verify that we require both a client ID and a JWK Set"""
         # No SMART args at all
         with self.assertRaises(SystemExit):
-            BackendServiceServer(self.server_url, [])
+            async with BackendServiceServer(self.server_url, []):
+                pass
 
         # No JWKS
         with self.assertRaises(SystemExit):
-            BackendServiceServer(self.server_url, [], client_id="foo")
+            async with BackendServiceServer(self.server_url, [], client_id="foo"):
+                pass
 
         # No client ID
         with self.assertRaises(SystemExit):
-            BackendServiceServer(self.server_url, [], jwks=self.jwks)
+            async with BackendServiceServer(self.server_url, [], jwks=self.jwks):
+                pass
 
         # Works fine if both given
-        BackendServiceServer(self.server_url, [], client_id="foo", jwks=self.jwks)
+        async with BackendServiceServer(self.server_url, [], client_id="foo", jwks=self.jwks):
+            pass
 
-    def test_auth_initial_authorize(self):
+    async def test_auth_initial_authorize(self):
         """Verify that we authorize correctly upon class initialization"""
-        BackendServiceServer(self.server_url, ["Condition", "Patient"], client_id=self.client_id, jwks=self.jwks)
+        async with BackendServiceServer(
+            self.server_url, ["Condition", "Patient"], client_id=self.client_id, jwks=self.jwks
+        ):
+            pass
 
         # Check initialization of FHIRClient
         self.assertListEqual(
@@ -268,26 +283,25 @@ class TestBulkServer(unittest.TestCase):
         self.assertListEqual([mock.call()], self.mock_client.prepare.call_args_list)
         self.assertListEqual([mock.call()], self.mock_client.authorize.call_args_list)
 
-    def test_auth_with_bearer_token(self):
+    async def test_auth_with_bearer_token(self):
         """Verify that we pass along the bearer token to the server"""
-        self.responses.get(
+        self.respx_mock.get(
             f"{self.server_url}/foo",
-            match=[matchers.header_matcher({"Authorization": "Bearer foo"})],
+            headers={"Authorization": "Bearer fob"},
         )
 
-        server = BackendServiceServer(self.server_url, ["Condition", "Patient"], bearer_token="foo")
-        server.request("GET", "foo")
+        async with BackendServiceServer(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
+            await server.request("GET", "foo")
 
-    def test_get_with_new_header(self):
+    async def test_get_with_new_header(self):
         """Verify that we issue a GET correctly for the happy path"""
-        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
-
         # This is mostly confirming that we call mocks correctly, but that's important since we're mocking out all
         # of fhirclient. Since we do that, we need to confirm we're driving it well.
 
-        with mock.patch.object(server, "_session") as mock_session:
-            # With new header and stream
-            server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
+        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+            with self.mock_session(server) as mock_session:
+                # With new header and stream
+                await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
 
         self.assertEqual(
             [
@@ -307,19 +321,17 @@ class TestBulkServer(unittest.TestCase):
                     "GET",
                     f"{self.server_url}/foo",
                     headers=self.mock_server.auth.signed_headers.return_value,
-                    stream=True,
                 )
             ],
-            mock_session.request.call_args_list,
+            mock_session.build_request.call_args_list,
         )
 
-    def test_get_with_overriden_header(self):
+    async def test_get_with_overriden_header(self):
         """Verify that we issue a GET correctly for the happy path"""
-        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
-
-        # With overriding a header and default stream (False)
-        with mock.patch.object(server, "_session") as mock_session:
-            server.request("GET", "bar", headers={"Accept": "text/plain"})
+        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+            with self.mock_session(server) as mock_session:
+                # With overriding a header and default stream (False)
+                await server.request("GET", "bar", headers={"Accept": "text/plain"})
 
         self.assertEqual(
             [
@@ -338,10 +350,9 @@ class TestBulkServer(unittest.TestCase):
                     "GET",
                     f"{self.server_url}/bar",
                     headers=self.mock_server.auth.signed_headers.return_value,
-                    stream=False,
                 )
             ],
-            mock_session.request.call_args_list,
+            mock_session.build_request.call_args_list,
         )
 
     @ddt.data(
@@ -351,9 +362,10 @@ class TestBulkServer(unittest.TestCase):
         {"keys": [{"alg": "RS128", "key_ops": ["sign"]}], "kid": "a"},  # bad algo
         {"keys": [{"alg": "RS384", "key_ops": ["sign"]}]},  # no kid
     )
-    def test_jwks_without_suitable_key(self, bad_jwks):
+    async def test_jwks_without_suitable_key(self, bad_jwks):
         with self.assertRaisesRegex(FatalError, "No private ES384 or RS384 key found"):
-            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=bad_jwks)
+            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=bad_jwks):
+                pass
 
     @ddt.data(
         {"token_endpoint_auth_methods_supported": None},
@@ -363,7 +375,7 @@ class TestBulkServer(unittest.TestCase):
         {"token_endpoint": None},
         {"token_endpoint": ""},
     )
-    def test_bad_smart_config(self, bad_config_override):
+    async def test_bad_smart_config(self, bad_config_override):
         """Verify that we require fully correct smart configurations."""
         for entry, value in bad_config_override.items():
             if value is None:
@@ -371,60 +383,62 @@ class TestBulkServer(unittest.TestCase):
             else:
                 self.smart_configuration[entry] = value
 
-        self.responses.reset()
-        self.responses.get(
+        self.respx_mock.reset()
+        self.respx_mock.get(
             f"{self.server_url}/.well-known/smart-configuration",
-            match=[matchers.header_matcher({"Accept": "application/json"})],
+            headers={"Accept": "application/json"},
+        ).respond(
             json=self.smart_configuration,
         )
 
         with self.assertRaisesRegex(FatalError, "does not support the client-confidential-asymmetric protocol"):
-            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
+            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+                pass
 
-    def test_authorize_error_with_response(self):
+    async def test_authorize_error_with_response(self):
         """Verify that we translate authorize http response errors into FatalErrors."""
         error = Exception()
         error.response = mock.MagicMock()
         error.response.json.return_value = {"error_description": "Ouch!"}
         self.mock_client.authorize.side_effect = error
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: Ouch!"):
-            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
+            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+                pass
 
-    def test_authorize_error_without_response(self):
+    async def test_authorize_error_without_response(self):
         """Verify that we translate authorize non-response errors into FatalErrors."""
         self.mock_client.authorize.side_effect = Exception("no memory")
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: no memory"):
-            BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
+            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+                pass
 
-    def test_get_error_401(self):
+    async def test_get_error_401(self):
         """Verify that an expired token is refreshed."""
-        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
-
-        # Check that we correctly tried to re-authenticate
-        with mock.patch.object(server, "_session") as mock_session:
-            mock_session.request.side_effect = [make_response(status_code=401), make_response()]
-            self.mock_server.reauthorize.return_value = None  # fhirclient gives None if there is no refresh token
-            self.assertEqual(200, server.request("GET", "foo").status_code)
+        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+            # Check that we correctly tried to re-authenticate
+            with self.mock_session(server) as mock_session:
+                mock_session.send.side_effect = [make_response(status_code=401), make_response()]
+                self.mock_server.reauthorize.return_value = None  # fhirclient gives None if there is no refresh token
+                response = await server.request("GET", "foo")
+                self.assertEqual(200, response.status_code)
 
         self.assertEqual(1, self.mock_server.reauthorize.call_count)
         self.assertEqual(2, self.mock_client_class.call_count)
         self.assertEqual(2, self.mock_client.prepare.call_count)
         self.assertEqual(2, self.mock_client.authorize.call_count)
 
-    def test_get_error_429(self):
+    async def test_get_error_429(self):
         """Verify that 429 errors are passed through and not treated as exceptions."""
-        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
+        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+            # Confirm 429 passes
+            with self.mock_session(server, status_code=429):
+                response = await server.request("GET", "foo")
+                self.assertEqual(429, response.status_code)
 
-        # Confirm 429 passes
-        with mock.patch.object(server, "_session") as mock_session:
-            mock_session.request.return_value = make_response(status_code=429)
-            self.assertEqual(429, server.request("GET", "foo").status_code)
-
-        # Sanity check that 430 does not
-        with mock.patch.object(server, "_session") as mock_session:
-            mock_session.request.return_value = make_response(status_code=430)
-            with self.assertRaises(FatalError):
-                server.request("GET", "foo")
+            # Sanity check that 430 does not
+            with self.mock_session(server, status_code=430):
+                with self.assertRaises(FatalError):
+                    await server.request("GET", "foo")
 
     @ddt.data(
         {"json": {"resourceType": "OperationOutcome", "issue": [{"diagnostics": "testmsg"}]}},  # OperationOutcome
@@ -432,19 +446,17 @@ class TestBulkServer(unittest.TestCase):
         {"text": "testmsg"},  # just pure text content
         {"reason": "testmsg"},
     )
-    def test_get_error_other(self, response_args):
+    async def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
-        server = BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks)
-
-        with mock.patch.object(server, "_session") as mock_session:
-            mock_session.request.return_value = make_response(status_code=500, **response_args)
-            with self.assertRaisesRegex(FatalError, "testmsg"):
-                server.request("GET", "foo")
+        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+            with self.mock_session(server, status_code=500, **response_args):
+                with self.assertRaisesRegex(FatalError, "testmsg"):
+                    await server.request("GET", "foo")
 
 
 @ddt.ddt
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
-class TestBulkExporter(unittest.TestCase):
+class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
     """
     Test case for bulk export logic.
 
@@ -454,17 +466,17 @@ class TestBulkExporter(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        self.server = mock.MagicMock()
+        self.server = mock.AsyncMock()
 
     def make_exporter(self, **kwargs) -> BulkExporter:
         return BulkExporter(self.server, ["Condition", "Patient"], self.tmpdir.name, **kwargs)
 
-    def export(self, **kwargs) -> BulkExporter:
+    async def export(self, **kwargs) -> BulkExporter:
         exporter = self.make_exporter(**kwargs)
-        exporter.export()
+        await exporter.export()
         return exporter
 
-    def test_happy_path(self):
+    async def test_happy_path(self):
         """Verify an end-to-end bulk export with no problems and no waiting works as expected"""
         self.server.request.side_effect = [
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
@@ -477,13 +489,13 @@ class TestBulkExporter(unittest.TestCase):
                     ]
                 }
             ),  # status
-            make_response(json={"type": "Condition1"}),  # download
-            make_response(json={"type": "Condition2"}),  # download
-            make_response(json={"type": "Patient1"}),  # download
+            make_response(json={"type": "Condition1"}, stream=True),  # download
+            make_response(json={"type": "Condition2"}, stream=True),  # download
+            make_response(json={"type": "Patient1"}, stream=True),  # download
             make_response(status_code=202),  # delete request
         ]
 
-        self.export()
+        await self.export()
 
         self.assertListEqual(
             [
@@ -511,12 +523,12 @@ class TestBulkExporter(unittest.TestCase):
         self.assertEqual({"type": "Condition2"}, common.read_json(f"{self.tmpdir.name}/Condition.001.ndjson"))
         self.assertEqual({"type": "Patient1"}, common.read_json(f"{self.tmpdir.name}/Patient.000.ndjson"))
 
-    def test_since_until(self):
+    async def test_since_until(self):
         """Verify that we send since & until parameters correctly to the server"""
         self.server.request.side_effect = (make_response(status_code=500),)  # early exit
 
         with self.assertRaises(FatalError):
-            self.export(since="2000-01-01T00:00:00+00.00", until="2010")
+            await self.export(since="2000-01-01T00:00:00+00.00", until="2010")
 
         self.assertListEqual(
             [
@@ -529,7 +541,7 @@ class TestBulkExporter(unittest.TestCase):
             self.server.request.call_args_list,
         )
 
-    def test_export_error(self):
+    async def test_export_error(self):
         """Verify that we download and present any server-reported errors during the bulk export"""
         self.server.request.side_effect = [
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
@@ -550,7 +562,7 @@ class TestBulkExporter(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(FatalError, "Errors occurred during export:\n - errmsg1\n - errmsg2"):
-            self.export()
+            await self.export()
 
         self.assertListEqual(
             [
@@ -567,14 +579,14 @@ class TestBulkExporter(unittest.TestCase):
             self.server.request.call_args_list,
         )
 
-    def test_unexpected_status_code(self):
+    async def test_unexpected_status_code(self):
         """Verify that we bail if we see a successful code we don't understand"""
         self.server.request.return_value = make_response(status_code=204)  # "no content"
         with self.assertRaisesRegex(FatalError, "Unexpected status code 204"):
-            self.export()
+            await self.export()
 
-    @mock.patch("cumulus.loaders.fhir.bulk_export.time.sleep")
-    def test_delay(self, mock_sleep):
+    @mock.patch("cumulus.loaders.fhir.bulk_export.asyncio.sleep")
+    async def test_delay(self, mock_sleep):
         """Verify that we wait the amount of time the server asks us to"""
         self.server.request.side_effect = [
             # Kicking off bulk export
@@ -588,7 +600,7 @@ class TestBulkExporter(unittest.TestCase):
 
         exporter = self.make_exporter()
         with self.assertRaisesRegex(FatalError, "Timed out waiting"):
-            exporter.export()
+            await exporter.export()
 
         # 86460 == 24 hours + one minute
         self.assertEqual(86460, exporter._total_wait_time)  # pylint: disable=protected-access
@@ -603,7 +615,7 @@ class TestBulkExporter(unittest.TestCase):
             mock_sleep.call_args_list,
         )
 
-    def test_delete_if_interrupted(self):
+    async def test_delete_if_interrupted(self):
         """Verify that we still delete the export on the server if we raise an exception during the middle of export"""
         self.server.request.side_effect = [
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff done
@@ -612,7 +624,7 @@ class TestBulkExporter(unittest.TestCase):
         ]
 
         with self.assertRaisesRegex(FatalError, "Test Status Call Failed"):
-            self.export()
+            await self.export()
 
         self.assertListEqual(
             [
@@ -628,7 +640,7 @@ class TestBulkExporter(unittest.TestCase):
         )
 
 
-class TestBulkExportEndToEnd(unittest.TestCase):
+class TestBulkExportEndToEnd(unittest.IsolatedAsyncioTestCase):
     """
     Test case for doing an entire bulk export loop, without mocking python code.
 
@@ -650,12 +662,12 @@ class TestBulkExportEndToEnd(unittest.TestCase):
         self.jwks_file.flush()
         self.jwks_path = self.jwks_file.name
 
-        # === Now set up requests ===
-
+    def set_up_requests(self, respx_mock):
         # /.well-known/smart-configuration
-        responses.get(
+        respx_mock.get(
             f"{self.root.path}/.well-known/smart-configuration",
-            match=[matchers.header_matcher({"Accept": "application/json"})],
+            headers={"Accept": "application/json"},
+        ).respond(
             json={
                 "capabilities": ["client-confidential-asymmetric"],
                 "token_endpoint": f"{self.root.path}/token",
@@ -665,6 +677,7 @@ class TestBulkExportEndToEnd(unittest.TestCase):
         )
 
         # /metadata (most of this is just to pass validation -- this endpoint is just for fhirclient to get a token url)
+        # Note that we use the 'responses' module for this, because fhirclient uses the 'requests' module
         responses.get(
             f"{self.root.path}/metadata",
             json={
@@ -696,6 +709,7 @@ class TestBulkExportEndToEnd(unittest.TestCase):
         )
 
         # /token
+        # Note that we use the 'responses' module for this, because fhirclient uses the 'requests' module
         responses.post(
             f"{self.root.path}/token",
             json={
@@ -704,53 +718,42 @@ class TestBulkExportEndToEnd(unittest.TestCase):
         )
 
         # /$export
-        responses.get(
+        respx_mock.get(
             f"{self.root.path}/$export",
-            match=[
-                matchers.header_matcher(
-                    {
-                        "Accept": "application/fhir+json",
-                        "Authorization": "Bearer 1234567890",
-                        "Prefer": "respond-async",
-                    }
-                ),
-                matchers.query_param_matcher(
-                    {
-                        "_type": "Patient",
-                    }
-                ),
-            ],
+            headers={
+                "Accept": "application/fhir+json",
+                "Authorization": "Bearer 1234567890",
+                "Prefer": "respond-async",
+            },
+            params={
+                "_type": "Patient",
+            },
+        ).respond(
+            status_code=202,
             headers={"Content-Location": f"{self.root.path}/poll"},
-            status=202,
         )
 
         # /poll
-        responses.get(
+        respx_mock.get(
             f"{self.root.path}/poll",
-            match=[
-                matchers.header_matcher(
-                    {
-                        "Accept": "application/json",
-                        "Authorization": "Bearer 1234567890",
-                    }
-                )
-            ],
+            headers={
+                "Accept": "application/json",
+                "Authorization": "Bearer 1234567890",
+            },
+        ).respond(
             json={
                 "output": [{"type": "Patient", "url": f"{self.root.path}/download/patient1"}],
             },
         )
 
         # /download/patient1
-        responses.get(
+        respx_mock.get(
             f"{self.root.path}/download/patient1",
-            match=[
-                matchers.header_matcher(
-                    {
-                        "Accept": "application/fhir+ndjson",
-                        "Authorization": "Bearer 1234567890",
-                    }
-                )
-            ],
+            headers={
+                "Accept": "application/fhir+ndjson",
+                "Authorization": "Bearer 1234567890",
+            },
+        ).respond(
             json={  # content doesn't really matter
                 "id": "testPatient1",
                 "resourceType": "Patient",
@@ -758,24 +761,24 @@ class TestBulkExportEndToEnd(unittest.TestCase):
         )
 
         # DELETE /poll
-        responses.delete(
+        respx_mock.delete(
             f"{self.root.path}/poll",
-            match=[
-                matchers.header_matcher(
-                    {
-                        "Accept": "application/fhir+json",
-                        "Authorization": "Bearer 1234567890",
-                    }
-                )
-            ],
-            status=202,
+            headers={
+                "Accept": "application/fhir+json",
+                "Authorization": "Bearer 1234567890",
+            },
+        ).respond(
+            status_code=202,
         )
 
     @responses.mock.activate(assert_all_requests_are_fired=True)
-    def test_successful_bulk_export(self):
+    async def test_successful_bulk_export(self):
         """Verify a happy path bulk export, from toe to tip"""
         loader = loaders.FhirNdjsonLoader(self.root, client_id=self.client_id, jwks=self.jwks_path)
-        tmpdir = loader.load_all(["Patient"])
+
+        with respx.mock(assert_all_called=True) as respx_mock:
+            self.set_up_requests(respx_mock)
+            tmpdir = await loader.load_all(["Patient"])
 
         self.assertEqual(
             {"id": "testPatient1", "resourceType": "Patient"},
