@@ -319,9 +319,6 @@ Note that support for these parameters among EHRs is not super common.
 But if you are lucky enough to be working with an EHR that supports either one,
 you can pass in a time like `--since=2023-01-16T20:32:48Z`.
 
-If your server supports neither parameter,
-you will have to manually adjust your server-side Group definition's date range.
-
 #### External Bulk Export
 
 Instead of using Cumulus ETL to drive your bulk export itself, you can instead do the bulk export externally,
@@ -331,3 +328,10 @@ The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client) 
 options than Cumulus ETL's built-in exporter offers.
 
 If you use this tool, pass Cumulus ETL the folder that holds the downloaded data as the input path.
+
+## EHR-Specific Advice
+
+Different EHRs have different features and performance.
+Here is some EHR-specific documentation:
+
+- [Epic](epic-tips.md)
