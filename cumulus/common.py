@@ -160,6 +160,20 @@ def write_json(path: str, data: Any, indent: Optional[int] = None) -> None:
 ###############################################################################
 
 
+def human_file_size(count: int) -> str:
+    """
+    Returns a human-readable version of a count of bytes.
+
+    I couldn't find a version of this that's sitting in a library we use. Very annoying.
+    Pandas has one, but it's private.
+    """
+    for suffix in ("KB", "MB"):
+        count /= 1024
+        if count < 1024:
+            return f"{count:.1f}{suffix}"
+    return f"{count / 1024:.1f}GB"
+
+
 def info_mode():
     logging.basicConfig()
     logging.getLogger().setLevel(logging.INFO)

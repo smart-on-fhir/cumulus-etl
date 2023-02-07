@@ -246,7 +246,7 @@ async def main(args: List[str]):
         )
 
     # Check which tasks are being run, allowing comma-separated values
-    task_names = args.task and list(itertools.chain.from_iterable(t.split(",") for t in args.task))
+    task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
     task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
     selected_tasks = tasks.EtlTask.get_selected_tasks(task_names, task_filters)
 

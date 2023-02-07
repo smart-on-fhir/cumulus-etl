@@ -1,6 +1,7 @@
 """Support for FHIR bulk exports"""
 
 import asyncio
+import json
 import os
 import urllib.parse
 from typing import List
@@ -86,15 +87,12 @@ class BulkExporter:
             response_json = response.json()
 
             # Were there any server-side errors during the export?
-            errors = response_json.get("error", [])
+            # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
+            errors, warnings = await self._gather_all_messages(response_json.get("error", []))
             if errors:
-                message = "Errors occurred during export:"
-                for error in errors:
-                    if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
-                        outcome_response = await self._request_with_delay(error["url"])
-                        outcome = outcome_response.json()
-                        message += f"\n - {outcome['issue'][0]['diagnostics']}"
-                raise FatalError(message)
+                raise FatalError("\n - ".join(["Errors occurred during export:"] + errors))
+            if warnings:
+                print("\n - ".join(["Messages from server:"] + warnings))
 
             # Download all the files
             print("Bulk FHIR export finished, now downloading resources...")
@@ -138,10 +136,11 @@ class BulkExporter:
             # 202 == server is still working on it, 429 == server is busy -- in both cases, we wait
             if response.status_code in [202, 429]:
                 # Print a message to the user, so they don't see us do nothing for a while
-                print(f'  {response.headers.get("X-Progress", "waiting...")} ({self._total_wait_time}s so far)')
+                delay = int(response.headers.get("Retry-After", 60))
+                progress_msg = response.headers.get("X-Progress", "waiting...")
+                print(f"  {progress_msg} ({self._total_wait_time}s so far, waiting for {delay}s more)")
 
                 # And wait as long as the server requests
-                delay = int(response.headers.get("Retry-After", 60))
                 await asyncio.sleep(delay)
                 self._total_wait_time += delay
 
@@ -153,6 +152,35 @@ class BulkExporter:
 
         raise FatalError("Timed out waiting for the bulk FHIR export to finish.")
 
+    async def _gather_all_messages(self, errors: List[dict]) -> (List[str], List[str]):
+        """
+        Downloads all outcome message ndjson files from the bulk export server.
+
+        :param errors: info about each error file from the bulk FHIR server
+        :returns: (error messages, non-fatal messages)
+        """
+        coroutines = []
+        for error in errors:
+            if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
+                coroutines.append(self._request_with_delay(error["url"], headers={"Accept": "application/fhir+ndjson"}))
+        responses = await asyncio.gather(*coroutines)
+
+        fatal_messages = []
+        info_messages = []
+        for response in responses:
+            outcomes = (json.loads(x) for x in response.text.split("\n") if x)  # a list of OperationOutcomes
+            for outcome in outcomes:
+                for issue in outcome.get("issue", []):
+                    text = issue.get("diagnostics")
+                    text = text or issue.get("details", {}).get("text")
+                    text = text or issue.get("code")  # code is required at least
+                    if issue.get("severity") in ("fatal", "error"):
+                        fatal_messages.append(text)
+                    else:
+                        info_messages.append(text)
+
+        return fatal_messages, info_messages
+
     async def _download_all_ndjson_files(self, files: List[dict]) -> None:
         """
         Downloads all exported ndjson files from the bulk export server.
@@ -160,12 +188,13 @@ class BulkExporter:
         :param files: info about each file from the bulk FHIR server
         """
         resource_counts = {}  # how many of each resource we've seen
+        coroutines = []
         for file in files:
             count = resource_counts.get(file["type"], -1) + 1
             resource_counts[file["type"]] = count
             filename = f'{file["type"]}.{count:03}.ndjson'
-            await self._download_ndjson_file(file["url"], os.path.join(self._destination, filename))
-            print(f"  Downloaded {filename}")
+            coroutines.append(self._download_ndjson_file(file["url"], os.path.join(self._destination, filename)))
+        await asyncio.gather(*coroutines)
 
     async def _download_ndjson_file(self, url: str, filename: str) -> None:
         """
@@ -181,3 +210,8 @@ class BulkExporter:
                     file.write(block)
         finally:
             await response.aclose()
+
+        url_last_part = url.split("/")[-1]
+        filename_last_part = filename.split("/")[-1]
+        human_size = common.human_file_size(response.num_bytes_downloaded)
+        print(f"  Downloaded {url_last_part} as {filename_last_part} ({human_size})")

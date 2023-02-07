@@ -202,7 +202,9 @@ class BackendServiceServer:
         self._session: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self):
-        self._session = httpx.AsyncClient()
+        # Limit the number of connections open at once, because EHRs tend to be very busy.
+        limits = httpx.Limits(max_connections=5)
+        self._session = httpx.AsyncClient(limits=limits)
         await self._auth.authorize(self._session)
         return self
 
