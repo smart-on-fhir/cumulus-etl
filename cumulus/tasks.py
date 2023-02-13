@@ -5,7 +5,7 @@ import json
 import os
 import re
 import sys
-from typing import Iterable, Iterator, List, Set, Type, TypeVar, Union
+from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, List, Set, Type, TypeVar, Union
 
 import pandas
 
@@ -15,7 +15,7 @@ T = TypeVar("T")
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
 
 
-def _batch_slice(iterable: Iterable[Union[List[T], T]], n: int) -> Iterator[T]:
+async def _batch_slice(iterable: AsyncIterable[Union[List[T], T]], n: int) -> AsyncIterator[T]:
     """
     Returns the first n elements of iterable, flattening lists, but including an entire list if we would end in middle.
 
@@ -24,9 +24,10 @@ def _batch_slice(iterable: Iterable[Union[List[T], T]], n: int) -> Iterator[T]:
     Note that this will only flatten elements that are actual Python lists (isinstance list is True)
     """
     count = 0
-    for item in iterable:
+    async for item in iterable:
         if isinstance(item, list):
-            yield from item
+            for x in item:
+                yield x
             count += len(item)
         else:
             yield item
@@ -36,7 +37,14 @@ def _batch_slice(iterable: Iterable[Union[List[T], T]], n: int) -> Iterator[T]:
             return
 
 
-def _batch_iterate(iterable: Iterable[Union[List[T], T]], size: int) -> Iterator[Iterator[T]]:
+async def _async_chain(first: T, rest: AsyncIterator[T]) -> AsyncIterator[T]:
+    """An asynchronous version of itertools.chain([first], rest)"""
+    yield first
+    async for x in rest:
+        yield x
+
+
+async def _batch_iterate(iterable: AsyncIterable[Union[List[T], T]], size: int) -> AsyncIterator[AsyncIterator[T]]:
     """
     Yields sub-iterators, each roughly {size} elements from iterable.
 
@@ -59,14 +67,17 @@ def _batch_iterate(iterable: Iterable[Union[List[T], T]], size: int) -> Iterator
     if size < 1:
         raise ValueError("Must iterate by at least a batch of 1")
 
-    true_iterable = iter(iterable)  # in case it's actually a list (we want to iterate only once through)
+    # aiter() and anext() were added in python 3.10
+    # pylint: disable=unnecessary-dunder-call
+
+    true_iterable = iterable.__aiter__()  # get a real once-through iterable (we want to iterate only once)
     while True:
         iter_slice = _batch_slice(true_iterable, size)
         try:
-            peek = next(iter_slice)
-        except StopIteration:
+            peek = await iter_slice.__anext__()
+        except StopAsyncIteration:
             return  # we're done!
-        yield itertools.chain([peek], iter_slice)
+        yield _async_chain(peek, iter_slice)
 
 
 class EtlTask:
@@ -182,7 +193,7 @@ class EtlTask:
         self.task_config = task_config
         self.scrubber = scrubber
 
-    def run(self) -> config.JobSummary:
+    async def run(self) -> config.JobSummary:
         """
         Executes a single task and returns the summary.
 
@@ -198,9 +209,10 @@ class EtlTask:
 
         # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
         # We want to batch them up, to allow resuming from interruptions more easily.
-        for index, batch in enumerate(_batch_iterate(entries, self.task_config.batch_size)):
+        index = 0
+        async for batch in _batch_iterate(entries, self.task_config.batch_size):
             # Stuff de-identified FHIR json into one big pandas DataFrame
-            dataframe = pandas.DataFrame(batch)
+            dataframe = pandas.DataFrame([row async for row in batch])
 
             # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
             # updated codebook with no data than data with an inaccurate codebook.
@@ -210,6 +222,7 @@ class EtlTask:
             formatter.write_records(dataframe, index)
 
             print(f"  {summary.success:,} processed for {self.name}")
+            index += 1
 
         # All data is written, now do any final cleanup the formatter wants
         formatter.finalize()
@@ -238,7 +251,7 @@ class EtlTask:
                 for line in f:
                     yield json.loads(line)
 
-    def read_entries(self) -> Iterator[Union[List[dict], dict]]:
+    async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
         """
         Reads input entries for the job.
 
@@ -248,7 +261,8 @@ class EtlTask:
         the elements of which will be guaranteed to all be in the same output batch.
         See comments for EtlTask.group_field for why you might do this.
         """
-        return filter(self.scrubber.scrub_resource, self.read_ndjson())
+        for x in filter(self.scrubber.scrub_resource, self.read_ndjson()):
+            yield x
 
 
 ##########################################################################################
@@ -332,7 +346,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
         """Returns true if this is a coding for an emergency department note"""
         return coding.get("code") in cls.ED_CODES.get(coding.get("system"), {})
 
-    def read_entries(self) -> Iterator[Union[List[dict], dict]]:
+    async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
         """Passes physician notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 
@@ -340,7 +354,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
             # Check that the note is one of our special allow-listed types (we do this here rather than on the output
             # side to save needing to run everything through NLP).
             # We check both type and category for safety -- we aren't sure yet how EHRs are using these fields.
-            codings = docref.get("category", {}).get("coding", [])
+            codings = list(itertools.chain.from_iterable([cat.get("coding", []) for cat in docref.get("category", [])]))
             codings += docref.get("type", {}).get("coding", [])
             is_er_note = any(self.is_ed_coding(x) for x in codings)
             if not is_er_note:
@@ -352,4 +366,4 @@ class CovidSymptomNlpResultsTask(EtlTask):
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield ctakes.covid_symptoms_extract(phi_root, docref)
+            yield await ctakes.covid_symptoms_extract(self.task_config.client, phi_root, docref)

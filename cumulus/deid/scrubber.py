@@ -140,8 +140,8 @@ class Scrubber:
     @staticmethod
     def _check_attachments(node_path: str, node: dict, key: str) -> None:
         """Strip any attachment data"""
-        if node_path == "root.content.attachment" and key == "data":
-            del node["data"]
+        if node_path == "root.content.attachment" and key in {"data", "url"}:
+            del node[key]
 
     @staticmethod
     def _check_security(node_path: str, node: dict, key: str, value: Any) -> None:

@@ -2,7 +2,6 @@
 
 import contextlib
 import io
-import os
 import tempfile
 import time
 import unittest
@@ -17,7 +16,7 @@ import respx
 from jwcrypto import jwk, jwt
 
 from cumulus import common, errors, etl, loaders, store
-from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
+from cumulus.fhir_client import FatalError, FhirClient
 from cumulus.loaders.fhir.bulk_export import BulkExporter
 
 
@@ -41,39 +40,165 @@ def make_response(status_code=200, json=None, text=None, reason=None, headers=No
     )
 
 
-class TestBulkLoader(unittest.IsolatedAsyncioTestCase):
+class TestBulkEtl(unittest.IsolatedAsyncioTestCase):
     """
     Test case for bulk export support in the etl pipeline and ndjson loader.
 
-    i.e. tests for fhir_ndjson.py
+    i.e. tests for etl.py & fhir_ndjson.py
 
     This does no actual bulk loading.
     """
 
     def setUp(self):
         super().setUp()
-        self.root = store.Root("http://localhost:9999")
-
         self.jwks_file = tempfile.NamedTemporaryFile()  # pylint: disable=consider-using-with
         self.jwks_path = self.jwks_file.name
         self.jwks_file.write(b'{"fake":"jwks"}')
         self.jwks_file.flush()
 
-        # Mock out the backend service and bulk export code by default. We don't care about actually doing any
+        # Mock out the bulk export code by default. We don't care about actually doing any
         # bulk work in this test case, just confirming the flow.
-
-        server_patcher = mock.patch("cumulus.loaders.fhir.fhir_ndjson.BackendServiceServer")
-        self.addCleanup(server_patcher.stop)
-        self.mock_server = server_patcher.start()
-
-        exporter_patcher = mock.patch("cumulus.loaders.fhir.fhir_ndjson.BulkExporter")
+        exporter_patcher = mock.patch("cumulus.loaders.fhir.fhir_ndjson.BulkExporter", spec=BulkExporter)
         self.addCleanup(exporter_patcher.stop)
-        self.mock_exporter = exporter_patcher.start()
+        self.mock_exporter_class = exporter_patcher.start()
+        self.mock_exporter = mock.AsyncMock()
+        self.mock_exporter_class.return_value = self.mock_exporter
 
+    @mock.patch("cumulus.etl.fhir_client.FhirClient")
     @mock.patch("cumulus.etl.loaders.FhirNdjsonLoader")
-    async def test_etl_passes_args(self, mock_loader):
+    async def test_etl_passes_args(self, mock_loader, mock_client):
         """Verify that we are passed the client ID and JWKS from the command line"""
         mock_loader.side_effect = ValueError  # just to stop the etl pipeline once we get this far
+
+        with tempfile.NamedTemporaryFile(buffering=0) as bt_file:
+            bt_file.write(b"bt")
+
+            with self.assertRaises(ValueError):
+                await etl.main(
+                    [
+                        "http://localhost:9999",
+                        "/tmp/output",
+                        "/tmp/phi",
+                        "--skip-init-checks",
+                        "--input-format=ndjson",
+                        "--smart-client-id=x",
+                        f"--smart-jwks={self.jwks_path}",
+                        f"--bearer-token={bt_file.name}",
+                        "--since=2018",
+                        "--until=2020",
+                    ]
+                )
+
+        self.assertEqual(1, mock_client.call_count)
+        self.assertEqual("x", mock_client.call_args[1]["client_id"])
+        self.assertEqual({"fake": "jwks"}, mock_client.call_args[1]["jwks"])
+        self.assertEqual("bt", mock_client.call_args[1]["bearer_token"])
+        self.assertEqual(1, mock_loader.call_count)
+        self.assertEqual("2018", mock_loader.call_args[1]["since"])
+        self.assertEqual("2020", mock_loader.call_args[1]["until"])
+
+    @mock.patch("cumulus.etl.fhir_client.FhirClient")
+    async def test_reads_client_id_from_file(self, mock_client):
+        """Verify that we try to read a client ID from a file."""
+        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
+
+        # First, confirm string is used directly if file doesn't exist
+        with self.assertRaises(ValueError):
+            await etl.main(
+                [
+                    "http://localhost:9999",
+                    "/tmp/output",
+                    "/tmp/phi",
+                    "--skip-init-checks",
+                    "--smart-client-id=/direct-string",
+                ]
+            )
+        self.assertEqual("/direct-string", mock_client.call_args[1]["client_id"])
+
+        # Now read from a file that exists
+        with tempfile.NamedTemporaryFile(buffering=0) as file:
+            file.write(b"\ninside-file\n")
+            with self.assertRaises(ValueError):
+                await etl.main(
+                    [
+                        "http://localhost:9999",
+                        "/tmp/output",
+                        "/tmp/phi",
+                        "--skip-init-checks",
+                        f"--smart-client-id={file.name}",
+                    ]
+                )
+            self.assertEqual("inside-file", mock_client.call_args[1]["client_id"])
+
+    @mock.patch("cumulus.etl.fhir_client.FhirClient")
+    async def test_reads_bearer_token(self, mock_client):
+        """Verify that we read the bearer token file"""
+        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
+
+        with tempfile.NamedTemporaryFile(buffering=0) as file:
+            file.write(b"\ninside-file\n")
+            with self.assertRaises(ValueError):
+                await etl.main(
+                    [
+                        "http://localhost:9999",
+                        "/tmp/output",
+                        "/tmp/phi",
+                        "--skip-init-checks",
+                        f"--bearer-token={file.name}",
+                    ]
+                )
+            self.assertEqual("inside-file", mock_client.call_args[1]["bearer_token"])
+
+    @mock.patch("cumulus.etl.fhir_client.FhirClient")
+    async def test_fhir_url(self, mock_client):
+        """Verify that we handle the user provided --fhir-client correctly"""
+        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
+
+        # Confirm that we don't allow conflicting URLs
+        with self.assertRaises(SystemExit):
+            await etl.main(
+                [
+                    "http://localhost:9999",
+                    "/tmp/output",
+                    "/tmp/phi",
+                    "--skip-init-checks",
+                    "--fhir-url=https://example.com/hello",
+                ]
+            )
+
+        # But a subset --fhir-url is fine
+        with self.assertRaises(ValueError):
+            await etl.main(
+                [
+                    "https://example.com/hello/Group/1234",
+                    "/tmp/output",
+                    "/tmp/phi",
+                    "--skip-init-checks",
+                    "--fhir-url=https://example.com/hello",
+                ]
+            )
+        self.assertEqual("https://example.com/hello/Group/1234", mock_client.call_args[0][0])
+
+        # Now do a normal use of --fhir-url
+        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
+        with self.assertRaises(ValueError):
+            await etl.main(
+                [
+                    "/tmp/input",
+                    "/tmp/output",
+                    "/tmp/phi",
+                    "--skip-init-checks",
+                    "--fhir-url=https://example.com/hello",
+                ]
+            )
+        self.assertEqual("https://example.com/hello", mock_client.call_args[0][0])
+
+    @mock.patch("cumulus.etl.fhir_client.FhirClient")
+    async def test_export_flow(self, mock_client):
+        """
+        Verify that we make the right calls down as far as the bulk export helper classes, with the right resources.
+        """
+        self.mock_exporter.export.side_effect = ValueError  # stop us when we get this far, but also confirm we call it
 
         with self.assertRaises(ValueError):
             await etl.main(
@@ -82,92 +207,30 @@ class TestBulkLoader(unittest.IsolatedAsyncioTestCase):
                     "/tmp/output",
                     "/tmp/phi",
                     "--skip-init-checks",
-                    "--input-format=ndjson",
-                    "--smart-client-id=x",
-                    "--smart-jwks=y",
-                    "--bearer-token=bt",
-                    "--since=2018",
-                    "--until=2020",
+                    "--task=condition,encounter",
                 ]
             )
 
-        self.assertEqual(1, mock_loader.call_count)
-        self.assertEqual("x", mock_loader.call_args[1]["client_id"])
-        self.assertEqual("y", mock_loader.call_args[1]["jwks"])
-        self.assertEqual("bt", mock_loader.call_args[1]["bearer_token"])
-        self.assertEqual("2018", mock_loader.call_args[1]["since"])
-        self.assertEqual("2020", mock_loader.call_args[1]["until"])
-
-    def test_reads_client_id_from_file(self):
-        """Verify that we require both a client ID and a JWK Set."""
-        # First, confirm string is used directly if file doesn't exist
-        loader = loaders.FhirNdjsonLoader(self.root, client_id="/direct-string")
-        self.assertEqual("/direct-string", loader.client_id)
-
-        # Now read from a file that exists
-        with tempfile.NamedTemporaryFile() as file:
-            file.write(b"\ninside-file\n")
-            file.flush()
-            loader = loaders.FhirNdjsonLoader(self.root, client_id=file.name)
-            self.assertEqual("inside-file", loader.client_id)
-
-    def test_reads_bearer_token(self):
-        """Verify that we read the bearer token file"""
-        with tempfile.NamedTemporaryFile() as file:
-            file.write(b"\ninside-file\n")
-            file.flush()
-            loader = loaders.FhirNdjsonLoader(self.root, bearer_token=file.name)
-            self.assertEqual("inside-file", loader.bearer_token)
-
-    async def test_export_flow(self):
-        """
-        Verify that we make all the right calls into the bulk export helper classes.
-
-        This is a little lower-level than I would normally test, but the benefit of ensuring this flow here is that
-        the other test cases can focus on just the helper classes and trust that the flow works, without us needing to
-        do the full flow each time.
-        """
-        mock_server_instance = mock.AsyncMock()
-        self.mock_server.return_value = mock_server_instance
-        mock_exporter_instance = mock.AsyncMock()
-        self.mock_exporter.return_value = mock_exporter_instance
-
-        loader = loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path)
-        await loader.load_all(["Condition", "Encounter"])
-
-        expected_resources = [
-            "Condition",
-            "Encounter",
-        ]
-
-        self.assertEqual(
-            [
-                mock.call(
-                    self.root.path, expected_resources, client_id="foo", jwks={"fake": "jwks"}, bearer_token=None
-                ),
-            ],
-            self.mock_server.call_args_list,
-        )
-
-        self.assertEqual(1, self.mock_exporter.call_count)
-        self.assertEqual(expected_resources, self.mock_exporter.call_args[0][1])
-
-        self.assertEqual(1, mock_exporter_instance.export.call_count)
+        expected_resources = {"Condition", "Encounter"}
+        self.assertEqual(1, mock_client.call_count)
+        self.assertEqual(expected_resources, mock_client.call_args[0][1])
+        self.assertEqual(1, self.mock_exporter_class.call_count)
+        self.assertEqual(expected_resources, set(self.mock_exporter_class.call_args[0][1]))
 
     async def test_fatal_errors_are_fatal(self):
         """Verify that when a FatalError is raised, we do really quit"""
-        self.mock_server.side_effect = FatalError
+        self.mock_exporter.export.side_effect = FatalError
 
         with self.assertRaises(SystemExit) as cm:
-            await loaders.FhirNdjsonLoader(self.root, client_id="foo", jwks=self.jwks_path).load_all(["Patient"])
+            await loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock()).load_all(["Patient"])
 
-        self.assertEqual(1, self.mock_server.call_count)
+        self.assertEqual(1, self.mock_exporter.export.call_count)
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
 
 @ddt.ddt
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
-@mock.patch("cumulus.loaders.fhir.backend_service.uuid.uuid4", new=lambda: "1234")
+@mock.patch("cumulus.fhir_client.uuid.uuid4", new=lambda: "1234")
 class TestBulkServer(unittest.IsolatedAsyncioTestCase):
     """
     Test case for bulk export server oauth2 / request support.
@@ -226,7 +289,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         # Set up mocks for fhirclient (we don't need to test its oauth code by mocking server responses there)
         self.mock_client = mock.MagicMock()  # FHIRClient instance
         self.mock_server = self.mock_client.server  # FHIRServer instance
-        client_patcher = mock.patch("cumulus.loaders.fhir.backend_service.FHIRClient")
+        client_patcher = mock.patch("cumulus.fhir_client.fhirclient.client.FHIRClient")
         self.addCleanup(client_patcher.stop)
         self.mock_client_class = client_patcher.start()  # FHIRClient class
         self.mock_client_class.return_value = self.mock_client
@@ -239,30 +302,41 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_required_arguments(self):
         """Verify that we require both a client ID and a JWK Set"""
-        # No SMART args at all
-        with self.assertRaises(SystemExit):
-            async with BackendServiceServer(self.server_url, []):
-                pass
+        # Deny any actual requests during this test
+        self.respx_mock.get(f"{self.server_url}/test").respond(status_code=401)
 
-        # No JWKS
-        with self.assertRaises(SystemExit):
-            async with BackendServiceServer(self.server_url, [], client_id="foo"):
-                pass
+        # Simple helper to open and make a call on client.
+        async def use_client(request=False, code=None, url=self.server_url, **kwargs):
+            try:
+                async with FhirClient(url, [], **kwargs) as client:
+                    if request:
+                        await client.request("GET", "test")
+            except SystemExit as exc:
+                if code is None:
+                    raise
+                self.assertEqual(code, exc.code)
+
+        # No SMART args at all doesn't cause any problem, if we don't make calls
+        await use_client()
+
+        # No SMART args at all will raise though if we do make a call
+        await use_client(code=errors.SMART_CREDENTIALS_MISSING, request=True)
 
         # No client ID
-        with self.assertRaises(SystemExit):
-            async with BackendServiceServer(self.server_url, [], jwks=self.jwks):
-                pass
+        await use_client(code=errors.FHIR_URL_MISSING, request=True, url=None)
+
+        # No JWKS
+        await use_client(code=errors.SMART_CREDENTIALS_MISSING, client_id="foo")
+
+        # No client ID
+        await use_client(code=errors.SMART_CREDENTIALS_MISSING, jwks=self.jwks)
 
         # Works fine if both given
-        async with BackendServiceServer(self.server_url, [], client_id="foo", jwks=self.jwks):
-            pass
+        await use_client(client_id="foo", jwks=self.jwks)
 
     async def test_auth_initial_authorize(self):
         """Verify that we authorize correctly upon class initialization"""
-        async with BackendServiceServer(
-            self.server_url, ["Condition", "Patient"], client_id=self.client_id, jwks=self.jwks
-        ):
+        async with FhirClient(self.server_url, ["Condition", "Patient"], client_id=self.client_id, jwks=self.jwks):
             pass
 
         # Check initialization of FHIRClient
@@ -292,7 +366,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
             headers={"Authorization": "Bearer fob"},
         )
 
-        async with BackendServiceServer(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
+        async with FhirClient(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
             await server.request("GET", "foo")
 
     async def test_get_with_new_header(self):
@@ -300,7 +374,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         # This is mostly confirming that we call mocks correctly, but that's important since we're mocking out all
         # of fhirclient. Since we do that, we need to confirm we're driving it well.
 
-        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
             with self.mock_session(server) as mock_session:
                 # With new header and stream
                 await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
@@ -330,7 +404,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_with_overriden_header(self):
         """Verify that we issue a GET correctly for the happy path"""
-        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
             with self.mock_session(server) as mock_session:
                 # With overriding a header and default stream (False)
                 await server.request("GET", "bar", headers={"Accept": "text/plain"})
@@ -366,7 +440,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
     )
     async def test_jwks_without_suitable_key(self, bad_jwks):
         with self.assertRaisesRegex(FatalError, "No private ES384 or RS384 key found"):
-            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=bad_jwks):
+            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=bad_jwks):
                 pass
 
     @ddt.data(
@@ -394,7 +468,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         )
 
         with self.assertRaisesRegex(FatalError, "does not support the client-confidential-asymmetric protocol"):
-            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
                 pass
 
     async def test_authorize_error_with_response(self):
@@ -404,19 +478,19 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         error.response.json.return_value = {"error_description": "Ouch!"}
         self.mock_client.authorize.side_effect = error
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: Ouch!"):
-            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
                 pass
 
     async def test_authorize_error_without_response(self):
         """Verify that we translate authorize non-response errors into FatalErrors."""
         self.mock_client.authorize.side_effect = Exception("no memory")
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: no memory"):
-            async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
                 pass
 
     async def test_get_error_401(self):
         """Verify that an expired token is refreshed."""
-        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
             # Check that we correctly tried to re-authenticate
             with self.mock_session(server) as mock_session:
                 mock_session.send.side_effect = [make_response(status_code=401), make_response()]
@@ -431,7 +505,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_error_429(self):
         """Verify that 429 errors are passed through and not treated as exceptions."""
-        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
             # Confirm 429 passes
             with self.mock_session(server, status_code=429):
                 response = await server.request("GET", "foo")
@@ -450,7 +524,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
     )
     async def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
-        async with BackendServiceServer(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
             with self.mock_session(server, status_code=500, **response_args):
                 with self.assertRaisesRegex(FatalError, "testmsg"):
                     await server.request("GET", "foo")
@@ -672,6 +746,7 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
         )
 
 
+@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # just to not waste entropy
 class TestBulkExportEndToEnd(unittest.IsolatedAsyncioTestCase):
     """
     Test case for doing an entire bulk export loop, without mocking python code.
@@ -803,16 +878,28 @@ class TestBulkExportEndToEnd(unittest.IsolatedAsyncioTestCase):
             status_code=202,
         )
 
+    @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")
     @responses.mock.activate(assert_all_requests_are_fired=True)
     async def test_successful_bulk_export(self):
         """Verify a happy path bulk export, from toe to tip"""
-        loader = loaders.FhirNdjsonLoader(self.root, client_id=self.client_id, jwks=self.jwks_path)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with respx.mock(assert_all_called=True) as respx_mock:
+                self.set_up_requests(respx_mock)
 
-        with respx.mock(assert_all_called=True) as respx_mock:
-            self.set_up_requests(respx_mock)
-            tmpdir = await loader.load_all(["Patient"])
+                await etl.main(
+                    [
+                        self.root.path,
+                        f"{tmpdir}/output",
+                        f"{tmpdir}/phi",
+                        "--skip-init-checks",
+                        "--output-format=ndjson",
+                        "--task=patient",
+                        f"--smart-client-id={self.client_id}",
+                        f"--smart-jwks={self.jwks_path}",
+                    ]
+                )
 
-        self.assertEqual(
-            {"id": "testPatient1", "resourceType": "Patient"},
-            common.read_json(os.path.join(tmpdir.name, "Patient.000.ndjson")),
-        )
+            self.assertEqual(
+                {"id": "4342abf315cf6f243e11f4d460303e36c6c3663a25c91cc6b1a8002476c850dd", "resourceType": "Patient"},
+                common.read_json(f"{tmpdir}/output/patient/patient.000.ndjson"),
+            )

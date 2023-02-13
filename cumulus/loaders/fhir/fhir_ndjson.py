@@ -6,8 +6,8 @@ import tempfile
 from typing import List
 
 from cumulus import common, errors, store
+from cumulus.fhir_client import FatalError, FhirClient
 from cumulus.loaders import base
-from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
 
 
@@ -22,34 +22,18 @@ class FhirNdjsonLoader(base.Loader):
     def __init__(
         self,
         root: store.Root,
-        client_id: str = None,
-        jwks: str = None,
-        bearer_token: str = None,
+        client: FhirClient,
         since: str = None,
         until: str = None,
     ):
         """
         :param root: location to load ndjson from
-        :param client_id: client ID for a SMART server
-        :param jwks: path to a JWKS file for a SMART server
-        :param bearer_token: path to a file with a bearer token for a FHIR server
+        :param client: client ready to talk to a FHIR server
         :param since: export start date for a FHIR server
         :param until: export end date for a FHIR server
         """
         super().__init__(root)
-
-        try:
-            try:
-                self.client_id = common.read_text(client_id).strip() if client_id else None
-            except FileNotFoundError:
-                self.client_id = client_id
-
-            self.jwks = common.read_json(jwks) if jwks else None
-            self.bearer_token = common.read_text(bearer_token).strip() if bearer_token else None
-        except OSError as exc:
-            print(exc, file=sys.stderr)
-            raise SystemExit(errors.ARGS_INVALID) from exc
-
+        self.client = client
         self.since = since
         self.until = until
 
@@ -58,7 +42,7 @@ class FhirNdjsonLoader(base.Loader):
         if self.root.protocol in ["http", "https"]:
             return await self._load_from_bulk_export(resources)
 
-        if self.client_id or self.jwks or self.bearer_token or self.since or self.until:
+        if self.since or self.until:
             print("You provided FHIR bulk export parameters but did not provide a FHIR server", file=sys.stderr)
             raise SystemExit(errors.ARGS_CONFLICT)
 
@@ -84,11 +68,8 @@ class FhirNdjsonLoader(base.Loader):
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            async with BackendServiceServer(
-                self.root.path, resources, client_id=self.client_id, jwks=self.jwks, bearer_token=self.bearer_token
-            ) as server:
-                bulk_exporter = BulkExporter(server, resources, tmpdir.name, self.since, self.until)
-                await bulk_exporter.export()
+            bulk_exporter = BulkExporter(self.client, resources, tmpdir.name, self.since, self.until)
+            await bulk_exporter.export()
         except FatalError as exc:
             print(str(exc), file=sys.stderr)
             raise SystemExit(errors.BULK_EXPORT_FAILED) from exc

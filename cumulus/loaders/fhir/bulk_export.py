@@ -9,7 +9,7 @@ from typing import List
 import httpx
 
 from cumulus import common
-from cumulus.loaders.fhir.backend_service import BackendServiceServer, FatalError
+from cumulus.fhir_client import FatalError, FhirClient
 
 
 class BulkExporter:
@@ -24,19 +24,19 @@ class BulkExporter:
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
 
     def __init__(
-        self, server: BackendServiceServer, resources: List[str], destination: str, since: str = None, until: str = None
+        self, client: FhirClient, resources: List[str], destination: str, since: str = None, until: str = None
     ):
         """
         Initialize a bulk exporter (but does not start an export).
 
-        :param server: a server instance ready to make requests
+        :param client: a client ready to make requests
         :param resources: a list of resource names to export
         :param destination: a local folder to store all the files
         :param since: start date for export
         :param until: end date for export
         """
         super().__init__()
-        self._server = server
+        self._client = client
         self._resources = resources
         self._destination = destination
         self._total_wait_time = 0  # in seconds, across all our requests
@@ -128,7 +128,7 @@ class BulkExporter:
         :returns: the HTTP response
         """
         while self._total_wait_time < self._TIMEOUT_THRESHOLD:
-            response = await self._server.request(method, path, headers=headers)
+            response = await self._client.request(method, path, headers=headers)
 
             if response.status_code == target_status_code:
                 return response
@@ -203,7 +203,7 @@ class BulkExporter:
         :param url: URL location of file to download
         :param filename: local path to write data to
         """
-        response = await self._server.request("GET", url, headers={"Accept": "application/fhir+ndjson"}, stream=True)
+        response = await self._client.request("GET", url, headers={"Accept": "application/fhir+ndjson"}, stream=True)
         try:
             with open(filename, "w", encoding="utf8") as file:
                 async for block in response.aiter_text():

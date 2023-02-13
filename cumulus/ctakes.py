@@ -5,17 +5,18 @@ import cgi
 import hashlib
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import ctakesclient
 
-from cumulus import common, fhir_common, store
+from cumulus import common, fhir_client, fhir_common, store
 
 
-def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
+async def covid_symptoms_extract(client: fhir_client.FhirClient, cache: store.Root, docref: dict) -> List[dict]:
     """
     Extract a list of Observations from NLP-detected symptoms in physician notes
 
+    :param client: a client ready to talk to a FHIR server
     :param cache: Where to cache NLP results
     :param docref: Physician Note
     :return: list of NLP results encoded as FHIR observations
@@ -25,20 +26,14 @@ def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
 
     encounters = docref.get("context", {}).get("encounter", [])
     if not encounters:
-        logging.warning("No valid encounters for symptoms")  # ideally would print identifier, but it's PHI...
+        logging.warning("No encounters for docref %s", docref_id)
         return []
     _, encounter_id = fhir_common.unref_resource(encounters[0])
 
     # Find the physician note among the attachments
-    for content in docref["content"]:
-        if "contentType" in content["attachment"] and "data" in content["attachment"]:
-            mimetype, params = cgi.parse_header(content["attachment"]["contentType"])
-            if mimetype == "text/plain":  # just grab first text we find
-                charset = params.get("charset", "utf8")
-                physician_note = base64.standard_b64decode(content["attachment"]["data"]).decode(charset)
-                break
-    else:
-        logging.warning("No text/plain content in docref %s", docref_id)
+    physician_note = await get_docref_note(client, [content["attachment"] for content in docref["content"]])
+    if physician_note is None:
+        logging.warning("No text content in docref %s", docref_id)
         return []
 
     # Strip this "line feed" character that often shows up in notes and is confusing for cNLP.
@@ -95,6 +90,81 @@ def covid_symptoms_extract(cache: store.Root, docref: dict) -> List[dict]:
             )
 
     return positive_matches
+
+
+def parse_content_type(content_type: str) -> (str, str):
+    """Returns (mimetype, encoding)"""
+    # TODO: switch to message.Message parsing, since cgi is deprecated
+    mimetype, params = cgi.parse_header(content_type)
+    return mimetype, params.get("charset", "utf8")
+
+
+def mimetype_priority(mimetype: str) -> int:
+    """
+    Returns priority of mimetypes for docref notes.
+
+    0 means "ignore"
+    Higher numbers are higher priority
+    """
+    if mimetype == "text/plain":
+        return 3
+    elif mimetype.startswith("text/"):
+        return 2
+    elif mimetype in ("application/xml", "application/xhtml+xml"):
+        return 1
+    return 0
+
+
+async def get_docref_note(client: fhir_client.FhirClient, attachments: List[dict]) -> Optional[str]:
+    # Find the best attachment to use, based on mimetype.
+    # We prefer basic text documents, to avoid confusing cTAKES with extra formatting (like <body>).
+    best_attachment_index = -1
+    best_attachment_priority = 0
+    for index, attachment in enumerate(attachments):
+        if "contentType" in attachment:
+            mimetype, _ = parse_content_type(attachment["contentType"])
+            priority = mimetype_priority(mimetype)
+            if priority > best_attachment_priority:
+                best_attachment_priority = priority
+                best_attachment_index = index
+
+    if best_attachment_index >= 0:
+        return await get_docref_note_from_attachment(client, attachments[best_attachment_index])
+
+    # We didn't find _any_ of our target text content types.
+    # A content type isn't required by the spec with external URLs... so it's possible an unmarked link could be good.
+    # But let's optimistically enforce the need for a content type ourselves by bailing here.
+    # If we find a real-world need to be more permissive, we can change this later.
+    # But note that if we do, we'll need to handle downloading Binary FHIR objects, in addition to arbitrary URLs.
+    return None
+
+
+async def get_docref_note_from_attachment(client: fhir_client.FhirClient, attachment: dict) -> Optional[str]:
+    """
+    Decodes or downloads a note from an attachment.
+
+    Note that it is assumed a contentType is provided.
+
+    :returns: the attachment's note text
+    """
+    mimetype, charset = parse_content_type(attachment["contentType"])
+
+    if "data" in attachment:
+        return base64.standard_b64decode(attachment["data"]).decode(charset)
+
+    # TODO: At some point we should centralize the downloading of attachments -- once we have multiple NLP tasks,
+    #  we may not want to re-download the overlapping notes. When we do that, it should not be part of our bulk
+    #  exporter, since we may be given already-exported ndjson.
+    #
+    # TODO: There are future optimizations to try to use our ctakes cache to avoid downloading in the first place:
+    #   - use attachment["hash"] if available (algorithm mismatch though... maybe we should switch to sha1...)
+    #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
+    if "url" in attachment:
+        # We need to pass Accept to get the raw data, not a Binary object. See https://www.hl7.org/fhir/binary.html
+        response = await client.request("GET", attachment["url"], headers={"Accept": mimetype})
+        return response.text
+
+    return None
 
 
 def extract(cache: store.Root, namespace: str, sentence: str) -> ctakesclient.typesystem.CtakesJSON:

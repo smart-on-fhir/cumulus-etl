@@ -1,16 +1,15 @@
-"""Support for SMART App Launch Backend Services"""
+"""HTTP client that talk to a FHIR server"""
 
-import abc
 import re
 import sys
 import time
 import urllib.parse
 import uuid
 from json import JSONDecodeError
-from typing import List, Optional
+from typing import Iterable, Optional
 
+import fhirclient.client
 import httpx
-from fhirclient.client import FHIRClient
 from jwcrypto import jwk, jwt
 
 from cumulus import errors
@@ -20,22 +19,42 @@ class FatalError(Exception):
     """An unrecoverable error"""
 
 
-class Auth(abc.ABC):
-    """Abstracted authentication for a FHIR server"""
+def _urljoin(base: str, path: str) -> str:
+    """Basically just urllib.parse.urljoin, but with some extra error checking"""
+    path_is_absolute = bool(urllib.parse.urlparse(path).netloc)
+    if path_is_absolute:
+        return path
 
-    @abc.abstractmethod
-    async def authorize(self, session: httpx.AsyncClient) -> None:
+    if not base:
+        print("You must provide a base FHIR server URL with --fhir-url", file=sys.stderr)
+        raise SystemExit(errors.FHIR_URL_MISSING)
+    return urllib.parse.urljoin(base, path)
+
+
+class Auth:
+    """Abstracted authentication for a FHIR server. By default, does nothing."""
+
+    async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         """Authorize (or re-authorize) against the server"""
+        del session
 
-    @abc.abstractmethod
+        if reauthorize:
+            # Abort because we clearly need authentication tokens, but have not been given any parameters for them.
+            print(
+                "You must provide some authentication parameters (like --smart-client-id) to connect to a server.",
+                file=sys.stderr,
+            )
+            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
+
     def sign_headers(self, headers: Optional[dict]) -> dict:
         """Add signature token to request headers"""
+        return headers
 
 
 class JwksAuth(Auth):
     """Authentication with a JWK Set (typical backend service profile)"""
 
-    def __init__(self, server_root: str, client_id: str, jwks: dict, resources: List[str]):
+    def __init__(self, server_root: str, client_id: str, jwks: dict, resources: Iterable[str]):
         super().__init__()
         self._server_root = server_root
         self._client_id = client_id
@@ -44,7 +63,7 @@ class JwksAuth(Auth):
         self._server = None
         self._token_endpoint = None
 
-    async def authorize(self, session: httpx.AsyncClient) -> None:
+    async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         """
         Authenticates against a SMART FHIR server using the Backend Services profile.
 
@@ -53,13 +72,13 @@ class JwksAuth(Auth):
         # Have we authorized before?
         if self._token_endpoint is None:
             self._token_endpoint = await self._get_token_endpoint(session)
-        if self._server is not None and self._server.reauthorize():
+        if reauthorize and self._server.reauthorize():
             return
         # Else we must not have been issued a refresh token, let's just authorize from scratch below
 
         signed_jwt = self._make_signed_jwt()
         scope = " ".join([f"system/{resource}.read" for resource in self._resources])
-        client = FHIRClient(
+        client = fhirclient.client.FHIRClient(
             settings={
                 "api_base": self._server_root,
                 "app_id": self._client_id,
@@ -100,7 +119,7 @@ class JwksAuth(Auth):
         :returns: URL for the server's oauth2 token endpoint
         """
         response = await session.get(
-            urllib.parse.urljoin(self._server_root, ".well-known/smart-configuration"),
+            _urljoin(self._server_root, ".well-known/smart-configuration"),
             headers={
                 "Accept": "application/json",
             },
@@ -161,7 +180,7 @@ class BearerAuth(Auth):
         super().__init__()
         self._bearer_token = bearer_token
 
-    async def authorize(self, session: httpx.AsyncClient) -> None:
+    async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         pass
 
     def sign_headers(self, headers: Optional[dict]) -> dict:
@@ -170,9 +189,11 @@ class BearerAuth(Auth):
         return headers
 
 
-class BackendServiceServer:
+class FhirClient:
     """
-    Manages authentication and requests for a server that supports the Backend Service SMART profile.
+    Manages authentication and requests for a FHIR server.
+
+    Supports a few different auth methods, but most notably the Backend Service SMART profile.
 
     Use this as a context manager (like you would an httpx.AsyncClient instance).
 
@@ -180,7 +201,12 @@ class BackendServiceServer:
     """
 
     def __init__(
-        self, url: str, resources: List[str], client_id: str = None, jwks: dict = None, bearer_token: str = None
+        self,
+        url: Optional[str],
+        resources: Iterable[str],
+        client_id: str = None,
+        jwks: dict = None,
+        bearer_token: str = None,
     ):
         """
         Initialize and authorize a BackendServiceServer context manager.
@@ -191,20 +217,23 @@ class BackendServiceServer:
         :param jwks: content of a JWK Set file, containing the private key for the registered public key
         :param bearer_token: a bearer token, containing the secret key to sign https requests (instead of JWKS)
         """
+        # Allow url to be None in the case we are a fully local ETL run, and this class is basically a no-op
         self._base_url = url  # all requests are relative to this URL
-        if not self._base_url.endswith("/"):
+        if self._base_url and not self._base_url.endswith("/"):
             self._base_url += "/"
         # The base URL may not be the server root (like it may be a Group export URL). Let's find the root.
         self._server_root = self._base_url
-        self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
-        self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
+        if self._server_root:
+            self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
+            self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
+
         self._auth = self._make_auth(resources, client_id, jwks, bearer_token)
         self._session: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self):
         # Limit the number of connections open at once, because EHRs tend to be very busy.
         limits = httpx.Limits(max_connections=5)
-        self._session = httpx.AsyncClient(limits=limits)
+        self._session = httpx.AsyncClient(limits=limits, timeout=300)  # five minutes to be generous
         await self._auth.authorize(self._session)
         return self
 
@@ -212,31 +241,11 @@ class BackendServiceServer:
         if self._session:
             await self._session.aclose()
 
-    def _make_auth(self, resources: List[str], client_id: str, jwks: dict, bearer_token: str) -> Auth:
-        """Determine which auth method to use based on user provided arguments"""
-
-        if bearer_token and (client_id or jwks):
-            print("--bearer-token cannot be used with --smart-client-id or --smart-jwks", file=sys.stderr)
-            raise SystemExit(errors.ARGS_CONFLICT)
-
-        if bearer_token:
-            return BearerAuth(bearer_token)
-
-        # Confirm that all required SMART arguments were provided
-        error_list = []
-        if not client_id:
-            error_list.append("You must provide a client ID with --smart-client-id to connect to a SMART FHIR server.")
-        if jwks is None:
-            error_list.append("You must provide a JWKS file with --smart-jwks to connect to a SMART FHIR server.")
-        if error_list:
-            print("\n".join(error_list), file=sys.stderr)
-            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
-
-        return JwksAuth(self._server_root, client_id, jwks, resources)
-
     async def request(self, method: str, path: str, headers: dict = None, stream: bool = False) -> httpx.Response:
         """
         Issues an HTTP request.
+
+        The default Accept type is application/fhir+json, but can be overridden by a provided header.
 
         This is a lightly modified version of FHIRServer._get(), but additionally supports streaming and
         reauthorization.
@@ -249,7 +258,7 @@ class BackendServiceServer:
         :param stream: whether to stream content in or load it all into memory at once
         :returns: The response object
         """
-        url = urllib.parse.urljoin(self._base_url, path)
+        url = _urljoin(self._base_url, path)
 
         final_headers = {
             "Accept": "application/fhir+json",
@@ -262,7 +271,7 @@ class BackendServiceServer:
 
         # Check if our access token expired and thus needs to be refreshed
         if response.status_code == 401:
-            await self._auth.authorize(self._session)
+            await self._auth.authorize(self._session, reauthorize=True)
             if stream:
                 await response.aclose()
             response = await self._request_with_signed_headers(method, url, final_headers, stream=stream)
@@ -300,6 +309,28 @@ class BackendServiceServer:
     #
     ###################################################################################################################
 
+    def _make_auth(self, resources: Iterable[str], client_id: str, jwks: dict, bearer_token: str) -> Auth:
+        """Determine which auth method to use based on user provided arguments"""
+        valid_jwks = jwks is not None
+
+        if bearer_token and (client_id or valid_jwks):
+            print("--bearer-token cannot be used with --smart-client-id or --smart-jwks", file=sys.stderr)
+            raise SystemExit(errors.ARGS_CONFLICT)
+
+        if bearer_token:
+            return BearerAuth(bearer_token)
+
+        if client_id and valid_jwks:
+            return JwksAuth(self._server_root, client_id, jwks, resources)
+        elif client_id or valid_jwks:
+            print(
+                "You must provide both --smart-client-id and --smart-jwks to connect to a SMART FHIR server.",
+                file=sys.stderr,
+            )
+            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
+
+        return Auth()
+
     async def _request_with_signed_headers(
         self, method: str, url: str, headers: dict = None, **kwargs
     ) -> httpx.Response:
@@ -311,6 +342,9 @@ class BackendServiceServer:
         :param headers: header dictionary
         :returns: The response object
         """
+        if not self._session:
+            raise RuntimeError("FhirClient must be used as a context manager")
+
         headers = self._auth.sign_headers(headers)
         request = self._session.build_request(method, url, headers=headers)
         # Follow redirects by default -- some EHRs definitely use them for bulk download files,
