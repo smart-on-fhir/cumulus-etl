@@ -154,7 +154,7 @@ def make_parser() -> argparse.ArgumentParser:
     """Creates an ArgumentParser for Cumulus ETL"""
     parser = argparse.ArgumentParser()
     parser.add_argument("dir_input", metavar="/path/to/input")
-    parser.add_argument("dir_output", metavar="/path/to/processed")
+    parser.add_argument("dir_output", metavar="/path/to/output")
     parser.add_argument("dir_phi", metavar="/path/to/phi")
     parser.add_argument(
         "--input-format", default="ndjson", choices=["i2b2", "ndjson"], help="input format (default is ndjson)"
@@ -178,21 +178,15 @@ def make_parser() -> argparse.ArgumentParser:
     aws.add_argument("--s3-region", metavar="REGION", help="if using S3 paths (s3://...), this is their region")
     aws.add_argument("--s3-kms-key", metavar="KEY", help="if using S3 paths (s3://...), this is the KMS key ID to use")
 
+    auth = parser.add_argument_group("authentication")
+    auth.add_argument("--smart-client-id", metavar="ID", help="Client ID for SMART authentication")
+    auth.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
+    auth.add_argument("--basic-user", metavar="USER", help="Username for Basic authentication")
+    auth.add_argument("--basic-passwd", metavar="PATH", help="Password file for Basic authentication")
+    auth.add_argument("--bearer-token", metavar="PATH", help="Token file for Bearer authentication")
+    auth.add_argument("--fhir-url", metavar="URL", help="FHIR server base URL, only needed if you exported separately")
+
     export = parser.add_argument_group("bulk export")
-    export.add_argument(
-        "--smart-client-id",
-        metavar="ID",
-        help="Client ID for SMART authentication",
-    )
-    export.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
-    export.add_argument(
-        "--bearer-token",
-        metavar="PATH",
-        help="Bearer token for custom bearer authentication",
-    )
-    export.add_argument(
-        "--fhir-url", metavar="URL", help="FHIR server base URL, only needed if you exported separately"
-    )
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
 
@@ -230,6 +224,7 @@ def create_fhir_client(args, root_input, resources):
             smart_client_id = args.smart_client_id
 
         smart_jwks = common.read_json(args.smart_jwks) if args.smart_jwks else None
+        basic_password = common.read_text(args.basic_passwd).strip() if args.basic_passwd else None
         bearer_token = common.read_text(args.bearer_token).strip() if args.bearer_token else None
     except OSError as exc:
         print(exc, file=sys.stderr)
@@ -238,9 +233,11 @@ def create_fhir_client(args, root_input, resources):
     return fhir_client.FhirClient(
         client_base_url,
         resources,
-        client_id=smart_client_id,
-        jwks=smart_jwks,
+        basic_user=args.basic_user,
+        basic_password=basic_password,
         bearer_token=bearer_token,
+        smart_client_id=smart_client_id,
+        smart_jwks=smart_jwks,
     )
 
 
