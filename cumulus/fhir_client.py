@@ -1,5 +1,6 @@
 """HTTP client that talk to a FHIR server"""
 
+import base64
 import re
 import sys
 import time
@@ -173,6 +174,25 @@ class JwksAuth(Auth):
         return token.serialize()
 
 
+class BasicAuth(Auth):
+    """Authentication with basic user/password"""
+
+    def __init__(self, user: str, password: str):
+        super().__init__()
+        # Assume utf8 is acceptable -- we should in theory also run these through Unicode normalization, in case they
+        # have interesting Unicode characters. But we can always add that in the future.
+        combo_bytes = f"{user}:{password}".encode("utf8")
+        self._basic_token = base64.standard_b64encode(combo_bytes).decode("ascii")
+
+    async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
+        pass
+
+    def sign_headers(self, headers: Optional[dict]) -> dict:
+        headers = headers or {}
+        headers["Authorization"] = f"Basic {self._basic_token}"
+        return headers
+
+
 class BearerAuth(Auth):
     """Authentication with a static bearer token"""
 
@@ -204,18 +224,22 @@ class FhirClient:
         self,
         url: Optional[str],
         resources: Iterable[str],
-        client_id: str = None,
-        jwks: dict = None,
+        basic_user: str = None,
+        basic_password: str = None,
         bearer_token: str = None,
+        smart_client_id: str = None,
+        smart_jwks: dict = None,
     ):
         """
         Initialize and authorize a BackendServiceServer context manager.
 
         :param url: base URL of the SMART FHIR server
         :param resources: a list of FHIR resource names to tightly scope our own permissions
-        :param client_id: the ID assigned by the FHIR server when registering a new backend service app
-        :param jwks: content of a JWK Set file, containing the private key for the registered public key
+        :param basic_user: username for Basic authentication
+        :param basic_password: password for Basic authentication
         :param bearer_token: a bearer token, containing the secret key to sign https requests (instead of JWKS)
+        :param smart_client_id: the ID assigned by the FHIR server when registering a new backend service app
+        :param smart_jwks: content of a JWK Set file, containing the private key for the registered public key
         """
         # Allow url to be None in the case we are a fully local ETL run, and this class is basically a no-op
         self._base_url = url  # all requests are relative to this URL
@@ -227,7 +251,7 @@ class FhirClient:
             self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
             self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
 
-        self._auth = self._make_auth(resources, client_id, jwks, bearer_token)
+        self._auth = self._make_auth(resources, basic_user, basic_password, bearer_token, smart_client_id, smart_jwks)
         self._session: Optional[httpx.AsyncClient] = None
 
     async def __aenter__(self):
@@ -309,20 +333,45 @@ class FhirClient:
     #
     ###################################################################################################################
 
-    def _make_auth(self, resources: Iterable[str], client_id: str, jwks: dict, bearer_token: str) -> Auth:
+    def _make_auth(
+        self,
+        resources: Iterable[str],
+        basic_user: str,
+        basic_password: str,
+        bearer_token: str,
+        smart_client_id: str,
+        smart_jwks: dict,
+    ) -> Auth:
         """Determine which auth method to use based on user provided arguments"""
-        valid_jwks = jwks is not None
+        valid_smart_jwks = smart_jwks is not None  # compared to a falsy (but technically usable) empty dict for example
 
-        if bearer_token and (client_id or valid_jwks):
-            print("--bearer-token cannot be used with --smart-client-id or --smart-jwks", file=sys.stderr)
+        # Check if the user tried to specify multiple types of auth, and help them out
+        has_basic_args = bool(basic_user or basic_password)
+        has_bearer_args = bool(bearer_token)
+        has_smart_args = bool(smart_client_id or valid_smart_jwks)
+        total_auth_types = has_basic_args + has_bearer_args + has_smart_args
+        if total_auth_types > 1:
+            print(
+                "Multiple authentication methods have been specified. Double check your arguments to Cumulus ETL.",
+                file=sys.stderr,
+            )
             raise SystemExit(errors.ARGS_CONFLICT)
+
+        if basic_user and basic_password:
+            return BasicAuth(basic_user, basic_password)
+        elif basic_user or basic_password:
+            print(
+                "You must provide both --basic-user and --basic-password to connect to a Basic auth server.",
+                file=sys.stderr,
+            )
+            raise SystemExit(errors.BASIC_CREDENTIALS_MISSING)
 
         if bearer_token:
             return BearerAuth(bearer_token)
 
-        if client_id and valid_jwks:
-            return JwksAuth(self._server_root, client_id, jwks, resources)
-        elif client_id or valid_jwks:
+        if smart_client_id and valid_smart_jwks:
+            return JwksAuth(self._server_root, smart_client_id, smart_jwks, resources)
+        elif smart_client_id or valid_smart_jwks:
             print(
                 "You must provide both --smart-client-id and --smart-jwks to connect to a SMART FHIR server.",
                 file=sys.stderr,

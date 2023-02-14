@@ -70,29 +70,24 @@ class TestBulkEtl(unittest.IsolatedAsyncioTestCase):
         """Verify that we are passed the client ID and JWKS from the command line"""
         mock_loader.side_effect = ValueError  # just to stop the etl pipeline once we get this far
 
-        with tempfile.NamedTemporaryFile(buffering=0) as bt_file:
-            bt_file.write(b"bt")
-
-            with self.assertRaises(ValueError):
-                await etl.main(
-                    [
-                        "http://localhost:9999",
-                        "/tmp/output",
-                        "/tmp/phi",
-                        "--skip-init-checks",
-                        "--input-format=ndjson",
-                        "--smart-client-id=x",
-                        f"--smart-jwks={self.jwks_path}",
-                        f"--bearer-token={bt_file.name}",
-                        "--since=2018",
-                        "--until=2020",
-                    ]
-                )
+        with self.assertRaises(ValueError):
+            await etl.main(
+                [
+                    "http://localhost:9999",
+                    "/tmp/output",
+                    "/tmp/phi",
+                    "--skip-init-checks",
+                    "--input-format=ndjson",
+                    "--smart-client-id=x",
+                    f"--smart-jwks={self.jwks_path}",
+                    "--since=2018",
+                    "--until=2020",
+                ]
+            )
 
         self.assertEqual(1, mock_client.call_count)
-        self.assertEqual("x", mock_client.call_args[1]["client_id"])
-        self.assertEqual({"fake": "jwks"}, mock_client.call_args[1]["jwks"])
-        self.assertEqual("bt", mock_client.call_args[1]["bearer_token"])
+        self.assertEqual("x", mock_client.call_args[1]["smart_client_id"])
+        self.assertEqual({"fake": "jwks"}, mock_client.call_args[1]["smart_jwks"])
         self.assertEqual(1, mock_loader.call_count)
         self.assertEqual("2018", mock_loader.call_args[1]["since"])
         self.assertEqual("2020", mock_loader.call_args[1]["until"])
@@ -113,7 +108,7 @@ class TestBulkEtl(unittest.IsolatedAsyncioTestCase):
                     "--smart-client-id=/direct-string",
                 ]
             )
-        self.assertEqual("/direct-string", mock_client.call_args[1]["client_id"])
+        self.assertEqual("/direct-string", mock_client.call_args[1]["smart_client_id"])
 
         # Now read from a file that exists
         with tempfile.NamedTemporaryFile(buffering=0) as file:
@@ -128,7 +123,7 @@ class TestBulkEtl(unittest.IsolatedAsyncioTestCase):
                         f"--smart-client-id={file.name}",
                     ]
                 )
-            self.assertEqual("inside-file", mock_client.call_args[1]["client_id"])
+            self.assertEqual("inside-file", mock_client.call_args[1]["smart_client_id"])
 
     @mock.patch("cumulus.etl.fhir_client.FhirClient")
     async def test_reads_bearer_token(self, mock_client):
@@ -148,6 +143,28 @@ class TestBulkEtl(unittest.IsolatedAsyncioTestCase):
                     ]
                 )
             self.assertEqual("inside-file", mock_client.call_args[1]["bearer_token"])
+
+    @mock.patch("cumulus.etl.fhir_client.FhirClient")
+    async def test_reads_basic_auth(self, mock_client):
+        """Verify that we read the basic password file and pass it along"""
+        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
+
+        with tempfile.NamedTemporaryFile(buffering=0) as file:
+            file.write(b"\ninside-file\n")
+            with self.assertRaises(ValueError):
+                await etl.main(
+                    [
+                        "http://localhost:9999",
+                        "/tmp/output",
+                        "/tmp/phi",
+                        "--skip-init-checks",
+                        "--basic-user=UserName",
+                        f"--basic-passwd={file.name}",
+                    ]
+                )
+
+        self.assertEqual("UserName", mock_client.call_args[1]["basic_user"])
+        self.assertEqual("inside-file", mock_client.call_args[1]["basic_password"])
 
     @mock.patch("cumulus.etl.fhir_client.FhirClient")
     async def test_fhir_url(self, mock_client):
@@ -326,17 +343,19 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         await use_client(code=errors.FHIR_URL_MISSING, request=True, url=None)
 
         # No JWKS
-        await use_client(code=errors.SMART_CREDENTIALS_MISSING, client_id="foo")
+        await use_client(code=errors.SMART_CREDENTIALS_MISSING, smart_client_id="foo")
 
         # No client ID
-        await use_client(code=errors.SMART_CREDENTIALS_MISSING, jwks=self.jwks)
+        await use_client(code=errors.SMART_CREDENTIALS_MISSING, smart_jwks=self.jwks)
 
         # Works fine if both given
-        await use_client(client_id="foo", jwks=self.jwks)
+        await use_client(smart_client_id="foo", smart_jwks=self.jwks)
 
     async def test_auth_initial_authorize(self):
         """Verify that we authorize correctly upon class initialization"""
-        async with FhirClient(self.server_url, ["Condition", "Patient"], client_id=self.client_id, jwks=self.jwks):
+        async with FhirClient(
+            self.server_url, ["Condition", "Patient"], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ):
             pass
 
         # Check initialization of FHIRClient
@@ -369,12 +388,22 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         async with FhirClient(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
             await server.request("GET", "foo")
 
+    async def test_auth_with_basic_auth(self):
+        """Verify that we pass along the basic user/password to the server"""
+        self.respx_mock.get(
+            f"{self.server_url}/foo",
+            headers={"Authorization": "Basic VXNlcjpwNHNzdzByZA=="},
+        )
+
+        async with FhirClient(self.server_url, [], basic_user="User", basic_password="p4ssw0rd") as server:
+            await server.request("GET", "foo")
+
     async def test_get_with_new_header(self):
         """Verify that we issue a GET correctly for the happy path"""
         # This is mostly confirming that we call mocks correctly, but that's important since we're mocking out all
         # of fhirclient. Since we do that, we need to confirm we're driving it well.
 
-        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             with self.mock_session(server) as mock_session:
                 # With new header and stream
                 await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
@@ -404,7 +433,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_with_overriden_header(self):
         """Verify that we issue a GET correctly for the happy path"""
-        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             with self.mock_session(server) as mock_session:
                 # With overriding a header and default stream (False)
                 await server.request("GET", "bar", headers={"Accept": "text/plain"})
@@ -440,7 +469,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
     )
     async def test_jwks_without_suitable_key(self, bad_jwks):
         with self.assertRaisesRegex(FatalError, "No private ES384 or RS384 key found"):
-            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=bad_jwks):
+            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks):
                 pass
 
     @ddt.data(
@@ -468,7 +497,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         )
 
         with self.assertRaisesRegex(FatalError, "does not support the client-confidential-asymmetric protocol"):
-            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
     async def test_authorize_error_with_response(self):
@@ -478,19 +507,19 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
         error.response.json.return_value = {"error_description": "Ouch!"}
         self.mock_client.authorize.side_effect = error
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: Ouch!"):
-            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
     async def test_authorize_error_without_response(self):
         """Verify that we translate authorize non-response errors into FatalErrors."""
         self.mock_client.authorize.side_effect = Exception("no memory")
         with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: no memory"):
-            async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks):
+            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
     async def test_get_error_401(self):
         """Verify that an expired token is refreshed."""
-        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             # Check that we correctly tried to re-authenticate
             with self.mock_session(server) as mock_session:
                 mock_session.send.side_effect = [make_response(status_code=401), make_response()]
@@ -505,7 +534,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_error_429(self):
         """Verify that 429 errors are passed through and not treated as exceptions."""
-        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             # Confirm 429 passes
             with self.mock_session(server, status_code=429):
                 response = await server.request("GET", "foo")
@@ -524,7 +553,7 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
     )
     async def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
-        async with FhirClient(self.server_url, [], client_id=self.client_id, jwks=self.jwks) as server:
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             with self.mock_session(server, status_code=500, **response_args):
                 with self.assertRaisesRegex(FatalError, "testmsg"):
                     await server.request("GET", "foo")
