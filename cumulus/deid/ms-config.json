@@ -5,6 +5,7 @@
   "fhirPathRules": [
     {"path": "nodesByName('modifierExtension')", "method": "keep", "comment": "Cumulus: keep these so we can ignore resources with modifiers we don't understand"},
     {"path": "DocumentReference.nodesByType('Attachment').data", "method": "keep", "comment": "Cumulus: needed to run NLP on physician notes"},
+    {"path": "DocumentReference.nodesByType('Attachment').url", "method": "keep", "comment": "Cumulus: needed to run NLP on physician notes"},
     {"path": "Patient.extension.where(url='http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex')", "method": "keep", "comment": "Cumulus: useful for studies"},
     {"path": "Patient.extension.where(url='http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity')", "method": "keep", "comment": "Cumulus: useful for studies"},
     {"path": "Patient.extension.where(url='http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity')", "method": "keep", "comment": "Cumulus: useful for studies"},

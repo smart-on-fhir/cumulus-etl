@@ -5,7 +5,7 @@ import os
 from socket import gethostname
 from typing import List
 
-from cumulus import common, formats, store
+from cumulus import common, fhir_client, formats, store
 
 
 class JobConfig:
@@ -25,6 +25,7 @@ class JobConfig:
         dir_phi: str,
         input_format: str,
         output_format: str,
+        client: fhir_client.FhirClient,
         timestamp: datetime.datetime = None,
         comment: str = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
@@ -36,6 +37,7 @@ class JobConfig:
         self.dir_phi = dir_phi
         self._input_format = input_format
         self._output_format = output_format
+        self.client = client
         self.timestamp = common.timestamp_filename(timestamp)
         self.hostname = gethostname()
         self.comment = comment or ""

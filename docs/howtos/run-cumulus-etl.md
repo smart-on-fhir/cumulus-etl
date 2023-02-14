@@ -328,6 +328,7 @@ The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client) 
 options than Cumulus ETL's built-in exporter offers.
 
 If you use this tool, pass Cumulus ETL the folder that holds the downloaded data as the input path.
+And you may need to specify `--fhir-url=` so that external document notes can be downloaded.
 
 ## EHR-Specific Advice
 

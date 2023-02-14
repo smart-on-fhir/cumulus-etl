@@ -2,6 +2,20 @@
 
 # Epic Tips & Tricks
 
+## Frequent Bulk Exporting
+
+You may encounter this error:
+`Error processing Bulk Data Kickoff request: Request not allowed: The Client requested this Group too recently.`.
+
+If so, you will want to update the `FHIR_BULK_CLIENT_REQUEST_WINDOW_TBL` to a longer time.
+The default is 24 hours.
+
+## Long IDs
+
+In rare cases, Epic's bulk FHIR export can generate IDs that are longer than the mandated 64-character limit.
+Cumulus ETL itself will not mind this, but if you use another bulk export client, you may find that it complains. 
+If so, you have to reach out to Epic to cap it at 64 characters.
+
 ## Batch Updates
 
 Epic has not yet (as of early 2023) implemented the `_since` or `_typeFilter` parameters for bulk exports.

@@ -11,12 +11,12 @@ import socket
 import sys
 import tempfile
 import time
-from typing import List, Type
+from typing import Iterable, List, Type
 from urllib.parse import urlparse
 
 import ctakesclient
 
-from cumulus import common, context, deid, errors, loaders, store, tasks
+from cumulus import common, context, deid, errors, fhir_client, loaders, store, tasks
 from cumulus.config import JobConfig, JobSummary
 
 
@@ -27,9 +27,7 @@ from cumulus.config import JobConfig, JobSummary
 ###############################################################################
 
 
-async def load_and_deidentify(
-    loader: loaders.Loader, selected_tasks: List[Type[tasks.EtlTask]]
-) -> tempfile.TemporaryDirectory:
+async def load_and_deidentify(loader: loaders.Loader, resources: Iterable[str]) -> tempfile.TemporaryDirectory:
     """
     Loads the input directory and does a first-pass de-identification
 
@@ -37,17 +35,14 @@ async def load_and_deidentify(
 
     :returns: a temporary directory holding the de-identified files in FHIR ndjson format
     """
-    # Grab a list of all required resource types for the tasks we are running
-    required_resources = set(t.resource for t in selected_tasks)
-
     # First step is loading all the data into a local ndjson format
-    loaded_dir = await loader.load_all(list(required_resources))
+    loaded_dir = await loader.load_all(list(resources))
 
     # Second step is de-identifying that data (at a bulk level)
     return await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
-def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> List[JobSummary]:
+async def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> List[JobSummary]:
     """
     :param config: job config
     :param selected_tasks: the tasks to run
@@ -58,7 +53,7 @@ def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> Lis
     scrubber = deid.Scrubber(config.dir_phi)
     for task_class in selected_tasks:
         task = task_class(config, scrubber)
-        summary = task.run()
+        summary = await task.run()
         summary_list.append(summary)
 
         path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
@@ -195,6 +190,9 @@ def make_parser() -> argparse.ArgumentParser:
         metavar="PATH",
         help="Bearer token for custom bearer authentication",
     )
+    export.add_argument(
+        "--fhir-url", metavar="URL", help="FHIR server base URL, only needed if you exported separately"
+    )
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
 
@@ -211,6 +209,39 @@ def make_parser() -> argparse.ArgumentParser:
     debug.add_argument("--skip-init-checks", action="store_true", help=argparse.SUPPRESS)
 
     return parser
+
+
+def create_fhir_client(args, root_input, resources):
+    client_base_url = args.fhir_url
+    if root_input.protocol in {"http", "https"}:
+        if args.fhir_url and not root_input.path.startswith(args.fhir_url):
+            print(
+                "You provided both an input FHIR server and a different --fhir-url. Try dropping --fhir-url.",
+                file=sys.stderr,
+            )
+            raise SystemExit(errors.ARGS_CONFLICT)
+        client_base_url = root_input.path
+
+    try:
+        try:
+            # Try to load client ID from file first (some servers use crazy long ones, like SMART's bulk-data-server)
+            smart_client_id = common.read_text(args.smart_client_id).strip() if args.smart_client_id else None
+        except FileNotFoundError:
+            smart_client_id = args.smart_client_id
+
+        smart_jwks = common.read_json(args.smart_jwks) if args.smart_jwks else None
+        bearer_token = common.read_text(args.bearer_token).strip() if args.bearer_token else None
+    except OSError as exc:
+        print(exc, file=sys.stderr)
+        raise SystemExit(errors.ARGS_INVALID) from exc
+
+    return fhir_client.FhirClient(
+        client_base_url,
+        resources,
+        client_id=smart_client_id,
+        jwks=smart_jwks,
+        bearer_token=bearer_token,
+    )
 
 
 async def main(args: List[str]):
@@ -233,45 +264,49 @@ async def main(args: List[str]):
     job_context = context.JobContext(root_phi.joinpath("context.json"))
     job_datetime = common.datetime_now()  # grab timestamp before we do anything
 
-    if args.input_format == "i2b2":
-        config_loader = loaders.I2b2Loader(root_input, args.batch_size)
-    else:
-        config_loader = loaders.FhirNdjsonLoader(
-            root_input,
-            client_id=args.smart_client_id,
-            jwks=args.smart_jwks,
-            bearer_token=args.bearer_token,
-            since=args.since,
-            until=args.until,
-        )
-
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
     task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
     selected_tasks = tasks.EtlTask.get_selected_tasks(task_names, task_filters)
 
-    # Pull down resources and run the MS tool on them
-    deid_dir = await load_and_deidentify(config_loader, selected_tasks)
+    # Grab a list of all required resource types for the tasks we are running
+    required_resources = set(t.resource for t in selected_tasks)
 
-    # Prepare config for jobs
-    config = JobConfig(
-        args.dir_input,
-        deid_dir.name,
-        args.dir_output,
-        args.dir_phi,
-        args.input_format,
-        args.output_format,
-        comment=args.comment,
-        batch_size=args.batch_size,
-        timestamp=job_datetime,
-        tasks=[t.name for t in selected_tasks],
-    )
-    common.write_json(config.path_config(), config.as_json(), indent=4)
-    common.print_header("Configuration:")
-    print(json.dumps(config.as_json(), indent=4))
+    # Create a client to talk to a FHIR server.
+    # This is useful even if we aren't doing a bulk export, because some resources like DocumentReference can still
+    # reference external resources on the server (like the document text).
+    # If we don't need this client (e.g. we're using local data and don't download any attachments), this is a no-op.
+    client = create_fhir_client(args, root_input, required_resources)
 
-    # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-    summaries = etl_job(config, selected_tasks)
+    async with client:
+        if args.input_format == "i2b2":
+            config_loader = loaders.I2b2Loader(root_input, args.batch_size)
+        else:
+            config_loader = loaders.FhirNdjsonLoader(root_input, client, since=args.since, until=args.until)
+
+        # Pull down resources and run the MS tool on them
+        deid_dir = await load_and_deidentify(config_loader, required_resources)
+
+        # Prepare config for jobs
+        config = JobConfig(
+            args.dir_input,
+            deid_dir.name,
+            args.dir_output,
+            args.dir_phi,
+            args.input_format,
+            args.output_format,
+            client,
+            comment=args.comment,
+            batch_size=args.batch_size,
+            timestamp=job_datetime,
+            tasks=[t.name for t in selected_tasks],
+        )
+        common.write_json(config.path_config(), config.as_json(), indent=4)
+        common.print_header("Configuration:")
+        print(json.dumps(config.as_json(), indent=4))
+
+        # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
+        summaries = await etl_job(config, selected_tasks)
 
     # Print results to the console
     common.print_header("Results:")
