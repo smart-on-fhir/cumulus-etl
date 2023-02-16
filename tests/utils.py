@@ -4,6 +4,9 @@ import json
 import os
 import unittest
 
+import httpx
+import respx
+
 
 class TreeCompareMixin(unittest.TestCase):
     """Mixin that provides a simple way to diff two trees of files"""
@@ -52,3 +55,32 @@ class TreeCompareMixin(unittest.TestCase):
 
         for subdircmp in dircmp.subdirs.values():
             self.assert_file_tree_equal(subdircmp)
+
+
+def make_response(status_code=200, json_payload=None, text=None, reason=None, headers=None, stream=False):
+    """
+    Makes a fake respx response for ease of testing.
+
+    Usually you'll want to use respx.get(...) etc directly.
+    But if you want to mock out the client <-> server interaction entirely, you can use this method to fake a
+    Response object from a method that returns one.
+
+    Example:
+        server.request.return_value = make_response()
+    """
+    headers = dict(headers or {})
+    headers.setdefault("Content-Type", "application/json" if json_payload else "text/plain; charset=utf-8")
+    json_payload = json.dumps(json_payload) if json_payload else None
+    body = (json_payload or text or "").encode("utf8")
+    stream_contents = None
+    if stream:
+        stream_contents = httpx.ByteStream(body)
+        body = None
+    return respx.MockResponse(
+        status_code=status_code,
+        content=body,
+        stream=stream_contents,
+        extensions=reason and {"reason_phrase": reason.encode("utf8")},
+        headers=headers or {},
+        request=httpx.Request("GET", "fake_request_url"),
+    )

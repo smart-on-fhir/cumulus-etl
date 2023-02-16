@@ -1,5 +1,8 @@
 """Exception classes and error handling"""
 
+import sys
+
+
 # Error return codes, mostly just distinguished for the benefit of tests.
 # These start at 10 just to leave some room for future use.
 SQL_USER_MISSING = 10
@@ -18,3 +21,11 @@ ARGS_CONFLICT = 22
 ARGS_INVALID = 23
 FHIR_URL_MISSING = 24
 BASIC_CREDENTIALS_MISSING = 25
+BULK_EXPORT_FOLDER_NOT_EMPTY = 26
+BULK_EXPORT_FOLDER_NOT_LOCAL = 27
+
+
+def fatal(message: str, status: int):
+    """Convenience method to exit the program with a user-friendly error message a test-friendly status code"""
+    print(message, file=sys.stderr)
+    sys.exit(status)  # raises a SystemExit exception
