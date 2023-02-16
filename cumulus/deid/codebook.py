@@ -5,6 +5,7 @@ import hmac
 import logging
 import os
 import secrets
+from typing import Optional
 
 from cumulus import common
 
@@ -27,7 +28,7 @@ class Codebook:
         except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
-    def fake_id(self, resource_type: str, real_id: str) -> str:
+    def fake_id(self, resource_type: Optional[str], real_id: str) -> str:
         """
         Returns a new fake ID in place of the provided real ID
 
