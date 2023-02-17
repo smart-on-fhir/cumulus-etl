@@ -134,7 +134,14 @@ class Scrubber:
         # "reference" can sometimes be a URL or non-FHIRReference element -- at some point we'll need to be smarter.
         elif key == "reference":
             resource_type, real_id = fhir_common.unref_resource(node)
-            fake_id = self.codebook.fake_id(resource_type, real_id)
+
+            # Handle contained references (see comments in unref_resource for more detail)
+            prefix = ""
+            if real_id.startswith("#"):
+                prefix = "#"
+                real_id = real_id[1:]
+
+            fake_id = f"{prefix}{self.codebook.fake_id(resource_type, real_id)}"
             node["reference"] = fhir_common.ref_resource(resource_type, fake_id)["reference"]
 
     @staticmethod

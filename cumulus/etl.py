@@ -97,7 +97,7 @@ def check_ctakes() -> None:
     if not is_url_available(ctakes_url):
         print(
             f"A running cTAKES server was not found at:\n    {ctakes_url}\n\n"
-            "Please set the URL_CTAKES_REST environment variable to your server.",
+            "Please set the URL_CTAKES_REST environment variable or start the docker support services.",
             file=sys.stderr,
         )
         raise SystemExit(errors.CTAKES_MISSING)
@@ -112,7 +112,7 @@ def check_cnlpt() -> None:
     if not is_url_available(cnlpt_url):
         print(
             f"A running cNLP transformers server was not found at:\n    {cnlpt_url}\n\n"
-            "Please set the URL_CNLP_NEGATION environment variable to your server.",
+            "Please set the URL_CNLP_NEGATION environment variable or start the docker support services.",
             file=sys.stderr,
         )
         raise SystemExit(errors.CNLPT_MISSING)
