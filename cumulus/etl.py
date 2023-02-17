@@ -187,6 +187,9 @@ def make_parser() -> argparse.ArgumentParser:
     auth.add_argument("--fhir-url", metavar="URL", help="FHIR server base URL, only needed if you exported separately")
 
     export = parser.add_argument_group("bulk export")
+    export.add_argument(
+        "--export-to", metavar="PATH", help="Where to put exported files (default is to delete after use)"
+    )
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
 
@@ -279,7 +282,9 @@ async def main(args: List[str]):
         if args.input_format == "i2b2":
             config_loader = loaders.I2b2Loader(root_input, args.batch_size)
         else:
-            config_loader = loaders.FhirNdjsonLoader(root_input, client, since=args.since, until=args.until)
+            config_loader = loaders.FhirNdjsonLoader(
+                root_input, client, export_to=args.export_to, since=args.since, until=args.until
+            )
 
         # Pull down resources and run the MS tool on them
         deid_dir = await load_and_deidentify(config_loader, required_resources)

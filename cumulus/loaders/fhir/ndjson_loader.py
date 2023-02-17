@@ -1,8 +1,9 @@
 """Ndjson FHIR loader"""
 
 import logging
-import sys
+import os
 import tempfile
+import urllib.parse
 from typing import List
 
 from cumulus import common, errors, store
@@ -23,28 +24,52 @@ class FhirNdjsonLoader(base.Loader):
         self,
         root: store.Root,
         client: FhirClient,
+        export_to: str = None,
         since: str = None,
         until: str = None,
     ):
         """
         :param root: location to load ndjson from
         :param client: client ready to talk to a FHIR server
+        :param export_to: folder to write the results into, instead of a temporary directory
         :param since: export start date for a FHIR server
         :param until: export end date for a FHIR server
         """
         super().__init__(root)
         self.client = client
+        self.export_to = export_to
         self.since = since
         self.until = until
 
-    async def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+        # Do some quality checks on the export-to folder, if it was specified. Must be local, present, and empty.
+        if self.export_to:
+            if urllib.parse.urlparse(self.export_to).netloc:
+                # We require a local folder because that's all that the MS deid tool can operate on.
+                # If we were to relax this requirement, we'd want to copy the exported files over to a local dir.
+                errors.fatal(
+                    f"The target export folder '{self.export_to}' must be local. ", errors.BULK_EXPORT_FOLDER_NOT_LOCAL
+                )
+
+            try:
+                if os.listdir(self.export_to):
+                    errors.fatal(
+                        f"The target export folder '{self.export_to}' already has contents. "
+                        "Please provide an empty folder.",
+                        errors.BULK_EXPORT_FOLDER_NOT_EMPTY,
+                    )
+            except FileNotFoundError:
+                # Target folder doesn't exist, so let's make it
+                os.makedirs(self.export_to, mode=0o700)
+
+    async def load_all(self, resources: List[str]) -> base.Directory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
             return await self._load_from_bulk_export(resources)
 
-        if self.since or self.until:
-            print("You provided FHIR bulk export parameters but did not provide a FHIR server", file=sys.stderr)
-            raise SystemExit(errors.ARGS_CONFLICT)
+        if self.export_to or self.since or self.until:
+            errors.fatal(
+                "You provided FHIR bulk export parameters but did not provide a FHIR server", errors.ARGS_CONFLICT
+            )
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
@@ -64,14 +89,16 @@ class FhirNdjsonLoader(base.Loader):
                 logging.warning("No resources found for %s", resource)
         return tmpdir
 
-    async def _load_from_bulk_export(self, resources: List[str]) -> tempfile.TemporaryDirectory:
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+    async def _load_from_bulk_export(self, resources: List[str]) -> base.Directory:
+        if self.export_to:
+            target_dir = base.RealDirectory(self.export_to)
+        else:
+            target_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            bulk_exporter = BulkExporter(self.client, resources, tmpdir.name, self.since, self.until)
+            bulk_exporter = BulkExporter(self.client, resources, target_dir.name, self.since, self.until)
             await bulk_exporter.export()
         except FatalError as exc:
-            print(str(exc), file=sys.stderr)
-            raise SystemExit(errors.BULK_EXPORT_FAILED) from exc
+            errors.fatal(str(exc), errors.BULK_EXPORT_FAILED)
 
-        return tmpdir
+        return target_dir

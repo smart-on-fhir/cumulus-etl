@@ -7,7 +7,7 @@ from functools import partial
 from typing import Callable, Iterable, List, TypeVar
 
 from cumulus import store
-from cumulus.loaders.base import Loader
+from cumulus.loaders.base import Directory, Loader
 from cumulus.loaders.i2b2 import extract, schema, transform
 from cumulus.loaders.i2b2.oracle import extract as oracle_extract
 
@@ -39,7 +39,7 @@ class I2b2Loader(Loader):
         super().__init__(root)
         self.batch_size = batch_size
 
-    async def load_all(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    async def load_all(self, resources: List[str]) -> Directory:
         if self.root.protocol in ["tcp"]:
             return self._load_all_from_oracle(resources)
 

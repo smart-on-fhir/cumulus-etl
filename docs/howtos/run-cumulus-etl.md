@@ -319,6 +319,28 @@ Note that support for these parameters among EHRs is not super common.
 But if you are lucky enough to be working with an EHR that supports either one,
 you can pass in a time like `--since=2023-01-16T20:32:48Z`.
 
+#### Saving Bulk Export Files
+
+Bulk exports can be tricky to get right and can take a long time.
+Sometimes (and especially when first experimenting with Cumulus ETL),
+you will want to save the results of a bulk export for inspection or in case Cumulus ETL fails.
+
+By default, Cumulus ETL throws away the results of a bulk export once it's done with them.
+But you can pass `--export-to=/path/to/folder` to instead save the exported `.ndjson` files in the given folder.
+
+Note that you'll want to expose the local path to docker so that the files reach your actual disk, like so:
+
+```sh
+docker compose \
+  run --rm \
+  --volume /my/exported/files:/folder \
+  cumulus-etl \
+  --export-to=/folder \
+  https://my-fhir-server/ \
+  s3://output/ \
+  s3://phi/
+```
+
 #### External Bulk Export
 
 Instead of using Cumulus ETL to drive your bulk export itself, you can instead do the bulk export externally,
