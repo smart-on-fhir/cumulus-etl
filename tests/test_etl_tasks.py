@@ -34,7 +34,15 @@ class TestTasks(CtakesMixin, unittest.IsolatedAsyncioTestCase):
         os.makedirs(self.phi_dir)
 
         self.job_config = config.JobConfig(
-            self.input_dir, self.input_dir, self.tmpdir.name, self.phi_dir, "ndjson", "ndjson", client, batch_size=5
+            self.input_dir,
+            self.input_dir,
+            self.tmpdir.name,
+            self.phi_dir,
+            "ndjson",
+            "ndjson",
+            client,
+            ctakes_overrides=self.ctakes_overrides.name,
+            batch_size=5,
         )
 
         self.format = mock.MagicMock()

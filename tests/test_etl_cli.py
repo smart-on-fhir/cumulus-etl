@@ -69,6 +69,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
             output_path or self.output_path,
             phi_path or self.phi_path,
             "--skip-init-checks",
+            f"--ctakes-overrides={self.ctakes_overrides.name}",
         ]
         if input_format:
             args.append(f"--input-format={input_format}")
@@ -387,6 +388,8 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
     async def test_stores_cached_json(self):
         await self.run_etl(output_format="parquet", tasks=["covid_symptom__nlp_results"])
 
+        self.assertTrue(self.was_ctakes_called())
+
         notes_csv_path = os.path.join(self.input_path, "observation_fact_notes.csv")
         facts = list(extract.extract_csv_observation_facts(notes_csv_path, 5))
 
@@ -425,7 +428,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         # We should never have called our mock cTAKES server
-        self.assertEqual(0, self.nlp_mock.call_count)
+        self.assertFalse(self.was_ctakes_called())
         self.assertEqual(0, self.cnlp_mock.call_count)
 
         # And we should see our fake cached results in the output

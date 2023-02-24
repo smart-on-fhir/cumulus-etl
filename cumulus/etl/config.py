@@ -29,6 +29,7 @@ class JobConfig:
         timestamp: datetime.datetime = None,
         comment: str = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
+        ctakes_overrides: str = None,
         tasks: List[str] = None,
     ):
         self._dir_input_orig = dir_input_orig
@@ -42,6 +43,7 @@ class JobConfig:
         self.hostname = gethostname()
         self.comment = comment or ""
         self.batch_size = batch_size
+        self.ctakes_overrides = ctakes_overrides
         self.tasks = tasks or []
 
         # initialize format class
