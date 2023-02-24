@@ -10,6 +10,7 @@ dependencies = [
     "jwcrypto",
     "oracledb",
     "pandas",
+    "philter-lite",
     "pyarrow",
     "s3fs",
 ]

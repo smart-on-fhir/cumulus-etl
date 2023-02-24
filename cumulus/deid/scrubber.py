@@ -5,7 +5,7 @@ import tempfile
 from typing import Any
 
 from cumulus import fhir_common
-from cumulus.deid import codebook, mstool
+from cumulus.deid import codebook, mstool, philter
 
 
 class SkipResource(Exception):
@@ -33,6 +33,7 @@ class Scrubber:
     def __init__(self, codebook_dir: str = None):
         self.codebook = codebook.Codebook(codebook_dir)
         self.codebook_dir = codebook_dir
+        self.philter = philter.Philter()
 
     @staticmethod
     async def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
@@ -59,7 +60,7 @@ class Scrubber:
         :returns: whether this resource is allowed to be used
         """
         try:
-            self._scrub_node("root", node, scrub_attachments=scrub_attachments)
+            self._scrub_node(node.get("resourceType"), "root", node, scrub_attachments=scrub_attachments)
         except SkipResource as exc:
             logging.warning("Ignoring resource of type %s: %s", node.__class__.__name__, exc)
             return False
@@ -68,6 +69,15 @@ class Scrubber:
             return False
 
         return True
+
+    def scrub_text(self, text: str) -> str:
+        """
+        Scrub text of any detected PHI.
+
+        :param text: the text to scrub
+        :returns: the scrubbed text, with PHI replaced by asterisks ("*")
+        """
+        return self.philter.scrub_text(text)
 
     def save(self) -> None:
         """Saves any resources used to persist across runs (like the codebook)"""
@@ -80,7 +90,7 @@ class Scrubber:
     #
     ###############################################################################
 
-    def _scrub_node(self, node_path: str, node: dict, scrub_attachments: bool) -> None:
+    def _scrub_node(self, resource_type: str, node_path: str, node: dict, scrub_attachments: bool) -> None:
         """Examines all properties of a node"""
         for key, values in list(node.items()):
             if values is None:
@@ -91,20 +101,25 @@ class Scrubber:
                 values = [values]
 
             for value in values:
-                self._scrub_single_value(node_path, node, key, value, scrub_attachments=scrub_attachments)
+                self._scrub_single_value(
+                    resource_type, node_path, node, key, value, scrub_attachments=scrub_attachments
+                )
 
-    def _scrub_single_value(self, node_path: str, node: dict, key: str, value: Any, scrub_attachments: bool) -> None:
+    def _scrub_single_value(
+        self, resource_type: str, node_path: str, node: dict, key: str, value: Any, scrub_attachments: bool
+    ) -> None:
         """Examines one single property of a node"""
         # For now, just manually run each operation. If this grows further, we can abstract it more.
         self._check_ids(node_path, node, key, value)
         self._check_modifier_extensions(key, value)
         self._check_security(node_path, node, key, value)
+        self._check_text(node, key, value)
         if scrub_attachments:
-            self._check_attachments(node_path, node, key)
+            self._check_attachments(resource_type, node_path, node, key)
 
         # Recurse if we are holding another FHIR object (i.e. a dict instead of a string)
         if isinstance(value, dict):
-            self._scrub_node(f"{node_path}.{key}", value, scrub_attachments=scrub_attachments)
+            self._scrub_node(resource_type, f"{node_path}.{key}", value, scrub_attachments=scrub_attachments)
 
     ###############################################################################
     #
@@ -144,10 +159,33 @@ class Scrubber:
             fake_id = f"{prefix}{self.codebook.fake_id(resource_type, real_id)}"
             node["reference"] = fhir_common.ref_resource(resource_type, fake_id)["reference"]
 
+    def _check_text(self, node: dict, key: str, value: Any):
+        """Scrubs text values that got through the MS config by passing them through philter"""
+        # Mostly, we are filtering any freeform text fields we previously allowed in with ms-config.json.
+        if any(
+            (
+                # Coding.display is clinically unnecessary but is useful for rendering.
+                # Since "code" is always present, downstream consumers can & should provide their own display label.
+                # But we don't remove it entirely, for cases where unexpected codes are used.
+                # Note that this will definitely over-scrub (like scrubbing "White" from the USCDI race extension),
+                # but again -- this display value is redundant and rather than try to be smart, we're safely dumb.
+                key == "display",
+                # CodeableConcept.text has clinical value for situations that don't have clear coding yet.
+                # Think early-days Covid day PCRs. Which is why we let it through in the first place.
+                # But we should still scrub it since it is loose text that could hold PHI.
+                key == "text",
+                # Observation.valueString has clinical value, but could hold PHI.
+                # Similarly, extensions might have valueString members (though the only supported ones don't have
+                # interesting fields there -- race & ethnicity allow for freeform text descriptions).
+                key == "valueString",
+            )
+        ):
+            node[key] = self.scrub_text(value)
+
     @staticmethod
-    def _check_attachments(node_path: str, node: dict, key: str) -> None:
+    def _check_attachments(resource_type: str, node_path: str, node: dict, key: str) -> None:
         """Strip any attachment data"""
-        if node_path == "root.content.attachment" and key in {"data", "url"}:
+        if resource_type == "DocumentReference" and node_path == "root.content.attachment" and key in {"data", "url"}:
             del node[key]
 
     @staticmethod

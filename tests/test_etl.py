@@ -367,7 +367,7 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
         # sha256 checksums of the two test patient notes
         self.expected_checksums = [
             "5db841c4c46d8a25fbb1891fd1eb352170278fa2b931c1c5edebe09a06582fb5",
-            "6466bb1868126fd2b5e357a556fceed075fab1e8d25d5f777abf33144d93c5cf",
+            "47f2c3b7cd114908b8c1a56bb26db2a9d9901a5d5571a327a69474a641a9fc3d",
         ]
 
     def path_for_checksum(self, prefix, checksum):

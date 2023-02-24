@@ -1,0 +1,33 @@
+"""
+Run text through philter to remove PHI from free-form text.
+
+See https://github.com/SironaMedical/philter-lite for more details.
+"""
+
+import os
+
+import nltk
+import philter_lite
+
+
+class Philter:
+    """Simple class to abstract away Philter text processing"""
+
+    def __init__(self):
+        # Ensure all the nltk data that our filter_config (below) needs is available.
+        # In docker deployments, these should already be shipped with our docker image.
+        nltk.download("averaged_perceptron_tagger", quiet=True)
+
+        # philter-lite does not seem to have any easy way to reference this default config...?
+        filter_config = os.path.join(os.path.dirname(philter_lite.__file__), "configs", "philter_delta.toml")
+        self.filters = philter_lite.load_filters(filter_config)
+
+    def scrub_text(self, text: str) -> str:
+        """
+        Scrub text of PHI using Philter.
+
+        :param text: the text to scrub
+        :returns: the scrubbed text, with PHI replaced by asterisks ("*")
+        """
+        include_map, _, _ = philter_lite.detect_phi(text, self.filters)
+        return philter_lite.transform_text_asterisk(text, include_map)

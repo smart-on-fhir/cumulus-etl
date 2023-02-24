@@ -83,7 +83,7 @@
     {"path": "DetectedIssue.detail", "method": "redact"},
     {"path":"xxx", "oldpath": "Observation.value", "method": "redact", "comment": "Cumulus: observations/lab results are useful for studies"},
     {"path": "Observation.referenceRange", "method": "redact"},
-    {"path": "Observation.component.value", "method": "redact"},
+    {"path":"xxx", "oldpath": "Observation.component.value", "method": "redact", "comment": "Cumulus: observations/lab results are useful for studies"},
     {"path": "Media.deviceName", "method": "redact"},
     {"path": "DiagnosticReport.media.comment", "method": "redact"},
     {"path": "DiagnosticReport.conclusion", "method": "redact"},
