@@ -132,6 +132,20 @@ It never leaves your institution's control.
 Any other resource is usually already tied to a patient or encounter.
 So Cumulus does not bother keeping a mapping for those.
 
+### Freeform Text Fields
+
+There are some freeform text fields that Cumulus ETS asks the Microsoft Anonymizer tool to leave in.
+These fields may be useful for presenting or computing a phenotype:
+- `CodeableConcept.text`
+- `Coding.display`
+- `Observation.valueString` and `Observation.component.valueString`
+
+Although Cumulus wants to largely preserve these fields,
+they may contain PHI since they are freeform text fields after all.
+
+So to reduce that risk, the [philter program](https://github.com/SironaMedical/philter-lite) is run on the text,
+which replaces any detected PHI like names, phone numbers, MRNs, social security numbers, etc. with asterisks.
+
 ### NLP on Physician Notes
 
 Physician notes are kept long enough to run them through cTAKES natural language processing,
@@ -139,12 +153,13 @@ then they are thrown away.
 
 The resulting detected symptoms and other medical codes from cTAKES are then kept in the de-identified results.
 
-There is some risk that cTAKES may mis-identify PHI as a medical term.
+There is a theoretical risk that cTAKES may mis-identify PHI as a medical term.
 As an extremely contrived example of a false positive:
 "Referring to Dr. Anosmia Jones. Patient has Anosmia as a friend."
 
 But even in such cases, there is no stored context for a medical term's usage.
-So if and when it does happen, it's more likely to be a quality concern than a PHI concern.
+That is, the surrounding text is not stored, and the word will simply appear to be a false positive symptom.
+So if that does happen, it would be more of a quality concern than a PHI concern.
 
 ## Conclusion
 

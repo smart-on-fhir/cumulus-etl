@@ -32,6 +32,11 @@ ENTRYPOINT ["cumulus-etl"]
 FROM python:3.10 AS cumulus-etl
 COPY --from=eclipse-temurin:17-jre /opt/java/openjdk /opt/java/openjdk
 COPY --from=ms-tool /bin/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool /bin
+
+# Ship pre-downloaded nltk files, used by philter
+RUN pip3 install nltk
+RUN python3 -m nltk.downloader -d /usr/local/share/nltk_data averaged_perceptron_tagger
+
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache \
   pip3 install /app
