@@ -24,13 +24,14 @@ class BulkExporter:
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
 
     def __init__(
-        self, client: FhirClient, resources: List[str], destination: str, since: str = None, until: str = None
+        self, client: FhirClient, resources: List[str], url: str, destination: str, since: str = None, until: str = None
     ):
         """
         Initialize a bulk exporter (but does not start an export).
 
         :param client: a client ready to make requests
         :param resources: a list of resource names to export
+        :param url: a target export URL (like https://example.com/Group/1234)
         :param destination: a local folder to store all the files
         :param since: start date for export
         :param until: end date for export
@@ -38,6 +39,9 @@ class BulkExporter:
         super().__init__()
         self._client = client
         self._resources = resources
+        self._url = url
+        if not self._url.endswith("/"):
+            self._url += "/"  # This will ensure the last segment does not get chopped off by urljoin
         self._destination = destination
         self._total_wait_time = 0  # in seconds, across all our requests
         self._since = since
@@ -71,7 +75,7 @@ class BulkExporter:
             params["_until"] = self._until
 
         response = await self._request_with_delay(
-            f"$export?{urllib.parse.urlencode(params)}",
+            urllib.parse.urljoin(self._url, f"$export?{urllib.parse.urlencode(params)}"),
             headers={"Prefer": "respond-async"},
             target_status_code=202,
         )

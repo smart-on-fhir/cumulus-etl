@@ -1,7 +1,6 @@
 """HTTP client that talk to a FHIR server"""
 
 import base64
-import re
 import sys
 import time
 import urllib.parse
@@ -241,16 +240,9 @@ class FhirClient:
         :param smart_client_id: the ID assigned by the FHIR server when registering a new backend service app
         :param smart_jwks: content of a JWK Set file, containing the private key for the registered public key
         """
-        # Allow url to be None in the case we are a fully local ETL run, and this class is basically a no-op
-        self._base_url = url  # all requests are relative to this URL
-        if self._base_url and not self._base_url.endswith("/"):
-            self._base_url += "/"
-        # The base URL may not be the server root (like it may be a Group export URL). Let's find the root.
-        self._server_root = self._base_url
-        if self._server_root:
-            self._server_root = re.sub(r"/Patient/$", "/", self._server_root)
-            self._server_root = re.sub(r"/Group/[^/]+/$", "/", self._server_root)
-
+        self._server_root = url  # all requests are relative to this URL
+        if self._server_root and not self._server_root.endswith("/"):
+            self._server_root += "/"  # This will ensure the last segment does not get chopped off by urljoin
         self._auth = self._make_auth(resources, basic_user, basic_password, bearer_token, smart_client_id, smart_jwks)
         self._session: Optional[httpx.AsyncClient] = None
 
@@ -282,7 +274,7 @@ class FhirClient:
         :param stream: whether to stream content in or load it all into memory at once
         :returns: The response object
         """
-        url = _urljoin(self._base_url, path)
+        url = _urljoin(self._server_root, path)
 
         final_headers = {
             "Accept": "application/fhir+json",

@@ -6,6 +6,7 @@ import itertools
 import json
 import logging
 import os
+import re
 import shutil
 import socket
 import sys
@@ -217,7 +218,12 @@ def create_fhir_client(args, root_input, resources):
                 file=sys.stderr,
             )
             raise SystemExit(errors.ARGS_CONFLICT)
-        client_base_url = root_input.path
+        elif not client_base_url:
+            # Use the input URL as the base URL. But note that it may not be the server root.
+            # For example, it may be a Group export URL. Let's try to find the actual root.
+            client_base_url = root_input.path
+            client_base_url = re.sub(r"/Patient/?$", "/", client_base_url)
+            client_base_url = re.sub(r"/Group/[^/]+/?$", "/", client_base_url)
 
     try:
         try:
