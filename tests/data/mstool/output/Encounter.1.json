@@ -1,0 +1,197 @@
+{
+  "resourceType": "Encounter",
+  "id": "enc1",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+
+  "status": "finished",
+  "statusHistory": [{
+    "status": "planned",
+    "period": {"start": "1800-03-04", "end": "2018-10-23"}
+  }],
+  "class": {
+    "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+    "code": "AMB"
+  },
+  "classHistory": [{
+    "class": {
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+      "code": "EMER"
+    },
+    "period": {"start": "2108-10-22", "end": "2018-10-23"}
+  }],
+  "type": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "185345009",
+          "display": "Encounter for symptom"
+        }
+      ],
+      "text": "Encounter for symptom"
+    }
+  ],
+  "serviceType": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/service-type",
+        "code": "60"
+      }
+    ]
+  },
+  "priority": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ActPriority",
+        "code": "PRN"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/pat1",
+    "type": "Patient"
+  },
+  "episodeOfCare": [{ "reference": "EpisodeOfCare/1" }],
+  "basedOn": [{ "reference": "ServiceRequest/1" }],
+  "participant": [
+    {
+      "type": [
+        {
+          "coding": [
+            {
+              "system": "http://terminology.hl7.org/CodeSystem/v3-ParticipationType",
+              "code": "PPRF",
+              "display": "primary performer"
+            }
+          ],
+          "text": "primary performer"
+        }
+      ],
+      "period": {
+        "start": "1985-06-18T17:30:49-04:00",
+        "end": "1985-06-18T17:45:49-04:00"
+      },
+      "individual": {
+        "reference": "Practitioner/pra1"
+      }
+    }
+  ],
+  "appointment": [{ "reference": "Appointment/1" }],
+  "period": {
+    "start": "1985-06-18T17:30:49-04:00",
+    "end": "1985-06-18T17:45:49-04:00"
+  },
+  "length": {
+    "value": 12,
+    "code": "min"
+  },
+  "reasonCode": [
+    {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "75498004",
+          "display": "Acute bacterial sinusitis (disorder)"
+        }
+      ]
+    }
+  ],
+  "reasonReference": [{ "reference": "Condition/1" }],
+  "diagnosis": [{
+    "condition": { "reference": "Condition/1" },
+    "use": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/diagnosis-role",
+          "code": "AD"
+        }
+      ]
+    },
+    "rank": 3
+  }],
+  "account": [{ "reference": "Account/1" }],
+  "hospitalization": {
+    "origin": { "reference": "Location/1" },
+    "admitSource": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/admit-source",
+          "code": "emd"
+        }
+      ]
+    },
+    "reAdmission": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/v2-0092",
+          "code": "R"
+        }
+      ]
+    },
+    "dietPreference": [
+      {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/diet",
+            "code": "vegan"
+          }
+        ]
+      }
+    ],
+    "specialCourtesy": [
+      {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/v3-EncounterSpecialCourtesy",
+            "code": "VIP"
+          }
+        ]
+      }
+    ],
+    "specialArrangement": [
+      {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/encounter-special-arrangements",
+            "code": "int"
+          }
+        ]
+      }
+    ],
+    "destination": { "reference": "Location/2" },
+    "dischargeDisposition": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/discharge-disposition",
+          "code": "home"
+        }
+      ]
+    }
+  },
+  "location": [{
+    "location": { "reference": "Location/1" },
+    "status": "active",
+    "physicalType": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/location-physical-type",
+          "code": "si"
+        }
+      ]
+    },
+    "period": {
+      "start": "1985-06-18T17:30:49-04:00",
+      "end": "1985-06-18T17:45:49-04:00"
+    }
+  }],
+  "serviceProvider": {
+    "reference": "Organization/org1"
+  },
+  "partOf": { "reference": "Encounter/3" }
+}

@@ -19,7 +19,7 @@ as the Cumulus project shepherds that data from the EHR to the Cumulus dashboard
 
 This is the raw data from the EHR, usually in the form of a bulk FHIR export.
 Cumulus ETL saves this data locally to a temporary folder before beginning its work
-(this folder gets deleted after use or even if the program is interrupted).
+(this folder gets deleted after use or even if the process is interrupted).
 
 ### De-identified Records
 
@@ -58,7 +58,7 @@ Let's explore that.
 There are three main transformations of PHI inside Cumulus ETL:
 1. A [Microsoft anonymization tool](https://github.com/microsoft/Tools-for-Health-Data-Anonymization)
    is run on the bulk data.
-2. Cumulus ETL replaces all resource IDs with anonymized IDs
+2. Cumulus ETL replaces all resource IDs with anonymized IDs and runs philter on a few text fields
 3. NLP is run on physician notes (which are then discarded)
 
 ### Microsoft Anonymizer
@@ -69,35 +69,38 @@ or redact everything.
 
 Cumulus ETL uses a
 [custom configuration](https://github.com/smart-on-fhir/cumulus-etl/blob/main/cumulus/deid/ms-config.json),
-based off the
-[standard recommended HIPAA config](https://github.com/microsoft/Tools-for-Health-Data-Anonymization/blob/master/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool/configuration-sample.json).
+designed to remove everything by default, and only allow specifically mentioned fields
+(i.e. an allow-list or whitelist).
 
-#### The Standard Config
+This config also handles some fields like dates and zip codes specially, detailed below.
 
-The base configuration does a few common but interesting things:
-- Removes a lot of the standard identifying elements like names, addresses, etc.
-- Date-shifts any dates or times (and redacts ages to birth-year and marks anyone over 89 as 89)
-- Strips zip codes down to three digits, plus entirely redacts a list of small-population zip codes
-  where even three digits is too identifying
+#### Dates
 
-Now let's explore the exceptions to the base configuration.
-
-#### Dates Are Not Shifted
-
-Accurate dates are too useful for study purposes to randomly shift a month here or there.
-And they carry
+Most dates are left alone, as precise timing is useful for studies and carries
 [minimal PHI risk](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3907029/).
+But anything age related is carefully handled in the usual HIPAA manner:
 
-Birthdays remain redacted to birth-year.
-And 89+ remains a single age group.
+- Birthdates are redacted down to just the year (no month or day)
+- If the birthdate (or other age field) indicates an age over 89, the field is entirely removed.
 
-#### Other Useful Fields Are Kept
+#### Zip Codes
 
-Like dates, some FHIR fields are kept because they are useful for studies:
-- Race
-- Codings of all sorts (UMLS, SNOMED, etc markings)
-- IDs (see below for how these are handled)
-- Physician notes (see below for how these are handled)
+Zip codes are redacted down to just the first three digits (e.g. `12139` becomes `12100`).
+
+Additionally, for certain small-population zip codes where even three digits is too identifying,
+the zip code is entirely redacted to `00000`.
+
+#### Extensions
+
+All extensions are removed, except for:
+- The USCDI patient extensions (birth sex, gender identity, race, and ethnicity)
+- "Modifier" extensions which will flag to the ETL that a resource should be skipped
+
+#### Physician Notes
+
+Be aware that physician notes are not removed at this stage.
+They are kept for now, so that Cumulus ETL can run natural language processing on them.
+See below for more information on that.
 
 ### IDs
 
