@@ -96,7 +96,9 @@ class FhirNdjsonLoader(base.Loader):
             target_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
 
         try:
-            bulk_exporter = BulkExporter(self.client, resources, target_dir.name, self.since, self.until)
+            bulk_exporter = BulkExporter(
+                self.client, resources, self.root.path, target_dir.name, self.since, self.until
+            )
             await bulk_exporter.export()
         except FatalError as exc:
             errors.fatal(str(exc), errors.BULK_EXPORT_FAILED)

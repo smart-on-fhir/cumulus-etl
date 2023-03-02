@@ -143,6 +143,18 @@ class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
         """Verify that we handle the user provided --fhir-client correctly"""
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
 
+        # Confirm that we chop an input URL down to a base server URL
+        with self.assertRaises(ValueError):
+            await etl.main(
+                [
+                    "https://example.com/hello1/Group/1234",
+                    "/tmp/output",
+                    "/tmp/phi",
+                    "--skip-init-checks",
+                ]
+            )
+        self.assertEqual("https://example.com/hello1/", mock_client.call_args[0][0])
+
         # Confirm that we don't allow conflicting URLs
         with self.assertRaises(SystemExit):
             await etl.main(
@@ -151,7 +163,7 @@ class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
                     "/tmp/output",
                     "/tmp/phi",
                     "--skip-init-checks",
-                    "--fhir-url=https://example.com/hello",
+                    "--fhir-url=https://example.com/hello2",
                 ]
             )
 
@@ -159,14 +171,14 @@ class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await etl.main(
                 [
-                    "https://example.com/hello/Group/1234",
+                    "https://example.com/hello3/Group/1234",
                     "/tmp/output",
                     "/tmp/phi",
                     "--skip-init-checks",
-                    "--fhir-url=https://example.com/hello",
+                    "--fhir-url=https://example.com/hello3",
                 ]
             )
-        self.assertEqual("https://example.com/hello/Group/1234", mock_client.call_args[0][0])
+        self.assertEqual("https://example.com/hello3", mock_client.call_args[0][0])
 
         # Now do a normal use of --fhir-url
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
@@ -177,10 +189,10 @@ class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
                     "/tmp/output",
                     "/tmp/phi",
                     "--skip-init-checks",
-                    "--fhir-url=https://example.com/hello",
+                    "--fhir-url=https://example.com/hello4",
                 ]
             )
-        self.assertEqual("https://example.com/hello", mock_client.call_args[0][0])
+        self.assertEqual("https://example.com/hello4", mock_client.call_args[0][0])
 
     @mock.patch("cumulus.etl.fhir_client.FhirClient")
     async def test_export_flow(self, mock_client):
@@ -223,7 +235,7 @@ class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
             folder = await loader.load_all([])
 
             self.assertTrue(os.path.isdir(target))  # confirm it got created
-            self.assertEqual(target, self.mock_exporter_class.call_args[0][2])
+            self.assertEqual(target, self.mock_exporter_class.call_args[0][3])
             self.assertEqual(target, folder.name)
 
     def test_export_to_folder_has_contents(self):

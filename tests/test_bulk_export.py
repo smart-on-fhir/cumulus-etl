@@ -34,7 +34,7 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
         self.server = mock.AsyncMock()
 
     def make_exporter(self, **kwargs) -> BulkExporter:
-        return BulkExporter(self.server, ["Condition", "Patient"], self.tmpdir.name, **kwargs)
+        return BulkExporter(self.server, ["Condition", "Patient"], "https://localhost/", self.tmpdir.name, **kwargs)
 
     async def export(self, **kwargs) -> BulkExporter:
         exporter = self.make_exporter(**kwargs)
@@ -66,7 +66,7 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition%2CPatient",
+                    "https://localhost/$export?_type=Condition%2CPatient",
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
@@ -99,7 +99,8 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition%2CPatient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
+                    "https://localhost/$export?"
+                    "_type=Condition%2CPatient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
                     headers={"Prefer": "respond-async"},
                 ),
             ],
@@ -141,7 +142,7 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition%2CPatient",
+                    "https://localhost/$export?_type=Condition%2CPatient",
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
@@ -227,7 +228,7 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
             [
                 mock.call(
                     "GET",
-                    "$export?_type=Condition%2CPatient",
+                    "https://localhost/$export?_type=Condition%2CPatient",
                     headers={"Prefer": "respond-async"},
                 ),
                 mock.call("GET", "https://example.com/poll", headers={"Accept": "application/json"}),
