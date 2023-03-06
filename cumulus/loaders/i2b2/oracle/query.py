@@ -98,7 +98,7 @@ def sql_observation_fact(categories: List[str]) -> str:
     cols_visit_dim = f"O.ENCOUNTER_NUM, {start_date}, {end_date}, O.LOCATION_CD"
     cols_obs_fact = (
         f"O.CONCEPT_CD, O.INSTANCE_NUM, {import_date}, O.TVAL_CHAR, "
-        f"O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.OBSERVATION_BLOB"
+        f"O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.UNITS_CD, O.OBSERVATION_BLOB"
     )
     cols = f"{cols_patient_dim}, {cols_provider_dim}, {cols_visit_dim}, " f"{cols_obs_fact}"
 

@@ -14,15 +14,18 @@ def extract_csv(path_csv: str, batch_size: int) -> Iterator[dict]:
     :param batch_size: how many entries to load into memory at once
     :return: an iterator over each row from the file
     """
-    print(f"Reading csv {path_csv}...")
     count = 0
-    with pandas.read_csv(path_csv, dtype=str, na_filter=False, chunksize=batch_size) as reader:
-        for chunk in reader:
-            print(f"  Read {count:,} entries...")
-            for _, row in chunk.iterrows():
-                yield dict(row)
-            count += batch_size
-    print(f"Done reading {path_csv} .")
+    try:
+        with pandas.read_csv(path_csv, dtype=str, na_filter=False, chunksize=batch_size) as reader:
+            print(f"Reading csv {path_csv}...")
+            for chunk in reader:
+                print(f"  Read {count:,} entries...")
+                for _, row in chunk.iterrows():
+                    yield dict(row)
+                count += batch_size
+            print(f"Done reading {path_csv}.")
+    except FileNotFoundError:
+        print(f"No {path_csv}, skipping.")
 
 
 def extract_csv_observation_facts(path_csv: str, batch_size: int) -> Iterator[ObservationFact]:

@@ -298,6 +298,7 @@ class ObservationFact(Dimension):
         self.valueflag_cd = row.get("VALUEFLAG_CD")
         self.tval_char = row.get("TVAL_CHAR")
         self.nval_num = row.get("NVAL_NUM")
+        self.units_cd = row.get("UNITS_CD")
         self.modifier_cd = row.get("MODIFIER_CD")
 
     def get_value_type(self) -> ValueType:

@@ -22,7 +22,7 @@ import fsspec
 def ls_resources(root, resource: str) -> Iterator[str]:
     pattern = re.compile(rf".*/([0-9]+.)?{resource}(.[0-9]+)?.ndjson")
     all_files = root.ls()
-    return filter(pattern.match, all_files)
+    return sorted(filter(pattern.match, all_files))
 
 
 ###############################################################################

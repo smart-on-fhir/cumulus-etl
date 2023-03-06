@@ -98,7 +98,7 @@ class TestOracleQueries(unittest.TestCase):
             "to_char(cast(O.END_DATE as date), 'YYYY-MM-DD') as END_DATE, "
             "O.LOCATION_CD, O.CONCEPT_CD, O.INSTANCE_NUM, "
             "to_char(cast(O.IMPORT_DATE as date), 'YYYY-MM-DD') as IMPORT_DATE, "
-            "O.TVAL_CHAR, O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.OBSERVATION_BLOB "
+            "O.TVAL_CHAR, O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.UNITS_CD, O.OBSERVATION_BLOB "
             "\n from observation_fact O "
             "where (concept_cd like 'ICD9:%') or (concept_cd like 'ICD10:%')",
             query.sql_observation_fact(["ICD9", "ICD10"]),

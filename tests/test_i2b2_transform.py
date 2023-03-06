@@ -1,15 +1,15 @@
 """Tests for converting data models from i2b2 to FHIR"""
 
-import unittest
-
 import ddt
 
-from cumulus.loaders.i2b2 import transform
+from cumulus.loaders.i2b2 import schema, transform
+
 from tests import i2b2_mock_data
+from tests.utils import AsyncTestCase
 
 
 @ddt.ddt
-class TestI2b2Transform(unittest.TestCase):
+class TestI2b2Transform(AsyncTestCase):
     """Test case for converting from i2b2 to FHIR"""
 
     def test_to_fhir_patient(self):
@@ -118,4 +118,43 @@ class TestI2b2Transform(unittest.TestCase):
                 "subject": {"reference": "Patient/12345"},
             },
             medicationrequest,
+        )
+
+    def test_to_fhir_observation_vitals(self):
+        vitals_dim = schema.ObservationFact(
+            {
+                "INSTANCE_NUM": 3,
+                "PATIENT_NUM": 12345,
+                "ENCOUNTER_NUM": 67890,
+                "CONCEPT_CD": "VITAL:1234",
+                "START_DATE": "2020-10-30T04:03:12",
+                "TVAL_CHAR": "Left Leg",
+                "VALTYPE_CD": "T",
+            }
+        )
+        vitals = transform.to_fhir_observation_vitals(vitals_dim)
+        self.assertEqual(
+            {
+                "resourceType": "Observation",
+                "id": "3",
+                "subject": {"reference": "Patient/12345"},
+                "encounter": {"reference": "Encounter/67890"},
+                "category": [
+                    {
+                        "coding": [
+                            {
+                                "code": "vital-signs",
+                                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                            }
+                        ]
+                    }
+                ],
+                "code": {"coding": [{"code": "VITAL:1234", "system": "http://cumulus.smarthealthit.org/i2b2"}]},
+                "valueCodeableConcept": {
+                    "coding": [{"code": "Left Leg", "system": "http://cumulus.smarthealthit.org/i2b2"}]
+                },
+                "effectiveDateTime": "2020-10-30",
+                "status": "unknown",
+            },
+            vitals,
         )
