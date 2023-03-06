@@ -30,10 +30,10 @@ class Scrubber:
        the resource is fully de-identified.
     """
 
-    def __init__(self, codebook_dir: str = None):
+    def __init__(self, codebook_dir: str = None, use_philter: bool = False):
         self.codebook = codebook.Codebook(codebook_dir)
         self.codebook_dir = codebook_dir
-        self.philter = philter.Philter()
+        self.philter = philter.Philter() if use_philter else None
 
     @staticmethod
     async def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
@@ -77,7 +77,7 @@ class Scrubber:
         :param text: the text to scrub
         :returns: the scrubbed text, with PHI replaced by asterisks ("*")
         """
-        return self.philter.scrub_text(text)
+        return self.philter.scrub_text(text) if self.philter else text
 
     def save(self) -> None:
         """Saves any resources used to persist across runs (like the codebook)"""

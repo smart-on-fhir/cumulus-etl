@@ -15,7 +15,7 @@ class TestPhilter(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         super().setUp()
-        self.scrubber = deid.Scrubber()
+        self.scrubber = deid.Scrubber(use_philter=True)
 
     @ddt.data(
         ({"CodeableConcept": {"text": "Fever at 123 Main St"}}, {"CodeableConcept": {"text": "Fever at *** **** **"}}),
@@ -38,3 +38,8 @@ class TestPhilter(unittest.IsolatedAsyncioTestCase):
     def test_scrub_text(self):
         """Verify that scrub_text() exists and works"""
         self.assertEqual("Hello Mr. *****", self.scrubber.scrub_text("Hello Mr. Jones"))
+
+    def test_can_disable_philter(self):
+        """Verify that disabling philter works"""
+        self.scrubber = deid.Scrubber()  # disabled by default
+        self.assertEqual("Hello Mr. Jones", self.scrubber.scrub_text("Hello Mr. Jones"))

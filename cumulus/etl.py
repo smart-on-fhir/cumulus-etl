@@ -43,15 +43,18 @@ async def load_and_deidentify(loader: loaders.Loader, resources: Iterable[str]) 
     return await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
-async def etl_job(config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]]) -> List[JobSummary]:
+async def etl_job(
+    config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]], use_philter: bool = False
+) -> List[JobSummary]:
     """
     :param config: job config
     :param selected_tasks: the tasks to run
+    :param use_philter: whether to run text through philter
     :return: a list of job summaries
     """
     summary_list = []
 
-    scrubber = deid.Scrubber(config.dir_phi)
+    scrubber = deid.Scrubber(config.dir_phi, use_philter=use_philter)
     for task_class in selected_tasks:
         task = task_class(config, scrubber)
         summary = await task.run()
@@ -174,6 +177,7 @@ def make_parser() -> argparse.ArgumentParser:
         help="how many entries to process at once and thus " "how many to put in one output file (default is 200k)",
     )
     parser.add_argument("--comment", help="add the comment to the log file")
+    parser.add_argument("--philter", action="store_true", help="run philter on all freeform text fields")
 
     aws = parser.add_argument_group("AWS")
     aws.add_argument("--s3-region", metavar="REGION", help="if using S3 paths (s3://...), this is their region")
@@ -314,7 +318,7 @@ async def main(args: List[str]):
         print(json.dumps(config.as_json(), indent=4))
 
         # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-        summaries = await etl_job(config, selected_tasks)
+        summaries = await etl_job(config, selected_tasks, use_philter=args.philter)
 
     # Print results to the console
     common.print_header("Results:")

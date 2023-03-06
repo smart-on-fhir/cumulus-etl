@@ -61,6 +61,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
         comment=None,
         batch_size=None,
         tasks=None,
+        philter=True,
     ) -> None:
         args = [
             input_path or self.input_path,
@@ -78,6 +79,8 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
             args.append(f"--batch-size={batch_size}")
         if tasks:
             args.append(f'--task={",".join(tasks)}')
+        if philter:
+            args.append("--philter")
         await etl.main(args)
 
     def enforce_consistent_uuids(self):
