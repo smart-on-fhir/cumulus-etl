@@ -159,10 +159,10 @@ class I2b2Loader(Loader):
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
-            conditions=partial(oracle_extract.list_observation_fact, path, "Diagnosis"),
-            medicationrequests=partial(oracle_extract.list_observation_fact, path, "Medications"),
-            observations=partial(oracle_extract.list_observation_fact, path, "Lab View"),
-            documentreferences=partial(oracle_extract.list_observation_fact, path, "Notes"),
+            conditions=partial(oracle_extract.list_observation_fact, path, ["ICD9", "ICD10"]),
+            medicationrequests=partial(oracle_extract.list_observation_fact, path, ["ADMINMED", "HOMEMED"]),
+            observations=partial(oracle_extract.list_observation_fact, path, ["LAB"]),
+            documentreferences=partial(oracle_extract.list_observation_fact, path, ["NOTE"]),
             patients=partial(oracle_extract.list_patient, path),
             encounters=partial(oracle_extract.list_visit, path),
         )

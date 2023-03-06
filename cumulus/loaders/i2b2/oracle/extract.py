@@ -40,7 +40,7 @@ def execute(dsn: str, desc: str, sql_statement: str) -> Iterable[dict]:
     print(f"Done with {desc}! Downloaded {count:,} total.")
 
 
-def list_observation_fact(dsn: str, category: str) -> List[ObservationFact]:
+def list_observation_fact(dsn: str, categories: List[str]) -> List[ObservationFact]:
     """
     Grabs a single category of observation facts.
 
@@ -62,7 +62,8 @@ def list_observation_fact(dsn: str, category: str) -> List[ObservationFact]:
         Vitals
     """
     facts = []
-    for row in execute(dsn, f"ObservationFact[{category}]", query.sql_observation_fact(category)):
+    desc = ",".join(categories)
+    for row in execute(dsn, f"ObservationFact[{desc}]", query.sql_observation_fact(categories)):
         facts.append(ObservationFact(row))
     return facts
 

@@ -89,7 +89,7 @@ class TestOracleQueries(unittest.TestCase):
 
     def test_sql_observation_fact(self):
         common.print_header("# observation_fact")
-        pretty(query.sql_observation_fact("Diagnosis") + query.limit(20))
+        pretty(query.sql_observation_fact(["ICD9", "ICD10"]) + query.limit(20))
         pretty(count_by_date_group(schema.Table.observation_fact))
         pretty(count_by_date_group(schema.Table.observation_fact, "UPDATE_DATE"))
         self.assertEqual(
@@ -98,10 +98,10 @@ class TestOracleQueries(unittest.TestCase):
             "to_char(cast(O.END_DATE as date), 'YYYY-MM-DD') as END_DATE, "
             "O.LOCATION_CD, O.CONCEPT_CD, O.INSTANCE_NUM, "
             "to_char(cast(O.IMPORT_DATE as date), 'YYYY-MM-DD') as IMPORT_DATE, "
-            "O.TVAL_CHAR, O.VALTYPE_CD, O.VALUEFLAG_CD, O.OBSERVATION_BLOB "
-            "\n from observation_fact O join concept_dimension C on C.CONCEPT_CD = O.CONCEPT_CD "
-            "where instr(C.CONCEPT_PATH, 'Notes') = 7",
-            query.sql_observation_fact("Notes"),
+            "O.TVAL_CHAR, O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.OBSERVATION_BLOB "
+            "\n from observation_fact O "
+            "where (concept_cd like 'ICD9:%') or (concept_cd like 'ICD10:%')",
+            query.sql_observation_fact(["ICD9", "ICD10"]),
         )
 
     def test_sql_concept(self):
