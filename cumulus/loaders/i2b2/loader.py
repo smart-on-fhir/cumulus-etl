@@ -1,11 +1,10 @@
 """I2B2 loader"""
 
 import os
-import tempfile
 from functools import partial
 from typing import Callable, Iterable, List, TypeVar
 
-from cumulus import common, store
+from cumulus import cli_utils, common, store
 from cumulus.loaders.base import Directory, Loader
 from cumulus.loaders.i2b2 import extract, schema, transform
 from cumulus.loaders.i2b2.oracle import extract as oracle_extract
@@ -29,14 +28,16 @@ class I2b2Loader(Loader):
     - csv_visit
     """
 
-    def __init__(self, root: store.Root, batch_size: int):
+    def __init__(self, root: store.Root, batch_size: int, export_to: str = None):
         """
         Initialize a new I2b2Loader class
         :param root: the base location to read data from
         :param batch_size: the most entries to keep in memory at once
+        :param export_to: folder to save the ndjson results of converting i2b2
         """
         super().__init__(root)
         self.batch_size = batch_size
+        self.export_to = export_to
 
     async def load_all(self, resources: List[str]) -> Directory:
         if self.root.protocol in ["tcp"]:
@@ -52,13 +53,13 @@ class I2b2Loader(Loader):
         documentreferences: I2b2ExtractorCallable,
         patients: I2b2ExtractorCallable,
         encounters: I2b2ExtractorCallable,
-    ) -> tempfile.TemporaryDirectory:
+    ) -> Directory:
         """
         Load i2b2 content into a local folder as ndjson
 
         Argument names are short to encourage treating them as kwargs for easier readability.
         """
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tmpdir = cli_utils.make_export_dir(self.export_to)
 
         if "Condition" in resources:
             self._loop(
@@ -118,7 +119,7 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_csv(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    def _load_all_from_csv(self, resources: List[str]) -> Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
@@ -147,7 +148,7 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_oracle(self, resources: List[str]) -> tempfile.TemporaryDirectory:
+    def _load_all_from_oracle(self, resources: List[str]) -> Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
