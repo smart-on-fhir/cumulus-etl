@@ -1,0 +1,113 @@
+{
+  "resourceType": "Condition",
+  "id": "con1",
+  "implicitRules": "https://example.com/rules",
+  "language": "en",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }],
+    "versionId": "keep"
+  },
+  "contained": [
+    {
+      "resourceType": "Patient",
+      "id": "#pat",
+      "gender": "male"
+    },
+    {
+      "resourceType": "Medication",
+      "id": "#med"
+    }
+  ],
+
+  "clinicalStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        "code": "active"
+      }
+    ]
+  },
+  "verificationStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        "code": "confirmed"
+      }
+    ]
+  },
+  "category": [{
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/condition-category",
+        "code": "encounter-diagnosis"
+      }
+    ]
+  }],
+  "severity": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "24484000"
+      }
+    ]
+  },
+  "code": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "40055000",
+        "display": "Chronic sinusitis (disorder)"
+      }
+    ],
+    "text": "Chronic sinusitis (disorder)"
+  },
+  "bodySite" : [{
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "251007"
+      }
+    ]
+  }],
+  "subject": { "reference": "Patient/1" },
+  "encounter": { "reference": "Encounter/1" },
+  "onsetDateTime": "1985-07-17T17:30:49-04:00",
+  "abatementDateTime": "1985-07-18T17:30:49-04:00",
+  "recordedDate": "1985-06-18T17:30:49-04:00",
+  "recorder": { "reference": "Practitioner/1" },
+  "asserter": { "reference": "Practitioner/2" },
+  "stage" : [{
+    "summary" : {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "1523005"
+        }
+      ]
+    },
+    "assessment" : [{ "reference": "Observation/1" }],
+    "type" : {
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "42114005"
+        }
+      ]
+    }
+  }],
+  "evidence" : [{
+    "code" : [{
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "109006"
+        }
+      ]
+    }],
+    "detail" : [{ "reference": "DocumentReference/1" }]
+  }]
+}

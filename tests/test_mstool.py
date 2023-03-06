@@ -1,6 +1,7 @@
 """Tests for the mstool module"""
 
 import filecmp
+import json
 import os
 import shutil
 import tempfile
@@ -21,14 +22,44 @@ class TestMicrosoftTool(TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
         super().setUp()
         self.data_path = os.path.join(os.path.dirname(__file__), "data", "mstool")
 
+    def combine_json(self, input_dir: str, output_dir: str) -> None:
+        """
+        Takes all the json files in the input folder and combines them into an ndjson file in the output folder.
+
+        For example, with the following input folder:
+          Encounter_1.json
+          Patient_1.json
+          Patient_2.json
+
+        You will get the following output folder:
+          Encounter.ndjson (one entry)
+          Patient.ndjson (two entries)
+
+        This is largely just so that our source files can be human-readable json, but tested in an ndjson context.
+        """
+        resource_buckets = {}
+        for source_file in os.listdir(input_dir):
+            resource = source_file.split(".")[0]
+            resource_buckets.setdefault(resource, []).append(source_file)
+
+        for resource, unsorted_files in resource_buckets.items():
+            os.makedirs(output_dir, exist_ok=True)
+            with open(f"{output_dir}/{resource}.ndjson", "w", encoding="utf8") as output_file:
+                for filename in sorted(unsorted_files):
+                    parsed_json = common.read_json(f"{input_dir}/{filename}")
+                    json.dump(parsed_json, output_file)
+                    output_file.write("\n")
+
     async def test_expected_transform(self):
         """Confirms that our sample input data results in the correct output"""
-        input_path = os.path.join(self.data_path, "input")
+        input_path = f"{self.data_path}/input"
+        output_path = f"{self.data_path}/output"
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            await run_mstool(input_path, tmpdir)
-            expected_path = os.path.join(self.data_path, "output")
-            dircmp = filecmp.dircmp(expected_path, tmpdir, ignore=[])
+            self.combine_json(input_path, f"{tmpdir}/input")
+            self.combine_json(output_path, f"{tmpdir}/expected")
+            await run_mstool(f"{tmpdir}/input", f"{tmpdir}/output")
+            dircmp = filecmp.dircmp(f"{tmpdir}/expected", f"{tmpdir}/output", ignore=[])
             self.assert_file_tree_equal(dircmp)
 
     async def test_invalid_syntax(self):

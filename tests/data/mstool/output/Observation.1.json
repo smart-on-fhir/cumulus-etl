@@ -1,0 +1,114 @@
+{
+  "resourceType": "Observation",
+  "id": "obs1",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+
+  "basedOn": [{ "reference": "CarePlan/1" }],
+  "partOf": [{ "reference": "Procedure/1" }],
+  "status": "final",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+          "code": "vital-signs",
+          "display": "vital-signs"
+        }
+      ]
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "8302-2",
+        "display": "Body Height"
+      }
+    ],
+    "text": "Body Height"
+  },
+  "subject": { "reference": "Patient/pat1" },
+  "focus": [{ "reference": "Patient/2" }],
+  "encounter": { "reference": "Encounter/enc1" },
+  "effectiveDateTime": "2011-02-02T16:30:49-05:00",
+  "issued": "2011-02-02T16:30:49.825-05:00",
+  "performer": [{ "reference": "Patient/3" }],
+  "valueQuantity": {
+    "value": 181.2,
+    "unit": "cm",
+    "system": "http://unitsofmeasure.org",
+    "code": "cm"
+  },
+  "dataAbsentReason": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+        "code": "1"
+      }
+    ]
+  },
+  "interpretation": [{
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+        "code": "B"
+      }
+    ]
+  }],
+  "note": [{
+    "time": "2011"
+  }],
+  "bodySite": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "251007"
+      }
+    ]
+  },
+  "method": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "115341008"
+      }
+    ]
+  },
+  "specimen": { "reference": "Specimen/1" },
+  "device": { "reference": "Device/1" },
+  "hasMember": [{ "reference": "Observation/3" }],
+  "derivedFrom": [{ "reference": "Observation/4" }],
+  "component": [{
+    "code": {
+      "coding": [
+        {
+          "system": "http://loinc.org",
+          "code": "10002-4"
+        }
+      ]
+    },
+    "valueString": "kept and philtered",
+    "dataAbsentReason": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+          "code": "1"
+        }
+      ]
+    },
+    "interpretation": [{
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+          "code": "B"
+        }
+      ]
+    }]
+  }]
+}

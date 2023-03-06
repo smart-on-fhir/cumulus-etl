@@ -1,0 +1,7 @@
+{
+  "resourceType": "Condition",
+  "id": "con2-onsetString",
+  "subject": { "reference": "Patient/2" },
+  "onsetString": "three days ago",
+  "abatementString": "yesterday"
+}

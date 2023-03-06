@@ -1,0 +1,23 @@
+{
+  "resourceType": "Condition",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+  "id": "con3-age-redaction",
+  "subject": { "reference": "Patient/3" },
+  "onsetAge": {
+    "value": 89,
+    "unit": "year",
+    "system": "http://unitsofmeasure.org",
+    "code": "year"
+  },
+  "abatementAge": {
+    "unit": "year",
+    "system": "http://unitsofmeasure.org",
+    "code": "year"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "resourceType": "Condition",
+  "id": "con3-age-redaction",
+  "subject": { "reference": "Patient/3" },
+  "onsetAge": {
+    "value": 89,
+    "unit": "year",
+    "system": "http://unitsofmeasure.org",
+    "code": "year"
+  },
+  "abatementAge": {
+    "value": 90,
+    "unit": "year",
+    "system": "http://unitsofmeasure.org",
+    "code": "year"
+  }
+}

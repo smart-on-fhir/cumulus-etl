@@ -1,0 +1,160 @@
+{
+  "resourceType": "Observation",
+  "id": "obs1",
+
+  "identifier" : [{ "value": "drop" }],
+  "basedOn": [{ "reference": "CarePlan/1" }],
+  "partOf": [{ "reference": "Procedure/1" }],
+  "status": "final",
+  "category": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+          "code": "vital-signs",
+          "display": "vital-signs"
+        }
+      ]
+    }
+  ],
+  "code": {
+    "coding": [
+      {
+        "system": "http://loinc.org",
+        "code": "8302-2",
+        "display": "Body Height"
+      }
+    ],
+    "text": "Body Height"
+  },
+  "subject": { "reference": "Patient/pat1" },
+  "focus": [{ "reference": "Patient/2" }],
+  "encounter": { "reference": "Encounter/enc1" },
+  "effectiveDateTime": "2011-02-02T16:30:49-05:00",
+  "issued": "2011-02-02T16:30:49.825-05:00",
+  "performer": [{ "reference": "Patient/3" }],
+  "valueQuantity": {
+    "value": 181.2,
+    "unit": "cm",
+    "system": "http://unitsofmeasure.org",
+    "code": "cm"
+  },
+  "dataAbsentReason": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+        "code": "1"
+      }
+    ]
+  },
+  "interpretation": [{
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+        "code": "B"
+      }
+    ]
+  }],
+  "note": [{
+    "authorReference": [{ "reference": "Patient/3" }],
+    "time": "2011-02-02T16:30:49.825-05:00",
+    "text": "dropped"
+  }],
+  "bodySite": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "251007"
+      }
+    ]
+  },
+  "method": {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "115341008"
+      }
+    ]
+  },
+  "specimen": { "reference": "Specimen/1" },
+  "device": { "reference": "Device/1" },
+  "referenceRange": [{
+    "low": { "value": 1 },
+    "high": { "value": 10 },
+    "type": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/referencerange-meaning",
+          "code": "midcycle"
+        }
+      ]
+    },
+    "appliesTo": [{
+      "coding": [
+        {
+          "system": "http://snomed.info/sct",
+          "code": "248153007"
+        }
+      ]
+    }],
+    "age": {
+      "low": { "value": 12 },
+      "high": { "value": 32 }
+    },
+    "text": "dropped"
+  }],
+  "hasMember": [{ "reference": "Observation/3" }],
+  "derivedFrom": [{ "reference": "Observation/4" }],
+  "component": [{
+    "code": {
+      "coding": [
+        {
+          "system": "http://loinc.org",
+          "code": "10002-4"
+        }
+      ]
+    },
+    "valueString": "kept and philtered",
+    "dataAbsentReason": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/data-absent-reason",
+          "code": "1"
+        }
+      ]
+    },
+    "interpretation": [{
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation",
+          "code": "B"
+        }
+      ]
+    }],
+    "referenceRange": [{
+      "low": { "value": 1 },
+      "high": { "value": 10 },
+      "type": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/referencerange-meaning",
+            "code": "midcycle"
+          }
+        ]
+      },
+      "appliesTo": [{
+        "coding": [
+          {
+            "system": "http://snomed.info/sct",
+            "code": "248153007"
+          }
+        ]
+      }],
+      "age": {
+        "low": { "value": 12 },
+        "high": { "value": 32 }
+      },
+      "text": "dropped"
+    }]
+  }]
+}
