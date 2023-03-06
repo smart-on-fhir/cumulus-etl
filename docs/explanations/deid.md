@@ -135,7 +135,7 @@ So Cumulus does not bother keeping a mapping for those.
 ### Freeform Text Fields
 
 There are some freeform text fields that Cumulus ETS asks the Microsoft Anonymizer tool to leave in.
-These fields may be useful for presenting or computing a phenotype:
+These fields are useful for presenting or computing a phenotype:
 - `CodeableConcept.text`
 - `Coding.display`
 - `Observation.valueString` and `Observation.component.valueString`
@@ -143,8 +143,11 @@ These fields may be useful for presenting or computing a phenotype:
 Although Cumulus wants to largely preserve these fields,
 they may contain PHI since they are freeform text fields after all.
 
-So to reduce that risk, the [philter program](https://github.com/SironaMedical/philter-lite) is run on the text,
-which replaces any detected PHI like names, phone numbers, MRNs, social security numbers, etc. with asterisks.
+If that is likely for your institution, you can have Cumulus ETL run
+[philter](https://github.com/SironaMedical/philter-lite) over these freeform fields, by passing `--philter`.
+This replaces any detected PHI like names, phone numbers, MRNs, social security numbers, etc. with asterisks.
+
+But be warned that it will significantly slow down the ETL process.
 
 ### NLP on Physician Notes
 
