@@ -1,11 +1,11 @@
-"""Tests for context.py"""
+"""Tests for etl/context.py"""
 
 import datetime
 import json
 import tempfile
 import unittest
 
-from cumulus.context import JobContext
+from cumulus.etl.context import JobContext
 
 
 class TestJobContext(unittest.TestCase):

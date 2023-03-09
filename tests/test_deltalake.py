@@ -9,7 +9,7 @@ from typing import List
 import pandas
 import pytest
 from pyspark.sql.utils import AnalysisException
-from cumulus import config, store
+from cumulus import store
 from cumulus.formats.deltalake import DeltaLakeFormat
 
 
@@ -52,7 +52,7 @@ class TestDeltaLake(unittest.TestCase):
         :param batch: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
         :param group_field: a group field name, used to delete non-matching group rows
         """
-        deltalake = DeltaLakeFormat(self.root, config.JobSummary(), "patient", group_field=group_field)
+        deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field)
         deltalake.write_records(df, batch)
 
     @staticmethod

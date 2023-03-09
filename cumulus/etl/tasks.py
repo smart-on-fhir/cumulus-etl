@@ -9,7 +9,8 @@ from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, List, Set, 
 
 import pandas
 
-from cumulus import common, config, ctakes, deid, errors, store
+from cumulus import common, ctakes, deid, errors, store
+from cumulus.etl import config
 
 T = TypeVar("T")
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
@@ -203,7 +204,7 @@ class EtlTask:
         common.print_header(f"{self.name}:")
 
         # No data is read or written yet, so do any initial setup the formatter wants
-        formatter = self.task_config.create_formatter(summary, self.name, self.group_field)
+        formatter = self.task_config.create_formatter(self.name, self.group_field)
 
         entries = self.read_entries()
 
@@ -219,7 +220,10 @@ class EtlTask:
             self.scrubber.save()
 
             # Now we write that DataFrame to the target folder, in the requested format (e.g. parquet).
-            formatter.write_records(dataframe, index)
+            df_count = len(dataframe)
+            summary.attempt += df_count
+            if formatter.write_records(dataframe, index):
+                summary.success += df_count
 
             print(f"  {summary.success:,} processed for {self.name}")
             index += 1

@@ -1,4 +1,4 @@
-"""Tests for tasks.py"""
+"""Tests for etl/tasks.py"""
 
 import os
 import shutil
@@ -10,7 +10,8 @@ from unittest import mock
 import ddt
 import respx
 
-from cumulus import common, config, deid, errors, fhir_client, tasks
+from cumulus import common, deid, errors, fhir_client
+from cumulus.etl import config, tasks
 
 from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data

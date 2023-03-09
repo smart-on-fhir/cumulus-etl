@@ -1,11 +1,11 @@
-"""Tests for config.py"""
+"""Tests for etl/config.py"""
 
 import unittest
 from socket import gethostname
 
 import freezegun
 
-from cumulus import config
+from cumulus.etl import config
 
 
 class TestConfigSummary(unittest.TestCase):

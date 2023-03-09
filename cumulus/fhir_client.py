@@ -1,6 +1,8 @@
 """HTTP client that talk to a FHIR server"""
 
+import argparse
 import base64
+import re
 import sys
 import time
 import urllib.parse
@@ -12,7 +14,7 @@ import fhirclient.client
 import httpx
 from jwcrypto import jwk, jwt
 
-from cumulus import errors
+from cumulus import common, errors, store
 
 
 class FatalError(Exception):
@@ -391,3 +393,53 @@ class FhirClient:
         # Follow redirects by default -- some EHRs definitely use them for bulk download files,
         # and might use them in other cases, who knows.
         return await self._session.send(request, follow_redirects=True, **kwargs)
+
+
+def create_fhir_client_for_cli(
+    args: argparse.Namespace,
+    root_input: store.Root,
+    resources: Iterable[str],
+) -> FhirClient:
+    """
+    Create a FhirClient instance, based on user input from the CLI.
+
+    The usual FHIR server authentication options should be represented in args.
+    """
+    client_base_url = args.fhir_url
+    if root_input.protocol in {"http", "https"}:
+        if args.fhir_url and not root_input.path.startswith(args.fhir_url):
+            print(
+                "You provided both an input FHIR server and a different --fhir-url. Try dropping --fhir-url.",
+                file=sys.stderr,
+            )
+            raise SystemExit(errors.ARGS_CONFLICT)
+        elif not client_base_url:
+            # Use the input URL as the base URL. But note that it may not be the server root.
+            # For example, it may be a Group export URL. Let's try to find the actual root.
+            client_base_url = root_input.path
+            client_base_url = re.sub(r"/Patient/?$", "/", client_base_url)
+            client_base_url = re.sub(r"/Group/[^/]+/?$", "/", client_base_url)
+
+    try:
+        try:
+            # Try to load client ID from file first (some servers use crazy long ones, like SMART's bulk-data-server)
+            smart_client_id = common.read_text(args.smart_client_id).strip() if args.smart_client_id else None
+        except FileNotFoundError:
+            smart_client_id = args.smart_client_id
+
+        smart_jwks = common.read_json(args.smart_jwks) if args.smart_jwks else None
+        basic_password = common.read_text(args.basic_passwd).strip() if args.basic_passwd else None
+        bearer_token = common.read_text(args.bearer_token).strip() if args.bearer_token else None
+    except OSError as exc:
+        print(exc, file=sys.stderr)
+        raise SystemExit(errors.ARGS_INVALID) from exc
+
+    return FhirClient(
+        client_base_url,
+        resources,
+        basic_user=args.basic_user,
+        basic_password=basic_password,
+        bearer_token=bearer_token,
+        smart_client_id=smart_client_id,
+        smart_jwks=smart_jwks,
+    )
