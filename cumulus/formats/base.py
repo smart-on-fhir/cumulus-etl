@@ -23,11 +23,10 @@ class Format(abc.ABC):
         (e.g. some expensive setup that can be shared across per-table format instances, or eventually across threads)
         """
 
-    def __init__(self, root: store.Root, summary, dbname: str, group_field: str = None):
+    def __init__(self, root: store.Root, dbname: str, group_field: str = None):
         """
         Initialize a new Format class
         :param root: the base location to write data to
-        :param summary: JobSummary to be filled as records are written
         :param dbname: the database name (folder name)
         :param group_field: a field name that if specified, indicates all previous records with a same value should be
          deleted -- for example "docref_id" will mean that any existing rows matching docref_id will be deleted before
@@ -35,25 +34,24 @@ class Format(abc.ABC):
          See the comments for the EtlTask.group_field class attribute for more context.
         """
         self.root = root
-        self.summary = summary
         self.dbname = dbname
         self.group_field = group_field
 
-    def write_records(self, dataframe: pandas.DataFrame, batch: int) -> None:
+    def write_records(self, dataframe: pandas.DataFrame, batch: int) -> bool:
         """
         Writes a single dataframe to the output root.
 
         :param dataframe: the data records to write
         :param batch: the batch number, from zero up
+        :returns: whether the batch was successfully written
         """
-        count = len(dataframe)
-        self.summary.attempt += count
 
         try:
             self._write_one_batch(dataframe, batch)
-            self.summary.success += count
+            return True
         except Exception:  # pylint: disable=broad-except
             logging.exception("Could not process data records")
+            return False
 
     @abc.abstractmethod
     def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:

@@ -49,8 +49,8 @@ class JobConfig:
         self._format_class = formats.get_format_class(self._output_format)
         self._format_class.initialize_class(self._output_root)
 
-    def create_formatter(self, summary, dbname: str, group_field: str = None) -> formats.Format:
-        return self._format_class(self._output_root, summary, dbname, group_field)
+    def create_formatter(self, dbname: str, group_field: str = None) -> formats.Format:
+        return self._format_class(self._output_root, dbname, group_field)
 
     def path_config(self) -> str:
         return os.path.join(self.dir_job_config(), "job_config.json")

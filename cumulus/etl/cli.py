@@ -1,24 +1,23 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
-import asyncio
 import itertools
 import json
 import logging
 import os
-import re
 import shutil
 import socket
 import sys
 import tempfile
 import time
-from typing import Iterable, List, Type
+from typing import Callable, Iterable, List, Type
 from urllib.parse import urlparse
 
 import ctakesclient
 
-from cumulus import common, context, deid, errors, fhir_client, loaders, store, tasks
-from cumulus.config import JobConfig, JobSummary
+from cumulus import common, deid, errors, fhir_client, loaders, store
+from cumulus.etl import context, tasks
+from cumulus.etl.config import JobConfig, JobSummary
 
 
 ###############################################################################
@@ -154,9 +153,8 @@ def check_requirements() -> None:
 ###############################################################################
 
 
-def make_parser() -> argparse.ArgumentParser:
-    """Creates an ArgumentParser for Cumulus ETL"""
-    parser = argparse.ArgumentParser()
+def define_etl_parser(parser: argparse.ArgumentParser, *, add_auth: Callable, add_aws: Callable) -> None:
+    """Fills out an argument parser with all the ETL options."""
     parser.add_argument("dir_input", metavar="/path/to/input")
     parser.add_argument("dir_output", metavar="/path/to/output")
     parser.add_argument("dir_phi", metavar="/path/to/phi")
@@ -179,17 +177,8 @@ def make_parser() -> argparse.ArgumentParser:
     parser.add_argument("--comment", help="add the comment to the log file")
     parser.add_argument("--philter", action="store_true", help="run philter on all freeform text fields")
 
-    aws = parser.add_argument_group("AWS")
-    aws.add_argument("--s3-region", metavar="REGION", help="if using S3 paths (s3://...), this is their region")
-    aws.add_argument("--s3-kms-key", metavar="KEY", help="if using S3 paths (s3://...), this is the KMS key ID to use")
-
-    auth = parser.add_argument_group("authentication")
-    auth.add_argument("--smart-client-id", metavar="ID", help="Client ID for SMART authentication")
-    auth.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
-    auth.add_argument("--basic-user", metavar="USER", help="Username for Basic authentication")
-    auth.add_argument("--basic-passwd", metavar="PATH", help="Password file for Basic authentication")
-    auth.add_argument("--bearer-token", metavar="PATH", help="Token file for Bearer authentication")
-    auth.add_argument("--fhir-url", metavar="URL", help="FHIR server base URL, only needed if you exported separately")
+    add_aws(parser)
+    add_auth(parser)
 
     export = parser.add_argument_group("bulk export")
     export.add_argument(
@@ -210,54 +199,8 @@ def make_parser() -> argparse.ArgumentParser:
     debug = parser.add_argument_group("debugging")
     debug.add_argument("--skip-init-checks", action="store_true", help=argparse.SUPPRESS)
 
-    return parser
 
-
-def create_fhir_client(args, root_input, resources):
-    client_base_url = args.fhir_url
-    if root_input.protocol in {"http", "https"}:
-        if args.fhir_url and not root_input.path.startswith(args.fhir_url):
-            print(
-                "You provided both an input FHIR server and a different --fhir-url. Try dropping --fhir-url.",
-                file=sys.stderr,
-            )
-            raise SystemExit(errors.ARGS_CONFLICT)
-        elif not client_base_url:
-            # Use the input URL as the base URL. But note that it may not be the server root.
-            # For example, it may be a Group export URL. Let's try to find the actual root.
-            client_base_url = root_input.path
-            client_base_url = re.sub(r"/Patient/?$", "/", client_base_url)
-            client_base_url = re.sub(r"/Group/[^/]+/?$", "/", client_base_url)
-
-    try:
-        try:
-            # Try to load client ID from file first (some servers use crazy long ones, like SMART's bulk-data-server)
-            smart_client_id = common.read_text(args.smart_client_id).strip() if args.smart_client_id else None
-        except FileNotFoundError:
-            smart_client_id = args.smart_client_id
-
-        smart_jwks = common.read_json(args.smart_jwks) if args.smart_jwks else None
-        basic_password = common.read_text(args.basic_passwd).strip() if args.basic_passwd else None
-        bearer_token = common.read_text(args.bearer_token).strip() if args.bearer_token else None
-    except OSError as exc:
-        print(exc, file=sys.stderr)
-        raise SystemExit(errors.ARGS_INVALID) from exc
-
-    return fhir_client.FhirClient(
-        client_base_url,
-        resources,
-        basic_user=args.basic_user,
-        basic_password=basic_password,
-        bearer_token=bearer_token,
-        smart_client_id=smart_client_id,
-        smart_jwks=smart_jwks,
-    )
-
-
-async def main(args: List[str]):
-    parser = make_parser()
-    args = parser.parse_args(args)
-
+async def etl_main(args: argparse.Namespace) -> None:
     logging.info("Input Directory: %s", args.dir_input)
     logging.info("Output Directory: %s", args.dir_output)
     logging.info("PHI Build Directory: %s", args.dir_phi)
@@ -286,7 +229,7 @@ async def main(args: List[str]):
     # This is useful even if we aren't doing a bulk export, because some resources like DocumentReference can still
     # reference external resources on the server (like the document text).
     # If we don't need this client (e.g. we're using local data and don't download any attachments), this is a no-op.
-    client = create_fhir_client(args, root_input, required_resources)
+    client = fhir_client.create_fhir_client_for_cli(args, root_input, required_resources)
 
     async with client:
         if args.input_format == "i2b2":
@@ -336,11 +279,3 @@ async def main(args: List[str]):
     if failed:
         print("** One or more tasks above did not 100% complete! **", file=sys.stderr)
         raise SystemExit(errors.TASK_FAILED)
-
-
-def main_cli():
-    asyncio.run(main(sys.argv[1:]))
-
-
-if __name__ == "__main__":
-    main_cli()

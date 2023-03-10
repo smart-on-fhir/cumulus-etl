@@ -33,7 +33,7 @@ dynamic = ["version"]
 "Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
 
 [project.scripts]
-cumulus-etl = "cumulus.etl:main_cli"
+cumulus-etl = "cumulus.cli:main_cli"
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]

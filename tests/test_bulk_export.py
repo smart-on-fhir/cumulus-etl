@@ -13,7 +13,7 @@ import responses
 import respx
 from jwcrypto import jwk
 
-from cumulus import common, etl, store
+from cumulus import cli, common, store
 from cumulus.fhir_client import FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import make_response
@@ -378,7 +378,7 @@ class TestBulkExportEndToEnd(unittest.IsolatedAsyncioTestCase):
             with respx.mock(assert_all_called=True) as respx_mock:
                 self.set_up_requests(respx_mock)
 
-                await etl.main(
+                await cli.main(
                     [
                         self.root.path,
                         f"{tmpdir}/output",

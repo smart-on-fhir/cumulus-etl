@@ -8,7 +8,7 @@ from ctakesclient.filesystem import covid_symptoms, map_cui_pref
 from ctakesclient.typesystem import CtakesJSON, Polarity
 
 from cumulus import store, common
-from cumulus.labelstudio import LabelStudio, merge_cohort
+from cumulus.chart_review.labelstudio import LabelStudio, merge_cohort
 
 
 @unittest.skip("Not yet finished and needs access to /opt/i2b2")

@@ -1,4 +1,4 @@
-"""Tests for etl.py"""
+"""Tests for etl/cli.py"""
 
 import filecmp
 import itertools
@@ -15,7 +15,8 @@ import pytest
 import s3fs
 from ctakesclient.typesystem import Polarity
 
-from cumulus import common, context, deid, errors, etl, loaders, store
+from cumulus import cli, common, deid, errors, loaders, store
+from cumulus.etl import context
 from cumulus.formats.deltalake import DeltaLakeFormat
 from cumulus.loaders.i2b2 import extract
 
@@ -81,7 +82,7 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
             args.append(f'--task={",".join(tasks)}')
         if philter:
             args.append("--philter")
-        await etl.main(args)
+        await cli.main(args)
 
     def enforce_consistent_uuids(self):
         """Make sure that UUIDs will be the same from run to run"""
@@ -127,7 +128,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             # Then raise an exception to interrupt the ETL flow before we normally would be able to clean up
             raise KeyboardInterrupt
 
-        with mock.patch("cumulus.etl.deid.Scrubber.scrub_bulk_data", new=fake_scrub):
+        with mock.patch("cumulus.deid.Scrubber.scrub_bulk_data", new=fake_scrub):
             with self.assertRaises(KeyboardInterrupt):
                 await self.run_etl()
 
@@ -250,7 +251,7 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
         }
         common.write_json(self.context_path, input_context)
 
-        with mock.patch("cumulus.etl.etl_job", side_effect=ZeroDivisionError):
+        with mock.patch("cumulus.etl.cli.etl_job", side_effect=ZeroDivisionError):
             with self.assertRaises(ZeroDivisionError):
                 await self.run_etl()
 
