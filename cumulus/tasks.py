@@ -188,8 +188,8 @@ class EtlTask:
     ##########################################################################################
 
     def __init__(self, task_config: config.JobConfig, scrubber: deid.Scrubber):
-        assert self.name  # nosec: B101
-        assert self.resource  # nosec: B101
+        assert self.name  # nosec
+        assert self.resource  # nosec
         self.task_config = task_config
         self.scrubber = scrubber
 

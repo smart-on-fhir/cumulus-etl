@@ -12,6 +12,27 @@ def pretty(text):
     print(text)
 
 
+def count_by_date(column: str, column_alias: str, count="*", count_alias="cnt", frmt="YYYY-MM-DD") -> str:
+    sql_count = f"count({count}) as {count_alias}"
+    sql_group = query.format_date(column, column_alias, frmt)
+    return sql_count + "," + sql_group
+
+
+def shorten(sql: str) -> str:
+    return sql.strip().replace("  ", " ")
+
+
+def count_by_date_group(table: schema.Table, column_date="import_date") -> str:
+    return shorten(
+        f"""
+                    select {count_by_date(column_date, f'{column_date}_cnt')}
+                    from {table.value}
+                    group by {query.cast_date(column_date)}
+                    order by {query.cast_date(column_date)} desc
+                    """
+    )
+
+
 class TestOracleQueries(unittest.TestCase):
     """
     Test case for sql queries
@@ -31,7 +52,7 @@ class TestOracleQueries(unittest.TestCase):
     def test_list_patient(self):
         common.print_header("# patient")
         pretty(query.sql_patient() + query.limit(20))
-        pretty(query.count_by_date_group(schema.Table.patient))  # Null dates?
+        pretty(count_by_date_group(schema.Table.patient))  # Null dates?
         self.assertEqual(
             "select PATIENT_NUM, "
             "to_char(cast(BIRTH_DATE as date), 'YYYY-MM-DD') as BIRTH_DATE, "
@@ -44,7 +65,7 @@ class TestOracleQueries(unittest.TestCase):
     def test_sql_provider(self):
         common.print_header("# provider")
         pretty(query.sql_provider() + query.limit(20))
-        pretty(query.count_by_date_group(schema.Table.provider))  # Null dates?
+        pretty(count_by_date_group(schema.Table.provider))  # Null dates?
         self.assertEqual(
             "select PROVIDER_ID, PROVIDER_PATH, NAME_CHAR, "
             "to_char(cast(IMPORT_DATE as date), 'YYYY-MM-DD') as IMPORT_DATE "
@@ -55,7 +76,7 @@ class TestOracleQueries(unittest.TestCase):
     def test_sql_visit(self):
         common.print_header("# visit")
         pretty(query.sql_visit() + query.limit(20))
-        pretty(query.count_by_date_group(schema.Table.visit))
+        pretty(count_by_date_group(schema.Table.visit))
         self.assertEqual(
             "select ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, "
             "to_char(cast(START_DATE as date), 'YYYY-MM-DD') as START_DATE, "
@@ -69,8 +90,8 @@ class TestOracleQueries(unittest.TestCase):
     def test_sql_observation_fact(self):
         common.print_header("# observation_fact")
         pretty(query.sql_observation_fact("Diagnosis") + query.limit(20))
-        pretty(query.count_by_date_group(schema.Table.observation_fact))
-        pretty(query.count_by_date_group(schema.Table.observation_fact, "UPDATE_DATE"))
+        pretty(count_by_date_group(schema.Table.observation_fact))
+        pretty(count_by_date_group(schema.Table.observation_fact, "UPDATE_DATE"))
         self.assertEqual(
             "select O.PATIENT_NUM, O.PROVIDER_ID, O.ENCOUNTER_NUM, "
             "to_char(cast(O.START_DATE as date), 'YYYY-MM-DD') as START_DATE, "
@@ -86,7 +107,7 @@ class TestOracleQueries(unittest.TestCase):
     def test_sql_concept(self):
         common.print_header("# concept_dimension")
         pretty(query.sql_concept() + query.limit(20))
-        pretty(query.count_by_date_group(schema.Table.concept))
+        pretty(count_by_date_group(schema.Table.concept))
         self.assertEqual(
             "select CONCEPT_CD, NAME_CHAR, SOURCESYSTEM_CD, CONCEPT_BLOB, "
             "to_char(cast(IMPORT_DATE as date), 'YYYY-MM-DD') as IMPORT_DATE "
