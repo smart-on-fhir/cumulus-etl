@@ -12,7 +12,7 @@ def sql_patient() -> str:
     birth_date = format_date("BIRTH_DATE")
     death_date = format_date("DEATH_DATE")
     cols = f"PATIENT_NUM, {birth_date}, {death_date}, SEX_CD, RACE_CD, ZIP_CD"
-    return f"select {cols} \n from {Table.patient.value}"
+    return f"select {cols} \n from {Table.patient.value}"  # nosec
 
 
 ###############################################################################
@@ -23,7 +23,7 @@ def sql_patient() -> str:
 def sql_provider() -> str:
     cols_dates = format_date("IMPORT_DATE")
     cols = f"PROVIDER_ID, PROVIDER_PATH, NAME_CHAR, {cols_dates}"
-    return f"select {cols} \n from {Table.provider.value}"
+    return f"select {cols} \n from {Table.provider.value}"  # nosec
 
 
 ###############################################################################
@@ -41,7 +41,7 @@ def sql_visit() -> str:
 
     cols_dates = f"{start_date}, {end_date}, {import_date}, LENGTH_OF_STAY"
     cols = "ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, " f"{cols_dates}"
-    return f"select {cols} \n from {Table.visit.value}"
+    return f"select {cols} \n from {Table.visit.value}"  # nosec
 
 
 def after_start_date(start_date: str) -> str:
@@ -73,7 +73,7 @@ def sql_concept() -> str:
     """
     cols_dates = format_date("IMPORT_DATE")
     cols = f"CONCEPT_CD, NAME_CHAR, SOURCESYSTEM_CD, CONCEPT_BLOB, {cols_dates}"
-    return f"select {cols} \n from {Table.concept.value}"
+    return f"select {cols} \n from {Table.concept.value}"  # nosec
 
 
 ###############################################################################
@@ -101,7 +101,7 @@ def sql_observation_fact(category: str) -> str:
     cols = f"{cols_patient_dim}, {cols_provider_dim}, {cols_visit_dim}, " f"{cols_obs_fact}"
 
     return (
-        f"select {cols} \n from {Table.observation_fact.value} O "
+        f"select {cols} \n from {Table.observation_fact.value} O "  # nosec
         f"join {Table.concept.value} C on C.CONCEPT_CD = O.CONCEPT_CD "
         f"where instr(C.CONCEPT_PATH, '{category}') = 7"
     )  # 7 is skipping the '\i2b2\' prefix. TODO: better way
@@ -155,24 +155,3 @@ def to_char(column: str, frmt="YYYY-MM-DD") -> str:
 
 def format_date(column: str, column_alias=None, frmt="YYYY-MM-DD") -> str:
     return alias(to_char(cast_date(column), frmt), column_alias if column_alias else column)
-
-
-def count_by_date(column: str, column_alias: str, count="*", count_alias="cnt", frmt="YYYY-MM-DD") -> str:
-    sql_count = f"count({count}) as {count_alias}"
-    sql_group = format_date(column, column_alias, frmt)
-    return sql_count + "," + sql_group
-
-
-def shorten(sql: str) -> str:
-    return sql.strip().replace("  ", " ")
-
-
-def count_by_date_group(tablename=Table.observation_fact, column_date="import_date") -> str:
-    return shorten(
-        f"""
-                    select {count_by_date(column_date, f'{column_date}_cnt')}
-                    from {tablename.value}
-                    group by {cast_date(column_date)}
-                    order by {cast_date(column_date)} desc
-                    """
-    )
