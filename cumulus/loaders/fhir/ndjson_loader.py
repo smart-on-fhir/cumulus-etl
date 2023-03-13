@@ -1,12 +1,10 @@
 """Ndjson FHIR loader"""
 
 import logging
-import os
 import tempfile
-import urllib.parse
 from typing import List
 
-from cumulus import common, errors, store
+from cumulus import cli_utils, common, errors, store
 from cumulus.fhir_client import FatalError, FhirClient
 from cumulus.loaders import base
 from cumulus.loaders.fhir.bulk_export import BulkExporter
@@ -41,26 +39,6 @@ class FhirNdjsonLoader(base.Loader):
         self.since = since
         self.until = until
 
-        # Do some quality checks on the export-to folder, if it was specified. Must be local, present, and empty.
-        if self.export_to:
-            if urllib.parse.urlparse(self.export_to).netloc:
-                # We require a local folder because that's all that the MS deid tool can operate on.
-                # If we were to relax this requirement, we'd want to copy the exported files over to a local dir.
-                errors.fatal(
-                    f"The target export folder '{self.export_to}' must be local. ", errors.BULK_EXPORT_FOLDER_NOT_LOCAL
-                )
-
-            try:
-                if os.listdir(self.export_to):
-                    errors.fatal(
-                        f"The target export folder '{self.export_to}' already has contents. "
-                        "Please provide an empty folder.",
-                        errors.BULK_EXPORT_FOLDER_NOT_EMPTY,
-                    )
-            except FileNotFoundError:
-                # Target folder doesn't exist, so let's make it
-                os.makedirs(self.export_to, mode=0o700)
-
     async def load_all(self, resources: List[str]) -> base.Directory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
@@ -90,10 +68,7 @@ class FhirNdjsonLoader(base.Loader):
         return tmpdir
 
     async def _load_from_bulk_export(self, resources: List[str]) -> base.Directory:
-        if self.export_to:
-            target_dir = base.RealDirectory(self.export_to)
-        else:
-            target_dir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        target_dir = cli_utils.make_export_dir(self.export_to)
 
         try:
             bulk_exporter = BulkExporter(

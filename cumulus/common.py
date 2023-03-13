@@ -1,5 +1,7 @@
 """Utility methods"""
 
+import contextlib
+import csv
 import datetime
 import json
 import os
@@ -151,6 +153,32 @@ def write_json(path: str, data: Any, indent: Optional[int] = None) -> None:
 
     with open_file(path, "w") as f:
         json.dump(data, f, indent=indent)
+
+
+@contextlib.contextmanager
+def read_csv(path: str) -> csv.DictReader:
+    with open(path, newline="", encoding="utf8") as csvfile:
+        yield csv.DictReader(csvfile)
+
+
+class NdjsonWriter:
+    """Convenience context manager to write multiple objects to an ndjson file."""
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def __enter__(self):
+        self._file = open(self._path, "w", encoding="utf8")
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self._file:
+            self._file.close()
+            self._file = None
+
+    def write(self, obj: dict) -> None:
+        json.dump(obj, self._file)
+        self._file.write("\n")
 
 
 ###############################################################################

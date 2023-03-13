@@ -1,12 +1,11 @@
 """I2B2 loader"""
 
-import json
 import os
 import tempfile
 from functools import partial
 from typing import Callable, Iterable, List, TypeVar
 
-from cumulus import store
+from cumulus import common, store
 from cumulus.loaders.base import Directory, Loader
 from cumulus.loaders.i2b2 import extract, schema, transform
 from cumulus.loaders.i2b2.oracle import extract as oracle_extract
@@ -104,15 +103,14 @@ class I2b2Loader(Loader):
 
         ids = set()  # keep track of every ID we've seen so far, because sometimes i2b2 can have duplicates
 
-        with open(output_path, "w", encoding="utf8") as output_file:
+        with common.NdjsonWriter(output_path) as output_file:
             # Now write each FHIR resource line by line to the output
             # (we do this all line by line via generators to avoid loading everything in memory at once)
             for resource in fhir_resources:
                 if resource["id"] in ids:
                     continue
                 ids.add(resource["id"])
-                json.dump(resource, output_file)
-                output_file.write("\n")
+                output_file.write(resource)
 
     ###################################################################################################################
     #

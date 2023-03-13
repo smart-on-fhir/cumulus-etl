@@ -10,12 +10,12 @@ import socket
 import sys
 import tempfile
 import time
-from typing import Callable, Iterable, List, Type
+from typing import Iterable, List, Type
 from urllib.parse import urlparse
 
 import ctakesclient
 
-from cumulus import common, deid, errors, fhir_client, loaders, store
+from cumulus import cli_utils, common, deid, errors, fhir_client, loaders, store
 from cumulus.etl import context, tasks
 from cumulus.etl.config import JobConfig, JobSummary
 
@@ -153,8 +153,10 @@ def check_requirements() -> None:
 ###############################################################################
 
 
-def define_etl_parser(parser: argparse.ArgumentParser, *, add_auth: Callable, add_aws: Callable) -> None:
+def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     """Fills out an argument parser with all the ETL options."""
+    parser.usage = "%(prog)s [OPTION]... INPUT OUTPUT PHI"
+
     parser.add_argument("dir_input", metavar="/path/to/input")
     parser.add_argument("dir_output", metavar="/path/to/output")
     parser.add_argument("dir_phi", metavar="/path/to/phi")
@@ -177,8 +179,8 @@ def define_etl_parser(parser: argparse.ArgumentParser, *, add_auth: Callable, ad
     parser.add_argument("--comment", help="add the comment to the log file")
     parser.add_argument("--philter", action="store_true", help="run philter on all freeform text fields")
 
-    add_aws(parser)
-    add_auth(parser)
+    cli_utils.add_aws(parser)
+    cli_utils.add_auth(parser)
 
     export = parser.add_argument_group("bulk export")
     export.add_argument(

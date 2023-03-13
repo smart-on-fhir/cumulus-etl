@@ -357,4 +357,5 @@ And you may need to specify `--fhir-url=` so that external document notes can be
 Different EHRs have different features and performance.
 Here is some EHR-specific documentation:
 
+- [Cerner](cerner-tips.md)
 - [Epic](epic-tips.md)
