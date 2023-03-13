@@ -1,6 +1,7 @@
 """Exception classes and error handling"""
 
 import sys
+from typing import NoReturn
 
 
 # Error return codes, mostly just distinguished for the benefit of tests.
@@ -25,7 +26,7 @@ BULK_EXPORT_FOLDER_NOT_EMPTY = 26
 BULK_EXPORT_FOLDER_NOT_LOCAL = 27
 
 
-def fatal(message: str, status: int):
+def fatal(message: str, status: int) -> NoReturn:
     """Convenience method to exit the program with a user-friendly error message a test-friendly status code"""
     print(message, file=sys.stderr)
     sys.exit(status)  # raises a SystemExit exception
