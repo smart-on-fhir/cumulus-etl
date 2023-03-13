@@ -1,5 +1,6 @@
 """Tests for FhirClient and similar"""
 
+import argparse
 import time
 import unittest
 from unittest import mock
@@ -10,19 +11,19 @@ import httpx
 import respx
 from jwcrypto import jwk, jwt
 
-from cumulus import errors
-from cumulus.fhir_client import FatalError, FhirClient
+from cumulus import errors, store
+from cumulus.fhir_client import FatalError, FhirClient, create_fhir_client_for_cli
 from tests.utils import make_response
 
 
 @ddt.ddt
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
 @mock.patch("cumulus.fhir_client.uuid.uuid4", new=lambda: "1234")
-class TestBulkServer(unittest.IsolatedAsyncioTestCase):
+class TestFhirClient(unittest.IsolatedAsyncioTestCase):
     """
-    Test case for bulk export server oauth2 / request support.
+    Test case for FHIR client oauth2 / request support.
 
-    i.e. tests for backend_service.py
+    i.e. tests for fhir_client.py
     """
 
     def setUp(self):
@@ -329,3 +330,17 @@ class TestBulkServer(unittest.IsolatedAsyncioTestCase):
             with self.mock_session(server, status_code=500, **response_args):
                 with self.assertRaisesRegex(FatalError, "testmsg"):
                     await server.request("GET", "foo")
+
+    @ddt.data(
+        ({"DocumentReference", "Patient"}, {"Binary", "DocumentReference", "Patient"}),
+        ({"Patient"}, {"Patient"}),
+    )
+    @ddt.unpack
+    @mock.patch("cumulus.fhir_client.FhirClient")
+    def test_added_binary_scope(self, resources_in, expected_resources_out, mock_client):
+        """Verify that we add a Binary scope if DocumentReference is requested"""
+        args = argparse.Namespace(
+            fhir_url=None, smart_client_id=None, smart_jwks=None, basic_user=None, basic_passwd=None, bearer_token=None
+        )
+        create_fhir_client_for_cli(args, store.Root("/tmp"), resources_in)
+        self.assertEqual(mock_client.call_args[0][1], expected_resources_out)

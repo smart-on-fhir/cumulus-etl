@@ -434,9 +434,14 @@ def create_fhir_client_for_cli(
         print(exc, file=sys.stderr)
         raise SystemExit(errors.ARGS_INVALID) from exc
 
+    client_resources = set(resources)
+    if "DocumentReference" in client_resources:
+        # A DocumentReference scope implies a Binary scope as well, since we'll usually need to download attachments
+        client_resources.add("Binary")
+
     return FhirClient(
         client_base_url,
-        resources,
+        client_resources,
         basic_user=args.basic_user,
         basic_password=basic_password,
         bearer_token=bearer_token,
