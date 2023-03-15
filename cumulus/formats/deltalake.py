@@ -78,7 +78,9 @@ class DeltaLakeFormat(Format):
                     "org.apache.hadoop:hadoop-aws:3.3.4",
                 ],
             ).getOrCreate()
-
+        cls.spark.sparkContext._jsc.hadoopConfiguration().set(
+            "fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain"
+        )
         cls.spark.sparkContext.setLogLevel("ERROR")
         cls._configure_fs(root, cls.spark)
 

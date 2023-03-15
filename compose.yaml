@@ -10,6 +10,8 @@ services:
       - AWS_SESSION_TOKEN
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlp-transformers:8000/negation/process
+    volumes:
+      - $HOME/.aws/:/root/.aws/:ro
     networks:
       - cumulus-etl
     profiles:
