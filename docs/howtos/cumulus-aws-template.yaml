@@ -116,7 +116,7 @@ Resources:
         S3Encryptions:
           - KmsKeyArn: !Ref KMSMasterKeyID
             S3EncryptionMode: SSE-KMS
-      Name: cumulus-etl-kms
+      Name: cumulus-deid-kms
 
   CrawlerRole:
     Type: AWS::IAM::Role
@@ -148,12 +148,12 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: cumulus-etl-db
+        Name: cumulus-deid-db
 
   GlueCrawler:
     Type: AWS::Glue::Crawler
     Properties:
-      Name: cumulus-etl-crawler
+      Name: cumulus-deid-crawler
       DatabaseName: !Ref GlueDB
       Role: !GetAtt CrawlerRole.Arn
       CrawlerSecurityConfiguration: !Ref GlueSecurity
@@ -216,7 +216,7 @@ Resources:
   AthenaWorkGroup:
     Type: AWS::Athena::WorkGroup
     Properties:
-      Name: cumulus-etl
+      Name: cumulus-deid
       State: ENABLED
       WorkGroupConfiguration:
         EnforceWorkGroupConfiguration: True
