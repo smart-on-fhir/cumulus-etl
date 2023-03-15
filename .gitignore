@@ -3,6 +3,7 @@
 /.idea/
 /example-output/
 /example-phi-build/
+.aws-sam/
 
 # Python gitignore https://github.com/github/gitignore/blob/main/Python.gitignore
 # Byte-compiled / optimized / DLL files

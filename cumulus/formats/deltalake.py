@@ -78,7 +78,6 @@ class DeltaLakeFormat(Format):
                     "org.apache.hadoop:hadoop-aws:3.3.4",
                 ],
             ).getOrCreate()
-
         cls.spark.sparkContext.setLogLevel("ERROR")
         cls._configure_fs(root, cls.spark)
 
@@ -156,6 +155,10 @@ class DeltaLakeFormat(Format):
     def _configure_fs(root: store.Root, spark: pyspark.sql.SparkSession):
         """Tell spark/hadoop how to talk to S3 for us"""
         fsspec_options = root.fsspec_options()
+        # This credentials.provider option enables usage of the AWS credentials default priority list (i.e. it will
+        # cause a check for a ~/.aws/credentials file to happen instead of just looking for env vars).
+        # See http://wrschneider.github.io/2019/02/02/spark-credentials-file.html for details
+        spark.conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
         spark.conf.set("fs.s3a.sse.enabled", "true")
         spark.conf.set("fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
         kms_key = fsspec_options.get("s3_additional_kwargs", {}).get("SSEKMSKeyId")
