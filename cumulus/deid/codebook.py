@@ -5,7 +5,7 @@ import hmac
 import logging
 import os
 import secrets
-from typing import Optional
+from typing import Dict, Iterable, Iterator, Optional
 
 from cumulus import common
 
@@ -28,7 +28,7 @@ class Codebook:
         except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
-    def fake_id(self, resource_type: Optional[str], real_id: str) -> str:
+    def fake_id(self, resource_type: Optional[str], real_id: str, caching_allowed: bool = True) -> str:
         """
         Returns a new fake ID in place of the provided real ID
 
@@ -44,13 +44,33 @@ class Codebook:
         But most other types don't need that reversibility and are instead cryptographically hashed using HMAC-SHA256
         and a random salt/secret. This is the same algorithm used by Microsoft's anonymization tools for FHIR.
         We use a hash rather than a stored mapping purely for memory reasons.
+
+        :param resource_type: the FHIR resource name (e.g. Encounter)
+        :param real_id: the actual Resource.id value for the original resource (i.e. the PHI version)
+        :param caching_allowed: whether the codebook can consider caching this ID mapping (it only does so for certain
+                                resources anyway)
+        :returns: an anonymous ID to use in place of the real ID
         """
         if resource_type == "Patient":
-            return self.db.patient(real_id)
+            return self.db.patient(real_id, cache_mapping=caching_allowed)
         elif resource_type == "Encounter":
-            return self.db.encounter(real_id)
+            return self.db.encounter(real_id, cache_mapping=caching_allowed)
         else:
             return self.db.resource_hash(real_id)
+
+    def real_ids(self, resource_type: str, fake_ids: Iterable[str]) -> Iterator[Optional[str]]:
+        """
+        Reverse-maps a list of fake IDs into real IDs.
+
+        This is an expensive operation, so only a bulk API is provided.
+        """
+        mapping = self.db.get_reverse_mapping(resource_type)
+        for fake_id in fake_ids:
+            real_id = mapping.get(fake_id)
+            if real_id:
+                yield real_id
+            else:
+                logging.warning("Real ID not found for anonymous %s ID %s. Ignoring.", resource_type, fake_id)
 
 
 ###############################################################################
@@ -105,25 +125,27 @@ class CodebookDB:
             self.settings["id_salt"] = secrets.token_hex(32)
             self.modified = True
 
-    def patient(self, real_id: str) -> str:
+    def patient(self, real_id: str, cache_mapping: bool = True) -> str:
         """
         Get a fake ID for a FHIR Patient ID
 
         :param real_id: patient resource ID
+        :param cache_mapping: whether to cache the mapping
         :return: fake ID
         """
-        return self._preserved_resource_hash("Patient", real_id)
+        return self._preserved_resource_hash("Patient", real_id, cache_mapping)
 
-    def encounter(self, real_id: str) -> str:
+    def encounter(self, real_id: str, cache_mapping: bool = True) -> str:
         """
         Get a fake ID for a FHIR Encounter ID
 
         :param real_id: encounter resource ID
+        :param cache_mapping: whether to cache the mapping
         :return: fake ID
         """
-        return self._preserved_resource_hash("Encounter", real_id)
+        return self._preserved_resource_hash("Encounter", real_id, cache_mapping)
 
-    def _preserved_resource_hash(self, resource_type: str, real_id: str) -> str:
+    def _preserved_resource_hash(self, resource_type: str, real_id: str, cache_mapping: bool) -> str:
         """
         Get a hashed ID and preserve the mapping.
 
@@ -133,6 +155,7 @@ class CodebookDB:
 
         :param resource_type: FHIR resource name
         :param real_id: patient resource ID
+        :param cache_mapping: whether to cache the mapping
         :return: fake ID
         """
         # We used to store random (not hash-based) mappings in the codebook itself.
@@ -147,13 +170,28 @@ class CodebookDB:
 
         # Save this generated ID mapping so that we can store it for debugging purposes later.
         # Only save if we don't have a legacy mapping, so that we don't have both in memory at the same time.
-        if self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id:
+        if cache_mapping and self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id:
             # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
             # but is written defensively in case a bad mapping got saved for some reason.
             self.cached_mapping[resource_type][real_id] = fake_id
             self.modified = True
 
         return fake_id
+
+    def get_reverse_mapping(self, resource_type: str) -> Dict[str, str]:
+        """
+        Returns reversed cached mappings for a given resource.
+
+        This is used for reverse-engineering anonymous IDs to the original real IDs, for the resources we cache.
+        """
+        mapping = self.cached_mapping.get(resource_type, {})
+        reverse_mapping = {v: k for k, v in mapping.items()}
+
+        # Add any legacy mappings from settings (iteratively, to avoid a spare version in memory)
+        for k, v in self.settings.get(resource_type, {}).items():
+            reverse_mapping[v] = k
+
+        return reverse_mapping
 
     def resource_hash(self, real_id: str) -> str:
         """

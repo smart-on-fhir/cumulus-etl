@@ -238,16 +238,18 @@ class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(target, self.mock_exporter_class.call_args[0][3])
             self.assertEqual(target, folder.name)
 
-    def test_export_to_folder_has_contents(self):
+    async def test_export_to_folder_has_contents(self):
         """Verify we fail if an export folder already has contents"""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.mkdir(f"{tmpdir}/stuff")
+            loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir)
             with self.assertRaises(SystemExit) as cm:
-                loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir)
+                await loader.load_all([])
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_EMPTY)
 
-    def test_export_to_folder_not_local(self):
+    async def test_export_to_folder_not_local(self):
         """Verify we fail if an export folder is not local"""
+        loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo")
         with self.assertRaises(SystemExit) as cm:
-            loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo/")
+            await loader.load_all([])
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)

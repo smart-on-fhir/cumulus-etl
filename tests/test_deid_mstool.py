@@ -1,7 +1,6 @@
 """Tests for the mstool module"""
 
 import filecmp
-import json
 import os
 import shutil
 import tempfile
@@ -44,11 +43,10 @@ class TestMicrosoftTool(TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
 
         for resource, unsorted_files in resource_buckets.items():
             os.makedirs(output_dir, exist_ok=True)
-            with open(f"{output_dir}/{resource}.ndjson", "w", encoding="utf8") as output_file:
+            with common.NdjsonWriter(f"{output_dir}/{resource}.ndjson") as output_file:
                 for filename in sorted(unsorted_files):
                     parsed_json = common.read_json(f"{input_dir}/{filename}")
-                    json.dump(parsed_json, output_file)
-                    output_file.write("\n")
+                    output_file.write(parsed_json)
 
     async def test_expected_transform(self):
         """Confirms that our sample input data results in the correct output"""
