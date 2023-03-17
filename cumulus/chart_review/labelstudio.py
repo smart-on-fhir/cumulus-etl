@@ -1,33 +1,13 @@
 """LabelStudio document annotation"""
 
-import json
-import os
+from typing import Collection, Iterable, List, Tuple
 
-from ctakesclient.typesystem import Polarity, MatchText, CtakesJSON, UmlsTypeMention
+import ctakesclient.typesystem
+import label_studio_sdk
+import label_studio_sdk.data_manager as lsdm
+from ctakesclient.typesystem import MatchText
 
-from cumulus import store
-
-
-###############################################################################
-#
-# Helper Functions
-#
-###############################################################################
-def merge_cohort(filepath) -> list:
-    if not os.path.exists(filepath):
-        raise FileNotFoundError(f"not found! {filepath}")
-
-    cohort = store.read_json(filepath).get("cohort")
-
-    print(f"{filepath}")
-    print(f"cohort list # {len(cohort)}")
-    print(f"cohort set  # {len(set(cohort))}")
-
-    contents = []
-    for f in set(cohort):
-        contents.append(store.read_json(f))
-
-    return contents
+from cumulus import errors
 
 
 ###############################################################################
@@ -37,94 +17,111 @@ def merge_cohort(filepath) -> list:
 ###############################################################################
 
 
-class LabelStudio:
-    """LabelStudio document annotation"""
+class LabelStudioNote:
+    def __init__(self, ref_id: str, text: str):
+        self.ref_id = ref_id
+        self.text = text
+        self.matches: List[ctakesclient.typesystem.MatchText] = []
 
-    def __init__(
-        self, physician_note: str, response_ctakes, filter_cui=None, filter_semtype=UmlsTypeMention.SignSymptom.value
-    ):
-        """
-        LabelStudio document annotation.
-        https://labelstud.io/guide/tasks.html#Basic-Label-Studio-JSON-format
 
-        Physician note and ctakes JSON data can be very large quickly: the
-        design of this class optionally allows for both TXT/JSON at any time.
-        Use load_lazy() when ready to process.
+class LabelStudioClient:
+    """Client to talk to Label Studio"""
 
-        :param physician_note: text of physician note or /path/to/physician.txt
-        :param response_ctakes: JSON result from cTAKES or /path/to/ctakes.json
-        :param filter_cui: {cui:text} to select concepts for document level
-                           annotation
-        :param filter_semtype: UMLS semantic type to filter by (select for)
-        """
-        self.note_text = physician_note
-        self.note_file = None
-        self.response_ctakes = response_ctakes
-        self.filter_cui = filter_cui
-        self.filter_semtype = filter_semtype
-        self.model_version = "ctakes-covid"
-        self.result = []
+    def __init__(self, url: str, api_key: str, project_id: int, cui_labels: dict[str, str]):
+        self._client = label_studio_sdk.Client(url, api_key)
+        self._client.check_connection()
+        self._project = self._client.get_project(project_id)
+        self._labels_name, self._labels_config = self._get_labels_config()
+        self._cui_labels = dict(cui_labels)
 
-        # Physician note can be either raw text or path to a file
-        if physician_note and (5 < len(physician_note) < 255):
-            if os.path.exists(physician_note):
-                with open(physician_note, "r", encoding="utf8") as f:
-                    self.note_text = f.read()
-                    self.note_file = physician_note
+    def push_tasks(self, notes: Collection[LabelStudioNote], *, overwrite: bool = False) -> None:
+        # Get any existing tasks that we might be updating
+        ref_ids = [note.ref_id for note in notes]
+        ref_id_filter = lsdm.Filters.create(
+            lsdm.Filters.AND,
+            [lsdm.Filters.item(lsdm.Column.data("ref_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, ref_ids)],
+        )
+        existing_tasks = self._project.get_tasks(filters=ref_id_filter)
+        new_task_count = len(notes) - len(existing_tasks)
 
-        # Response from Ctakes can be either typed (CtakesJSON), dict or saved
-        # file.
-        if response_ctakes and isinstance(response_ctakes, str):
-            if os.path.exists(response_ctakes):
-                with open(response_ctakes, "r", encoding="utf8") as f:
-                    self.response_ctakes = CtakesJSON(json.load(f))
-        elif response_ctakes and isinstance(response_ctakes, dict):
-            self.response_ctakes = CtakesJSON(response_ctakes)
+        # Should we delete existing entries?
+        if existing_tasks:
+            if overwrite:
+                print(f"  Overwriting {len(existing_tasks)} existing tasks")
+                self._project.delete_tasks([t["id"] for t in existing_tasks])
+            else:
+                print(f"  Skipping {len(existing_tasks)} existing tasks")
+                existing_ref_ids = {t["data"]["ref_id"] for t in existing_tasks}
+                notes = [note for note in notes if note.ref_id not in existing_ref_ids]
 
-    def load_lazy(self, polarity=Polarity.pos):
-        """
-        :param ctakes_said: JSON result from cTAKES
-        :param cui_map: {cui:text} to select concepts for document level
-                        annotation
-        :param umls_type: UMLS semantic type to filter by (select for)
-        :param polarity: default POSITIVE mentions only.
-        """
-        whole_doc = set()
+        # OK, import away!
+        if notes:
+            self._project.import_tasks([self._format_task_for_note(note) for note in notes])
+            if new_task_count:
+                print(f"  Imported {new_task_count} new tasks")
 
-        if self.response_ctakes:
-            for match in self.response_ctakes.list_match(polarity):
-                for concept in match.conceptAttributes:
-                    if concept.cui in self.filter_cui.keys():
-                        self.add_match(match, self.filter_cui[concept.cui])
-                        whole_doc.add(self.filter_cui[concept.cui])
+    def _get_labels_config(self) -> Tuple[str, dict]:
+        """Finds the first <Labels> tag in the config and returns its name and values, falling back to <Choices>"""
+        for k, v in self._project.parsed_label_config.items():
+            if v.get("type") == "Labels":
+                return k, v
 
-            self.add_concept(whole_doc)
+        for k, v in self._project.parsed_label_config.items():
+            if v.get("type") == "Choices":
+                return k, v
 
-    def add_match(self, match: MatchText, labels):
-        ner_spans = {
-            "id": f"ss{len(self.result)}",
-            "from_name": "label",
-            "to_name": "text",
-            "type": "labels",
-            "value": {"start": match.begin, "end": match.end, "score": 1.0, "text": match.text, "labels": [labels]},
-        }
-        self.result.append(ner_spans)
+        errors.fatal(
+            "Could not find a Labels or Choices config in the Label Studio project.", errors.LABEL_STUDIO_CONFIG_INVALID
+        )
 
-    def add_concept(self, labels: set):
-        whole_doc = {
-            "id": f"ss{len(self.result)}",
-            "from_name": "symptoms",
-            "to_name": "text",
-            "type": "choices",
-            "value": {
-                "choices": list(labels),
+    def _format_task_for_note(self, note: LabelStudioNote) -> dict:
+        task = {
+            "data": {
+                "text": note.text,
+                "ref_id": note.ref_id,
             },
         }
 
-        self.result.append(whole_doc)
+        if note.matches:
+            self._format_prediction(task, note)
 
-    def as_json(self):
+        return task
+
+    def _format_prediction(self, task: dict, note: LabelStudioNote) -> None:
+        prediction = {
+            "model_version": "Cumulus",  # TODO: do we want more specificity here?
+        }
+
+        used_labels = set()
+        results = []
+        count = 0
+        for match in note.matches:
+            matched_labels = {self._cui_labels.get(concept.cui) for concept in match.conceptAttributes}
+            matched_labels.discard(None)  # drop the result of a concept not being in our bsv label set
+            if matched_labels:
+                results.append(self._format_match(count, match, matched_labels))
+                used_labels.update(matched_labels)
+                count += 1
+        prediction["result"] = results
+
+        if self._labels_config.get("dynamic_labels"):
+            # This path supports configs like <Labels name="label" toName="text" value="$label"/> where the labels
+            # can be dynamically set by us.
+            #
+            # Unfortunately, the variable name for value= (which is what we need to use for the key in data[]) is not
+            # actually kept in the config, so we have to make some assumptions about how the user set up their project.
+            #
+            # The rule that Cumulus uses is that the value= variable must equal the name= of the <Labels> element.
+            # TODO: add this quirk to our eventual documentation for this feature.
+            task["data"][self._labels_name] = [{"value": l} for l in sorted(used_labels)]
+
+        task["predictions"] = [prediction]
+
+    def _format_match(self, count: int, match: MatchText, labels: Iterable[str]) -> dict:
         return {
-            "data": {"text": self.note_text, "file": self.note_file},
-            "predictions": [{"model_version": self.model_version, "result": self.result}],
+            "id": f"match{count}",
+            "from_name": self._labels_name,
+            "to_name": self._labels_config["to_name"][0],
+            "type": "labels",
+            "value": {"start": match.begin, "end": match.end, "score": 1.0, "text": match.text, "labels": list(labels)},
         }

@@ -1,6 +1,7 @@
 """Abstraction for where to write and read data"""
 
 import os
+from typing import Iterator
 from urllib.parse import urlparse
 
 import fsspec
@@ -67,6 +68,9 @@ class Root:
         """Download files"""
         self._confirm_in_root(rpath)
         return self.fs.get(rpath, lpath)
+
+    def ls(self) -> Iterator[str]:
+        return self.fs.ls(self.path)
 
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
