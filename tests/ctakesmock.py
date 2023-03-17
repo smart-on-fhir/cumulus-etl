@@ -1,7 +1,15 @@
 """Holds mock methods for ctakesclient.client"""
 
+import http.server
+import json
+import multiprocessing
+import os
+import signal
+import socketserver
+import tempfile
 import unittest
-from typing import List
+from functools import partial
+from typing import List, Optional
 from unittest import mock
 
 from ctakesclient import typesystem
@@ -21,15 +29,101 @@ class CtakesMixin(unittest.TestCase):
         self.addCleanup(version_patcher.stop)
         version_patcher.start()
 
-        nlp_patcher = mock.patch("cumulus.ctakes.ctakesclient.client.extract", side_effect=fake_ctakes_extract)
-        self.addCleanup(nlp_patcher.stop)
-        self.nlp_mock = nlp_patcher.start()
+        os.environ["URL_CTAKES_REST"] = "http://localhost:8989/"
+        self.ctakes_overrides = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        self._run_fake_ctakes_server(f"{self.ctakes_overrides.name}/symptoms.bsv")
 
         cnlp_patcher = mock.patch(
-            "cumulus.ctakes.ctakesclient.transformer.list_polarity", side_effect=fake_transformer_list_polarity
+            "cumulus.nlp.extract.ctakesclient.transformer.list_polarity", side_effect=fake_transformer_list_polarity
         )
         self.addCleanup(cnlp_patcher.stop)
         self.cnlp_mock = cnlp_patcher.start()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        del os.environ["URL_CTAKES_REST"]
+        self.ctakes_server.kill()
+        self.ctakes_server.join()
+        self.ctakes_overrides = None
+
+    def was_ctakes_called(self) -> bool:
+        return bool(self._ctakes_called.value)
+
+    def _run_fake_ctakes_server(self, overrides_path: str) -> None:
+        """Starts a mock cTAKES server process"""
+        self._ctakes_called = multiprocessing.Value("b")
+        self._ctakes_called.value = 0
+        self.ctakes_server = multiprocessing.Process(
+            target=partial(_serve_with_restarts, overrides_path, self._ctakes_called), daemon=True
+        )
+        self.ctakes_server.start()
+
+
+def _get_mtime(path) -> Optional[float]:
+    """Gets mtime of a filename"""
+    try:
+        return os.stat(path).st_mtime
+    except FileNotFoundError:
+        return None
+
+
+def _serve_with_restarts(overrides_path: str, was_called: multiprocessing.Value) -> None:
+    server_address = ("", 8989)  # Hopefully that never conflicts during tests...
+    mtime = _get_mtime(overrides_path)
+
+    while True:  # loop that keeps spawning new servers as they get restarted
+        ctakes_server = KillableServer(server_address, FakeCTakesHandler)
+        ctakes_server.timeout = 0.1
+        ctakes_server.was_called = was_called
+
+        while True:  # loop that handles requests for a given server until we decide to restart
+            ctakes_server.handle_request()
+
+            # Check if the overrides path changed on us, and restart if so
+            new_mtime = _get_mtime(overrides_path)
+            if new_mtime != mtime:
+                # File changed! Let's restart
+                ctakes_server.server_close()
+                mtime = new_mtime
+                break
+
+
+class KillableServer(socketserver.ForkingMixIn, http.server.HTTPServer):
+    """
+    An HTTP server that will forcefully kill all open requests when closing.
+
+    This is used so that we can ensure all sockets are closed when we restart.
+    """
+
+    was_called: multiprocessing.Value = None
+
+    def server_close(self):
+        children = self.active_children or set()
+        for child in children:
+            os.kill(child, signal.SIGKILL)
+        super().server_close()
+
+
+class FakeCTakesHandler(http.server.BaseHTTPRequestHandler):
+    """A handler that provides a fake cTAKES response"""
+
+    # We explicitly do not set a class timeout.
+    # We don't want that behavior, because if our mock code is misbehaving and not detecting an overrides file change,
+    # if we time out a request on our end, it will look like a successful file change detection and mask a testing bug.
+
+    def do_POST(self):  # pylint: disable=invalid-name
+        """Serve a POST request."""
+        self.server.was_called.value = 1  # signal to test framework that we were actually called
+
+        content_len = int(self.headers.get("Content-Length", 0))
+        sentence = self.rfile.read(content_len)
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+
+        answer = fake_ctakes_extract(sentence.decode("utf8")).as_json()
+        self.wfile.write(json.dumps(answer).encode("utf8"))
 
 
 def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:

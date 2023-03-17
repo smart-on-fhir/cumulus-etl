@@ -18,6 +18,8 @@ services:
       - cumulus-etl
     profiles:
       - base
+    volumes:
+      - ctakes-overrides:/ctakes-overrides
 
   cumulus-etl:
     extends: cumulus-etl-base
@@ -32,7 +34,7 @@ services:
       - etl-gpu
 
   ctakes-covid-base:
-    image: smartonfhir/ctakes-covid:1
+    image: smartonfhir/ctakes-covid:1.1
     environment:
       - ctakes_umlsuser=umls_api_key 
       - ctakes_umlspw=$UMLS_API_KEY
@@ -40,6 +42,8 @@ services:
       - cumulus-etl
     profiles:
       - base
+    volumes:
+      - ctakes-overrides:/overrides
 
   ctakes-covid:
     extends: ctakes-covid-base
@@ -149,3 +153,6 @@ services:
 networks:
   cumulus-etl:
     name: cumulus-etl
+
+volumes:
+  ctakes-overrides:

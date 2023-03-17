@@ -162,7 +162,7 @@ class Scrubber:
     def _check_text(self, node: dict, key: str, value: Any):
         """Scrubs text values that got through the MS config by passing them through philter"""
         # Mostly, we are filtering any freeform text fields we previously allowed in with ms-config.json.
-        if any(
+        if isinstance(value, str) and any(
             (
                 # Coding.display is clinically unnecessary but is useful for rendering.
                 # Since "code" is always present, downstream consumers can & should provide their own display label.

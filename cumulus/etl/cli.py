@@ -6,16 +6,11 @@ import json
 import logging
 import os
 import shutil
-import socket
 import sys
 import tempfile
-import time
 from typing import Iterable, List, Type
-from urllib.parse import urlparse
 
-import ctakesclient
-
-from cumulus import cli_utils, common, deid, errors, fhir_client, loaders, store
+from cumulus import cli_utils, common, deid, errors, fhir_client, loaders, nlp, store
 from cumulus.etl import context, tasks
 from cumulus.etl.config import JobConfig, JobSummary
 
@@ -72,55 +67,6 @@ async def etl_job(
 ###############################################################################
 
 
-def is_url_available(url: str) -> bool:
-    """Returns whether we are able to make connections to the given URL, with a few retries."""
-    url_parsed = urlparse(url)
-
-    num_tries = 6  # try six times / wait five seconds
-    for i in range(num_tries):
-        try:
-            socket.socket().connect((url_parsed.hostname, url_parsed.port))
-            return True
-        except ConnectionRefusedError:
-            if i < num_tries - 1:
-                time.sleep(1)
-
-    return False
-
-
-def check_ctakes() -> None:
-    """
-    Verifies that cTAKES is available to receive requests.
-
-    Will block while waiting for cTAKES.
-    """
-    # Check if our cTAKES server is ready (it may still not be fully ready once the socket is open, but at least it
-    # will accept requests and then block the reply on it finishing its initialization)
-    ctakes_url = ctakesclient.client.get_url_ctakes_rest()
-    if not is_url_available(ctakes_url):
-        print(
-            f"A running cTAKES server was not found at:\n    {ctakes_url}\n\n"
-            "Please set the URL_CTAKES_REST environment variable or start the docker support services.",
-            file=sys.stderr,
-        )
-        raise SystemExit(errors.CTAKES_MISSING)
-
-
-def check_cnlpt() -> None:
-    """
-    Verifies that the cNLP transformer server is running.
-    """
-    cnlpt_url = ctakesclient.transformer.get_url_cnlp_negation()
-
-    if not is_url_available(cnlpt_url):
-        print(
-            f"A running cNLP transformers server was not found at:\n    {cnlpt_url}\n\n"
-            "Please set the URL_CNLP_NEGATION environment variable or start the docker support services.",
-            file=sys.stderr,
-        )
-        raise SystemExit(errors.CNLPT_MISSING)
-
-
 def check_mstool() -> None:
     """
     Verifies that the MS anonymizer tool is installed in PATH.
@@ -141,8 +87,8 @@ def check_requirements() -> None:
 
     May block while waiting a bit for them.
     """
-    check_ctakes()
-    check_cnlpt()
+    nlp.check_ctakes()
+    nlp.check_cnlpt()
     check_mstool()
 
 
@@ -184,10 +130,18 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
 
     export = parser.add_argument_group("bulk export")
     export.add_argument(
-        "--export-to", metavar="PATH", help="Where to put exported files (default is to delete after use)"
+        "--export-to", metavar="DIR", help="Where to put exported files (default is to delete after use)"
     )
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
+
+    task = parser.add_argument_group("NLP")
+    task.add_argument(
+        "--ctakes-overrides",
+        metavar="DIR",
+        default="/ctakes-overrides",
+        help="Path to cTAKES overrides dir (default is /ctakes-overrides)",
+    )
 
     task = parser.add_argument_group("task selection")
     task.add_argument("--task", action="append", help="Only update the given output tables (comma separated)")
@@ -256,6 +210,7 @@ async def etl_main(args: argparse.Namespace) -> None:
             comment=args.comment,
             batch_size=args.batch_size,
             timestamp=job_datetime,
+            ctakes_overrides=args.ctakes_overrides,
             tasks=[t.name for t in selected_tasks],
         )
         common.write_json(config.path_config(), config.as_json(), indent=4)

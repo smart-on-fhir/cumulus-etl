@@ -1,7 +1,9 @@
 """Various test helper methods"""
 
+import contextlib
 import json
 import os
+import time
 import unittest
 
 import httpx
@@ -84,3 +86,13 @@ def make_response(status_code=200, json_payload=None, text=None, reason=None, he
         headers=headers or {},
         request=httpx.Request("GET", "fake_request_url"),
     )
+
+
+@contextlib.contextmanager
+def timeit(desc: str = None):
+    """Tiny little timer context manager that is useful when debugging"""
+    start = time.perf_counter()
+    yield
+    end = time.perf_counter()
+    suffix = f" ({desc})" if desc else ""
+    print(f"TIMEIT: {end - start:.2f}s{suffix}")

@@ -4,12 +4,14 @@ import itertools
 import json
 import os
 import re
+import shutil
 import sys
 from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, List, Set, Type, TypeVar, Union
 
+import ctakesclient
 import pandas
 
-from cumulus import common, ctakes, deid, errors, store
+from cumulus import common, deid, errors, nlp, store
 from cumulus.etl import config
 
 T = TypeVar("T")
@@ -203,6 +205,9 @@ class EtlTask:
         summary = config.JobSummary(self.name)
         common.print_header(f"{self.name}:")
 
+        if not await self.prepare_task():
+            return summary
+
         # No data is read or written yet, so do any initial setup the formatter wants
         formatter = self.task_config.create_formatter(self.name, self.group_field)
 
@@ -267,6 +272,14 @@ class EtlTask:
         """
         for x in filter(self.scrubber.scrub_resource, self.read_ndjson()):
             yield x
+
+    async def prepare_task(self) -> bool:
+        """
+        If your subclass needs to do any preparation at the beginning of run(), override this.
+
+        :returns: False if this task should be skipped and end immediately
+        """
+        return True
 
 
 ##########################################################################################
@@ -345,6 +358,48 @@ class CovidSymptomNlpResultsTask(EtlTask):
         },
     }
 
+    def restart_ctakes_with_bsv(self, bsv_path) -> bool:
+        """Hands a new bsv over to cTAKES and waits for it to restart and be ready again with the new bsv file"""
+        # This whole setup is slightly janky. But it is designed with these constraints:
+        # 1. We'd like to feed cTAKES different custom dictionaries, including ones invented by the user.
+        # 2. cTAKES has no ability to accept a new dictionary on the fly.
+        # 3. cTAKES is not able to hold multiple dictionaries at once.
+        # 4. We're usually running under docker.
+        #
+        # Taken altogether, if we want to feed cTAKES a dictionary, we need to start it fresh with that dictionary.
+        # But one docker cannot manage another docker's lifecycle.
+        #
+        # So what Cumulus does is use a cTAKES docker image that specifically supports placing override dictionaries
+        # in a well-known path (/overrides). The docker image will watch for modifications there and restart cTAKES.
+        #
+        # Then, we place our custom dictionaries in a folder that is mounted as /overrides on the cTAKES side.
+        # In our default docker setup, this is /ctakes-overrides on our side.
+        # In other setups, you can pass --ctakes-overrides to set the folder.
+        #
+        # Because writing a new bsv file will cause a cTAKES restart to happen, we have to beware of race conditions.
+        # So we'll use the wait_for_ctakes_restart context manager to ensure cTAKES noticed our change and is ready.
+
+        target_dir = self.task_config.ctakes_overrides
+        if not target_dir:
+            # Graceful skipping of this feature if ctakes-override is empty (usually just in tests).
+            print(f"Warning: Skipping {self.name} because --ctakes-override is not defined.", file=sys.stderr)
+            return False
+        elif not os.path.isdir(target_dir):
+            print(
+                f"Warning: Skipping {self.name} because the cTAKES overrides\n"
+                f"folder does not exist at {target_dir}.\n"
+                "Consider using --ctakes-overrides.",
+                file=sys.stderr,
+            )
+            return False
+
+        with nlp.wait_for_ctakes_restart():
+            shutil.copyfile(bsv_path, os.path.join(target_dir, "symptoms.bsv"))
+        return True
+
+    async def prepare_task(self) -> bool:
+        return self.restart_ctakes_with_bsv(ctakesclient.filesystem.covid_symptoms_path())
+
     @classmethod
     def is_ed_coding(cls, coding):
         """Returns true if this is a coding for an emergency department note"""
@@ -370,4 +425,4 @@ class CovidSymptomNlpResultsTask(EtlTask):
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield await ctakes.covid_symptoms_extract(self.task_config.client, phi_root, docref)
+            yield await nlp.covid_symptoms_extract(self.task_config.client, phi_root, docref)
