@@ -21,7 +21,7 @@ class FhirNdjsonLoader(base.Loader):
     def __init__(
         self,
         root: store.Root,
-        client: FhirClient,
+        client: FhirClient = None,
         export_to: str = None,
         since: str = None,
         until: str = None,

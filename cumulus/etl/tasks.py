@@ -132,6 +132,7 @@ class EtlTask:
             ConditionTask,
             DocumentReferenceTask,
             EncounterTask,
+            MedicationRequestTask,
             ObservationTask,
             PatientTask,
             CovidSymptomNlpResultsTask,
@@ -304,6 +305,12 @@ class DocumentReferenceTask(EtlTask):
 class EncounterTask(EtlTask):
     name = "encounter"
     resource = "Encounter"
+    tags = {"cpu"}
+
+
+class MedicationRequestTask(EtlTask):
+    name = "medicationrequest"
+    resource = "MedicationRequest"
     tags = {"cpu"}
 
 

@@ -1,6 +1,5 @@
 """Tests for etl/cli.py"""
 
-import filecmp
 import itertools
 import json
 import os
@@ -18,7 +17,6 @@ from ctakesclient.typesystem import Polarity
 from cumulus import cli, common, deid, errors, loaders, store
 from cumulus.etl import context
 from cumulus.formats.deltalake import DeltaLakeFormat
-from cumulus.loaders.i2b2 import extract
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
@@ -27,7 +25,7 @@ from tests.utils import TreeCompareMixin
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45", tz_offset=-4)
-class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
+class BaseEtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
     """
     Base test case for basic runs of etl methods
 
@@ -39,16 +37,14 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
 
         script_dir = os.path.dirname(__file__)
         self.data_dir = os.path.join(script_dir, "data/simple")
-        self.input_path = os.path.join(self.data_dir, "i2b2-input")
+        self.input_path = os.path.join(self.data_dir, "input")
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        self.addCleanup(shutil.rmtree, tmpdir)
+        # self.addCleanup(shutil.rmtree, tmpdir)
 
         self.output_path = os.path.join(tmpdir, "output")
         self.phi_path = os.path.join(tmpdir, "phi")
-
-        filecmp.clear_cache()
 
         self.enforce_consistent_uuids()
 
@@ -57,7 +53,6 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
         input_path=None,
         output_path=None,
         phi_path=None,
-        input_format: Optional[str] = "i2b2",
         output_format: Optional[str] = "ndjson",
         comment=None,
         batch_size=None,
@@ -69,10 +64,9 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
             output_path or self.output_path,
             phi_path or self.phi_path,
             "--skip-init-checks",
+            "--input-format=ndjson",
             f"--ctakes-overrides={self.ctakes_overrides.name}",
         ]
-        if input_format:
-            args.append(f"--input-format={input_format}")
         if output_format:
             args.append(f"--output-format={output_format}")
         if comment:
@@ -95,21 +89,15 @@ class BaseI2b2EtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioT
 
     def assert_output_equal(self, folder: str):
         """Compares the etl output with the expected json structure"""
-        # We don't compare contents of the job config because it includes a lot of paths etc.
-        # But we can at least confirm that it was created.
-        self.assertTrue(os.path.exists(os.path.join(self.output_path, "JobConfig")))
-
-        expected_path = os.path.join(self.data_dir, folder)
-        dircmp = filecmp.dircmp(expected_path, self.output_path, ignore=["JobConfig"])
-        self.assert_file_tree_equal(dircmp)
+        self.assert_etl_output_equal(os.path.join(self.data_dir, folder), self.output_path)
 
 
-class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
+class TestEtlJobFlow(BaseEtlSimple):
     """Test case for the sequence of data through the system"""
 
     async def test_batched_output(self):
         await self.run_etl(batch_size=1)
-        self.assert_output_equal("batched-ndjson-output")
+        self.assert_output_equal("batched-output")
 
     async def test_downloaded_phi_is_not_kept(self):
         """Verify we remove all downloaded PHI even if interrupted"""
@@ -150,7 +138,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     async def test_single_task(self):
         # Grab all observations before we mock anything
-        observations = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(["Observation"])
+        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(["Observation"])
 
         def fake_load_all(internal_self, resources):
             del internal_self
@@ -158,7 +146,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             self.assertEqual(["Observation"], resources)
             return observations
 
-        with mock.patch.object(loaders.I2b2Loader, "load_all", new=fake_load_all):
+        with mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all):
             await self.run_etl(tasks=["observation"])
 
         # Confirm we only wrote the one resource
@@ -167,7 +155,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
 
     async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
-        loaded = loaders.I2b2Loader(store.Root(self.input_path), 5).load_all(["Observation", "Patient"])
+        loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(["Observation", "Patient"])
 
         def fake_load_all(internal_self, resources):
             del internal_self
@@ -175,7 +163,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
             self.assertEqual({"Observation", "Patient"}, set(resources))
             return loaded
 
-        with mock.patch.object(loaders.I2b2Loader, "load_all", new=fake_load_all):
+        with mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all):
             await self.run_etl(tasks=["observation", "patient"])
 
         # Confirm we only wrote the one resource
@@ -209,7 +197,7 @@ class TestI2b2EtlJobFlow(BaseI2b2EtlSimple):
         )
 
 
-class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
+class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""
 
     def setUp(self):
@@ -228,7 +216,7 @@ class TestI2b2EtlJobConfig(BaseI2b2EtlSimple):
         self.assertEqual(config_file["comment"], "Run by foo on machine bar")
 
 
-class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
+class TestEtlJobContext(BaseEtlSimple):
     """Test case for the job context data"""
 
     def setUp(self):
@@ -260,17 +248,12 @@ class TestI2b2EtlJobContext(BaseI2b2EtlSimple):
         self.assertEqual(input_context, common.read_json(self.context_path))
 
 
-class TestI2b2EtlFormats(BaseI2b2EtlSimple):
+class TestEtlFormats(BaseEtlSimple):
     """Test case for each of the formats we support"""
 
     async def test_etl_job_ndjson(self):
-        await self.run_etl(output_format="ndjson")
-        self.assert_output_equal("ndjson-output")
-
-    async def test_etl_job_input_ndjson(self):
-        self.input_path = os.path.join(self.data_dir, "ndjson-input")
-        await self.run_etl(input_format=None)  # ndjson should be default input
-        self.assert_output_equal("ndjson-output")
+        await self.run_etl()
+        self.assert_output_equal("output")
 
     async def test_etl_job_parquet(self):
         await self.run_etl(output_format="parquet")
@@ -293,6 +276,7 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
                 "condition/condition.000.parquet",
                 "documentreference/documentreference.000.parquet",
                 "encounter/encounter.000.parquet",
+                "medicationrequest/medicationrequest.000.parquet",
                 "observation/observation.000.parquet",
                 "patient/patient.000.parquet",
                 "covid_symptom__nlp_results/covid_symptom__nlp_results.000.parquet",
@@ -337,7 +321,7 @@ class TestI2b2EtlFormats(BaseI2b2EtlSimple):
         self.assertRegex(data_crc_files.pop(), r".part-00000-.*-c000.snappy.parquet.crc")
 
 
-class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
+class TestEtlOnS3(S3Mixin, BaseEtlSimple):
     """Test case for our support of writing to S3"""
 
     async def test_etl_job_s3(self):
@@ -352,6 +336,7 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
                 "mockbucket/root/condition/condition.000.ndjson",
                 "mockbucket/root/documentreference/documentreference.000.ndjson",
                 "mockbucket/root/encounter/encounter.000.ndjson",
+                "mockbucket/root/medicationrequest/medicationrequest.000.ndjson",
                 "mockbucket/root/observation/observation.000.ndjson",
                 "mockbucket/root/patient/patient.000.ndjson",
                 "mockbucket/root/covid_symptom__nlp_results/covid_symptom__nlp_results.000.ndjson",
@@ -364,7 +349,7 @@ class TestI2b2EtlOnS3(S3Mixin, BaseI2b2EtlSimple):
         self.assertFalse(os.path.exists("s3:"))
 
 
-class TestI2b2EtlNlp(BaseI2b2EtlSimple):
+class TestEtlNlp(BaseEtlSimple):
     """Test case for the cTAKES/cNLP responses"""
 
     def setUp(self):
@@ -390,11 +375,13 @@ class TestI2b2EtlNlp(BaseI2b2EtlSimple):
 
         self.assertTrue(self.was_ctakes_called())
 
-        notes_csv_path = os.path.join(self.input_path, "observation_fact_notes.csv")
-        facts = list(extract.extract_csv_observation_facts(notes_csv_path, 5))
+        facts = [
+            "Notes for fever",
+            "Notes! for fever",
+        ]
 
         for index, checksum in enumerate(self.expected_checksums):
-            ner = fake_ctakes_extract(facts[index].observation_blob)
+            ner = fake_ctakes_extract(facts[index])
             self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("covid_symptom_v1", checksum)))
             self.assertEqual([0, 0], common.read_json(self.path_for_checksum("covid_symptom_v1-cnlp_v2", checksum)))
 

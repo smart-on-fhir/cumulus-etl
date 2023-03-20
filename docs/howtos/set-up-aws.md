@@ -87,5 +87,5 @@ For example, you might use `s3://my-cumulus-prefix-99999999999-us-east-2/subdir1
 (Make sure you have `jq` installed first.)
 
 ```sh
-aws glue update-crawler --name cumulus --targets "`jq -n --arg prefix REPLACE_ME '{"DeltaTargets": [{"DeltaTables": [$prefix+"/condition", $prefix+"/covid_symptom__nlp_results", $prefix+"/documentreference", $prefix+"/encounter", $prefix+"/observation", $prefix+"/patient"], "WriteManifest": false}]}'`"
+aws glue update-crawler --name cumulus --targets "`jq -n --arg prefix REPLACE_ME '{"DeltaTargets": [{"DeltaTables": [$prefix+"/condition", $prefix+"/covid_symptom__nlp_results", $prefix+"/documentreference", $prefix+"/encounter", $prefix+"/medicationrequest", $prefix+"/observation", $prefix+"/patient"], "WriteManifest": false}]}'`"
 ```
