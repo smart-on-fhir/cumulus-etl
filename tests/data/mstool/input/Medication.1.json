@@ -1,0 +1,36 @@
+{
+  "resourceType" : "Medication",
+  "id": "1",
+
+  "identifier" : [{ "value": "drop" }],
+  "code": {
+    "coding": [
+      {
+        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+        "code": "312617",
+        "display": "predniSONE 5 MG Oral Tablet"
+      }
+    ],
+    "text": "predniSONE 5 MG Oral Tablet"
+  },
+  "status" : "inactive",
+  "manufacturer" : { "reference": "Organization/1" },
+  "form" : {
+    "coding": [
+      {
+        "system": "http://snomed.info/sct",
+        "code": "385018001"
+      }
+    ]
+  },
+  "amount" : { "numerator": { "value": 1 }, "denominator": { "value": 1 } },
+  "ingredient" : [{
+    "itemReference" : { "reference": "Substance/1" },
+    "isActive" : true,
+    "strength" : { "numerator": { "value": 1 }, "denominator": { "value": 1 } }
+  }],
+  "batch" : {
+    "lotNumber" : "1234",
+    "expirationDate" : "2018-03-01T18:33:24-04:00"
+  }
+}

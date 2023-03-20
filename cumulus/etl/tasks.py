@@ -132,6 +132,11 @@ class EtlTask:
             ConditionTask,
             DocumentReferenceTask,
             EncounterTask,
+            MedicationAdministrationTask,
+            MedicationDispenseTask,
+            MedicationRequestTask,
+            MedicationStatementTask,
+            MedicationTask,
             ObservationTask,
             PatientTask,
             CovidSymptomNlpResultsTask,
@@ -305,6 +310,36 @@ class EncounterTask(EtlTask):
     name = "encounter"
     resource = "Encounter"
     tags = {"cpu"}
+
+
+class MedicationTask(EtlTask):
+    name = "medication"
+    resource = "Medication"
+    tags = {"cpu", "medication"}
+
+
+class MedicationAdministrationTask(EtlTask):
+    name = "medicationadministration"
+    resource = "MedicationAdministration"
+    tags = {"cpu", "medication"}
+
+
+class MedicationDispenseTask(EtlTask):
+    name = "medicationdispense"
+    resource = "MedicationDispense"
+    tags = {"cpu", "medication"}
+
+
+class MedicationRequestTask(EtlTask):
+    name = "medicationrequest"
+    resource = "MedicationRequest"
+    tags = {"cpu", "medication"}
+
+
+class MedicationStatementTask(EtlTask):
+    name = "medicationstatement"
+    resource = "MedicationStatement"
+    tags = {"cpu", "medication"}
 
 
 class ObservationTask(EtlTask):
