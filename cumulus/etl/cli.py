@@ -192,7 +192,7 @@ async def etl_main(args: argparse.Namespace) -> None:
             config_loader = loaders.I2b2Loader(root_input, args.batch_size)
         else:
             config_loader = loaders.FhirNdjsonLoader(
-                root_input, client, export_to=args.export_to, since=args.since, until=args.until
+                root_input, client=client, export_to=args.export_to, since=args.since, until=args.until
             )
 
         # Pull down resources and run the MS tool on them

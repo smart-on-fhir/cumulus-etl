@@ -1,6 +1,7 @@
 """Various test helper methods"""
 
 import contextlib
+import filecmp
 import json
 import os
 import time
@@ -16,8 +17,18 @@ class TreeCompareMixin(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
+        filecmp.clear_cache()
+
         # you'll always want this when debugging
         self.maxDiff = None  # pylint: disable=invalid-name
+
+    def assert_etl_output_equal(self, left: str, right: str):
+        """Compares the etl output with the expected json structure"""
+        # We don't compare contents of the job config because it includes a lot of paths etc.
+        # But we can at least confirm that it was created.
+        self.assertTrue(os.path.exists(os.path.join(right, "JobConfig")))
+        dircmp = filecmp.dircmp(left, right, ignore=["JobConfig"])
+        self.assert_file_tree_equal(dircmp)
 
     def assert_file_tree_equal(self, dircmp):
         """
