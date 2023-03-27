@@ -17,6 +17,14 @@
   },
   "extension": [
     {
+      "url": "http://hl7.org/fhir/Profile/us-core#ethnicity",
+      "valueString": "kept"
+    },
+    {
+      "url": "http://hl7.org/fhir/Profile/us-core#race",
+      "valueString": "kept"
+    },
+    {
       "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex",
       "valueString": "kept"
     },

@@ -21,6 +21,8 @@
   "processingErrors": "raise",
   "fhirPathRules": [
     {"comment": "** Only allow a few known extensions **", "path": "xxx", "method": "redact"},
+    {"path": "Patient.extension('http://hl7.org/fhir/Profile/us-core#ethnicity')", "method": "keep", "comment": "Old DSTU1 URL, still out there in the wild: https://www.hl7.org/fhir/DSTU1/us-core.html"},
+    {"path": "Patient.extension('http://hl7.org/fhir/Profile/us-core#race')", "method": "keep", "comment": "Old DSTU1 URL, still out there in the wild: https://www.hl7.org/fhir/DSTU1/us-core.html"},
     {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex')", "method": "keep"},
     {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity')", "method": "keep"},
     {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity')", "method": "keep"},
