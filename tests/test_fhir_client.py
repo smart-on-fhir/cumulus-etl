@@ -2,7 +2,6 @@
 
 import argparse
 import time
-import unittest
 from unittest import mock
 
 import ddt
@@ -13,13 +12,13 @@ from jwcrypto import jwk, jwt
 
 from cumulus import errors, store
 from cumulus.fhir_client import FatalError, FhirClient, create_fhir_client_for_cli
-from tests.utils import make_response
+from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
 @mock.patch("cumulus.fhir_client.uuid.uuid4", new=lambda: "1234")
-class TestFhirClient(unittest.IsolatedAsyncioTestCase):
+class TestFhirClient(AsyncTestCase):
     """
     Test case for FHIR client oauth2 / request support.
 

@@ -1,15 +1,15 @@
 """Tests for oracle extraction"""
 import os
-import unittest
 from unittest import mock
 
 from cumulus import common, store
 from cumulus.loaders.i2b2 import loader
 from cumulus.loaders.i2b2.oracle import extract, query
 from tests import i2b2_mock_data
+from tests.utils import AsyncTestCase
 
 
-class TestOracleExtraction(unittest.IsolatedAsyncioTestCase):
+class TestOracleExtraction(AsyncTestCase):
     """Test case for sql queries"""
 
     def setUp(self) -> None:

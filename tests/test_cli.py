@@ -2,16 +2,16 @@
 
 import contextlib
 import io
-import unittest
 from unittest import mock
 
 import ddt
 
 from cumulus import cli
+from tests.utils import AsyncTestCase
 
 
 @ddt.ddt
-class TestCumulusCLI(unittest.IsolatedAsyncioTestCase):
+class TestCumulusCLI(AsyncTestCase):
     """
     Unit tests for our toplevel command line interface.
     """

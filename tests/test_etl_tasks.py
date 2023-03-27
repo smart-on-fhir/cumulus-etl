@@ -3,7 +3,6 @@
 import os
 import shutil
 import tempfile
-import unittest
 from typing import AsyncIterator, List
 from unittest import mock
 
@@ -15,10 +14,11 @@ from cumulus.etl import config, tasks
 
 from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
+from tests.utils import AsyncTestCase
 
 
 @ddt.ddt
-class TestTasks(CtakesMixin, unittest.IsolatedAsyncioTestCase):
+class TestTasks(CtakesMixin, AsyncTestCase):
     """Test case for task methods"""
 
     def setUp(self) -> None:

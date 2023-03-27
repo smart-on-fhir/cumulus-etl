@@ -5,12 +5,12 @@ import json
 import os
 import shutil
 import tempfile
-import unittest
 from typing import Iterable, List, Set, Tuple
 
 import respx
 
 from cumulus import cli, common, errors
+from tests.utils import AsyncTestCase
 
 # These are pre-computed fake IDs using the salt "1234"
 ANON_P1 = "70339b189b5646dab20b2e2e46f8cef66da257e992e04862d2e88e1e1f1b1bd4"
@@ -20,7 +20,7 @@ ANON_D2 = "4b5351bd9334232e8bf6d5dd0bfe65ba519cf68a54da85d289c2009b9b6dc668"
 ANON_D3 = "bf1f931f34052b61e3c0ddd290e483b980672db9d6d7705544c0bb130fa7e577"
 
 
-class TestChartReview(unittest.IsolatedAsyncioTestCase):
+class TestChartReview(AsyncTestCase):
     """Tests for high-level chart review support."""
 
     def setUp(self):

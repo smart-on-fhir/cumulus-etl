@@ -4,17 +4,16 @@ import filecmp
 import os
 import shutil
 import tempfile
-import unittest
 
 import pytest
 
 from cumulus import common
 from cumulus.deid.mstool import MSTOOL_CMD, run_mstool
-from tests.utils import TreeCompareMixin
+from tests.utils import AsyncTestCase, TreeCompareMixin
 
 
 @pytest.mark.skipif(not shutil.which(MSTOOL_CMD), reason="MS tool not installed")
-class TestMicrosoftTool(TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
+class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
     """Test case for the MS tool code (mostly testing our config file, really)"""
 
     def setUp(self):
