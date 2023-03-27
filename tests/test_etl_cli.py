@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import tempfile
-import unittest
 from typing import Optional
 from unittest import mock
 
@@ -20,12 +19,12 @@ from cumulus.formats.deltalake import DeltaLakeFormat
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
-from tests.utils import TreeCompareMixin
+from tests.utils import AsyncTestCase, TreeCompareMixin
 
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45", tz_offset=-4)
-class BaseEtlSimple(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
+class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
     """
     Base test case for basic runs of etl methods
 

@@ -3,7 +3,6 @@
 import contextlib
 import io
 import tempfile
-import unittest
 from json import dumps
 from unittest import mock
 
@@ -16,12 +15,12 @@ from jwcrypto import jwk
 from cumulus import cli, common, store
 from cumulus.fhir_client import FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
-from tests.utils import make_response
+from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
 @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
-class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
+class TestBulkExporter(AsyncTestCase):
     """
     Test case for bulk export logic.
 
@@ -239,7 +238,7 @@ class TestBulkExporter(unittest.IsolatedAsyncioTestCase):
 
 
 @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # just to not waste entropy
-class TestBulkExportEndToEnd(unittest.IsolatedAsyncioTestCase):
+class TestBulkExportEndToEnd(AsyncTestCase):
     """
     Test case for doing an entire bulk export loop, without mocking python code.
 

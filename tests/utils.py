@@ -2,6 +2,8 @@
 
 import contextlib
 import filecmp
+import functools
+import inspect
 import json
 import os
 import time
@@ -9,6 +11,37 @@ import unittest
 
 import httpx
 import respx
+
+
+class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
+    """
+    Test case to work around an async test case bug in python 3.10 and below.
+
+    This seems to be some version of https://github.com/python/cpython/issues/83282 but fixed & never backported.
+    I was not able to find a separate bug report for this specific issue.
+
+    Given the following two test methods (for Pythons before 3.11), only the second one will hang:
+
+        async def test_fails_correctly(self):
+            raise BaseException("OK")
+        async def test_hangs_forever(self):
+            raise SystemExit("Nope")
+
+    This class works around that by wrapping all test methods and translating uncaught SystemExits into other errors.
+    It can be deleted or made into a pass-through class once we no longer use python 3.10 in our testing suite.
+    """
+
+    async def _catch_system_exit(self, method):
+        try:
+            ret = method()
+            if inspect.isawaitable(ret):
+                return await ret
+            return ret
+        except SystemExit:
+            self.fail("Raised unexpected system exit")
+
+    def _callTestMethod(self, method):
+        return super()._callTestMethod(functools.partial(self._catch_system_exit, method))
 
 
 class TreeCompareMixin(unittest.TestCase):

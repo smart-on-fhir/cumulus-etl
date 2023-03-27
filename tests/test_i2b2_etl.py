@@ -3,18 +3,17 @@
 import os
 import shutil
 import tempfile
-import unittest
 
 import pytest
 
 from cumulus import cli, deid
 
 from tests.ctakesmock import CtakesMixin
-from tests.utils import TreeCompareMixin
+from tests.utils import AsyncTestCase, TreeCompareMixin
 
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
-class TestI2b2Etl(CtakesMixin, TreeCompareMixin, unittest.IsolatedAsyncioTestCase):
+class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
     """
     Base test case for basic runs of etl methods against i2b2 data
     """

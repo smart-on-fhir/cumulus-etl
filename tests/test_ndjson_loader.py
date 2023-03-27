@@ -2,15 +2,15 @@
 
 import os
 import tempfile
-import unittest
 from unittest import mock
 
 from cumulus import cli, errors, loaders, store
 from cumulus.fhir_client import FatalError
 from cumulus.loaders.fhir.bulk_export import BulkExporter
+from tests.utils import AsyncTestCase
 
 
-class TestNdjsonLoader(unittest.IsolatedAsyncioTestCase):
+class TestNdjsonLoader(AsyncTestCase):
     """
     Test case for the etl pipeline and ndjson loader.
 
