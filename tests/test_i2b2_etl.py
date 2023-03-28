@@ -51,7 +51,6 @@ class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
                 f"--ctakes-overrides={self.ctakes_overrides.name}",
             ]
         )
-        os.rmdir(f"{self.output_path}/medicationrequest")  # we don't yet have an i2b2 input for this
         self.assert_etl_output_equal(self.expected_output_path, self.output_path)
 
     async def test_export(self):

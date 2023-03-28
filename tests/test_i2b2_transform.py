@@ -93,3 +93,29 @@ class TestI2b2Transform(unittest.TestCase):
         self.assertEqual("Negative", lab_fhir["valueCodeableConcept"]["coding"][0]["display"])
 
         self.assertEqual("2021-01-02", lab_fhir["effectiveDateTime"])
+
+    def test_to_fhir_medicationrequest(self):
+        medicationrequest = i2b2_mock_data.medicationrequest()
+        # print(json.dumps(medicationrequest, indent=4))
+
+        self.assertEqual(
+            {
+                "authoredOn": "2021-01-02",
+                "encounter": {"reference": "Encounter/67890"},
+                "id": "345",
+                "intent": "order",
+                "medicationCodeableConcept": {
+                    "coding": [
+                        {
+                            "code": "ADMINMED:1234",
+                            "display": "ADMINMED:1234",
+                            "system": "http://cumulus.smarthealthit.org/i2b2",
+                        },
+                    ],
+                },
+                "resourceType": "MedicationRequest",
+                "status": "unknown",
+                "subject": {"reference": "Patient/12345"},
+            },
+            medicationrequest,
+        )

@@ -19,13 +19,7 @@ class I2b2Loader(Loader):
     """
     Loader for i2b2 data.
 
-    Expected format is either a tcp:// URL pointing at an Oracle server or a local folder,
-    holding any number of csv files in the following subdirectories:
-    - csv_diagnosis
-    - csv_lab
-    - csv_note
-    - csv_patient
-    - csv_visit
+    Expected format is either a tcp:// URL pointing at an Oracle server or a local folder.
     """
 
     def __init__(self, root: store.Root, batch_size: int, export_to: str = None):
@@ -49,6 +43,7 @@ class I2b2Loader(Loader):
         self,
         resources: List[str],
         conditions: I2b2ExtractorCallable,
+        medicationrequests: I2b2ExtractorCallable,
         observations: I2b2ExtractorCallable,
         documentreferences: I2b2ExtractorCallable,
         patients: I2b2ExtractorCallable,
@@ -66,6 +61,13 @@ class I2b2Loader(Loader):
                 conditions(),
                 transform.to_fhir_condition,
                 os.path.join(tmpdir.name, "Condition.ndjson"),
+            )
+
+        if "MedicationRequest" in resources:
+            self._loop(
+                medicationrequests(),
+                transform.to_fhir_medicationrequest,
+                os.path.join(tmpdir.name, "MedicationRequest.ndjson"),
             )
 
         if "Observation" in resources:
@@ -128,6 +130,11 @@ class I2b2Loader(Loader):
                 os.path.join(path, "observation_fact_diagnosis.csv"),
                 self.batch_size,
             ),
+            medicationrequests=partial(
+                extract.extract_csv_observation_facts,
+                os.path.join(path, "observation_fact_medications.csv"),
+                self.batch_size,
+            ),
             observations=partial(
                 extract.extract_csv_observation_facts,
                 os.path.join(path, "observation_fact_lab_views.csv"),
@@ -153,6 +160,7 @@ class I2b2Loader(Loader):
         return self._load_all_with_extractors(
             resources,
             conditions=partial(oracle_extract.list_observation_fact, path, "Diagnosis"),
+            medicationrequests=partial(oracle_extract.list_observation_fact, path, "Medications"),
             observations=partial(oracle_extract.list_observation_fact, path, "Lab View"),
             documentreferences=partial(oracle_extract.list_observation_fact, path, "Notes"),
             patients=partial(oracle_extract.list_patient, path),

@@ -195,6 +195,25 @@ def to_fhir_condition(obsfact: ObservationFact) -> dict:
     return condition
 
 
+def to_fhir_medicationrequest(obsfact: ObservationFact) -> dict:
+    """
+    :param obsfact: i2b2 observation fact containing medication information
+    :return: https://www.hl7.org/fhir/medicationrequest.html
+    """
+    return {
+        "resourceType": "MedicationRequest",
+        "id": str(obsfact.instance_num),
+        "status": "unknown",
+        "intent": "order",
+        "medicationCodeableConcept": make_concept(
+            obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2", display=obsfact.concept_cd
+        ),
+        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
+        "encounter": fhir_common.ref_resource("Encounter", obsfact.encounter_num),
+        "authoredOn": chop_to_date(obsfact.start_date),
+    }
+
+
 ###############################################################################
 #
 # Physician Notes and NLP
