@@ -1,129 +1,150 @@
-"""Tests for cumulus.labelstudio"""
+"""Tests for cumulus.chart_review.labelstudio.py"""
 
-import os
-import random
-import unittest
+from unittest import mock
 
-from ctakesclient.filesystem import covid_symptoms, map_cui_pref
-from ctakesclient.typesystem import CtakesJSON, Polarity
+import ddt
+from ctakesclient.typesystem import Polarity
 
-from cumulus import store, common
-from cumulus.chart_review.labelstudio import LabelStudio, merge_cohort
+from cumulus.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
+
+from tests import ctakesmock
+from tests.utils import AsyncTestCase
 
 
-@unittest.skip("Not yet finished and needs access to /opt/i2b2")
-class TestLabelStudio(unittest.TestCase):
-    """Test case for label studio"""
+@ddt.ddt
+class TestChartLabelStudio(AsyncTestCase):
+    """Test case for label studio support"""
 
-    def test_rand_dir_processed(self, dir_processed="/opt/i2b2/processed"):
-        ctakes_list = common.find_by_name(dir_processed, "ctakes_")
-        random.shuffle(ctakes_list)
-        return ctakes_list
+    def setUp(self):
+        super().setUp()
 
-    def test_select_cohort(self, dir_processed="/opt/i2b2/processed", cohort_size=20):
-        filter_cui = map_cui_pref(covid_symptoms())
+        self.ls_mock = self.patch("cumulus.chart_review.labelstudio.label_studio_sdk.Client")
+        self.ls_client = self.ls_mock.return_value
+        self.ls_project = self.ls_client.get_project.return_value
+        self.ls_project.get_tasks.return_value = []
+        self.ls_project.parsed_label_config = {"mylabel": {"type": "Labels", "to_name": ["mytext"]}}
 
-        candidates = []
-        cohort = {}
+    @staticmethod
+    def make_note(*, ref_id: str = "D3", matches: bool = True) -> LabelStudioNote:
+        note = LabelStudioNote(ref_id, "Normal note text")
+        if matches:
+            note.matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
+        return note
 
-        for key in filter_cui:
-            cohort[key] = []
+    @staticmethod
+    def push_tasks(*notes, **kwargs) -> None:
+        client = LabelStudioClient(
+            "https://localhost/ls",
+            "apikey",
+            14,
+            {
+                # These two CUIs are in our standard mock cTAKES response
+                "C0033774": "Itch",
+                "C0027497": "Nausea",
+                "C0028081": "Night Sweats",  # to demonstrate that unmatched CUIs are not generally pushed
+            },
+        )
+        client.push_tasks(notes, **kwargs)
 
-        for path_ctakes in self.test_rand_dir_processed(dir_processed):
-            candidates.append(path_ctakes)
+    def get_pushed_task(self) -> dict:
+        self.assertEqual(1, self.ls_project.import_tasks.call_count)
+        imported_tasks = self.ls_project.import_tasks.call_args[0][0]
+        self.assertEqual(1, len(imported_tasks))
+        return imported_tasks[0]
 
-            if 0 == len(candidates) % 100:
-                print(f"candidates: {len(candidates)}")
+    def test_basic_push(self):
+        self.push_tasks(self.make_note())
+        self.assertEqual(
+            {
+                "data": {
+                    "text": "Normal note text",
+                    "ref_id": "D3",
+                },
+                "predictions": [
+                    {
+                        "model_version": "Cumulus",
+                        "result": [
+                            # Note that fever does not show up, as it was not in our initial CUI mapping (in push_tasks)
+                            {
+                                "from_name": "mylabel",
+                                "id": "match0",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 11,
+                                    "labels": ["Nausea"],
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                            {
+                                "from_name": "mylabel",
+                                "id": "match1",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 16,
+                                    "labels": ["Itch"],
+                                    "score": 1.0,
+                                    "start": 12,
+                                    "text": "text",
+                                },
+                            },
+                        ],
+                    }
+                ],
+            },
+            self.get_pushed_task(),
+        )
 
-            reader = CtakesJSON(store.read_json(path_ctakes))
+    def test_no_matches(self):
+        self.push_tasks(self.make_note(matches=False))
+        self.assertEqual(
+            {
+                "data": {
+                    "text": "Normal note text",
+                    "ref_id": "D3",
+                },
+            },
+            self.get_pushed_task(),
+        )
 
-            path_note = path_ctakes.replace("ctakes_", "physician_note_").replace(".json", ".txt")
-            path_labelstudio = path_ctakes.replace("ctakes_", "labelstudio_")
+    @ddt.data("Choices", "Labels")
+    def test_dynamic_labels(self, label_type):
+        self.ls_project.parsed_label_config = {
+            "mylabel": {"type": label_type, "to_name": ["mytext"], "dynamic_labels": True},
+        }
+        self.push_tasks(self.make_note())
+        self.assertEqual(
+            {
+                "text": "Normal note text",
+                "ref_id": "D3",
+                "mylabel": [
+                    {"value": "Itch"},
+                    {"value": "Nausea"},
+                ],
+            },
+            self.get_pushed_task()["data"],
+        )
 
-            if os.path.exists(path_ctakes) and os.path.exists(path_note):
-                found_cuis = reader.list_concept_cui(Polarity.pos)
+    def test_overwrite(self):
+        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"ref_id": "D3"}}]
 
-                overlap = set(filter_cui.keys()).intersection(set(found_cuis))
+        # Try once without overwrite
+        self.push_tasks(self.make_note())
+        self.assertFalse(self.ls_project.import_tasks.called)
+        self.assertFalse(self.ls_project.delete_tasks.called)
 
-                if len(overlap) > 0:
+        # Now overwrite
+        self.push_tasks(self.make_note(), overwrite=True)
+        self.assertEqual([mock.call([1])], self.ls_project.delete_tasks.call_args_list)
+        self.assertTrue(self.ls_project.import_tasks.called)
 
-                    for select_cui, text in filter_cui.items():
-                        if select_cui not in cohort:
-                            print(f"cohort[{select_cui}] init list")
-                            cohort[select_cui] = []
+    def test_overwrite_partial(self):
+        """Verify that we push what we can and ignore any existing tasks by default"""
+        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"ref_id": "D3"}}]
 
-                        if len(cohort[select_cui]) <= cohort_size:
-
-                            if select_cui in overlap:
-                                labelstudio = LabelStudio(
-                                    physician_note=path_note, response_ctakes=reader, filter_cui=filter_cui
-                                )
-
-                                labelstudio.note_file = path_note
-                                labelstudio.load_lazy()
-
-                                store.write_json(path_labelstudio, labelstudio.as_json())
-
-                                cohort[select_cui].append(path_labelstudio)
-
-                                print(f"cohort[{select_cui}]: " f"{len(cohort[select_cui])}")
-
-                                cohort_dir = f"{dir_processed}/cohort"
-                                path_cui = f"{cohort_dir}/{select_cui}.json"
-                                dict_cui = {"filter": text, "cohort": cohort[select_cui]}
-                                store.write_json(path_cui, dict_cui)
-
-    def test_merge_content(self, dir_processed="/opt/i2b2/processed"):
-        merged = []
-
-        for select_cui in map_cui_pref(covid_symptoms()):
-            cohort_dir = f"{dir_processed}/cohort"
-            path_cui_cohort = f"{cohort_dir}/{select_cui}.json"
-            path_cui_content = f"{cohort_dir}/{select_cui}_content.json"
-
-            cui_content = merge_cohort(path_cui_cohort)
-            store.write_json(path_cui_content, cui_content)
-
-            merged += cui_content
-
-        store.write_json(f"{dir_processed}/cohort/labelstudio_content.json", merged)
-
-    def test_merge_labels(self, dir_processed="/opt/i2b2/processed"):
-        label_cui = {}
-
-        for cui, pref in map_cui_pref(covid_symptoms()).items():
-            if pref not in label_cui.values():
-                label_cui[pref] = []
-            label_cui[pref].append(cui)
-
-        for pref, cuis in label_cui.items():
-            label = str(pref).replace(" ", "_")
-            label_cohort = []
-            label_content = []
-
-            for cui in cuis:
-                path_cui_cohort = f"{dir_processed}/cohort/{cui}.json"
-                cui_cohort = store.read_json(path_cui_cohort).get("cohort")
-
-                label_cohort += cui_cohort
-
-            for filepath in set(label_cohort):
-                label_content.append(store.read_json(filepath))
-
-            store.write_json(f"{dir_processed}/cohort/{label}.json", label_content)
-
-    def test_print_labels(self):
-        print("##############################################")
-        print("LabelStudio cui_filter")
-        print(map_cui_pref(covid_symptoms()))
-        print("##############################################")
-        print("LabelStudio labels")
-        for label in set(map_cui_pref(covid_symptoms()).values()):
-            print(label.strip())
-
-    def test_labelstudio_files_cleanup(self, dir_processed="/opt/i2b2/processed", cmd_head="rm", cmd_tail=""):
-        print(f"labelstudio_files_cleanup : {cmd_head} " f"{dir_processed}/**/labelstudio_* {cmd_tail}")
-        bash = []
-        for path in common.find_by_name(dir_processed, "labelstudio_"):
-            bash.append(f"{cmd_head} {path} {cmd_tail}")
-        common.write_text(f"{dir_processed}/labelstudio_bash.sh", "\n".join(bash))
+        self.push_tasks(self.make_note(), self.make_note(ref_id="D4"))
+        self.assertFalse(self.ls_project.delete_tasks.called)
+        self.assertEqual("D4", self.get_pushed_task()["data"]["ref_id"])

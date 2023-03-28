@@ -8,6 +8,7 @@ import json
 import os
 import time
 import unittest
+from unittest import mock
 
 import httpx
 import respx
@@ -15,21 +16,22 @@ import respx
 
 class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
     """
-    Test case to work around an async test case bug in python 3.10 and below.
+    Test case to hold some common code (suitable for async *OR* sync tests)
 
-    This seems to be some version of https://github.com/python/cpython/issues/83282 but fixed & never backported.
-    I was not able to find a separate bug report for this specific issue.
-
-    Given the following two test methods (for Pythons before 3.11), only the second one will hang:
-
-        async def test_fails_correctly(self):
-            raise BaseException("OK")
-        async def test_hangs_forever(self):
-            raise SystemExit("Nope")
-
-    This class works around that by wrapping all test methods and translating uncaught SystemExits into other errors.
-    It can be deleted or made into a pass-through class once we no longer use python 3.10 in our testing suite.
+    It also works around a particularly annoying async test case bug in Python 3.10.
     """
+
+    def setUp(self):
+        super().setUp()
+
+        # It's so common to want to see more than the tiny default fragment -- just enable this across the board.
+        self.maxDiff = None  # pylint: disable=invalid-name
+
+    def patch(self, *args, **kwargs) -> mock.Mock:
+        """Syntactic sugar to ease making a mock over a test's lifecycle, without decorators"""
+        patcher = mock.patch(*args, **kwargs)
+        self.addCleanup(patcher.stop)
+        return patcher.start()
 
     async def _catch_system_exit(self, method):
         try:
@@ -41,6 +43,22 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
             self.fail("Raised unexpected system exit")
 
     def _callTestMethod(self, method):
+        """
+        Works around an async test case bug in python 3.10 and below.
+
+        This seems to be some version of https://github.com/python/cpython/issues/83282 but fixed & never backported.
+        I was not able to find a separate bug report for this specific issue.
+
+        Given the following two test methods (for Pythons before 3.11), only the second one will hang:
+
+            async def test_fails_correctly(self):
+                raise BaseException("OK")
+            async def test_hangs_forever(self):
+                raise SystemExit("Nope")
+
+        This class works around that by wrapping all test methods and translating uncaught SystemExits into failures.
+        _callTestMethod() can be deleted once we no longer use python 3.10 in our testing suite.
+        """
         return super()._callTestMethod(functools.partial(self._catch_system_exit, method))
 
 

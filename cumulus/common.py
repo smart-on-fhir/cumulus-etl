@@ -4,9 +4,9 @@ import contextlib
 import csv
 import datetime
 import json
-import os
 import logging
-from typing import Any, Optional
+import re
+from typing import Any, Iterator, Optional
 from urllib.parse import urlparse
 
 import fsspec
@@ -14,50 +14,20 @@ import fsspec
 
 ###############################################################################
 #
-# Helper Functions: Pandas / CSV / SQL
+# Helper Functions: listing files
 #
 ###############################################################################
-def list_csv(folder: str, mask=".csv") -> list:
-    """
-    :param folder: folder to select files from
-    :param mask: csv is typical
-    :return:
-    """
-    if not os.path.exists(folder):
-        logging.warning("list_csv() does not exist: folder:%s, mask=%s", folder, mask)
-        return []
-
-    match = []
-    for file in sorted(os.listdir(folder)):
-        if file.endswith(mask):
-            match.append(os.path.join(folder, file))
-    return match
 
 
-def find_by_name(folder, path_contains="filemask", progress_bar=1000) -> list:
-    """
-    :param folder: root folder where JSON files are stored
-    :param startswith: ctakes.json default, or other file pattern.
-    :param progress_bar: show progress status for every ### files found
-    :return:
-    """
-    del progress_bar
-
-    found = []
-    for dirpath, _, files in os.walk(folder):
-        for filename in files:
-            path = os.path.join(dirpath, filename)
-            if path_contains in path:
-                found.append(path)
-                if 0 == len(found) % 1000:
-                    print(f"found: {len(found)}")
-                    print(path)
-    return found
+def ls_resources(root, resource: str) -> Iterator[str]:
+    pattern = re.compile(rf".*/([0-9]+.)?{resource}(.[0-9]+)?.ndjson")
+    all_files = root.ls()
+    return filter(pattern.match, all_files)
 
 
 ###############################################################################
 #
-# Helper Functions: read/write text and JSON with logging messages
+# Helper Functions: reading/writing files
 #
 ###############################################################################
 
@@ -161,6 +131,18 @@ def read_csv(path: str) -> csv.DictReader:
         yield csv.DictReader(csvfile)
 
 
+def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
+    """
+    Grabs all ndjson files from a folder, of a particular resource type.
+
+    Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
+    """
+    for filename in ls_resources(root, resource):
+        with open_file(filename, "r") as f:
+            for line in f:
+                yield json.loads(line)
+
+
 class NdjsonWriter:
     """Convenience context manager to write multiple objects to an ndjson file."""
 
@@ -231,7 +213,7 @@ def print_header(name: str) -> None:
 
 ###############################################################################
 #
-# Helper Functions: Timedatestamp
+# Helper Functions: date and time
 #
 ###############################################################################
 

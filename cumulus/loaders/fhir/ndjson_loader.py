@@ -61,9 +61,10 @@ class FhirNdjsonLoader(base.Loader):
         common.print_header("Copying ndjson input files...")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         for resource in resources:
-            try:
-                self.root.get(self.root.joinpath(f"*{resource}*.ndjson"), f"{tmpdir.name}/")
-            except FileNotFoundError:
+            filenames = list(common.ls_resources(self.root, resource))
+            for filename in filenames:
+                self.root.get(filename, f"{tmpdir.name}/")
+            if not filenames:
                 logging.warning("No resources found for %s", resource)
         return tmpdir
 

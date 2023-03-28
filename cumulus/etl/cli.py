@@ -135,13 +135,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
 
-    task = parser.add_argument_group("NLP")
-    task.add_argument(
-        "--ctakes-overrides",
-        metavar="DIR",
-        default="/ctakes-overrides",
-        help="Path to cTAKES overrides dir (default is /ctakes-overrides)",
-    )
+    cli_utils.add_nlp(parser)
 
     task = parser.add_argument_group("task selection")
     task.add_argument("--task", action="append", help="Only update the given output tables (comma separated)")
@@ -152,8 +146,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
         help="Restrict tasks to only the given sets (comma separated)",
     )
 
-    debug = parser.add_argument_group("debugging")
-    debug.add_argument("--skip-init-checks", action="store_true", help=argparse.SUPPRESS)
+    cli_utils.add_debugging(parser)
 
 
 async def etl_main(args: argparse.Namespace) -> None:

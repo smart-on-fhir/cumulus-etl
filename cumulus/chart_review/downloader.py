@@ -7,10 +7,28 @@ import os
 import urllib.parse
 from typing import Container, Iterable, List, Optional
 
-from cumulus import cli_utils, common, deid, fhir_client, loaders
+from cumulus import cli_utils, common, deid, fhir_client, loaders, store
 
 
-async def download_docrefs_from_fake_ids(
+async def download_docrefs_from_fhir_server(
+    client: fhir_client.FhirClient,
+    root_input: store.Root,
+    root_phi: store.Root,
+    docrefs: str = None,
+    anon_docrefs: str = None,
+    export_to: str = None,
+):
+    if docrefs:
+        return await _download_docrefs_from_real_ids(client, docrefs, export_to=export_to)
+    elif anon_docrefs:
+        return await _download_docrefs_from_fake_ids(client, root_phi.path, anon_docrefs, export_to=export_to)
+    else:
+        # else we'll download the entire target path as a bulk export (presumably the user has scoped a Group)
+        ndjson_loader = loaders.FhirNdjsonLoader(root_input, client, export_to=export_to)
+        return await ndjson_loader.load_all(["DocumentReference"])
+
+
+async def _download_docrefs_from_fake_ids(
     client: fhir_client.FhirClient,
     dir_phi: str,
     docref_csv: str,
@@ -41,7 +59,7 @@ async def download_docrefs_from_fake_ids(
     return output_folder
 
 
-async def download_docrefs_from_real_ids(
+async def _download_docrefs_from_real_ids(
     client: fhir_client.FhirClient,
     docref_csv: str,
     export_to: str = None,
