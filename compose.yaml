@@ -14,12 +14,11 @@ services:
       - URL_CNLP_NEGATION=http://cnlp-transformers:8000/negation/process
     volumes:
       - $HOME/.aws/:/root/.aws/:ro
+      - ctakes-overrides:/ctakes-overrides
     networks:
       - cumulus-etl
     profiles:
       - base
-    volumes:
-      - ctakes-overrides:/ctakes-overrides
 
   cumulus-etl:
     extends: cumulus-etl-base
