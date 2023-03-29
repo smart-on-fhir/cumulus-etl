@@ -87,3 +87,19 @@ def observation_dim() -> transform.ObservationFact:
 
 def observation() -> dict:
     return transform.to_fhir_observation_lab(observation_dim())
+
+
+def medicationrequest_dim() -> transform.ObservationFact:
+    return transform.ObservationFact(
+        {
+            "INSTANCE_NUM": "345",
+            "PATIENT_NUM": "12345",
+            "ENCOUNTER_NUM": "67890",
+            "CONCEPT_CD": "ADMINMED:1234",
+            "START_DATE": "2021-01-02",
+        }
+    )
+
+
+def medicationrequest() -> dict:
+    return transform.to_fhir_medicationrequest(medicationrequest_dim())
