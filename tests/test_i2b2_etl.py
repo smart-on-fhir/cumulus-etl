@@ -1,5 +1,6 @@
 """Tests for etl/cli.py using i2b2 inputs"""
 
+import filecmp
 import os
 import shutil
 import tempfile
@@ -25,6 +26,7 @@ class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
         self.data_dir = os.path.join(script_dir, "data/i2b2")
         self.input_path = os.path.join(self.data_dir, "input")
         self.expected_output_path = os.path.join(self.data_dir, "output")
+        self.expected_export_path = os.path.join(self.data_dir, "export")
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
@@ -49,4 +51,23 @@ class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
                 f"--ctakes-overrides={self.ctakes_overrides.name}",
             ]
         )
+        os.rmdir(f"{self.output_path}/medicationrequest")  # we don't yet have an i2b2 input for this
         self.assert_etl_output_equal(self.expected_output_path, self.output_path)
+
+    async def test_export(self):
+        with tempfile.TemporaryDirectory() as export_path:
+            await cli.main(
+                [
+                    self.input_path,
+                    self.output_path,
+                    self.phi_path,
+                    "--skip-init-checks",
+                    "--input-format=i2b2",
+                    "--output-format=ndjson",
+                    f"--export-to={export_path}",
+                    f"--task=patient",  # just to make the test faster and confirm we don't export unnecessary files
+                ]
+            )
+
+            dircmp = filecmp.dircmp(export_path, self.expected_export_path)
+            self.assert_file_tree_equal(dircmp)
