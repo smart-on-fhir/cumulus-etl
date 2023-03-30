@@ -1,5 +1,7 @@
 """Actual queries to oracle"""
 
+from typing import List
+
 from cumulus.loaders.i2b2.schema import Table, ValueType
 
 
@@ -81,9 +83,9 @@ def sql_concept() -> str:
 ###############################################################################
 
 
-def sql_observation_fact(category: str) -> str:
+def sql_observation_fact(categories: List[str]) -> str:
     """
-    :param category: the type of fact (or "concept path" in the database's term)
+    :param categories: the types of fact (or "concept cd" in the database's term)
     :return: SQL for ObservationFact
     """
     # In this method, we use aliases: O for the observation_fact table and C for the concept table.
@@ -96,15 +98,13 @@ def sql_observation_fact(category: str) -> str:
     cols_visit_dim = f"O.ENCOUNTER_NUM, {start_date}, {end_date}, O.LOCATION_CD"
     cols_obs_fact = (
         f"O.CONCEPT_CD, O.INSTANCE_NUM, {import_date}, O.TVAL_CHAR, "
-        f"O.VALTYPE_CD, O.VALUEFLAG_CD, O.OBSERVATION_BLOB"
+        f"O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.UNITS_CD, O.OBSERVATION_BLOB"
     )
     cols = f"{cols_patient_dim}, {cols_provider_dim}, {cols_visit_dim}, " f"{cols_obs_fact}"
 
-    return (
-        f"select {cols} \n from {Table.observation_fact.value} O "  # nosec
-        f"join {Table.concept.value} C on C.CONCEPT_CD = O.CONCEPT_CD "
-        f"where instr(C.CONCEPT_PATH, '{category}') = 7"
-    )  # 7 is skipping the '\i2b2\' prefix. TODO: better way
+    matchers = [f"(concept_cd like '{category}:%')" for category in categories]
+
+    return f"select {cols} \n from {Table.observation_fact.value} O " f"where {' or '.join(matchers)}"  # nosec
 
 
 def eq_val_type(val_type: ValueType) -> str:

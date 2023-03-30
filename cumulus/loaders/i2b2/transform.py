@@ -115,8 +115,12 @@ def to_fhir_encounter(visit: VisitDimension) -> dict:
 
 def to_fhir_observation_lab(obsfact: ObservationFact) -> dict:
     """
+    Turns an observation fact into a Observation with the Laboratory Result profile.
+
+    See https://www.hl7.org/fhir/us/core/StructureDefinition-us-core-observation-lab.html
+
     :param obsfact: i2b2 observation fact containing the LAB NAME AND VALUE
-    :return: https://www.hl7.org/fhir/observation.html
+    :return: Observation resource dictionary
     """
     observation = {
         "resourceType": "Observation",
@@ -144,6 +148,31 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> dict:
         lab_result = obsfact.tval_char
         lab_result_system = "http://cumulus.smarthealthit.org/i2b2"
     observation["valueCodeableConcept"] = make_concept(lab_result, lab_result_system, display=obsfact.tval_char)
+
+    return observation
+
+
+def to_fhir_observation_vitals(obsfact: ObservationFact) -> dict:
+    """
+    Turns an observation fact into a Observation with the Vital Signs profile.
+
+    See https://hl7.org/fhir/us/core/StructureDefinition-us-core-vital-signs.html
+
+    :param obsfact: i2b2 observation fact containing vital signs
+    :return: Observation resource dictionary
+    """
+    observation = {
+        "resourceType": "Observation",
+        "id": str(obsfact.instance_num),
+        "status": "unknown",
+        "category": [make_concept("vital-signs", "http://terminology.hl7.org/CodeSystem/observation-category")],
+        "code": make_concept(obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2"),
+        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
+        "encounter": fhir_common.ref_resource("Encounter", obsfact.encounter_num),
+        "effectiveDateTime": chop_to_date(obsfact.start_date),
+    }
+
+    observation.update(get_observation_value(obsfact))
 
     return observation
 
@@ -270,6 +299,54 @@ def chop_to_date(yyyy_mm_dd: Optional[str]) -> Optional[str]:
         return yyyy_mm_dd[:10]  # ignore the time portion
 
 
+def get_observation_value(obsfact: ObservationFact) -> dict:
+    """
+    Transform an I2B2 observation fact to a valid FHIR Observation.value field
+
+    References:
+    https://community.i2b2.org/wiki/display/ServerSideDesign/Value+Columns
+    https://www.hl7.org/fhir/observation.html
+    http://hl7.org/fhir/R4/datatypes.html#Quantity
+    """
+    if obsfact.valtype_cd == "T":
+        return {"valueCodeableConcept": make_concept(obsfact.tval_char, "http://cumulus.smarthealthit.org/i2b2")}
+    elif obsfact.valtype_cd == "B":
+        return {"valueCodeableConcept": make_concept(obsfact.observation_blob, "http://cumulus.smarthealthit.org/i2b2")}
+    elif obsfact.valtype_cd == "@":  # no value
+        return {}
+    elif obsfact.valtype_cd != "N":
+        # "NLP" will fall into this path (xml in observation blob)
+        logging.warning("Observation: unhandled valtype_cd '%s'", obsfact.valtype_cd)
+        return {}
+
+    # OK we're a numeric type. This one is slightly trickier. We're going to define a valueQuantity.
+    quantity = {
+        "value": float(obsfact.nval_num),
+        "unit": obsfact.units_cd,
+    }
+
+    # Convert unit string to a unit code if possible
+    ucum_code = external_mappings.UCUM_CODES.get(obsfact.units_cd)
+    if ucum_code:
+        quantity["system"] = "http://unitsofmeasure.org"
+        quantity["code"] = ucum_code
+    elif ucum_code is None:
+        logging.warning("Observation: unhandled units_cd '%s'", obsfact.units_cd)
+
+    # Handle comparisons
+    comparison = external_mappings.COMPARATOR.get(obsfact.tval_char)
+    if comparison:
+        quantity["comparator"] = comparison
+    elif comparison is None:
+        logging.warning("Observation: unhandled tval_char '%s'", obsfact.tval_char)
+        return {}
+
+    return {"valueQuantity": quantity}
+
+
 def make_concept(code: str, system: Optional[str], display: str = None) -> dict:
     """Syntactic sugar to make a codeable concept"""
-    return {"coding": [{"code": code, "system": system, "display": display}]}
+    coding = {"code": code, "system": system}
+    if display is not None:
+        coding["display"] = display
+    return {"coding": [coding]}

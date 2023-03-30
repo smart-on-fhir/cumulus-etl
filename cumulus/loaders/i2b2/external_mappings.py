@@ -69,3 +69,34 @@ SNOMED_ADMISSION = {
     "Outpatient": "AMB",
     "Recurring Outpatient Series": "AMB",
 }
+
+
+# From observed i2b2 units to UCUM
+# System: http://unitsofmeasure.org
+# Commonly used in FHIR for observations: http://hl7.org/fhir/R4/valueset-ucum-vitals-common.html
+UCUM_CODES = {
+    "%": "%",
+    "bpm": "/min",  # beats per minute (heart rate)
+    "br/min": "/min",  # breaths per minute (respiratory rate)
+    "cm": "cm",
+    "DegC": "Cel",
+    "DegF": "[degF]",
+    "in": "[in_i]",
+    "kg": "kg",
+    "kg/m2": "kg/m2",
+    "lb": "[lb_av]",
+    "mmHg": "mm[Hg]",
+    "NOT DEFINED IN SOURCE": "",  # typical "no units" string, can ignore
+}
+
+
+# From i2b2 comparison codes to FHIR comparator values
+# i2b2: https://community.i2b2.org/wiki/display/ServerSideDesign/Value+Columns
+# FHIR: http://hl7.org/fhir/R4/valueset-quantity-comparator.html
+COMPARATOR = {
+    "L": "<",
+    "LE": "<=",
+    "GE": ">=",
+    "G": ">",
+    "E": "",  # equal, can ignore
+}

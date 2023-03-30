@@ -43,8 +43,9 @@ class I2b2Loader(Loader):
         self,
         resources: List[str],
         conditions: I2b2ExtractorCallable,
+        lab_views: I2b2ExtractorCallable,
         medicationrequests: I2b2ExtractorCallable,
-        observations: I2b2ExtractorCallable,
+        vitals: I2b2ExtractorCallable,
         documentreferences: I2b2ExtractorCallable,
         patients: I2b2ExtractorCallable,
         encounters: I2b2ExtractorCallable,
@@ -72,9 +73,14 @@ class I2b2Loader(Loader):
 
         if "Observation" in resources:
             self._loop(
-                observations(),
+                lab_views(),
                 transform.to_fhir_observation_lab,
-                os.path.join(tmpdir.name, "Observation.ndjson"),
+                os.path.join(tmpdir.name, "Observation.0.ndjson"),
+            )
+            self._loop(
+                vitals(),
+                transform.to_fhir_observation_vitals,
+                os.path.join(tmpdir.name, "Observation.1.ndjson"),
             )
 
         if "DocumentReference" in resources:
@@ -130,14 +136,19 @@ class I2b2Loader(Loader):
                 os.path.join(path, "observation_fact_diagnosis.csv"),
                 self.batch_size,
             ),
+            lab_views=partial(
+                extract.extract_csv_observation_facts,
+                os.path.join(path, "observation_fact_lab_views.csv"),
+                self.batch_size,
+            ),
             medicationrequests=partial(
                 extract.extract_csv_observation_facts,
                 os.path.join(path, "observation_fact_medications.csv"),
                 self.batch_size,
             ),
-            observations=partial(
+            vitals=partial(
                 extract.extract_csv_observation_facts,
-                os.path.join(path, "observation_fact_lab_views.csv"),
+                os.path.join(path, "observation_fact_vitals.csv"),
                 self.batch_size,
             ),
             documentreferences=partial(
@@ -159,10 +170,11 @@ class I2b2Loader(Loader):
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
-            conditions=partial(oracle_extract.list_observation_fact, path, "Diagnosis"),
-            medicationrequests=partial(oracle_extract.list_observation_fact, path, "Medications"),
-            observations=partial(oracle_extract.list_observation_fact, path, "Lab View"),
-            documentreferences=partial(oracle_extract.list_observation_fact, path, "Notes"),
+            conditions=partial(oracle_extract.list_observation_fact, path, ["ICD9", "ICD10"]),
+            lab_views=partial(oracle_extract.list_observation_fact, path, ["LAB"]),
+            medicationrequests=partial(oracle_extract.list_observation_fact, path, ["ADMINMED", "HOMEMED"]),
+            vitals=partial(oracle_extract.list_observation_fact, path, ["VITAL"]),
+            documentreferences=partial(oracle_extract.list_observation_fact, path, ["NOTE"]),
             patients=partial(oracle_extract.list_patient, path),
             encounters=partial(oracle_extract.list_visit, path),
         )

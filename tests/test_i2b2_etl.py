@@ -64,7 +64,7 @@ class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
                     "--input-format=i2b2",
                     "--output-format=ndjson",
                     f"--export-to={export_path}",
-                    f"--task=patient",  # just to make the test faster and confirm we don't export unnecessary files
+                    "--task=patient",  # just to make the test faster and confirm we don't export unnecessary files
                 ]
             )
 
