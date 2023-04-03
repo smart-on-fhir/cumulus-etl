@@ -11,7 +11,7 @@ dependencies = [
     "jwcrypto",
     "label-studio-sdk",
     "oracledb",
-    "pandas",
+    "pandas < 2",
     "philter-lite",
     "pyarrow",
     "s3fs",

@@ -1,6 +1,6 @@
 """LabelStudio document annotation"""
 
-from typing import Collection, Iterable, List, Tuple
+from typing import Collection, Dict, Iterable, List, Tuple
 
 import ctakesclient.typesystem
 import label_studio_sdk
@@ -27,7 +27,7 @@ class LabelStudioNote:
 class LabelStudioClient:
     """Client to talk to Label Studio"""
 
-    def __init__(self, url: str, api_key: str, project_id: int, cui_labels: dict[str, str]):
+    def __init__(self, url: str, api_key: str, project_id: int, cui_labels: Dict[str, str]):
         self._client = label_studio_sdk.Client(url, api_key)
         self._client.check_connection()
         self._project = self._client.get_project(project_id)
@@ -113,7 +113,7 @@ class LabelStudioClient:
             #
             # The rule that Cumulus uses is that the value= variable must equal the name= of the <Labels> element.
             # TODO: add this quirk to our eventual documentation for this feature.
-            task["data"][self._labels_name] = [{"value": l} for l in sorted(used_labels)]
+            task["data"][self._labels_name] = [{"value": x} for x in sorted(used_labels)]
 
         task["predictions"] = [prediction]
 
