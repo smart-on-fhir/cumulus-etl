@@ -357,10 +357,10 @@ class CovidSymptomNlpResultsTask(EtlTask):
 
     async def prepare_task(self) -> bool:
         bsv_path = ctakesclient.filesystem.covid_symptoms_path()
-        skip = nlp.restart_ctakes_with_bsv(self.task_config.ctakes_overrides, bsv_path)
-        if skip:
+        success = nlp.restart_ctakes_with_bsv(self.task_config.ctakes_overrides, bsv_path)
+        if not success:
             print(f"Skipping {self.name}.")
-        return skip
+        return success
 
     @classmethod
     def is_ed_coding(cls, coding):
