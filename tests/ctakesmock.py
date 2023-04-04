@@ -22,6 +22,8 @@ class CtakesMixin(unittest.TestCase):
     See the docstring for fake_ctakes_extract() for guidance on the fake results this generates.
     """
 
+    ctakes_port = 8888  # will be incremented each instance
+
     def setUp(self):
         super().setUp()
 
@@ -29,7 +31,8 @@ class CtakesMixin(unittest.TestCase):
         self.addCleanup(version_patcher.stop)
         version_patcher.start()
 
-        os.environ["URL_CTAKES_REST"] = "http://localhost:8989/"
+        CtakesMixin.ctakes_port += 1
+        os.environ["URL_CTAKES_REST"] = f"http://localhost:{CtakesMixin.ctakes_port}/"
         self.ctakes_overrides = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         self._run_fake_ctakes_server(f"{self.ctakes_overrides.name}/symptoms.bsv")
 
@@ -54,7 +57,8 @@ class CtakesMixin(unittest.TestCase):
         self._ctakes_called = multiprocessing.Value("b")
         self._ctakes_called.value = 0
         self.ctakes_server = multiprocessing.Process(
-            target=partial(_serve_with_restarts, overrides_path, self._ctakes_called), daemon=True
+            target=partial(_serve_with_restarts, overrides_path, CtakesMixin.ctakes_port, self._ctakes_called),
+            daemon=True,
         )
         self.ctakes_server.start()
 
@@ -67,8 +71,8 @@ def _get_mtime(path) -> Optional[float]:
         return None
 
 
-def _serve_with_restarts(overrides_path: str, was_called: multiprocessing.Value) -> None:
-    server_address = ("", 8989)  # Hopefully that never conflicts during tests...
+def _serve_with_restarts(overrides_path: str, port: int, was_called: multiprocessing.Value) -> None:
+    server_address = ("", port)
     mtime = _get_mtime(overrides_path)
 
     while True:  # loop that keeps spawning new servers as they get restarted
