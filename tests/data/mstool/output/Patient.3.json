@@ -12,10 +12,15 @@
         "code": "ABSTRED",
         "display": "abstracted",
         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+      },
+      {
+        "code": "GENERALIZED",
+        "display": "exact value is replaced with a general value"
       }
     ]
   },
   "gender": "male",
+  "birthDate": "1910",
   "address": [
     {
       "state": "Massachusetts",
