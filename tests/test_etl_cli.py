@@ -40,7 +40,7 @@ class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        # self.addCleanup(shutil.rmtree, tmpdir)
+        self.addCleanup(shutil.rmtree, tmpdir)
 
         self.output_path = os.path.join(tmpdir, "output")
         self.phi_path = os.path.join(tmpdir, "phi")
@@ -305,8 +305,12 @@ class TestEtlFormats(BaseEtlSimple):
         # Check metadata files (these have consistent names)
         self.assertEqual(
             {
-                "_delta_log/00000000000000000000.json",
+                "_delta_log/00000000000000000000.json",  # write
                 "_delta_log/.00000000000000000000.json.crc",
+                "_delta_log/00000000000000000001.json",  # vacuum start
+                "_delta_log/.00000000000000000001.json.crc",
+                "_delta_log/00000000000000000002.json",  # vacuum end
+                "_delta_log/.00000000000000000002.json.crc",
                 "_symlink_format_manifest/manifest",
                 "_symlink_format_manifest/.manifest.crc",
             },

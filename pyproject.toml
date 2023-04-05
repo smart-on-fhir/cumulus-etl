@@ -1,19 +1,28 @@
 [project]
 name = "cumulus"
 requires-python = ">= 3.8"
+# These dependencies are mostly pinned to be under the next major version.
+# That makes particular sense as long as we don't have official releases yet and our code is used
+# by pulling from main directly.
+# But now there's a risk of missing a major release and bit-rotting the dependency tree.
+#
+# We should either (a) configure a bot to warn us about stale dependencies, or
+# (b) once we switch to a more planned release schedule (via docker or similar), just go back to
+# open-pinned dependencies so that we're more likely to notice new releases (we'll still have time
+# to fix any breakages since users won't immediately see the problem).
 dependencies = [
     "ctakesclient >= 2.1, < 3",
-    "delta-spark >= 2.1",
+    "delta-spark >= 2.1, < 3",
     # This branch includes some jwt fixes we need (and will hopefully be in mainline in future)
     "fhirclient @ git+https://github.com/mikix/client-py.git@mikix/oauth2-jwt",
     "html2text",
-    "httpx",
-    "jwcrypto",
-    "label-studio-sdk",
-    "oracledb",
-    "pandas < 2",
-    "philter-lite",
-    "pyarrow",
+    "httpx < 1",
+    "jwcrypto < 2",
+    "label-studio-sdk < 1",
+    "oracledb < 2",
+    "pandas < 3",
+    "philter-lite < 1",
+    "pyarrow < 12",
     "s3fs",
 ]
 authors = [
