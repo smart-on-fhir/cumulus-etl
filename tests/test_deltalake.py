@@ -166,18 +166,19 @@ class TestDeltaLake(unittest.TestCase):
     def test_group_field(self):
         """Verify that we can safely delete some data from the lake using groups"""
         self.store(
-            self.df(aa={"group": 1, "val": 5}, ab={"group": 1, "val": 10}, b={"group": 2, "val": 1}),
+            self.df(aa={"group": "X", "val": 5}, ab={"group": "X", "val": 10}, b={"group": "Y", "val": 1}),
             group_field="value.group",
         )
         self.store(
-            self.df(ab={"group": 1, "val": 11}, ac={"group": 1, "val": 16}, c={"group": 3, "val": 2}),
+            # Add a quote as part of the Z group identifier, just to confirm we escape these strings
+            self.df(ab={"group": "X", "val": 11}, ac={"group": "X", "val": 16}, c={"group": 'Z"', "val": 2}),
             group_field="value.group",
         )
         self.assert_lake_equal(
             self.df(
-                ab={"group": 1, "val": 11},
-                ac={"group": 1, "val": 16},
-                b={"group": 2, "val": 1},
-                c={"group": 3, "val": 2},
+                ab={"group": "X", "val": 11},
+                ac={"group": "X", "val": 16},
+                b={"group": "Y", "val": 1},
+                c={"group": 'Z"', "val": 2},
             )
         )
