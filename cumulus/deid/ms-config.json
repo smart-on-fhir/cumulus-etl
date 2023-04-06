@@ -33,7 +33,6 @@
     {"path": "nodesByType('Extension')", "method": "redact", "comment": "drop all unknown extensions"},
 
     {"comment": "** Elements that might be embedded and kept elsewhere -- redact pieces of the whole **", "path": "xxx", "method": "redact"},
-    {"path": "nodesByType('Age').value", "method": "redact", "comment": "note that this is a partial redaction, only removing ages above 89"},
     {"path": "nodesByType('Attachment').title", "method": "redact"},
     {"path": "nodesByType('Reference').display", "method": "redact"},
     {"path": "nodesByType('Reference').identifier", "method": "redact"},
@@ -54,7 +53,7 @@
 
     {"comment": "** Shared backbone elements **", "path": "xxx", "method": "redact"},
 
-    {"comment": "** https://www.hl7.org/fhir/dosage.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/dosage.html **", "path": "xxx", "method": "redact"},
     {"path": "nodesByType('Dosage').sequence", "method": "keep"},
     {"path": "nodesByType('Dosage').additionalInstruction", "method": "keep"},
     {"path": "nodesByType('Dosage').timing", "method": "keep"},
@@ -72,7 +71,7 @@
 
     {"comment": "** Top-level resources **", "path": "xxx", "method": "redact"},
 
-    {"comment": "** https://www.hl7.org/fhir/condition.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/condition.html **", "path": "xxx", "method": "redact"},
     {"path": "Condition.clinicalStatus", "method": "keep"},
     {"path": "Condition.verificationStatus", "method": "keep"},
     {"path": "Condition.category", "method": "keep"},
@@ -94,7 +93,7 @@
     {"path": "Condition.evidence.code", "method": "keep"},
     {"path": "Condition.evidence.detail", "method": "keep"},
 
-    {"comment": "** https://www.hl7.org/fhir/documentreference.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/documentreference.html **", "path": "xxx", "method": "redact"},
     {"path": "DocumentReference.status", "method": "keep"},
     {"path": "DocumentReference.docStatus", "method": "keep"},
     {"path": "DocumentReference.type", "method": "keep"},
@@ -117,7 +116,7 @@
     {"path": "DocumentReference.context.sourcePatientInfo", "method": "keep"},
     {"path": "DocumentReference.context.related", "method": "keep"},
 
-    {"comment": "** https://www.hl7.org/fhir/encounter.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/encounter.html **", "path": "xxx", "method": "redact"},
     {"path": "Encounter.status", "method": "keep"},
     {"path": "Encounter.statusHistory.status", "method": "keep"},
     {"path": "Encounter.statusHistory.period", "method": "keep"},
@@ -157,7 +156,7 @@
     {"path": "Encounter.serviceProvider", "method": "keep"},
     {"path": "Encounter.partOf", "method": "keep"},
 
-    {"comment": "** https://www.hl7.org/fhir/medicationrequest.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/medicationrequest.html **", "path": "xxx", "method": "redact"},
     {"path": "MedicationRequest.status", "method": "keep"},
     {"path": "MedicationRequest.statusReason", "method": "keep"},
     {"path": "MedicationRequest.intent", "method": "keep"},
@@ -196,7 +195,7 @@
     {"path": "MedicationRequest.detectedIssue", "method": "keep"},
     {"path": "MedicationRequest.eventHistory", "method": "keep"},
 
-    {"comment": "** https://www.hl7.org/fhir/observation.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/observation.html **", "path": "xxx", "method": "redact"},
     {"path": "Observation.basedOn", "method": "keep"},
     {"path": "Observation.partOf", "method": "keep"},
     {"path": "Observation.status", "method": "keep"},
@@ -222,9 +221,12 @@
     {"path": "Observation.component.dataAbsentReason", "method": "keep"},
     {"path": "Observation.component.interpretation", "method": "keep"},
 
-    {"comment": "** https://www.hl7.org/fhir/patient.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/patient.html **", "path": "xxx", "method": "redact"},
     {"path": "Patient.active", "method": "keep"},
     {"path": "Patient.gender", "method": "keep"},
+    {"path": "Patient.birthDate", "method": "generalize",
+     "comment": "keep just the year for privacy (note: 90+ HIPAA grouping is done downstream in SQL)",
+     "cases": {"true": "$this.toString().replaceMatches('^(?<year>\\\\d+).*', '${year}')"}},
     {"path": "Patient.deceased", "method": "keep"},
     {"path": "Patient.maritalStatus", "method": "keep"},
     {"path": "Patient.multipleBirth", "method": "keep"},
@@ -239,7 +241,7 @@
     {"path": "Patient.link.other", "method": "keep"},
     {"path": "Patient.link.type", "method": "keep"},
 
-    {"comment": "** https://www.hl7.org/fhir/resource.html **", "path": "xxx", "method": "redact"},
+    {"comment": "** https://www.hl7.org/fhir/R4/resource.html **", "path": "xxx", "method": "redact"},
     {"path": "Resource.id", "method": "keep"},
     {"path": "Resource.implicitRules", "method": "keep"},
     {"path": "Resource.language", "method": "keep"},
@@ -248,8 +250,6 @@
     {"path": "Resource", "method": "redact", "comment": "Catch-all removal of anything not specifically allowed above"}
   ],
   "parameters": {
-    "enablePartialAgesForRedact": true,
-    "enablePartialDatesForRedact": true,
     "enablePartialZipCodesForRedact": true,
     "restrictedZipCodeTabulationAreas": [
       "036",

@@ -81,7 +81,8 @@ Most dates are left alone, as precise timing is useful for studies and carries
 But anything age related is carefully handled in the usual HIPAA manner:
 
 - Birthdates are redacted down to just the year (no month or day)
-- If the birthdate (or other age field) indicates an age over 89, the field is entirely removed.
+- If the birthdate (or other age field) indicates an age over 89,
+  those patients will be grouped together as one cohort
 
 #### Zip Codes
 

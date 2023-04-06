@@ -12,6 +12,10 @@
         "code": "ABSTRED",
         "display": "abstracted",
         "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+      },
+      {
+        "code": "GENERALIZED",
+        "display": "exact value is replaced with a general value"
       }
     ]
   },
@@ -76,9 +80,6 @@
     "text": "M"
   },
   "multipleBirthBoolean": false,
-  "photo": [{
-    "creation": "1965"
-  }],
   "contact": [{
     "relationship": [{
       "coding": [
@@ -88,9 +89,6 @@
         }
       ]
     }],
-    "name": {
-      "period": {"start": "2018", "end": "2020"}
-    },
     "address": {
       "state": "Massachusetts",
       "postalCode": "01000",
