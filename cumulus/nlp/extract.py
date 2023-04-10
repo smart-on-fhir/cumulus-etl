@@ -6,17 +6,26 @@ import os
 from typing import List
 
 import ctakesclient
+import httpx
 
 from cumulus import common, fhir_client, fhir_common, store
 
 
-async def covid_symptoms_extract(client: fhir_client.FhirClient, cache: store.Root, docref: dict) -> List[dict]:
+async def covid_symptoms_extract(
+    client: fhir_client.FhirClient,
+    cache: store.Root,
+    docref: dict,
+    ctakes_http_client: httpx.AsyncClient = None,
+    cnlp_http_client: httpx.AsyncClient = None,
+) -> List[dict]:
     """
     Extract a list of Observations from NLP-detected symptoms in physician notes
 
     :param client: a client ready to talk to a FHIR server
     :param cache: Where to cache NLP results
     :param docref: Physician Note
+    :param ctakes_http_client: HTTPX client to use for the cTAKES server
+    :param cnlp_http_client: HTTPX client to use for the cNLP transformer server
     :return: list of NLP results encoded as FHIR observations
     """
     docref_id = docref["id"]
@@ -46,7 +55,7 @@ async def covid_symptoms_extract(client: fhir_client.FhirClient, cache: store.Ro
     cnlp_namespace = f"{ctakes_namespace}-cnlp_v2"
 
     try:
-        ctakes_json = extract(cache, ctakes_namespace, physician_note)
+        ctakes_json = await extract(cache, ctakes_namespace, physician_note, client=ctakes_http_client)
     except Exception:  # pylint: disable=broad-except
         logging.exception("Could not extract symptoms for docref: %s", docref_id)
         return []
@@ -65,7 +74,7 @@ async def covid_symptoms_extract(client: fhir_client.FhirClient, cache: store.Ro
     # there too. We have found this to yield better results than cTAKES alone.
     try:
         spans = ctakes_json.list_spans(matches)
-        polarities_cnlp = list_polarity(cache, cnlp_namespace, physician_note, spans)
+        polarities_cnlp = await list_polarity(cache, cnlp_namespace, physician_note, spans, client=cnlp_http_client)
     except Exception:  # pylint: disable=broad-except
         logging.exception("Could not check negation for docref %s", docref_id)
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
@@ -87,7 +96,30 @@ async def covid_symptoms_extract(client: fhir_client.FhirClient, cache: store.Ro
     return positive_matches
 
 
-def extract(cache: store.Root, namespace: str, sentence: str) -> ctakesclient.typesystem.CtakesJSON:
+async def ctakes_extract_with_retries(
+    sentence: str,
+    client: httpx.AsyncClient,
+    *,
+    attempts: int = 3,
+) -> ctakesclient.typesystem.CtakesJSON:
+    """
+    Extract from cTAKES but retry a few times.
+
+    cTAKES has an occasional habit of giving a 500 error if its temporarily overloaded or confused.
+    This gives us a little bit of robustness against that
+    """
+    for i in range(max(0, attempts - 1)):
+        try:
+            return await ctakesclient.client.extract(sentence, client=client)
+        except httpx.HTTPStatusError:
+            print("MIKE: got http error! attempt:", i + 1)
+            pass
+    return await ctakesclient.client.extract(sentence, client=client)  # final try will raise like normal
+
+
+async def extract(
+    cache: store.Root, namespace: str, sentence: str, client: httpx.AsyncClient = None
+) -> ctakesclient.typesystem.CtakesJSON:
     """
     This is a version of ctakesclient.client.extract() that also uses a cache
 
@@ -97,21 +129,23 @@ def extract(cache: store.Root, namespace: str, sentence: str) -> ctakesclient.ty
     full_path = cache.joinpath(_target_filename(namespace, sentence))
 
     try:
+        raise Exception()
         cached_response = common.read_json(full_path)
         result = ctakesclient.typesystem.CtakesJSON(source=cached_response)
     except Exception:  # pylint: disable=broad-except
-        result = ctakesclient.client.extract(sentence)
+        result = await ctakes_extract_with_retries(sentence, client)
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, result.as_json())
 
     return result
 
 
-def list_polarity(
+async def list_polarity(
     cache: store.Root,
     namespace: str,
     sentence: str,
     spans: List[tuple],
+    client: httpx.AsyncClient = None,
 ) -> List[ctakesclient.typesystem.Polarity]:
     """
     This is a version of ctakesclient.transformer.list_polarity() that also uses a cache
@@ -127,7 +161,7 @@ def list_polarity(
     try:
         result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
     except Exception:  # pylint: disable=broad-except
-        result = ctakesclient.transformer.list_polarity(sentence, spans)
+        result = await ctakesclient.transformer.list_polarity(sentence, spans, client=client)
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, [x.value for x in result])
 

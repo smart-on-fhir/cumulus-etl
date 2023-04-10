@@ -1,82 +1,19 @@
 """ETL tasks"""
 
+import asyncio
 import itertools
 import sys
-from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, List, Set, Type, TypeVar, Union
+from typing import AsyncIterable, AsyncIterator, Coroutine, Iterable, Iterator, List, Set, Type, TypeVar, Union
 
 import ctakesclient
+import httpx
 import pandas
 
-from cumulus import common, deid, errors, nlp, store
+from cumulus import common, deid, errors, iter_utils, nlp, store
 from cumulus.etl import config
 
 T = TypeVar("T")
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
-
-
-async def _batch_slice(iterable: AsyncIterable[Union[List[T], T]], n: int) -> AsyncIterator[T]:
-    """
-    Returns the first n elements of iterable, flattening lists, but including an entire list if we would end in middle.
-
-    For example, list(_batch_slice([1, [2.1, 2.1], 3], 2)) returns [1, 2.1, 2.2]
-
-    Note that this will only flatten elements that are actual Python lists (isinstance list is True)
-    """
-    count = 0
-    async for item in iterable:
-        if isinstance(item, list):
-            for x in item:
-                yield x
-            count += len(item)
-        else:
-            yield item
-            count += 1
-
-        if count >= n:
-            return
-
-
-async def _async_chain(first: T, rest: AsyncIterator[T]) -> AsyncIterator[T]:
-    """An asynchronous version of itertools.chain([first], rest)"""
-    yield first
-    async for x in rest:
-        yield x
-
-
-async def _batch_iterate(iterable: AsyncIterable[Union[List[T], T]], size: int) -> AsyncIterator[AsyncIterator[T]]:
-    """
-    Yields sub-iterators, each roughly {size} elements from iterable.
-
-    Sub-iterators might be less, if we have reached the end.
-    Sub-iterators might be more, if a list is encountered in the source iterable.
-    In that case, all elements of the list are included in the same sub-iterator batch, which might put us over size.
-    See the comments for the EtlTask.group_field class attribute for why we support this.
-
-    The whole iterable is never fully loaded into memory. Rather we load only one element at a time.
-
-    Example:
-        for batch in _batch_iterate([1, [2.1, 2.2], 3, 4, 5], 2):
-            print(list(batch))
-
-    Results in:
-        [1, 2.1, 2.2]
-        [3, 4]
-        [5]
-    """
-    if size < 1:
-        raise ValueError("Must iterate by at least a batch of 1")
-
-    # aiter() and anext() were added in python 3.10
-    # pylint: disable=unnecessary-dunder-call
-
-    true_iterable = iterable.__aiter__()  # get a real once-through iterable (we want to iterate only once)
-    while True:
-        iter_slice = _batch_slice(true_iterable, size)
-        try:
-            peek = await iter_slice.__anext__()
-        except StopAsyncIteration:
-            return  # we're done!
-        yield _async_chain(peek, iter_slice)
 
 
 class EtlTask:
@@ -213,7 +150,7 @@ class EtlTask:
         # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
         # We want to batch them up, to allow resuming from interruptions more easily.
         index = 0
-        async for batch in _batch_iterate(entries, self.task_config.batch_size):
+        async for batch in iter_utils.batch_iterate(entries, self.task_config.batch_size):
             # Stuff de-identified FHIR json into one big pandas DataFrame
             dataframe = pandas.DataFrame([row async for row in batch])
 
@@ -367,7 +304,11 @@ class CovidSymptomNlpResultsTask(EtlTask):
         """Returns true if this is a coding for an emergency department note"""
         return coding.get("code") in cls.ED_CODES.get(coding.get("system"), {})
 
-    async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
+    def read_and_extract(
+        self,
+        ctakes_http_client: httpx.AsyncClient = None,
+        cnlp_http_client: httpx.AsyncClient = None,
+    ) -> Iterator[Coroutine[List[dict], None, None]]:
         """Passes physician notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 
@@ -387,4 +328,31 @@ class CovidSymptomNlpResultsTask(EtlTask):
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield await nlp.covid_symptoms_extract(self.task_config.client, phi_root, docref)
+            yield nlp.covid_symptoms_extract(
+                self.task_config.client,
+                phi_root,
+                docref,
+                ctakes_http_client=ctakes_http_client,
+                cnlp_http_client=cnlp_http_client,
+            )
+
+    async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
+        """Passes physician notes through NLP and returns any symptoms found"""
+
+        # Cap cTAKES to two connections, because I've seen it give 500 errors even with just two connections.
+        # It's rare with just two but more common the more you load you put on it.
+        # But a little bit of concurrency goes a long way. Just two connections can be a 25% speed up.
+        # cTAKES calls are retried, so as long as we don't push it too much, the occasional error can be tolerated.
+        ctakes_connections = 2
+
+        ctakes_http_client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=ctakes_connections),
+            timeout=httpx.Timeout(timeout=20.0),  # I've seen timeouts at 10s, possibly due to concurrency
+        )
+        cnlp_http_client = httpx.AsyncClient()  # cNLP server seems mostly chill
+
+        coroutines = self.read_and_extract(ctakes_http_client=ctakes_http_client, cnlp_http_client=cnlp_http_client)
+
+        # Use peek_ahead_iterator to run multiple NLP queries at the same time, but only so many as makes sense.
+        async for x in iter_utils.peek_ahead_iterator(coroutines, peek_at=ctakes_connections):
+            yield x

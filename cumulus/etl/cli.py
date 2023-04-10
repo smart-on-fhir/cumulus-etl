@@ -252,7 +252,10 @@ async def etl_main(args: argparse.Namespace) -> None:
         common.write_json(config.path_config(), config.as_json(), indent=4)
 
         # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-        summaries = await etl_job(config, selected_tasks, use_philter=args.philter)
+        from tests.utils import timeit
+
+        with timeit():
+            summaries = await etl_job(config, selected_tasks, use_philter=args.philter)
 
     # Print results to the console
     common.print_header("Results:")
