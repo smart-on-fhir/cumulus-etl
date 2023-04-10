@@ -23,6 +23,7 @@ dependencies = [
     "pandas < 3",
     "philter-lite < 1",
     "pyarrow < 12",
+    "rich < 14",
     "s3fs",
 ]
 authors = [

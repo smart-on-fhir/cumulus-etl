@@ -1,14 +1,17 @@
 """Load, transform, and write out input data to deidentified FHIR"""
 
 import argparse
+import datetime
 import itertools
 import json
-import logging
 import os
 import shutil
 import sys
 import tempfile
 from typing import Iterable, List, Type
+
+import rich
+import rich.table
 
 from cumulus import cli_utils, common, deid, errors, fhir_client, loaders, nlp, store
 from cumulus.etl import context, tasks
@@ -149,15 +152,48 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     cli_utils.add_debugging(parser)
 
 
+def print_config(args: argparse.Namespace, job_datetime: datetime.datetime, all_tasks: Iterable[tasks.EtlTask]) -> None:
+    """
+    Prints the ETL configuration to the console.
+
+    This is often redundant with command line arguments, but it's helpful if you are looking at a docker container's
+    logs after the fact.
+
+    This is different from printing a JobConfig's json to the console, because on a broad level, this here is to inform
+    the user at the console, while JobConfig's purpose is to inform task code how to operate.
+
+    But more specifically:
+    (A) we want to print this as early as possible and a JobConfig needs some computed config (notably, it needs
+        to be constructed after the bulk export target dir is ready)
+    (B) we may want to print some options here that don't particularly need to go into the JobConfig/**.json file in
+        the output folder (e.g. export dir)
+    (C) this formatting can be very user-friendly, while the other should be more machine-processable (e.g. skipping
+        some default-value prints, or formatting time)
+    """
+    common.print_header("Configuration:")
+    table = rich.table.Table("", rich.table.Column(overflow="fold"), box=None, show_header=False)
+    table.add_row("Input path:", args.dir_input)
+    if args.input_format != "ndjson":
+        table.add_row(" Format:", args.input_format)
+    if args.since:
+        table.add_row(" Since:", args.since)
+    if args.until:
+        table.add_row(" Until:", args.until)
+    table.add_row("Output path:", args.dir_output)
+    table.add_row(" Format:", args.output_format)
+    table.add_row("PHI/Build path:", args.dir_phi)
+    if args.export_to:
+        table.add_row("Export path:", args.export_to)
+    table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
+    table.add_row("Batch size:", str(args.batch_size))
+    table.add_row("Tasks:", ", ".join(sorted(t.name for t in all_tasks)))
+    if args.comment:
+        table.add_row("Comment:", args.comment)
+    rich.get_console().print(table)
+
+
 async def etl_main(args: argparse.Namespace) -> None:
-    logging.info("Input Directory: %s", args.dir_input)
-    logging.info("Output Directory: %s", args.dir_output)
-    logging.info("PHI Build Directory: %s", args.dir_phi)
-
-    # Check that cTAKES is running and any other services or binaries we require
-    if not args.skip_init_checks:
-        check_requirements()
-
+    # Set up some common variables
     common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
     root_input = store.Root(args.dir_input)
@@ -170,6 +206,13 @@ async def etl_main(args: argparse.Namespace) -> None:
     task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
     task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
     selected_tasks = tasks.EtlTask.get_selected_tasks(task_names, task_filters)
+
+    # Print configuration
+    print_config(args, job_datetime, selected_tasks)
+
+    # Check that cTAKES is running and any other services or binaries we require
+    if not args.skip_init_checks:
+        check_requirements()
 
     # Grab a list of all required resource types for the tasks we are running
     required_resources = set(t.resource for t in selected_tasks)
@@ -207,8 +250,6 @@ async def etl_main(args: argparse.Namespace) -> None:
             tasks=[t.name for t in selected_tasks],
         )
         common.write_json(config.path_config(), config.as_json(), indent=4)
-        common.print_header("Configuration:")
-        print(json.dumps(config.as_json(), indent=4))
 
         # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
         summaries = await etl_job(config, selected_tasks, use_philter=args.philter)

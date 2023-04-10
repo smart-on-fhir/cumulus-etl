@@ -141,8 +141,15 @@ class BulkExporter:
             if response.status_code in [202, 429]:
                 # Print a message to the user, so they don't see us do nothing for a while
                 delay = int(response.headers.get("Retry-After", 60))
+                if response.status_code == 202:
+                    # Some servers can request unreasonably long delays (e.g. I've seen Cerner ask for five hours),
+                    # which is... not helpful for our UX and often way too long for small exports.
+                    # So as long as the server isn't telling us it's overloaded, limit the delay time to five minutes.
+                    delay = min(delay, 300)
                 progress_msg = response.headers.get("X-Progress", "waiting...")
-                print(f"  {progress_msg} ({self._total_wait_time}s so far, waiting for {delay}s more)")
+                formatted_total = common.human_time_offset(self._total_wait_time)
+                formatted_delay = common.human_time_offset(delay)
+                print(f"  {progress_msg} ({formatted_total} so far, waiting for {formatted_delay} more)")
 
                 # And wait as long as the server requests
                 await asyncio.sleep(delay)
