@@ -264,6 +264,7 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         # We return three words due to how our cTAKES mock works. It wants 3 words -- fever word is in middle.
         respx.get("http://localhost/file-cough").respond(text="has cough bad")
         respx.get("http://localhost/file-fever").respond(text="has fever bad")
+        respx.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         docref0 = i2b2_mock_data.documentreference()
         docref0["content"] = [{"attachment": {"url": a[0], "contentType": a[1]}} for a in attachments]

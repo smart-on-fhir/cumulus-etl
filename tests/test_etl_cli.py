@@ -431,7 +431,7 @@ class TestEtlNlp(BaseEtlSimple):
     async def test_cnlp_rejects(self):
         """Verify that if the cnlp server negates a match, it does not show up"""
         # First match is fever, second is nausea
-        self.cnlp_mock.side_effect = lambda _, spans: [Polarity.neg, Polarity.pos]
+        self.cnlp_mock.side_effect = lambda *args, **kwargs: [Polarity.neg, Polarity.pos]
         await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         symptoms = self.read_symptoms()
@@ -475,7 +475,7 @@ class TestEtlNlp(BaseEtlSimple):
 
         # Now negate the second symptom, and notice that it has been dropped in the results for each docref
         shutil.rmtree(os.path.join(self.phi_path, "ctakes-cache"))  # clear cached results
-        self.cnlp_mock.side_effect = lambda _, spans: [Polarity.pos, Polarity.neg]
+        self.cnlp_mock.side_effect = lambda *args, **kwargs: [Polarity.pos, Polarity.neg]
         await self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
         self.assertEqual(
             [

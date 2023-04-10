@@ -371,6 +371,9 @@ class CovidSymptomNlpResultsTask(EtlTask):
         """Passes physician notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 
+        # one client for both NLP services for now -- no parallel requests yet, so no need to be fancy
+        http_client = nlp.ctakes_httpx_client()
+
         for docref in self.read_ndjson():
             # Check that the note is one of our special allow-listed types (we do this here rather than on the output
             # side to save needing to run everything through NLP).
@@ -387,4 +390,10 @@ class CovidSymptomNlpResultsTask(EtlTask):
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield await nlp.covid_symptoms_extract(self.task_config.client, phi_root, docref)
+            yield await nlp.covid_symptoms_extract(
+                self.task_config.client,
+                phi_root,
+                docref,
+                ctakes_http_client=http_client,
+                cnlp_http_client=http_client,
+            )

@@ -74,7 +74,7 @@ async def read_notes_from_ndjson(client: fhir_client.FhirClient, dirname: str) -
     return notes
 
 
-def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
+async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
     if not args.nlp:
         return
 
@@ -82,12 +82,14 @@ def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> Non
     if not nlp.restart_ctakes_with_bsv(args.ctakes_overrides, args.symptoms_bsv):
         sys.exit(errors.CTAKES_OVERRIDES_INVALID)
 
+    http_client = nlp.ctakes_httpx_client()
+
     # Run each note through cTAKES then the cNLP transformer for negation
     for note in notes:
-        ctakes_json = ctakesclient.client.extract(note.text)
+        ctakes_json = await ctakesclient.client.extract(note.text, client=http_client)
         matches = ctakes_json.list_match(polarity=Polarity.pos)
         spans = ctakes_json.list_spans(matches)
-        cnlpt_results = ctakesclient.transformer.list_polarity(note.text, spans)
+        cnlpt_results = await ctakesclient.transformer.list_polarity(note.text, spans, client=http_client)
         note.matches = [match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos]
 
 
@@ -187,6 +189,6 @@ async def chart_review_main(args: argparse.Namespace) -> None:
         ndjson_folder = await gather_docrefs(client, root_input, root_phi, args)
         notes = await read_notes_from_ndjson(client, ndjson_folder.name)
 
-    run_nlp(notes, args)
+    await run_nlp(notes, args)
     philter_notes(notes, args)  # safe to do after NLP because philter does not change character counts
     push_to_label_studio(notes, access_token, labels, args)
