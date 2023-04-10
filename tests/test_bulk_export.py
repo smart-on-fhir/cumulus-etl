@@ -191,23 +191,23 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff done
             # Checking status of bulk export
             make_response(status_code=429),  # default of one minute
-            make_response(status_code=202, headers={"Retry-After": "18000"}),  # five hours
-            make_response(status_code=429, headers={"Retry-After": "64800"}),  # 18 hours (putting us over a day)
+            make_response(status_code=202, headers={"Retry-After": "18000"}),  # five hours (gets limited to five min)
+            make_response(status_code=429, headers={"Retry-After": "82800"}),  # 23 hours (putting us over a day)
         ]
 
         exporter = self.make_exporter()
         with self.assertRaisesRegex(FatalError, "Timed out waiting"):
             await exporter.export()
 
-        # 86460 == 24 hours + one minute
-        self.assertEqual(86460, exporter._total_wait_time)  # pylint: disable=protected-access
+        # 86760 == 24 hours + six minutes
+        self.assertEqual(86760, exporter._total_wait_time)  # pylint: disable=protected-access
 
         self.assertListEqual(
             [
                 mock.call(3600),
                 mock.call(60),
-                mock.call(18000),
-                mock.call(64800),
+                mock.call(300),
+                mock.call(82800),
             ],
             mock_sleep.call_args_list,
         )
