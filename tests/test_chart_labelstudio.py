@@ -106,6 +106,12 @@ class TestChartLabelStudio(AsyncTestCase):
                     "text": "Normal note text",
                     "ref_id": "D3",
                 },
+                "predictions": [
+                    {
+                        "model_version": "Cumulus",
+                        "result": [],
+                    }
+                ],
             },
             self.get_pushed_task(),
         )
@@ -124,6 +130,20 @@ class TestChartLabelStudio(AsyncTestCase):
                     {"value": "Itch"},
                     {"value": "Nausea"},
                 ],
+            },
+            self.get_pushed_task()["data"],
+        )
+
+    def test_dynamic_labels_no_matches(self):
+        self.ls_project.parsed_label_config = {
+            "mylabel": {"type": "Labels", "to_name": ["mytext"], "dynamic_labels": True},
+        }
+        self.push_tasks(self.make_note(matches=False))
+        self.assertEqual(
+            {
+                "text": "Normal note text",
+                "ref_id": "D3",
+                "mylabel": [],  # this needs to be sent, or the server will complain
             },
             self.get_pushed_task()["data"],
         )
