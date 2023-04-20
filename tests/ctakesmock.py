@@ -54,13 +54,17 @@ class CtakesMixin(unittest.TestCase):
 
     def _run_fake_ctakes_server(self, overrides_path: str) -> None:
         """Starts a mock cTAKES server process"""
+        has_started = multiprocessing.Event()
         self._ctakes_called = multiprocessing.Value("b")
         self._ctakes_called.value = 0
         self.ctakes_server = multiprocessing.Process(
-            target=partial(_serve_with_restarts, overrides_path, CtakesMixin.ctakes_port, self._ctakes_called),
+            target=partial(
+                _serve_with_restarts, overrides_path, CtakesMixin.ctakes_port, self._ctakes_called, has_started
+            ),
             daemon=True,
         )
         self.ctakes_server.start()
+        has_started.wait()  # make sure we don't proceed with test until the server we started is ready
 
 
 def _get_mtime(path) -> Optional[float]:
@@ -71,14 +75,17 @@ def _get_mtime(path) -> Optional[float]:
         return None
 
 
-def _serve_with_restarts(overrides_path: str, port: int, was_called: multiprocessing.Value) -> None:
+def _serve_with_restarts(
+    overrides_path: str, port: int, was_called: multiprocessing.Value, has_started: multiprocessing.Event
+) -> None:
     server_address = ("", port)
-    mtime = _get_mtime(overrides_path)
+    mtime = None
 
     while True:  # loop that keeps spawning new servers as they get restarted
         ctakes_server = KillableServer(server_address, FakeCTakesHandler)
         ctakes_server.timeout = 0.1
         ctakes_server.was_called = was_called
+        has_started.set()
 
         while True:  # loop that handles requests for a given server until we decide to restart
             ctakes_server.handle_request()
@@ -228,10 +235,6 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
 
 
 def fake_transformer_list_polarity(sentence: str, spans: List[tuple]) -> List[typesystem.Polarity]:
-    """
-    Simple fake response from cNLP
-
-    The output is quite static, and matches the above fake cTAKES results. By default, we're neg, pos, pos.
-    """
+    """Simple always-positive fake response from cNLP."""
     del sentence
     return [typesystem.Polarity.pos] * len(spans)

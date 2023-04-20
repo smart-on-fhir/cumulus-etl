@@ -5,7 +5,6 @@ import time
 from unittest import mock
 
 import ddt
-import freezegun
 import httpx
 import respx
 from jwcrypto import jwk, jwt
@@ -16,7 +15,6 @@ from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
-@freezegun.freeze_time("Sep 15th, 2021 1:23:45")
 @mock.patch("cumulus.fhir_client.uuid.uuid4", new=lambda: "1234")
 class TestFhirClient(AsyncTestCase):
     """
