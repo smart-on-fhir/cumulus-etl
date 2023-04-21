@@ -82,8 +82,7 @@ class LabelStudioClient:
             },
         }
 
-        if note.matches:
-            self._format_prediction(task, note)
+        self._format_prediction(task, note)
 
         return task
 
