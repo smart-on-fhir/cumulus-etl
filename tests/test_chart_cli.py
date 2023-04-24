@@ -175,6 +175,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
     async def test_gather_anon_docrefs_from_server(self):
         self.mock_search_url("P1", ["NotMe", "D1", "NotThis", "D3"])
         self.mock_search_url("P2", ["D2"])
+        respx.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         with tempfile.NamedTemporaryFile() as file:
             self.write_anon_docrefs(
@@ -197,6 +198,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         self.mock_read_url("D2")
         self.mock_read_url("D3")
         self.mock_read_url("unknown-doc", code=404)
+        respx.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         with tempfile.NamedTemporaryFile() as file:
             self.write_real_docrefs(file.name, ["D1", "D2", "D3", "unknown-doc"])

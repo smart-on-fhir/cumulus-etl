@@ -234,7 +234,7 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
     return typesystem.CtakesJSON(response)
 
 
-def fake_transformer_list_polarity(sentence: str, spans: List[tuple]) -> List[typesystem.Polarity]:
+async def fake_transformer_list_polarity(sentence: str, spans: List[tuple], client=None) -> List[typesystem.Polarity]:
     """Simple always-positive fake response from cNLP."""
-    del sentence
+    del sentence, client
     return [typesystem.Polarity.pos] * len(spans)

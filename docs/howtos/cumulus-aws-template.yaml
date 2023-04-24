@@ -148,7 +148,7 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: cumulus-deid-db
+        Name: cumulus_deid_db # use underscores for ease of SQL (hyphens are reserved)
 
   GlueCrawler:
     Type: AWS::Glue::Crawler
