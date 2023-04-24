@@ -25,8 +25,6 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         super().setUp()
 
         client = fhir_client.FhirClient("http://localhost/", [])
-        script_dir = os.path.dirname(__file__)
-        data_dir = os.path.join(script_dir, "data/simple")
         self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         self.input_dir = os.path.join(self.tmpdir.name, "input")
         self.phi_dir = os.path.join(self.tmpdir.name, "phi")
@@ -52,7 +50,7 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         self.codebook = self.scrubber.codebook
 
         # Keeps consistent IDs
-        shutil.copy(os.path.join(data_dir, "codebook.json"), self.phi_dir)
+        shutil.copy(os.path.join(self.datadir, "simple/codebook.json"), self.phi_dir)
 
     def tearDown(self) -> None:
         super().tearDown()

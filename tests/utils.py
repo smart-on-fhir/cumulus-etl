@@ -9,11 +9,14 @@ import json
 import os
 import time
 import unittest
+from typing import List
 from unittest import mock
 
 import freezegun
 import httpx
 import respx
+
+from cumulus.formats.deltalake import DeltaLakeFormat
 
 # Pass a non-UTC time to freezegun to help notice any bad timezone handling.
 # But only bother exposing the UTC version to other test code, since that's what will be most useful/common.
@@ -37,6 +40,9 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
         # It's so common to want to see more than the tiny default fragment -- just enable this across the board.
         self.maxDiff = None  # pylint: disable=invalid-name
+
+        # Make it easy to grab test data, regardless of where the test is
+        self.datadir = os.path.join(os.path.dirname(__file__), "data")
 
     def patch(self, *args, **kwargs) -> mock.Mock:
         """Syntactic sugar to ease making a mock over a test's lifecycle, without decorators"""
@@ -161,6 +167,27 @@ def make_response(status_code=200, json_payload=None, text=None, reason=None, he
         headers=headers or {},
         request=httpx.Request("GET", "fake_request_url"),
     )
+
+
+def read_delta_lake(lake_path: str, *, version: int = None) -> List[dict]:
+    """
+    Reads in a delta lake folder at a certain time, sorted by id.
+
+    DeltaLakeFormat.initialize_class() must have already been called.
+
+    Compare the results to a pandas dataframe with df.to_dict(orient="records") or just as a list of dicts.
+    """
+    # Read spark table
+    reader = DeltaLakeFormat.spark.read
+    if version is not None:
+        reader = reader.option("versionAsOf", version)
+
+    table_spark = reader.format("delta").load(lake_path).sort("id")
+
+    # Convert the spark table to Python primitives.
+    # Going to rdd or pandas and then to Python keeps inserting spark-specific constructs like Row().
+    # So instead, convert to a JSON string and then back to Python.
+    return [json.loads(row) for row in table_spark.toJSON().collect()]
 
 
 @contextlib.contextmanager

@@ -18,7 +18,7 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
 
     def setUp(self):
         super().setUp()
-        self.data_path = os.path.join(os.path.dirname(__file__), "data", "mstool")
+        self.data_path = os.path.join(self.datadir, "mstool")
 
     def combine_json(self, input_dir: str, output_dir: str) -> None:
         """

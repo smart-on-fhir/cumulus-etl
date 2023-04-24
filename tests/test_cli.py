@@ -32,9 +32,10 @@ class TestCumulusCLI(AsyncTestCase):
         self.assertTrue(stdout.getvalue().startswith(expected_usage), stdout.getvalue())
 
     @ddt.data(
-        ([], "cumulus.cli.run_etl"),
-        (["etl"], "cumulus.cli.run_etl"),
-        (["chart-review"], "cumulus.cli.run_chart_review"),
+        ([], "cumulus.etl.run_etl"),
+        (["etl"], "cumulus.etl.run_etl"),
+        (["chart-review"], "cumulus.chart_review.run_chart_review"),
+        (["convert"], "cumulus.etl.convert.run_convert"),
     )
     @ddt.unpack
     async def test_routing(self, argv, main_method):

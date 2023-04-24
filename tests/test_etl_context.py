@@ -3,12 +3,12 @@
 import datetime
 import json
 import tempfile
-import unittest
 
 from cumulus.etl.context import JobContext
+from tests import utils
 
 
-class TestJobContext(unittest.TestCase):
+class TestJobContext(utils.AsyncTestCase):
     """Test case for JobContext"""
 
     def test_missing_file_context(self):

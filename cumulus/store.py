@@ -64,10 +64,15 @@ class Root:
         self._confirm_in_root(path)
         return self.fs.exists(path)
 
-    def get(self, rpath: str, lpath: str) -> None:
+    def get(self, rpath: str, lpath: str, *, recursive: bool = False) -> None:
         """Download files"""
         self._confirm_in_root(rpath)
-        return self.fs.get(rpath, lpath)
+        return self.fs.get(rpath, lpath, recursive=recursive)
+
+    def put(self, lpath: str, rpath: str, *, recursive: bool = False) -> None:
+        """Upload files"""
+        self._confirm_in_root(rpath)
+        return self.fs.put(lpath, rpath, recursive=recursive)
 
     def ls(self) -> Iterator[str]:
         files = self.fs.ls(self.path, detail=False)

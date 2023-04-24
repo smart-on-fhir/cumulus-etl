@@ -8,10 +8,11 @@ import ddt
 
 from cumulus import errors
 from cumulus.loaders.i2b2.oracle import connect
+from tests import utils
 
 
 @ddt.ddt
-class TestOracleConnect(unittest.TestCase):
+class TestOracleConnect(utils.AsyncTestCase):
     """Test case for connecting to oracle"""
 
     @ddt.data(None, "")

@@ -32,8 +32,7 @@ class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
     def setUp(self):
         super().setUp()
 
-        script_dir = os.path.dirname(__file__)
-        self.data_dir = os.path.join(script_dir, "data/simple")
+        self.data_dir = os.path.join(self.datadir, "simple")
         self.input_path = os.path.join(self.data_dir, "input")
 
         tmpdir = tempfile.mkdtemp()
