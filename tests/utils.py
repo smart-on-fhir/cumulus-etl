@@ -1,6 +1,7 @@
 """Various test helper methods"""
 
 import contextlib
+import datetime
 import filecmp
 import functools
 import inspect
@@ -10,10 +11,19 @@ import time
 import unittest
 from unittest import mock
 
+import freezegun
 import httpx
 import respx
 
+# Pass a non-UTC time to freezegun to help notice any bad timezone handling.
+# But only bother exposing the UTC version to other test code, since that's what will be most useful/common.
+_FROZEN_TIME = datetime.datetime(2021, 9, 15, 1, 23, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=4)))
+FROZEN_TIME_UTC = _FROZEN_TIME.astimezone(datetime.timezone.utc)
 
+
+# Several tests involve timestamps in some form, so just pick a standard time for all tests.
+# We ignore socketserver because it checks the result of time() when evaluating timeouts.
+@freezegun.freeze_time(_FROZEN_TIME, ignore=["socketserver"])
 class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
     """
     Test case to hold some common code (suitable for async *OR* sync tests)

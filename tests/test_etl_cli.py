@@ -8,7 +8,6 @@ import tempfile
 from typing import Optional
 from unittest import mock
 
-import freezegun
 import pytest
 import s3fs
 from ctakesclient.typesystem import Polarity
@@ -19,11 +18,10 @@ from cumulus.formats.deltalake import DeltaLakeFormat
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
-from tests.utils import AsyncTestCase, TreeCompareMixin
+from tests.utils import FROZEN_TIME_UTC, AsyncTestCase, TreeCompareMixin
 
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
-@freezegun.freeze_time("Sep 15th, 2021 1:23:45", tz_offset=-4)
 class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
     """
     Base test case for basic runs of etl methods
@@ -226,7 +224,7 @@ class TestEtlJobContext(BaseEtlSimple):
         """Verify that we update the success timestamp etc. when the job succeeds"""
         await self.run_etl()
         job_context = context.JobContext(self.context_path)
-        self.assertEqual("2021-09-14T21:23:45+00:00", job_context.last_successful_datetime.isoformat())
+        self.assertEqual(FROZEN_TIME_UTC, job_context.last_successful_datetime)
         self.assertEqual(self.input_path, job_context.last_successful_input_dir)
         self.assertEqual(self.output_path, job_context.last_successful_output_dir)
 

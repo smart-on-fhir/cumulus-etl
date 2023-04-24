@@ -1,17 +1,14 @@
 """Tests for etl/config.py"""
 
-import unittest
 from socket import gethostname
 
-import freezegun
-
 from cumulus.etl import config
+from tests.utils import FROZEN_TIME_UTC, AsyncTestCase
 
 
-class TestConfigSummary(unittest.TestCase):
+class TestConfigSummary(AsyncTestCase):
     """Test case for JobSummary"""
 
-    @freezegun.freeze_time("Sep 15th, 2021 1:23:45")
     def test_empty_summary(self):
         summary = config.JobSummary("empty")
         expected = {
@@ -20,6 +17,6 @@ class TestConfigSummary(unittest.TestCase):
             "label": "empty",
             "success": 0,
             "success_rate": 1.0,
-            "timestamp": "2021-09-15 01:23:45",
+            "timestamp": FROZEN_TIME_UTC.strftime("%Y-%m-%d %H:%M:%S"),
         }
         self.assertEqual(expected, summary.as_json())

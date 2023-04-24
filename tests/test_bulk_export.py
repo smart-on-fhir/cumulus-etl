@@ -7,7 +7,6 @@ from json import dumps
 from unittest import mock
 
 import ddt
-import freezegun
 import responses
 import respx
 from jwcrypto import jwk
@@ -19,7 +18,6 @@ from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
-@freezegun.freeze_time("Sep 15th, 2021 1:23:45")
 class TestBulkExporter(AsyncTestCase):
     """
     Test case for bulk export logic.
