@@ -279,3 +279,18 @@ class TestTasks(CtakesMixin, AsyncTestCase):
             self.assertEqual(expected_text, df.iloc[0].match["text"])
         else:
             self.assertEqual(0, self.format.write_records.call_count)
+
+    async def test_drop_duplicates(self):
+        """Verify that we run() will drop duplicate rows inside an input batch."""
+        # Two "A" ids and one "B" id
+        self.make_json("Patient.01", "A")
+        self.make_json("Patient.02", "A")
+        self.make_json("Patient.1", "B")
+
+        await tasks.PatientTask(self.job_config, self.scrubber).run()
+
+        # Confirm that only one version of patient A got stored
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][0]
+        self.assertEqual(2, len(df.id))
+        self.assertEqual(sorted([self.codebook.db.patient("A"), self.codebook.db.patient("B")]), sorted(df.id))

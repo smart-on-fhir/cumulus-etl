@@ -41,6 +41,8 @@ class Format(abc.ABC):
         """
         Writes a single dataframe to the output root.
 
+        The dataframe must contain a unique (no duplicates) "id" column.
+
         :param dataframe: the data records to write
         :param batch: the batch number, from zero up
         :returns: whether the batch was successfully written

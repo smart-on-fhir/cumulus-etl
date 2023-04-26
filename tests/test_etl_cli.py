@@ -168,7 +168,6 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
         self.assertEqual(["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient")))
 
-    @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")
     async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
         # Clear out the saved test codebook first

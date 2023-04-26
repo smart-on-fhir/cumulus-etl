@@ -1,18 +1,16 @@
 """Tests for the scrubber module"""
 
 import tempfile
-import unittest
 from unittest import mock
 
 from ctakesclient import text2fhir, typesystem
 
 from cumulus.deid import Scrubber
 from cumulus.deid.codebook import CodebookDB
-from tests import i2b2_mock_data
+from tests import i2b2_mock_data, utils
 
 
-@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # just to not waste entropy
-class TestScrubber(unittest.TestCase):
+class TestScrubber(utils.AsyncTestCase):
     """Test case for the Scrubber class"""
 
     def test_patient(self):

@@ -33,6 +33,7 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         super().setUp()
+        self.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # keep all codebook IDs consistent
 
         # It's so common to want to see more than the tiny default fragment -- just enable this across the board.
         self.maxDiff = None  # pylint: disable=invalid-name
