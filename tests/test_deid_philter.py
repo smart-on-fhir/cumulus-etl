@@ -1,7 +1,5 @@
 """Tests for philter.py"""
 
-from unittest import mock
-
 import ddt
 
 from cumulus import deid
@@ -9,7 +7,6 @@ from tests.utils import AsyncTestCase
 
 
 @ddt.ddt
-@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # just to not waste entropy
 class TestPhilter(AsyncTestCase):
     """Test case for the Philter class and its use by Scrubber"""
 

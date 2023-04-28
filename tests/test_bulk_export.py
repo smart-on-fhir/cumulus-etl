@@ -235,7 +235,6 @@ class TestBulkExporter(AsyncTestCase):
         )
 
 
-@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # just to not waste entropy
 class TestBulkExportEndToEnd(AsyncTestCase):
     """
     Test case for doing an entire bulk export loop, without mocking python code.
@@ -367,7 +366,6 @@ class TestBulkExportEndToEnd(AsyncTestCase):
             status_code=202,
         )
 
-    @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")
     @responses.mock.activate(assert_all_requests_are_fired=True)
     async def test_successful_bulk_export(self):
         """Verify a happy path bulk export, from toe to tip"""
