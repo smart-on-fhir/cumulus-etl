@@ -35,6 +35,13 @@ Before we dive in, you're going to want the following things in place:
       [request](https://www.nlm.nih.gov/databases/umls.html).
 3. A deploy key for the Cumulus ETL repository (see below)
 
+In several places further down in these instructions, we'll reference sample data from the
+`./tests/data/simple/input/` folder, which is great for checking if you've got your configuration
+correct. However, if you'd like some more realistic data, there are 
+[sample bulk FHIR datasets](https://github.com/smart-on-fhir/sample-bulk-fhir-datasets) available
+for download - the 1,000 patient zip file is a good starting point - you can just swap the path
+you use for file inputs to point to where you extracted the dataset. 
+
 ### Access to Cumulus ETL Code
 
 At the time of writing, Cumulus is still not a publicly available project.
@@ -150,7 +157,7 @@ After running that command, you can start the actual etl process with the follow
 docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
   run --volume $CUMULUS_REPO_PATH:/cumulus-etl --rm \
   cumulus-etl \
-  /cumulus-etl/tests/data/simple/ndjson-input \
+  /cumulus-etl/tests/data/simple/input \
   /cumulus-etl/example-output \
   /cumulus-etl/example-phi-build \
   --output-format=ndjson
@@ -182,7 +189,7 @@ docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
   run --volume $CUMULUS_REPO_PATH:/cumulus-etl --rm \
   cumulus-etl \
   --s3-region=us-east-2 \
-  /cumulus-etl/tests/data/simple/ndjson-input \
+  /cumulus-etl/tests/data/simple/input \
   s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/ \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
 ```
