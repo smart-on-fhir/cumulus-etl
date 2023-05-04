@@ -70,7 +70,15 @@ class Root:
         return self.fs.get(rpath, lpath)
 
     def ls(self) -> Iterator[str]:
-        return self.fs.ls(self.path)
+        files = self.fs.ls(self.path, detail=False)
+
+        # Backends like S3 rudely don't include the protocol prefix in the results.
+        # So when we try to actually use the filename, fsspec gets confused and thinks it's a local path.
+        # If the backend is trying to do us dirty, we'll just re-insert the protocol.
+        if self.protocol != "file" and files and not files[0].startswith(f"{self.protocol}://"):
+            files = [f"{self.protocol}://{filename}" for filename in files]
+
+        return files
 
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
