@@ -192,3 +192,10 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     await run_nlp(notes, args)
     philter_notes(notes, args)  # safe to do after NLP because philter does not change character counts
     push_to_label_studio(notes, access_token, labels, args)
+
+
+async def run_chart_review(parser: argparse.ArgumentParser, argv: List[str]) -> None:
+    """Parses a chart review CLI"""
+    define_chart_review_parser(parser)
+    args = parser.parse_args(argv)
+    await chart_review_main(args)

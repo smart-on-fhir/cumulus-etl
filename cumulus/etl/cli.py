@@ -270,3 +270,10 @@ async def etl_main(args: argparse.Namespace) -> None:
     if failed:
         print("** One or more tasks above did not 100% complete! **", file=sys.stderr)
         raise SystemExit(errors.TASK_FAILED)
+
+
+async def run_etl(parser: argparse.ArgumentParser, argv: List[str]) -> None:
+    """Parses an etl CLI"""
+    define_etl_parser(parser)
+    args = parser.parse_args(argv)
+    await etl_main(args)

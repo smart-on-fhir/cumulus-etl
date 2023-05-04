@@ -5,6 +5,7 @@ import unittest
 from cumulus import common
 from cumulus.loaders.i2b2 import schema
 from cumulus.loaders.i2b2.oracle import query
+from tests import utils
 
 
 def pretty(text):
@@ -33,7 +34,7 @@ def count_by_date_group(table: schema.Table, column_date="import_date") -> str:
     )
 
 
-class TestOracleQueries(unittest.TestCase):
+class TestOracleQueries(utils.AsyncTestCase):
     """
     Test case for sql queries
 

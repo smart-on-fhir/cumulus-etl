@@ -3,17 +3,17 @@
 import os
 import shutil
 import tempfile
-import unittest
-from typing import List
 
 import pandas
 import pytest
 from pyspark.sql.utils import AnalysisException
+
 from cumulus import store
 from cumulus.formats.deltalake import DeltaLakeFormat
+from tests import utils
 
 
-class TestDeltaLake(unittest.TestCase):
+class TestDeltaLake(utils.AsyncTestCase):
     """
     Test case for the Delta Lake format writer.
 
@@ -55,24 +55,9 @@ class TestDeltaLake(unittest.TestCase):
         deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field)
         deltalake.write_records(df, batch)
 
-    @staticmethod
-    def spark_to_records(table) -> List[dict]:
-        table_df = table.toPandas()
-        table_records = table_df.to_dict(orient="records")
-        for r in table_records:
-            # convert spark Row to dict (it's annoying that toPandas() doesn't do that for us)
-            if hasattr(r["value"], "asDict"):
-                r["value"] = r["value"].asDict()
-        return table_records
-
-    def assert_lake_equal(self, df: pandas.DataFrame, when: int = None) -> None:
+    def assert_lake_equal(self, df: pandas.DataFrame) -> None:
         table_path = os.path.join(self.output_dir, "patient")
-
-        reader = DeltaLakeFormat.spark.read
-        if when is not None:
-            reader = reader.option("versionAsOf", when)
-
-        table_records = self.spark_to_records(reader.format("delta").load(table_path).sort("id"))
+        table_records = utils.read_delta_lake(table_path)
         self.assertListEqual(df.to_dict(orient="records"), table_records)
 
     def test_creates_if_empty(self):
@@ -98,7 +83,7 @@ class TestDeltaLake(unittest.TestCase):
         """
         self.store(self.df(a={"one": 1}))
         self.store(self.df(b={"one": 1, "two": 2}))
-        self.assert_lake_equal(self.df(a={"one": 1, "two": None}, b={"one": 1, "two": 2}))
+        self.assert_lake_equal(self.df(a={"one": 1}, b={"one": 1, "two": 2}))
 
     def test_missing_field(self):
         """
@@ -108,7 +93,7 @@ class TestDeltaLake(unittest.TestCase):
         """
         self.store(self.df(a={"one": 1, "two": 2}))
         self.store(self.df(b={"one": 1}))
-        self.assert_lake_equal(self.df(a={"one": 1, "two": 2}, b={"one": 1, "two": None}))
+        self.assert_lake_equal(self.df(a={"one": 1, "two": 2}, b={"one": 1}))
 
     # This currently fails because delta silently drops field data that can't be converted to the correct type.
     # Here is a request to change this behavior into an error: https://github.com/delta-io/delta/issues/1551

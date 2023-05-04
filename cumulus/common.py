@@ -6,7 +6,7 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, List, Optional
 from urllib.parse import urlparse
 
 import fsspec
@@ -19,7 +19,7 @@ import fsspec
 ###############################################################################
 
 
-def ls_resources(root, resource: str) -> Iterator[str]:
+def ls_resources(root, resource: str) -> List[str]:
     pattern = re.compile(rf".*/([0-9]+.)?{resource}(.[0-9]+)?.ndjson")
     all_files = root.ls()
     return sorted(filter(pattern.match, all_files))
@@ -131,6 +131,13 @@ def read_csv(path: str) -> csv.DictReader:
         yield csv.DictReader(csvfile)
 
 
+def read_ndjson(path: str) -> Iterator[dict]:
+    """Yields parsed json from the input ndjson file, line-by-line."""
+    with open_file(path, "r") as f:
+        for line in f:
+            yield json.loads(line)
+
+
 def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
@@ -138,9 +145,7 @@ def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
     Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
     """
     for filename in ls_resources(root, resource):
-        with open_file(filename, "r") as f:
-            for line in f:
-                yield json.loads(line)
+        yield from read_ndjson(filename)
 
 
 class NdjsonWriter:
@@ -148,9 +153,9 @@ class NdjsonWriter:
 
     def __init__(self, path: str):
         self._path = path
+        self._file = None
 
     def __enter__(self):
-        self._file = open(self._path, "w", encoding="utf8")
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -159,6 +164,10 @@ class NdjsonWriter:
             self._file = None
 
     def write(self, obj: dict) -> None:
+        # lazily create the file, to avoid 0-line ndjson files
+        if not self._file:
+            self._file = open(self._path, "w", encoding="utf8")  # pylint: disable=consider-using-with
+
         json.dump(obj, self._file)
         self._file.write("\n")
 

@@ -22,11 +22,10 @@ class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
     def setUp(self):
         super().setUp()
 
-        script_dir = os.path.dirname(__file__)
-        self.data_dir = os.path.join(script_dir, "data/i2b2")
-        self.input_path = os.path.join(self.data_dir, "input")
-        self.expected_output_path = os.path.join(self.data_dir, "output")
-        self.expected_export_path = os.path.join(self.data_dir, "export")
+        i2b2_dir = os.path.join(self.datadir, "i2b2")
+        self.input_path = os.path.join(i2b2_dir, "input")
+        self.expected_output_path = os.path.join(i2b2_dir, "output")
+        self.expected_export_path = os.path.join(i2b2_dir, "export")
 
         tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
@@ -37,7 +36,7 @@ class TestI2b2Etl(CtakesMixin, TreeCompareMixin, AsyncTestCase):
 
         # Copy the codebook over, to guarantee the same ID mappings run-to-run
         os.makedirs(self.phi_path)
-        shutil.copy(os.path.join(self.data_dir, "codebook.json"), self.phi_path)
+        shutil.copy(os.path.join(i2b2_dir, "codebook.json"), self.phi_path)
 
     async def test_full_etl(self):
         await cli.main(

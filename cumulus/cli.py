@@ -2,28 +2,23 @@
 
 import argparse
 import asyncio
+import enum
 import sys
 from typing import List, Optional
 
 from cumulus import chart_review, etl
-
-CHART_REVIEW = "chart-review"
-ETL = "etl"
-KNOWN_COMMANDS = {CHART_REVIEW, ETL}
+from cumulus.etl import convert
 
 
-async def run_chart_review(parser: argparse.ArgumentParser, argv: List[str]) -> None:
-    """Parses a chart review CLI"""
-    chart_review.define_chart_review_parser(parser)
-    args = parser.parse_args(argv)
-    await chart_review.chart_review_main(args)
+class Command(enum.Enum):
+    CHART_REVIEW = "chart-review"
+    CONVERT = "convert"
+    ETL = "etl"
 
-
-async def run_etl(parser: argparse.ArgumentParser, argv: List[str]) -> None:
-    """Parses an etl CLI"""
-    etl.define_etl_parser(parser)
-    args = parser.parse_args(argv)
-    await etl.etl_main(args)
+    # Why isn't this part of Enum directly...?
+    @classmethod
+    def values(cls):
+        return [e.value for e in cls]
 
 
 def get_subcommand(argv: List[str]) -> Optional[str]:
@@ -36,7 +31,7 @@ def get_subcommand(argv: List[str]) -> Optional[str]:
     If it's a recognized command, we return it. Else None.
     """
     for i, arg in enumerate(argv):
-        if arg in KNOWN_COMMANDS:
+        if arg in Command.values():
             return argv.pop(i)  # remove it to make later parsers' jobs easier
         elif not arg.startswith("-"):
             return None  # first positional arg did not match a known command, assume default command
@@ -50,10 +45,17 @@ async def main(argv: List[str]) -> None:
         prog += f" {subcommand}"  # to make --help look nicer
     parser = argparse.ArgumentParser(prog=prog)
 
-    if subcommand == CHART_REVIEW:
-        await run_chart_review(parser, argv)
+    if subcommand == Command.CHART_REVIEW.value:
+        await chart_review.run_chart_review(parser, argv)
+    elif subcommand == Command.CONVERT.value:
+        await convert.run_convert(parser, argv)
     else:
-        await run_etl(parser, argv)
+        parser.description = "Extract, transform, and load FHIR data."
+        if not subcommand:
+            # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
+            parser.formatter_class = argparse.RawDescriptionHelpFormatter
+            parser.description += "\n\n" "other commands available:\n" "  convert"
+        await etl.run_etl(parser, argv)
 
 
 def main_cli():

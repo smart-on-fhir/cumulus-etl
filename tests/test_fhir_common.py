@@ -1,14 +1,13 @@
 """Tests for fhir_common.py"""
 
-import unittest
-
 import ddt
 
 from cumulus import fhir_common
+from tests import utils
 
 
 @ddt.ddt
-class TestReferenceHandlers(unittest.TestCase):
+class TestReferenceHandlers(utils.AsyncTestCase):
     """Tests for the unref_ and ref_ methods"""
 
     @ddt.data(

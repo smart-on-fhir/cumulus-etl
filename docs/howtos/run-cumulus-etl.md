@@ -359,3 +359,8 @@ Here is some EHR-specific documentation:
 
 - [Cerner](cerner-tips.md)
 - [Epic](epic-tips.md)
+
+## Manually Reviewing Output
+
+Your organization may require manually reviewing all ETL output before uploading to the cloud.
+Here's some separate documentation on how to do [manual reviews](manual-review.md).

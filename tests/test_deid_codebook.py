@@ -2,13 +2,13 @@
 
 import os
 import tempfile
-import unittest
 from unittest import mock
 
 import ddt
 
 from cumulus import common
 from cumulus.deid.codebook import Codebook, CodebookDB
+from tests import utils
 
 
 def assert_empty_db(db: CodebookDB):
@@ -20,7 +20,7 @@ def assert_empty_db(db: CodebookDB):
 
 @ddt.ddt
 @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
-class TestCodebook(unittest.TestCase):
+class TestCodebook(utils.AsyncTestCase):
     """Test case for the Codebook class"""
 
     @ddt.data("Patient", "Encounter")
@@ -49,7 +49,7 @@ class TestCodebook(unittest.TestCase):
 
 @ddt.ddt
 @mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
-class TestCodebookDB(unittest.TestCase):
+class TestCodebookDB(utils.AsyncTestCase):
     """Test case for the CodebookDB class"""
 
     def test_empty(self):
@@ -149,8 +149,7 @@ class TestCodebookDB(unittest.TestCase):
             self.assertTrue(db.save(tmpdir))
 
     def test_version0(self):
-        script_dir = os.path.dirname(__file__)
-        db_path = os.path.join(script_dir, "data", "codebook0")
+        db_path = os.path.join(self.datadir, "codebook0")
         db = CodebookDB(db_path)
 
         # Patients

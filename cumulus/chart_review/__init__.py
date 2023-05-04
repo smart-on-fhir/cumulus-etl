@@ -1,3 +1,3 @@
 """Chart review"""
 
-from .cli import chart_review_main, define_chart_review_parser
+from .cli import run_chart_review

@@ -38,8 +38,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         # Comment out this next line when debugging, to persist directory
         self.addCleanup(shutil.rmtree, tmpdir)
 
-        script_dir = os.path.dirname(__file__)
-        self.input_path = os.path.join(script_dir, "data/simple/input")
+        self.input_path = os.path.join(self.datadir, "simple/input")
         self.phi_path = os.path.join(tmpdir, "phi")
         self.export_path = os.path.join(tmpdir, "export")
 
