@@ -62,7 +62,7 @@ jobs:
       - name: Run pylint
         if: success() || failure() # still run pylint if above checks fail
         run: |
-          pylint cumulus tests
+          pylint cumulus_etl tests
 
       - name: Run bandit
         if: success() || failure() # still run bandit if above checks fail

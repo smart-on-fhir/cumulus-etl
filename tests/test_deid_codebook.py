@@ -6,8 +6,8 @@ from unittest import mock
 
 import ddt
 
-from cumulus import common
-from cumulus.deid.codebook import Codebook, CodebookDB
+from cumulus_etl import common
+from cumulus_etl.deid.codebook import Codebook, CodebookDB
 from tests import utils
 
 
@@ -19,7 +19,7 @@ def assert_empty_db(db: CodebookDB):
 
 
 @ddt.ddt
-@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
+@mock.patch("cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
 class TestCodebook(utils.AsyncTestCase):
     """Test case for the Codebook class"""
 
@@ -48,7 +48,7 @@ class TestCodebook(utils.AsyncTestCase):
 
 
 @ddt.ddt
-@mock.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
+@mock.patch("cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
 class TestCodebookDB(utils.AsyncTestCase):
     """Test case for the CodebookDB class"""
 

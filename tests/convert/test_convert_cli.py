@@ -6,8 +6,8 @@ import tempfile
 
 import ddt
 
-from cumulus import cli, common, errors
-from cumulus.etl import tasks
+from cumulus_etl import cli, common, errors
+from cumulus_etl.etl import tasks
 
 from tests import utils
 

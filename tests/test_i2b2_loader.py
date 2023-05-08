@@ -4,8 +4,8 @@ import os
 import shutil
 import tempfile
 
-from cumulus import store
-from cumulus.loaders.i2b2 import loader
+from cumulus_etl import store
+from cumulus_etl.loaders.i2b2 import loader
 from tests.utils import AsyncTestCase
 
 

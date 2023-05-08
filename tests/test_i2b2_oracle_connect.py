@@ -6,8 +6,8 @@ from unittest import mock
 
 import ddt
 
-from cumulus import errors
-from cumulus.loaders.i2b2.oracle import connect
+from cumulus_etl import errors
+from cumulus_etl.loaders.i2b2.oracle import connect
 from tests import utils
 
 
@@ -39,7 +39,7 @@ class TestOracleConnect(utils.AsyncTestCase):
                 connect.connect("foo")
             self.assertEqual(errors.SQL_PASSWORD_MISSING, cm.exception.code)
 
-    @mock.patch("cumulus.loaders.i2b2.oracle.connect.oracledb")
+    @mock.patch("cumulus_etl.loaders.i2b2.oracle.connect.oracledb")
     @mock.patch.dict(os.environ, {"CUMULUS_SQL_USER": "test-user", "CUMULUS_SQL_PASSWORD": "p4sswd"})
     def test_connect(self, mock_oracledb):
         """Verify that we pass all the right parameters to Oracle when connecting"""

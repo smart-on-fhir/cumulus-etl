@@ -5,7 +5,7 @@ from unittest import mock
 import ddt
 from ctakesclient.typesystem import Polarity
 
-from cumulus.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
+from cumulus_etl.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
 
 from tests import ctakesmock
 from tests.utils import AsyncTestCase
@@ -18,7 +18,7 @@ class TestChartLabelStudio(AsyncTestCase):
     def setUp(self):
         super().setUp()
 
-        self.ls_mock = self.patch("cumulus.chart_review.labelstudio.label_studio_sdk.Client")
+        self.ls_mock = self.patch("cumulus_etl.chart_review.labelstudio.label_studio_sdk.Client")
         self.ls_client = self.ls_mock.return_value
         self.ls_project = self.ls_client.get_project.return_value
         self.ls_project.get_tasks.return_value = []

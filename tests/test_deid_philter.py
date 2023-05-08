@@ -2,7 +2,7 @@
 
 import ddt
 
-from cumulus import deid
+from cumulus_etl import deid
 from tests.utils import AsyncTestCase
 
 

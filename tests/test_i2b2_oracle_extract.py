@@ -2,9 +2,9 @@
 import os
 from unittest import mock
 
-from cumulus import common, store
-from cumulus.loaders.i2b2 import loader
-from cumulus.loaders.i2b2.oracle import extract, query
+from cumulus_etl import common, store
+from cumulus_etl.loaders.i2b2 import loader
+from cumulus_etl.loaders.i2b2.oracle import extract, query
 from tests import i2b2_mock_data
 from tests.utils import AsyncTestCase
 
@@ -17,7 +17,7 @@ class TestOracleExtraction(AsyncTestCase):
         self.maxDiff = None  # pylint: disable=invalid-name
 
         # Mock all the sql connection/cursor/execution stuff
-        connect_patcher = mock.patch("cumulus.loaders.i2b2.oracle.extract.connect")
+        connect_patcher = mock.patch("cumulus_etl.loaders.i2b2.oracle.extract.connect")
         self.addCleanup(connect_patcher.stop)
         self.mock_connect = connect_patcher.start()
         connection = mock.MagicMock()
@@ -81,7 +81,7 @@ class TestOracleExtraction(AsyncTestCase):
         self.assertEqual(3456, results[0].provider_id)
         self.assertEqual([mock.call(query.sql_provider())], self.mock_execute.call_args_list)
 
-    @mock.patch("cumulus.loaders.i2b2.loader.oracle_extract")
+    @mock.patch("cumulus_etl.loaders.i2b2.loader.oracle_extract")
     async def test_loader(self, mock_extract):
         """Verify that when our i2b2 loader is given an Oracle URL, it runs SQL against it and drops it to ndjson"""
         mock_extract.list_observation_fact.return_value = [i2b2_mock_data.condition_dim()]

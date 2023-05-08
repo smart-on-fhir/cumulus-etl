@@ -12,9 +12,9 @@ import pytest
 import s3fs
 from ctakesclient.typesystem import Polarity
 
-from cumulus import cli, common, deid, errors, loaders, store
-from cumulus.etl import context
-from cumulus.formats.deltalake import DeltaLakeFormat
+from cumulus_etl import cli, common, deid, errors, loaders, store
+from cumulus_etl.etl import context
+from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
@@ -113,7 +113,7 @@ class TestEtlJobFlow(BaseEtlSimple):
             # Then raise an exception to interrupt the ETL flow before we normally would be able to clean up
             raise KeyboardInterrupt
 
-        with mock.patch("cumulus.deid.Scrubber.scrub_bulk_data", new=fake_scrub):
+        with mock.patch("cumulus_etl.deid.Scrubber.scrub_bulk_data", new=fake_scrub):
             with self.assertRaises(KeyboardInterrupt):
                 await self.run_etl()
 
@@ -127,7 +127,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_failed_task(self):
         # Make it so any writes will fail
-        with mock.patch("cumulus.formats.ndjson.NdjsonFormat.write_format", side_effect=Exception):
+        with mock.patch("cumulus_etl.formats.ndjson.NdjsonFormat.write_format", side_effect=Exception):
             with self.assertRaises(SystemExit) as cm:
                 await self.run_etl()
         self.assertEqual(errors.TASK_FAILED, cm.exception.code)
@@ -176,7 +176,7 @@ class TestEtlJobFlow(BaseEtlSimple):
         # Cause a system exit as soon as we try to write a file.
         # The goal is that the codebook is already in place by this time.
         with self.assertRaises(SystemExit):
-            with mock.patch("cumulus.formats.ndjson.NdjsonFormat.write_format", side_effect=SystemExit):
+            with mock.patch("cumulus_etl.formats.ndjson.NdjsonFormat.write_format", side_effect=SystemExit):
                 await self.run_etl(tasks=["patient"])
 
         # Ensure we wrote a valid codebook out
@@ -235,7 +235,7 @@ class TestEtlJobContext(BaseEtlSimple):
         }
         common.write_json(self.context_path, input_context)
 
-        with mock.patch("cumulus.etl.cli.etl_job", side_effect=ZeroDivisionError):
+        with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=ZeroDivisionError):
             with self.assertRaises(ZeroDivisionError):
                 await self.run_etl()
 

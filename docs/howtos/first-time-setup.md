@@ -35,7 +35,7 @@ This will create the tables that Athena will query against.
 
 1. Go to the `AWS Glue` product in your AWS console.
 1. Click on the `Crawlers` menu entry on the left (you may need to first expand the sidebar).
-1. You should see a `cumulus` crawler in your list of crawlers. Click into it.
+1. You should see a `cumulus-deid-crawler` crawler in your list of crawlers. Click into it.
    (If you don't see it there, make sure that you are in the correct AWS region.)
 1. Click the `Run crawler` button.
 
@@ -59,10 +59,10 @@ Let's do a test query to confirm it works.
 
 1. Go to the `Athena` product in your AWS console.
 1. Click into the `Query editor` (from the sidebar or a button on the homepage).
-1. On the right, select `cumulus` from the `Workgroup` dropdown.
-1. On the left, select `cumulus` from the `Database` dropdown.
+1. On the right, select `cumulus-deid` from the `Workgroup` dropdown.
+1. On the left, select `cumulus_deid_db` from the `Database` dropdown.
 1. You should see a list of tables on the bottom left, matching the tables in AWS Glue.
-1. Enter `select * from cumulus.patient;` in the query editor box and click `Run`.
+1. Enter `select * from cumulus_deid_db.patient;` in the query editor box and click `Run`.
 
 You should see some results (two patients) in the Results box at the bottom of the page.
 

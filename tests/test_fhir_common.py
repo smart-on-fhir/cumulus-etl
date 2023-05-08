@@ -2,7 +2,7 @@
 
 import ddt
 
-from cumulus import fhir_common
+from cumulus_etl import fhir_common
 from tests import utils
 
 

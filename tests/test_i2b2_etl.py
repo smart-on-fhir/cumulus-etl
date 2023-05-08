@@ -7,7 +7,7 @@ import tempfile
 
 import pytest
 
-from cumulus import cli, deid
+from cumulus_etl import cli, deid
 
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase, TreeCompareMixin

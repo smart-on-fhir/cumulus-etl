@@ -1,5 +1,5 @@
 [project]
-name = "cumulus"
+name = "cumulus-etl"
 requires-python = ">= 3.8"
 # These dependencies are mostly pinned to be under the next major version.
 # That makes particular sense as long as we don't have official releases yet and our code is used
@@ -45,7 +45,7 @@ dynamic = ["version"]
 "Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
 
 [project.scripts]
-cumulus-etl = "cumulus.cli:main_cli"
+cumulus-etl = "cumulus_etl.cli:main_cli"
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]
@@ -56,6 +56,9 @@ include = [
     "docs/",
     "tests/",
     "LICENSE",
+]
+exclude = [
+    "**/.pytest_cache",
 ]
 
 [tool.bandit]
