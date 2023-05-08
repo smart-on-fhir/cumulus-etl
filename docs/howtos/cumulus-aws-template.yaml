@@ -166,15 +166,18 @@ Resources:
         # Schedule a monthly run to catch any newly-added fields automatically
         ScheduleExpression: "cron(0 8 1 * ? *)"  # 8am on the 1st of the month
       Targets:
-        # This S3Targets definition is suitable for parquet files, but we won't actually be using it.
-        # You'll want to use a Delta Lake crawler instead.
-        # CloudFormation requires *a* target be defined, but it does not yet support DeltaTargets.
-        # So we provide a valid definition, for a target that we don't actually intend to use.
-        # We'll later replace these manually with some DeltaTargets.
-        S3Targets:
-          - Path: !Sub "s3://${S3Bucket}/${EtlSubdir}/"
-            Exclusions:
-              - "JobConfig/**"
+        DeltaTargets:
+          - DeltaTables:
+              # Unfortunately, we can't seem to use wildcards to define tables
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/condition"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/documentreference"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/encounter"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/medicationrequest"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results"
+            CreateNativeDeltaTable: False
+            WriteManifest: False
 
   ####################################################
   # Athena queries and where to store them
