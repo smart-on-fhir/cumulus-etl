@@ -67,25 +67,5 @@ It takes four parameters:
 1. KMS key ARN for encryption
 1. Upload Role ARN, matching the user that runs Cumulus ETL
 
-Once you create this CloudFormation stack, you're almost done.
-Only one step left below: updating the Glue crawler.
-
-## Delta Lake Crawler Support
-
-Cumulus uses Delta Lakes to store your data.
-AWS Glue support for them is fairly new (September 2022),
-and CloudFormation does not yet support that syntax.
-
-But that's easy enough to work around.
-We'll just manually update the crawler to point at our delta lakes.
-
-Run the command below to update the crawler you just defined above,
-and replace `REPLACE_ME` with a bucket path (the bucket name and `EtlSubdir` you used above).
-
-For example, you might use `s3://my-cumulus-prefix-99999999999-us-east-2/subdir1`.
-
-(Make sure you have `jq` installed first.)
-
-```sh
-aws glue update-crawler --name cumulus --targets "`jq -n --arg prefix REPLACE_ME '{"DeltaTargets": [{"DeltaTables": [$prefix+"/condition", $prefix+"/covid_symptom__nlp_results", $prefix+"/documentreference", $prefix+"/encounter", $prefix+"/medicationrequest", $prefix+"/observation", $prefix+"/patient"], "WriteManifest": false}]}'`"
-```
+Once you create this CloudFormation stack, that's it!
+You've configured AWS to receive data from Cumulus ETL.
