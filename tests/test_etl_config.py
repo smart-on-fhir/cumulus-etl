@@ -2,7 +2,7 @@
 
 from socket import gethostname
 
-from cumulus.etl import config
+from cumulus_etl.etl import config
 from tests.utils import FROZEN_TIME_UTC, AsyncTestCase
 
 

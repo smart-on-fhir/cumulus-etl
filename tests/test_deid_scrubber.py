@@ -5,8 +5,8 @@ from unittest import mock
 
 from ctakesclient import text2fhir, typesystem
 
-from cumulus.deid import Scrubber
-from cumulus.deid.codebook import CodebookDB
+from cumulus_etl.deid import Scrubber
+from cumulus_etl.deid.codebook import CodebookDB
 from tests import i2b2_mock_data, utils
 
 

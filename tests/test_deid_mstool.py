@@ -7,8 +7,8 @@ import tempfile
 
 import pytest
 
-from cumulus import common
-from cumulus.deid.mstool import MSTOOL_CMD, run_mstool
+from cumulus_etl import common
+from cumulus_etl.deid.mstool import MSTOOL_CMD, run_mstool
 from tests.utils import AsyncTestCase, TreeCompareMixin
 
 

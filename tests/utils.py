@@ -16,7 +16,7 @@ import freezegun
 import httpx
 import respx
 
-from cumulus.formats.deltalake import DeltaLakeFormat
+from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 # Pass a non-UTC time to freezegun to help notice any bad timezone handling.
 # But only bother exposing the UTC version to other test code, since that's what will be most useful/common.
@@ -36,7 +36,9 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         super().setUp()
-        self.patch("cumulus.deid.codebook.secrets.token_hex", new=lambda x: "1234")  # keep all codebook IDs consistent
+        self.patch(
+            "cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "1234"
+        )  # keep all codebook IDs consistent
 
         # It's so common to want to see more than the tiny default fragment -- just enable this across the board.
         self.maxDiff = None  # pylint: disable=invalid-name

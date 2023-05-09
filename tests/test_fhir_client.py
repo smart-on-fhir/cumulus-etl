@@ -9,13 +9,13 @@ import httpx
 import respx
 from jwcrypto import jwk, jwt
 
-from cumulus import errors, store
-from cumulus.fhir_client import FatalError, FhirClient, create_fhir_client_for_cli
+from cumulus_etl import errors, store
+from cumulus_etl.fhir_client import FatalError, FhirClient, create_fhir_client_for_cli
 from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
-@mock.patch("cumulus.fhir_client.uuid.uuid4", new=lambda: "1234")
+@mock.patch("cumulus_etl.fhir_client.uuid.uuid4", new=lambda: "1234")
 class TestFhirClient(AsyncTestCase):
     """
     Test case for FHIR client oauth2 / request support.
@@ -74,7 +74,7 @@ class TestFhirClient(AsyncTestCase):
         # Set up mocks for fhirclient (we don't need to test its oauth code by mocking server responses there)
         self.mock_client = mock.MagicMock()  # FHIRClient instance
         self.mock_server = self.mock_client.server  # FHIRServer instance
-        client_patcher = mock.patch("cumulus.fhir_client.fhirclient.client.FHIRClient")
+        client_patcher = mock.patch("cumulus_etl.fhir_client.fhirclient.client.FHIRClient")
         self.addCleanup(client_patcher.stop)
         self.mock_client_class = client_patcher.start()  # FHIRClient class
         self.mock_client_class.return_value = self.mock_client
@@ -333,7 +333,7 @@ class TestFhirClient(AsyncTestCase):
         ({"Patient"}, {"Patient"}),
     )
     @ddt.unpack
-    @mock.patch("cumulus.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir_client.FhirClient")
     def test_added_binary_scope(self, resources_in, expected_resources_out, mock_client):
         """Verify that we add a Binary scope if DocumentReference is requested"""
         args = argparse.Namespace(

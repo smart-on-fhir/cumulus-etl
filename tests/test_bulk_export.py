@@ -11,9 +11,9 @@ import responses
 import respx
 from jwcrypto import jwk
 
-from cumulus import cli, common, store
-from cumulus.fhir_client import FatalError
-from cumulus.loaders.fhir.bulk_export import BulkExporter
+from cumulus_etl import cli, common, store
+from cumulus_etl.fhir_client import FatalError
+from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase, make_response
 
 
@@ -180,7 +180,7 @@ class TestBulkExporter(AsyncTestCase):
         with self.assertRaisesRegex(FatalError, "Unexpected status code 204"):
             await self.export()
 
-    @mock.patch("cumulus.loaders.fhir.bulk_export.asyncio.sleep")
+    @mock.patch("cumulus_etl.loaders.fhir.bulk_export.asyncio.sleep")
     async def test_delay(self, mock_sleep):
         """Verify that we wait the amount of time the server asks us to"""
         self.server.request.side_effect = [

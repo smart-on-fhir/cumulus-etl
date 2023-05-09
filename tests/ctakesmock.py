@@ -37,7 +37,7 @@ class CtakesMixin(unittest.TestCase):
         self._run_fake_ctakes_server(f"{self.ctakes_overrides.name}/symptoms.bsv")
 
         cnlp_patcher = mock.patch(
-            "cumulus.nlp.extract.ctakesclient.transformer.list_polarity", side_effect=fake_transformer_list_polarity
+            "cumulus_etl.nlp.extract.ctakesclient.transformer.list_polarity", side_effect=fake_transformer_list_polarity
         )
         self.addCleanup(cnlp_patcher.stop)
         self.cnlp_mock = cnlp_patcher.start()

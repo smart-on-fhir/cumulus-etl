@@ -6,7 +6,7 @@ from unittest import mock
 
 import ddt
 
-from cumulus import cli
+from cumulus_etl import cli
 from tests.utils import AsyncTestCase
 
 
@@ -32,10 +32,10 @@ class TestCumulusCLI(AsyncTestCase):
         self.assertTrue(stdout.getvalue().startswith(expected_usage), stdout.getvalue())
 
     @ddt.data(
-        ([], "cumulus.etl.run_etl"),
-        (["etl"], "cumulus.etl.run_etl"),
-        (["chart-review"], "cumulus.chart_review.run_chart_review"),
-        (["convert"], "cumulus.etl.convert.run_convert"),
+        ([], "cumulus_etl.etl.run_etl"),
+        (["etl"], "cumulus_etl.etl.run_etl"),
+        (["chart-review"], "cumulus_etl.chart_review.run_chart_review"),
+        (["convert"], "cumulus_etl.etl.convert.run_convert"),
     )
     @ddt.unpack
     async def test_routing(self, argv, main_method):

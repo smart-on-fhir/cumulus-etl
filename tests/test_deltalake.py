@@ -8,8 +8,8 @@ import pandas
 import pytest
 from pyspark.sql.utils import AnalysisException
 
-from cumulus import store
-from cumulus.formats.deltalake import DeltaLakeFormat
+from cumulus_etl import store
+from cumulus_etl.formats.deltalake import DeltaLakeFormat
 from tests import utils
 
 

@@ -11,8 +11,8 @@ from unittest import mock
 import ddt
 import respx
 
-from cumulus import cli, common, errors, loaders
-from cumulus.chart_review.labelstudio import LabelStudioNote
+from cumulus_etl import cli, common, errors, loaders
+from cumulus_etl.chart_review.labelstudio import LabelStudioNote
 
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
@@ -48,7 +48,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         self.token_path = os.path.join(tmpdir, "ls-token.txt")
         common.write_text(self.token_path, "abc123")
 
-        self.ls_client_mock = self.patch("cumulus.chart_review.cli.LabelStudioClient")
+        self.ls_client_mock = self.patch("cumulus_etl.chart_review.cli.LabelStudioClient")
         self.ls_client = self.ls_client_mock.return_value
 
         # Write some initial cached patient mappings, so we can reverse-engineer them
@@ -206,7 +206,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         self.assertEqual({"D1", "D2", "D3"}, self.get_exported_ids())
         self.assertEqual({"D1", "D2", "D3"}, self.get_pushed_ids())
 
-    @mock.patch("cumulus.chart_review.downloader.loaders.FhirNdjsonLoader")
+    @mock.patch("cumulus_etl.chart_review.downloader.loaders.FhirNdjsonLoader")
     async def test_gather_all_docrefs_from_server(self, mock_loader):
         # Mock out the bulk export loading, as that's well tested elsewhere
         async def load_all(*args):
@@ -300,7 +300,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
     @ddt.data(True, False)
     async def test_philter(self, run_philter):
         notes = [LabelStudioNote("D1", "John Smith called on 10/13/2010")]
-        with mock.patch("cumulus.chart_review.cli.read_notes_from_ndjson", return_value=notes):
+        with mock.patch("cumulus_etl.chart_review.cli.read_notes_from_ndjson", return_value=notes):
             await self.run_chart_review(philter=run_philter)
 
         tasks = self.ls_client.push_tasks.call_args[0][0]

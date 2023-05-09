@@ -2,9 +2,9 @@
 
 import unittest
 
-from cumulus import common
-from cumulus.loaders.i2b2 import schema
-from cumulus.loaders.i2b2.oracle import query
+from cumulus_etl import common
+from cumulus_etl.loaders.i2b2 import schema
+from cumulus_etl.loaders.i2b2.oracle import query
 from tests import utils
 
 

@@ -4,7 +4,7 @@ import datetime
 import json
 import tempfile
 
-from cumulus.etl.context import JobContext
+from cumulus_etl.etl.context import JobContext
 from tests import utils
 
 

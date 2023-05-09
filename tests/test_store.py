@@ -2,7 +2,7 @@
 
 import ddt
 
-from cumulus import store
+from cumulus_etl import store
 from tests.utils import AsyncTestCase
 
 
@@ -12,7 +12,7 @@ class TestRoot(AsyncTestCase):
 
     def setUp(self):
         super().setUp()
-        self.fs_mock = self.patch("cumulus.store.fsspec.filesystem")()
+        self.fs_mock = self.patch("cumulus_etl.store.fsspec.filesystem")()
 
     @ddt.data(
         # root, ls return, expected value
