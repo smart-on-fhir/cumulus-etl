@@ -19,7 +19,7 @@ Cumulus will capitalize on “21st Century Cures Act” availability of EHR data
 * Regional clustering and aggregation
 
 ## SQL Queries Over Patient Populations
-Use the provided [Cumulus Library](https://github.com/comorbidity/library)
+Use the provided [Cumulus Library](https://github.com/smart-on-fhir/cumulus-library-core)
 * Packages "public health data feeds" into well-defined patient cohorts
 * Simplifies FHIR data as SQL views for easier accessibility to biomedical staff
 * Simplifies common views like Patient demographics, Hospital Encounters, Condition coding, etc
@@ -28,7 +28,7 @@ Use the provided [Cumulus Library](https://github.com/comorbidity/library)
 * [Federalist principles for healthcare data networks](https://www.nature.com/articles/nbt.3180)
 
 # Further Reading
-* An [overview of how Cumulus works](docs/explanations/overview.md) (non-technical)
-* An [explanation of how Cumulus de-identifies patient data](docs/explanations/deid.md) (lightly-technical)
-* A [first-time setup guide](docs/howtos/first-time-setup.md) (highly technical)
+* An [overview of how Cumulus works](docs/overview.md) (non-technical)
+* An [explanation of how Cumulus de-identifies patient data](docs/deid.md) (lightly-technical)
+* A [first-time setup guide](docs/setup/index.md) (highly technical)
 * An [integration guide](https://github.com/smart-on-fhir/cumulus-aggregator/docs/site_integration.md) for the Cumulus system (highly technical)

@@ -1,4 +1,10 @@
-<!-- Target audience: non-programmers entirely new to Cumulus, casual tone -->
+---
+# This belongs in the global docs. Until then, keep it in repo but excluded.
+nav_exclude: true
+
+# audience: non-programmers entirely new to Cumulus, casual tone
+# type: explanation
+---
 
 # What is Cumulus?
 

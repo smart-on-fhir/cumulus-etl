@@ -1,6 +1,13 @@
-<!-- Target audience: engineer familiar with the project, helpful direct tone -->
+---
+title: Sample Runs
+parent: Setup
+grand_parent: ETL
+nav_order: 2
+# audience: engineer familiar with the project
+# type: howto
+---
 
-# How To Run Cumulus ETL at Your Hospital
+# Running Cumulus ETL for the First Time
 
 This guide will explain how to install and run Cumulus ETL inside your hospital's infrastructure.
 It assumes you are familiar with the command line.
@@ -174,7 +181,7 @@ Congratulations! You've run your first Cumulus ETL process. The first of many!
 ### AWS Test Run
 
 Let's do the same thing, but now pointing at S3 buckets.
-This assumes you've followed the [S3 setup guide](set-up-aws.md).
+This assumes you've followed the [S3 setup guide](aws.md).
 
 When using S3 buckets, you'll need to set the `--s3-region` argument to the correct region.
 
@@ -236,7 +243,7 @@ There are three required positional arguments:
 
 When using S3 buckets, you'll need to set the `--s3-region` argument to the correct region.
 And you'll want to first actually set up those buckets.
-Follow the [S3 setup guide](set-up-aws.md) document for guidance there.
+Follow the [S3 setup guide](aws.md) document for guidance there.
 
 ### Strongly Recommended Arguments
 
@@ -256,118 +263,8 @@ defaults are subject to change or might not match your situation.
   (e.g. more patients) than this limit, multiple output files will be created for that resource
   type. The larger the better for performance reasons, but that will also take more memory.
   So this number is highly environment specific. For 16GB of memory, we recommend `300000`.
-
+  
 ### Optional Arguments
 
 * `--comment`: You can add any comment you like here, it will be saved in a logging folder on the
 output path (`JobConfig/`). Might help when debugging an issue.
-
-### Performance
-
-For tips and tricks around what hardware to use or how to run Cumulus on a GPU for faster natural language processing,
-see the separate [performance how-to](etl-performance.md).
-
-### Bulk FHIR Export
-
-A common task is to point Cumulus ETL at your bulk FHIR export server, rather than pointing it
-at a local folder with the exported data.
-
-This is relatively straightforward but requires a bit of setup first.
-
-#### Registering Cumulus ETL
-
-On your server, you need to register a new "backend service" client.
-You'll be asked to provide a JWKS (JWK Set) file.
-See below for generating that.
-You'll also be asked for a client ID or the server may generate a client ID for you.
-
-#### Generating a JWKS
-
-A JWKS is just a file with some cryptographic keys,
-usually holding a public and private version of the same key.
-FHIR servers use it to grant clients access.
-
-You can generate a JWKS using the RS384 algorithm and a random ID by running the command below.
-
-(Make sure you have `jose` installed first.)
-
-```sh
-jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o rsa.jwks
-```
-
-Then give `rsa.jwks` to your FHIR server and to Cumulus ETL (details on that below).
-
-#### Cumulus ETL Arguments
-
-You'll need to pass two new arguments to Cumulus ETL: 
-
-```sh
---smart-client-id=YOUR_CLIENT_ID
---smart-jwks=/path/to/rsa.jwks
-```
-
-You can also give `--smart-client-id` a path to a file with your client ID,
-if it is too large and unwieldy for the commandline.
-
-And for Cumulus ETL's input path argument,
-you will give your server's URL address,
-including a Group identifier if you want to scope the export
-(e.g. `https://example.com/fhir` or `https://example.com/fhir/Group/1234`).
-
-#### Narrowing Export Scope
-
-You can pass `--since=` and/or `--until=` to narrow your bulk export to a date range.
-
-Note that support for these parameters among EHRs is not super common.
-- `--since=` is in the FHIR spec but is not required by law.
-  (And notably, it's not supported by Epic.)
-- `--until=` is not even in the FHIR spec yet. No major EHR supports it.
-
-But if you are lucky enough to be working with an EHR that supports either one,
-you can pass in a time like `--since=2023-01-16T20:32:48Z`.
-
-#### Saving Bulk Export Files
-
-Bulk exports can be tricky to get right and can take a long time.
-Sometimes (and especially when first experimenting with Cumulus ETL),
-you will want to save the results of a bulk export for inspection or in case Cumulus ETL fails.
-
-By default, Cumulus ETL throws away the results of a bulk export once it's done with them.
-But you can pass `--export-to=/path/to/folder` to instead save the exported `.ndjson` files in the given folder.
-
-Note that you'll want to expose the local path to docker so that the files reach your actual disk, like so:
-
-```sh
-docker compose \
-  run --rm \
-  --volume /my/exported/files:/folder \
-  cumulus-etl \
-  --export-to=/folder \
-  https://my-fhir-server/ \
-  s3://output/ \
-  s3://phi/
-```
-
-#### External Bulk Export
-
-Instead of using Cumulus ETL to drive your bulk export itself, you can instead do the bulk export externally,
-and then just feed the resulting files to Cumulus ETL.
-
-The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client) is a great tool with more
-options than Cumulus ETL's built-in exporter offers.
-
-If you use this tool, pass Cumulus ETL the folder that holds the downloaded data as the input path.
-And you may need to specify `--fhir-url=` so that external document notes can be downloaded.
-
-## EHR-Specific Advice
-
-Different EHRs have different features and performance.
-Here is some EHR-specific documentation:
-
-- [Cerner](cerner-tips.md)
-- [Epic](epic-tips.md)
-
-## Manually Reviewing Output
-
-Your organization may require manually reviewing all ETL output before uploading to the cloud.
-Here's some separate documentation on how to do [manual reviews](manual-review.md).

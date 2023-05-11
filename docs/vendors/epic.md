@@ -1,10 +1,17 @@
-<!-- Target audience: engineer familiar with the project, helpful direct tone -->
+---
+title: Epic
+parent: Vendor Tips & Tricks
+grand_parent: ETL
+# audience: engineer familiar with the project
+# type: howto
+---
 
 # Epic Tips & Tricks
 
 ## Frequent Bulk Exporting
 
 You may encounter this error:
+
 `Error processing Bulk Data Kickoff request: Request not allowed: The Client requested this Group too recently.`.
 
 If so, you will want to update the `FHIR_BULK_CLIENT_REQUEST_WINDOW_TBL` to a longer time.

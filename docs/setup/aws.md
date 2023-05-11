@@ -1,4 +1,11 @@
-<!-- Target audience: engineer familiar with the project, helpful direct tone -->
+---
+title: AWS
+parent: Setup
+grand_parent: ETL
+nav_order: 1
+# audience: engineer familiar with the project
+# type: howto
+---
 
 # How To Set Up AWS for Cumulus
 

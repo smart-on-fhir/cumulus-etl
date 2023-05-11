@@ -1,4 +1,11 @@
-<!-- Target audience: engineer familiar with the project, upbeat direct tone -->
+---
+title: Setup
+parent: ETL
+nav_order: 2
+has_children: true
+# audience: engineer familiar with the project, upbeat tone
+# type: howto
+---
 
 # How To Set Up Cumulus for the First Time
 
@@ -12,14 +19,14 @@ Much of Cumulus can be run on-premises, but some pieces do need to be hosted in 
 
 Speaking of, we'll start with creating the AWS buckets and configuration that Cumulus will need.
 
-Follow the separate [AWS setup guide](set-up-aws.md) and come back here when you're done.
+Follow the separate [AWS setup guide](aws.md) and come back here when you're done.
 
 ## Cumulus ETL Test Run
 
 Now that there are AWS buckets ready to receive Cumulus ETL output, let's do a sample run with
 test data.
 
-Follow the separate [Cumulus ETL setup guide](run-cumulus-etl.md) and come back here after
+Follow the separate [Cumulus ETL setup guide](sample-runs.md) and come back here after
 doing the suggested AWS test run of Cumulus ETl.
 
 You should now have some files in your output buckets, but we can't use them yet.

@@ -1,4 +1,10 @@
-<!-- Target audience: engineer familiar with the project, helpful direct tone -->
+---
+title: Cerner
+parent: Vendor Tips & Tricks
+grand_parent: ETL
+# audience: engineer familiar with the project
+# type: howto
+---
 
 # Cerner Tips & Tricks
 

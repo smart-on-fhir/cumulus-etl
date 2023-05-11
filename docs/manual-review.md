@@ -1,4 +1,10 @@
-<!-- Target audience: engineer familiar with the project, helpful direct tone -->
+---
+title: Reviewing Output
+parent: ETL
+nav_order: 8
+# audience: engineer familiar with the project
+# type: howto
+---
 
 # How To Manually Review the ETL Output
 
@@ -6,9 +12,9 @@ Your organization may require a manual review of all ETL output before uploading
 
 That can be supported easily enough with a two-step ETL process.
 
-## First ETL Step: Generate Readable Files
+## First ETL Step: Generate Human-Readable Files
 
-Follow the [normal ETL flow](run-cumulus-etl.md), but:
+Follow the [normal ETL flow](setup/sample-runs.md), but:
 - Make sure to pass `--output-format=ndjson` to `cumulus-etl`
 - Use a local output folder (we don't want this data in the cloud until we've reviewed it)
   - Remember that Docker will require that local folder to be mapped outside of its container
