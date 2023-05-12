@@ -1,4 +1,10 @@
-<!-- Target audience: non-programmers, direct tone -->
+---
+title: De-identification Explained
+parent: ETL
+nav_order: 1
+# audience: non-programmers vaguely familiar with Cumulus
+# type: explanation
+---
 
 # How Does Cumulus De-identify Patient Data?
 

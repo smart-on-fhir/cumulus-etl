@@ -1,9 +1,0 @@
-I2B2::= ObservationFact PatientDimension VisitDimension
-
-ObservationFact::= patient_num encounter_num concept_cd start_date end_date observation_blob valtype_cd tval_char nval_num modifier_cd
-
-PatientDimension::= patient_num birth_date death_date sex_cd race_cd zip_cd
-
-VisitDimension::= patient_num encounter_num start_date end_date inout_cd length_of_stay
-
-FHIR_current::= Patient Encounter Condition Observation DocumentReference

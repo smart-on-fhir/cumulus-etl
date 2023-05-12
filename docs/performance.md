@@ -1,4 +1,10 @@
-<!-- Target audience: engineer familiar with the project, helpful direct tone -->
+---
+title: Performance Tuning
+parent: ETL
+nav_order: 10
+# audience: engineer familiar with the project
+# type: howto
+---
 
 # How To Improve Cumulus ETL Performance
 
@@ -87,7 +93,7 @@ Normally, you specify profile & image names in three places:
 `docker compose run cumulus-etl`
 
 To work with the GPU version of Cumulus ETL, just add `-gpu` to each of those names
-wherever they appear in [instructions](run-cumulus-etl.md):
+wherever they appear in [instructions](sample-runs.md):
 1. <code>docker compose --profile etl<b>-gpu</b> build</code>
 2. <code>docker compose --profile etl-support<b>-gpu</b> up</code>
 3. <code>docker compose run cumulus-etl<b>-gpu</b></code>
