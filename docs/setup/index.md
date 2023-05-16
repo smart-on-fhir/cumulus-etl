@@ -79,9 +79,12 @@ results.
 
 ## Going Forward
 
-Now that you've done a end-to-end run (well, a FHIR-to-Athena run),
-the next step is to finish the Cumulus ETL guide and customize your runner for your environment.
-
-Then once you do your first large-scale Cumulus ETL run, re-run the Crawler (the last time you'll
-need to re-run it unless Cumulus changes its format) and Athena will then be ready to query against
-your production data.
+Now that you've done a sample end-to-end run (well, a FHIR-to-Athena run):
+1. The next step is to finish reading the rest of this Cumulus ETL guide and
+   customize it for your environment.
+1. Delete the sample data you made above (delete the output S3 folder).
+1. Run the ETL again with some of your real patient data.
+1. After that, re-run the Glue crawler to crawl your actual data schema
+   (the last time you'll need to re-run it unless Cumulus changes its format)
+1. You are now ready to set up the
+   [Cumulus Library](https://docs.smarthealthit.org/cumulus/library/) to query that data.
