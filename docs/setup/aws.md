@@ -68,7 +68,12 @@ The easy way to set this all up is simply use a CloudFormation template.
 [Here's an example template](cumulus-aws-template.yaml) that should work for your needs,
 but can be customized as you like.
 
-It takes four parameters:
+That's worth emphasizing - your setup does not need to be this exact CloudFormation setup.
+This is provided merely for convenience, but if you want to use one bucket instead of three
+or change the name of the database, that's totally fine.
+The important thing is that you end up with a crawler that feeds data to a database for Athena.
+
+Though if you do use this template, it takes four parameters:
 1. Bucket prefix
 1. ETL Subdirectory, matching the subdirectory you pass to Cumulus ETL
 1. KMS key ARN for encryption
