@@ -1,0 +1,24 @@
+name: Update Cumulus docs
+on:
+  push:
+    branches: ["main"]
+    paths: ["docs/**"]
+
+jobs:
+  update-docs:
+    name: Update Cumulus docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send workflow dispatch
+        uses: actions/github-script@v6
+        with:
+          # This token is set to expire in May 2024.
+          # You can make a new one with write access to Actions on the cumulus repo.
+          github-token: ${{ secrets.CUMULUS_DOC_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'smart-on-fhir',
+              repo: 'cumulus',
+              ref: 'main',
+              workflow_id: 'pages.yaml',
+            })

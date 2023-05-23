@@ -12,7 +12,7 @@ from cumulus_etl import common, fhir_client, fhir_common, store
 
 
 def ctakes_httpx_client() -> httpx.AsyncClient:
-    timeout = httpx.Timeout(20)  # cTAKES can be a bit slow, so be generous with our timeouts
+    timeout = httpx.Timeout(300)  # cTAKES can be a bit slow, so be generous with our timeouts
     return httpx.AsyncClient(timeout=timeout)
 
 
@@ -61,8 +61,8 @@ async def covid_symptoms_extract(
 
     try:
         ctakes_json = await extract(cache, ctakes_namespace, physician_note, client=ctakes_http_client)
-    except Exception:  # pylint: disable=broad-except
-        logging.exception("Could not extract symptoms for docref: %s", docref_id)
+    except Exception as exc:  # pylint: disable=broad-except
+        logging.warning("Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         return []
 
     matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
@@ -80,8 +80,8 @@ async def covid_symptoms_extract(
     try:
         spans = ctakes_json.list_spans(matches)
         polarities_cnlp = await list_polarity(cache, cnlp_namespace, physician_note, spans, client=cnlp_http_client)
-    except Exception:  # pylint: disable=broad-except
-        logging.exception("Could not check negation for docref %s", docref_id)
+    except Exception as exc:  # pylint: disable=broad-except
+        logging.warning("Could not check negation for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
 
     # Now filter out any non-positive matches
