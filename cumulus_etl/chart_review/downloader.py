@@ -13,7 +13,7 @@ from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
 async def download_docrefs_from_fhir_server(
     client: fhir.FhirClient,
     root_input: store.Root,
-    root_phi: store.Root,
+    codebook: deid.Codebook,
     docrefs: str = None,
     anon_docrefs: str = None,
     export_to: str = None,
@@ -21,7 +21,7 @@ async def download_docrefs_from_fhir_server(
     if docrefs:
         return await _download_docrefs_from_real_ids(client, docrefs, export_to=export_to)
     elif anon_docrefs:
-        return await _download_docrefs_from_fake_ids(client, root_phi.path, anon_docrefs, export_to=export_to)
+        return await _download_docrefs_from_fake_ids(client, codebook, anon_docrefs, export_to=export_to)
     else:
         # else we'll download the entire target path as a bulk export (presumably the user has scoped a Group)
         ndjson_loader = loaders.FhirNdjsonLoader(root_input, client, export_to=export_to)
@@ -30,7 +30,7 @@ async def download_docrefs_from_fhir_server(
 
 async def _download_docrefs_from_fake_ids(
     client: fhir.FhirClient,
-    dir_phi: str,
+    codebook: deid.Codebook,
     docref_csv: str,
     export_to: str = None,
 ) -> common.Directory:
@@ -44,7 +44,6 @@ async def _download_docrefs_from_fake_ids(
         fake_patient_ids = {row["patient_id"] for row in rows}
 
     # We know how to reverse-map the patient identifiers, so do that up front
-    codebook = deid.Codebook(dir_phi)
     patient_ids = codebook.real_ids("Patient", fake_patient_ids)
 
     # Kick off a bunch of requests to the FHIR server for any documents for these patients

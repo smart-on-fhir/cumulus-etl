@@ -25,8 +25,8 @@ class TestChartLabelStudio(AsyncTestCase):
         self.ls_project.parsed_label_config = {"mylabel": {"type": "Labels", "to_name": ["mytext"]}}
 
     @staticmethod
-    def make_note(*, ref_id: str = "D3", matches: bool = True) -> LabelStudioNote:
-        note = LabelStudioNote(ref_id, "Normal note text")
+    def make_note(*, enc_id: str = "enc", matches: bool = True) -> LabelStudioNote:
+        note = LabelStudioNote(enc_id, "enc-anon", {"doc": "doc-anon"}, "Ignored Title", "Normal note text")
         if matches:
             note.matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
         return note
@@ -58,7 +58,9 @@ class TestChartLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
-                    "ref_id": "D3",
+                    "enc_id": "enc",
+                    "anon_id": "enc-anon",
+                    "docref_mappings": {"doc": "doc-anon"},
                 },
                 "predictions": [
                     {
@@ -104,7 +106,9 @@ class TestChartLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
-                    "ref_id": "D3",
+                    "enc_id": "enc",
+                    "anon_id": "enc-anon",
+                    "docref_mappings": {"doc": "doc-anon"},
                 },
                 "predictions": [
                     {
@@ -125,7 +129,9 @@ class TestChartLabelStudio(AsyncTestCase):
         self.assertEqual(
             {
                 "text": "Normal note text",
-                "ref_id": "D3",
+                "enc_id": "enc",
+                "anon_id": "enc-anon",
+                "docref_mappings": {"doc": "doc-anon"},
                 "mylabel": [
                     {"value": "Itch"},
                     {"value": "Nausea"},
@@ -142,14 +148,16 @@ class TestChartLabelStudio(AsyncTestCase):
         self.assertEqual(
             {
                 "text": "Normal note text",
-                "ref_id": "D3",
+                "enc_id": "enc",
+                "anon_id": "enc-anon",
+                "docref_mappings": {"doc": "doc-anon"},
                 "mylabel": [],  # this needs to be sent, or the server will complain
             },
             self.get_pushed_task()["data"],
         )
 
     def test_overwrite(self):
-        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"ref_id": "D3"}}]
+        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "enc"}}]
 
         # Try once without overwrite
         self.push_tasks(self.make_note())
@@ -163,8 +171,8 @@ class TestChartLabelStudio(AsyncTestCase):
 
     def test_overwrite_partial(self):
         """Verify that we push what we can and ignore any existing tasks by default"""
-        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"ref_id": "D3"}}]
+        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "enc"}}]
 
-        self.push_tasks(self.make_note(), self.make_note(ref_id="D4"))
+        self.push_tasks(self.make_note(), self.make_note(enc_id="enc2"))
         self.assertFalse(self.ls_project.delete_tasks.called)
-        self.assertEqual("D4", self.get_pushed_task()["data"]["ref_id"])
+        self.assertEqual("enc2", self.get_pushed_task()["data"]["enc_id"])

@@ -63,6 +63,15 @@ mark the notes with the default NLP dictionary,
 anonymize the notes with `philter`,
 and then push the results to your Label Studio project number `3`.
 
+### Grouping by Encounter
+
+Chart review mode will group all notes by encounter and present them together as a single
+Label Studio artifact.
+
+Each clinical note will have a little header describing what type of note it is ("Admission MD"),
+as well as its real & anonymized DocumentReference identifiers,
+to make it easier to reference back to your EHR or Athena data.
+
 ## Bulk Export Options
 
 You can point chart review mode at either a folder with DocumentReference ndjson files
@@ -240,7 +249,8 @@ But just briefly, a setup like this with hard-coded labels will work:
 </View>
 ```
 
-Or you can use dynamic labels, and chart review mode will define them from your symptoms file:
+Or you can use dynamic labels, and chart review mode will define them from your symptoms file.
+Note that the `value` argument must match the `name` argument in your config, like so:
 ```
 <View>
   <Labels name="label" toName="text" value="$label" />
