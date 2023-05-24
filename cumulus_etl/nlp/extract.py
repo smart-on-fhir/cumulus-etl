@@ -9,15 +9,17 @@ import ctakesclient
 import httpx
 
 from cumulus_etl import common, fhir_client, fhir_common, store
+from cumulus_etl.nlp import watcher
 
 
 def ctakes_httpx_client() -> httpx.AsyncClient:
-    timeout = httpx.Timeout(300)  # cTAKES can be a bit slow, so be generous with our timeouts
+    timeout = httpx.Timeout(180)  # cTAKES can be a bit slow, so be generous with our timeouts
     return httpx.AsyncClient(timeout=timeout)
 
 
 async def covid_symptoms_extract(
     client: fhir_client.FhirClient,
+    ctakes_overrides: str,
     cache: store.Root,
     docref: dict,
     ctakes_http_client: httpx.AsyncClient = None,
@@ -27,6 +29,7 @@ async def covid_symptoms_extract(
     Extract a list of Observations from NLP-detected symptoms in physician notes
 
     :param client: a client ready to talk to a FHIR server
+    :param ctakes_overrides: the path to the overrides folder for cTAKES
     :param cache: Where to cache NLP results
     :param docref: Physician Note
     :param ctakes_http_client: HTTPX client to use for the cTAKES server
@@ -61,7 +64,9 @@ async def covid_symptoms_extract(
     cnlp_namespace = f"{ctakes_namespace}-cnlp_v2"
 
     try:
-        ctakes_json = await extract(cache, ctakes_namespace, physician_note, client=ctakes_http_client)
+        ctakes_json = await ctakes_extract_with_cache(
+            ctakes_overrides, cache, ctakes_namespace, physician_note, client=ctakes_http_client
+        )
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         return None
@@ -102,11 +107,11 @@ async def covid_symptoms_extract(
     return positive_matches
 
 
-async def extract(
-    cache: store.Root, namespace: str, sentence: str, client: httpx.AsyncClient = None
+async def ctakes_extract_with_cache(
+    ctakes_overrides: str, cache: store.Root, namespace: str, sentence: str, client: httpx.AsyncClient = None
 ) -> ctakesclient.typesystem.CtakesJSON:
     """
-    This is a version of ctakesclient.client.extract() that also uses a cache
+    This is a version of extract() that also uses a cache
 
     This cache is stored as a series of files in the PHI root. If found, the cached results are used.
     If not found, the cTAKES server is asked to parse the sentence, which can take a while (~20s)
@@ -117,11 +122,42 @@ async def extract(
         cached_response = common.read_json(full_path)
         result = ctakesclient.typesystem.CtakesJSON(source=cached_response)
     except Exception:  # pylint: disable=broad-except
-        result = await ctakesclient.client.extract(sentence, client=client)
+        result = await ctakes_extract(ctakes_overrides, sentence, client=client)
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, result.as_json())
 
     return result
+
+
+async def ctakes_extract(
+    ctakes_overrides: str, sentence: str, *, client: httpx.AsyncClient = None, attempts: int = 3
+) -> ctakesclient.typesystem.CtakesJSON:
+    """
+    This is a version of ctakesclient.client.extract that retries calls in some cases.
+
+    For certain types of known transitory errors, we retry up to 'attempts' times.
+    Other exceptions will be passed up if they occur, and the retry exception will still be raised on the final attempt.
+
+    :param ctakes_overrides: the path to the overrides folder for cTAKES
+    :param sentence: the text to pass to cTAKES
+    :param client: the httpx client to use
+    :param attempts: max number of times to try
+    """
+    bsv_path = os.path.join(ctakes_overrides, "symptoms.bsv")
+
+    for i in range(attempts - 1):
+        try:
+            return await ctakesclient.client.extract(sentence, client=client)
+        except httpx.ReadTimeout:
+            # We've found that cTAKES can get in a state where it often fails to respond,
+            # but restarting it unsticks it (probably a memory leak?)
+            print("MIKE: restarting...   ", end="", flush=True)
+            with watcher.wait_for_ctakes_restart():
+                os.utime(bsv_path)  # just 'touch' the file, pretending it was updated
+            print("done")
+
+    # Final attempt without any exception capturing
+    return await ctakesclient.client.extract(sentence, client=client)
 
 
 async def list_polarity(

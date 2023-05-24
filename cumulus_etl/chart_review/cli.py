@@ -86,7 +86,7 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
 
     # Run each note through cTAKES then the cNLP transformer for negation
     for note in notes:
-        ctakes_json = await ctakesclient.client.extract(note.text, client=http_client)
+        ctakes_json = await nlp.ctakes_extract(args.ctakes_overrides, note.text, client=http_client)
         matches = ctakes_json.list_match(polarity=Polarity.pos)
         spans = ctakes_json.list_spans(matches)
         cnlpt_results = await ctakesclient.transformer.list_polarity(note.text, spans, client=http_client)

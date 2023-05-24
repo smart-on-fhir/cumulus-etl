@@ -430,6 +430,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
 
             symptoms = await nlp.covid_symptoms_extract(
                 self.task_config.client,
+                self.task_config.ctakes_overrides,
                 phi_root,
                 docref,
                 ctakes_http_client=http_client,
