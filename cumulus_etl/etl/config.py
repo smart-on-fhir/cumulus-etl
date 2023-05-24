@@ -30,6 +30,7 @@ class JobConfig:
         comment: str = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
         ctakes_overrides: str = None,
+        dir_errors: str = None,
         tasks: List[str] = None,
     ):
         self._dir_input_orig = dir_input_orig
@@ -38,6 +39,7 @@ class JobConfig:
         self.dir_phi = dir_phi
         self._input_format = input_format
         self._output_format = output_format
+        self.dir_errors = dir_errors
         self.client = client
         self.timestamp = common.timestamp_filename(timestamp)
         self.hostname = gethostname()

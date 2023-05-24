@@ -3,7 +3,7 @@
 import hashlib
 import logging
 import os
-from typing import List
+from typing import List, Optional
 
 import ctakesclient
 import httpx
@@ -22,7 +22,7 @@ async def covid_symptoms_extract(
     docref: dict,
     ctakes_http_client: httpx.AsyncClient = None,
     cnlp_http_client: httpx.AsyncClient = None,
-) -> List[dict]:
+) -> Optional[List[dict]]:
     """
     Extract a list of Observations from NLP-detected symptoms in physician notes
 
@@ -39,14 +39,15 @@ async def covid_symptoms_extract(
     encounters = docref.get("context", {}).get("encounter", [])
     if not encounters:
         logging.warning("No encounters for docref %s", docref_id)
-        return []
+        return None
     _, encounter_id = fhir_common.unref_resource(encounters[0])
 
     # Find the physician note among the attachments
-    physician_note, _ = await fhir_common.get_docref_note(client, docref)
-    if physician_note is None:
-        logging.warning("No text content in docref %s", docref_id)
-        return []
+    try:
+        physician_note, _ = await fhir_common.get_docref_note(client, docref)
+    except Exception as exc:  # pylint: disable=broad-except
+        logging.warning("Error getting text for docref %s: %s", docref_id, exc)
+        return None
 
     # cTAKES cache namespace history (and thus, cache invalidation history):
     #   v1: original cTAKES processing
@@ -63,7 +64,7 @@ async def covid_symptoms_extract(
         ctakes_json = await extract(cache, ctakes_namespace, physician_note, client=ctakes_http_client)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
-        return []
+        return None
 
     matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
 
@@ -82,7 +83,7 @@ async def covid_symptoms_extract(
         polarities_cnlp = await list_polarity(cache, cnlp_namespace, physician_note, spans, client=cnlp_http_client)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Could not check negation for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
-        polarities_cnlp = [ctakesclient.typesystem.Polarity.pos] * len(matches)  # fake all positives
+        return None
 
     # Now filter out any non-positive matches
     positive_matches = []

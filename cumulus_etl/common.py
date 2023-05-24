@@ -151,8 +151,9 @@ def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
 class NdjsonWriter:
     """Convenience context manager to write multiple objects to an ndjson file."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, mode: str = "w"):
         self._path = path
+        self._mode = mode
         self._file = None
 
     def __enter__(self):
@@ -166,7 +167,7 @@ class NdjsonWriter:
     def write(self, obj: dict) -> None:
         # lazily create the file, to avoid 0-line ndjson files
         if not self._file:
-            self._file = open(self._path, "w", encoding="utf8")  # pylint: disable=consider-using-with
+            self._file = open(self._path, self._mode, encoding="utf8")  # pylint: disable=consider-using-with
 
         json.dump(obj, self._file)
         self._file.write("\n")

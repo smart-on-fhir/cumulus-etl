@@ -135,12 +135,15 @@ class DeltaLakeFormat(Format):
             table = delta.DeltaTable.forPath(self.spark, full_path)
         except AnalysisException:
             return  # if the table doesn't exist because we didn't write anything, that's fine - just bail
+        except Exception:  # pylint: disable=broad-except
+            logging.exception("Could not finalize Delta Lake table %s", self.dbname)
+            return
 
         try:
             table.optimize().executeCompaction()  # pool small files for better query performance
             table.generate("symlink_format_manifest")
             table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
-        except AnalysisException:
+        except Exception:  # pylint: disable=broad-except
             logging.exception("Could not finalize Delta Lake table %s", self.dbname)
 
     def _table_path(self, dbname: str) -> str:

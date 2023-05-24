@@ -1,6 +1,8 @@
 """ETL tasks"""
 
+import copy
 import itertools
+import os
 import sys
 from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, List, Set, Type, TypeVar, Union
 
@@ -237,6 +239,9 @@ class EtlTask:
             summary.attempt += df_count
             if formatter.write_records(dataframe, index):
                 summary.success += df_count
+            else:
+                # We should write the "bad" dataframe to the error dir, for later review
+                self._write_errors(dataframe, index)
 
             print(f"  {summary.success:,} processed for {self.name}")
             index += 1
@@ -246,6 +251,21 @@ class EtlTask:
         print(f"  ⭐ done with {self.name} ({summary.success:,} processed) ⭐")
 
         return summary
+
+    ##########################################################################################
+    #
+    # Internal helpers
+    #
+    ##########################################################################################
+
+    def _write_errors(self, df: pandas.DataFrame, index: int) -> None:
+        """Takes the dataframe and writes it to the error dir, if one was provided"""
+        if not self.task_config.dir_errors:
+            return
+
+        error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
+        error_path = error_root.joinpath(f"write-error.{index:03}.ndjson")
+        df.to_json(error_path, orient="records", lines=True, storage_options=error_root.fsspec_options())
 
     ##########################################################################################
     #
@@ -378,6 +398,15 @@ class CovidSymptomNlpResultsTask(EtlTask):
         """Returns true if this is a coding for an emergency department note"""
         return coding.get("code") in cls.ED_CODES.get(coding.get("system"), {})
 
+    def add_error(self, docref: dict) -> None:
+        if not self.task_config.dir_errors:
+            return
+
+        error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
+        error_path = error_root.joinpath("nlp-errors.ndjson")
+        with common.NdjsonWriter(error_path, "a") as writer:
+            writer.write(docref)
+
     async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
         """Passes physician notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
@@ -395,16 +424,22 @@ class CovidSymptomNlpResultsTask(EtlTask):
             if not is_er_note:
                 continue
 
+            orig_docref = copy.deepcopy(docref)
             if not self.scrubber.scrub_resource(docref, scrub_attachments=False):
                 continue
 
-            # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
-            # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
-            # The Format class will replace all existing symptoms from this note at once (because we set group_field).
-            yield await nlp.covid_symptoms_extract(
+            symptoms = await nlp.covid_symptoms_extract(
                 self.task_config.client,
                 phi_root,
                 docref,
                 ctakes_http_client=http_client,
                 cnlp_http_client=http_client,
             )
+            if symptoms is None:
+                self.add_error(orig_docref)
+                continue
+
+            # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
+            # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
+            # The Format class will replace all existing symptoms from this note at once (because we set group_field).
+            yield symptoms
