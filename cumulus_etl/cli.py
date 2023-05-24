@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import enum
+import logging
 import sys
 from typing import List, Optional
 
@@ -38,6 +39,8 @@ def get_subcommand(argv: List[str]) -> Optional[str]:
 
 
 async def main(argv: List[str]) -> None:
+    logging.basicConfig(format="%(message)s")  # hide gross log prefix of "WARNING:root:" etc, just display message
+
     subcommand = get_subcommand(argv)
 
     prog = "cumulus-etl"

@@ -51,6 +51,10 @@ def _filter_real_docrefs(docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[
         if docref["id"] in real_docref_ids:
             yield docref
 
+            real_docref_ids.remove(docref["id"])
+            if not real_docref_ids:
+                break
+
 
 def _filter_fake_docrefs(root_phi: store.Root, anon_docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
     """Calculates the fake ID for all docrefs found, and keeps any that match the csv list"""
@@ -63,3 +67,7 @@ def _filter_fake_docrefs(root_phi: store.Root, anon_docrefs_csv: str, docrefs: I
         fake_id = codebook.fake_id("DocumentReference", docref["id"], caching_allowed=False)
         if fake_id in fake_docref_ids:
             yield docref
+
+            fake_docref_ids.remove(fake_id)
+            if not fake_docref_ids:
+                break

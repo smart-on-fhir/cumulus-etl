@@ -29,10 +29,9 @@ class Root:
         :param path: location (local path or URL)
         :param create: whether to create the folder if it doesn't exist
         """
-        self.path = path
-
         parsed = urlparse(path)
         self.protocol = parsed.scheme or "file"  # assume local if no obvious scheme
+        self.path = path if parsed.scheme else os.path.abspath(path)
 
         try:
             self.fs = fsspec.filesystem(self.protocol, **self.fsspec_options())

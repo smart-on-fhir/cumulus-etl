@@ -2,6 +2,7 @@
 
 import base64
 import cgi
+import logging
 import re
 from typing import Optional, Tuple
 
@@ -120,9 +121,13 @@ async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attac
     #   - use attachment["hash"] if available (algorithm mismatch though... maybe we should switch to sha1...)
     #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
     if "url" in attachment:
-        # We need to pass Accept to get the raw data, not a Binary object. See https://www.hl7.org/fhir/binary.html
-        response = await client.request("GET", attachment["url"], headers={"Accept": mimetype})
-        return response.text
+        try:
+            # We need to pass Accept to get the raw data, not a Binary object. See https://www.hl7.org/fhir/binary.html
+            response = await client.request("GET", attachment["url"], headers={"Accept": mimetype})
+            return response.text
+        except fhir_client.FatalError as exc:
+            logging.warning("Could not download note: %s", str(exc))
+            return None
 
     return None
 
