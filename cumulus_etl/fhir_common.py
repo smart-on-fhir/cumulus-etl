@@ -2,7 +2,6 @@
 
 import base64
 import cgi
-import logging
 import re
 from typing import Optional, Tuple
 
@@ -100,7 +99,7 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
-async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attachment: dict) -> Optional[str]:
+async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -121,18 +120,14 @@ async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attac
     #   - use attachment["hash"] if available (algorithm mismatch though... maybe we should switch to sha1...)
     #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
     if "url" in attachment:
-        try:
-            # We need to pass Accept to get the raw data, not a Binary object. See https://www.hl7.org/fhir/binary.html
-            response = await client.request("GET", attachment["url"], headers={"Accept": mimetype})
-            return response.text
-        except fhir_client.FatalError as exc:
-            logging.warning("Could not download note: %s", str(exc))
-            return None
+        # We need to pass Accept to get the raw data, not a Binary object. See https://www.hl7.org/fhir/binary.html
+        response = await client.request("GET", attachment["url"], headers={"Accept": mimetype})
+        return response.text
 
-    return None
+    raise ValueError("No data or url field present")
 
 
-async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> Tuple[Optional[str], Optional[str]]:
+async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> Tuple[str, str]:
     attachments = [content["attachment"] for content in docref["content"]]
 
     # Find the best attachment to use, based on mimetype.
@@ -155,7 +150,7 @@ async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> Tuple
         # But let's optimistically enforce the need for a content type ourselves by bailing here.
         # If we find a real-world need to be more permissive, we can change this later.
         # But note that if we do, we'll need to handle downloading Binary FHIR objects, in addition to arbitrary URLs.
-        return None, None
+        raise ValueError("No textual mimetype found")
 
     note = await _get_docref_note_from_attachment(client, attachments[best_attachment_index])
 

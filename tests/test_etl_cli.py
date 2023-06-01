@@ -54,6 +54,7 @@ class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
         batch_size=None,
         tasks=None,
         philter=True,
+        errors_to=None,
     ) -> None:
         args = [
             input_path or self.input_path,
@@ -73,6 +74,8 @@ class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
             args.append(f'--task={",".join(tasks)}')
         if philter:
             args.append("--philter")
+        if errors_to:
+            args.append(f"--errors-to={errors_to}")
         await cli.main(args)
 
     def enforce_consistent_uuids(self):
@@ -190,6 +193,17 @@ class TestEtlJobFlow(BaseEtlSimple):
             },
             mappings["Patient"],
         )
+
+    async def test_errors_to_must_be_empty(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(errors_to=self.phi_path)  # it already has a codebook there
+        self.assertEqual(errors.FOLDER_NOT_EMPTY, cm.exception.code)
+
+    async def test_errors_to_passed_to_tasks(self):
+        with self.assertRaises(SystemExit):
+            with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job:
+                await self.run_etl(errors_to=f"{self.output_path}/errors")
+        self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.output_path}/errors")
 
 
 class TestEtlJobConfig(BaseEtlSimple):

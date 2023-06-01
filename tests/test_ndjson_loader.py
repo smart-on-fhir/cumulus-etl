@@ -245,7 +245,7 @@ class TestNdjsonLoader(AsyncTestCase):
             loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir)
             with self.assertRaises(SystemExit) as cm:
                 await loader.load_all([])
-        self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_EMPTY)
+        self.assertEqual(cm.exception.code, errors.FOLDER_NOT_EMPTY)
 
     async def test_export_to_folder_not_local(self):
         """Verify we fail if an export folder is not local"""

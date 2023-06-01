@@ -58,17 +58,22 @@ def make_export_dir(export_to: str = None) -> loaders.Directory:
         # If we were to relax this requirement, we'd want to copy the exported files over to a local dir.
         errors.fatal(f"The target export folder '{export_to}' must be local. ", errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
 
+    confirm_dir_is_empty(export_to)
+
+    return loaders.RealDirectory(export_to)
+
+
+def confirm_dir_is_empty(path: str) -> None:
+    """Errors out if the dir exists with contents, but creates empty dir if not present yet"""
     try:
-        if os.listdir(export_to):
+        if os.listdir(path):
             errors.fatal(
-                f"The target export folder '{export_to}' already has contents. Please provide an empty folder.",
-                errors.BULK_EXPORT_FOLDER_NOT_EMPTY,
+                f"The target folder '{path}' already has contents. Please provide an empty folder.",
+                errors.FOLDER_NOT_EMPTY,
             )
     except FileNotFoundError:
         # Target folder doesn't exist, so let's make it
-        os.makedirs(export_to, mode=0o700)
-
-    return loaders.RealDirectory(export_to)
+        os.makedirs(path, mode=0o700)
 
 
 def is_url_available(url: str, retry: bool = True) -> bool:

@@ -28,6 +28,7 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         self.input_dir = os.path.join(self.tmpdir.name, "input")
         self.phi_dir = os.path.join(self.tmpdir.name, "phi")
+        self.errors_dir = os.path.join(self.tmpdir.name, "errors")
         os.makedirs(self.input_dir)
         os.makedirs(self.phi_dir)
 
@@ -41,6 +42,7 @@ class TestTasks(CtakesMixin, AsyncTestCase):
             client,
             ctakes_overrides=self.ctakes_overrides.name,
             batch_size=5,
+            dir_errors=self.errors_dir,
         )
 
         self.format = mock.MagicMock()
@@ -292,3 +294,39 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         df = self.format.write_records.call_args[0][0]
         self.assertEqual(2, len(df.id))
         self.assertEqual(sorted([self.codebook.db.patient("A"), self.codebook.db.patient("B")]), sorted(df.id))
+
+    async def test_batch_write_errors_saved(self):
+        self.make_json("Patient.1", "A")
+        self.make_json("Patient.2", "B")
+        self.make_json("Patient.3", "C")
+        self.job_config.batch_size = 1
+        self.format.write_records.side_effect = [False, True, False]  # First and third will fail
+
+        await tasks.PatientTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(
+            ["write-error.000.ndjson", "write-error.002.ndjson"], list(sorted(os.listdir(f"{self.errors_dir}/patient")))
+        )
+        self.assertEqual(
+            {"resourceType": "Test", "id": "30d95f17d9f51f3a151c51bf0a7fcb1717363f3a87d2dbace7d594ee68d3a82f"},
+            common.read_json(f"{self.errors_dir}/patient/write-error.000.ndjson"),
+        )
+        self.assertEqual(
+            {"resourceType": "Test", "id": "ed9ab553005a7c9bdb26ecf9f612ea996ad99b1a96a34bf88c260f1c901d8289"},
+            common.read_json(f"{self.errors_dir}/patient/write-error.002.ndjson"),
+        )
+
+    async def test_nlp_errors_saved(self):
+        docref = i2b2_mock_data.documentreference()
+        self.make_json("DocumentReference.2", "B", **docref)
+        del docref["context"]  # this will cause this docref to fail
+        self.make_json("DocumentReference.1", "A", **docref)
+        self.make_json("DocumentReference.3", "C", **docref)
+
+        await tasks.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(["nlp-errors.ndjson"], os.listdir(f"{self.errors_dir}/covid_symptom__nlp_results"))
+        self.assertEqual(
+            ["A", "C"],  # pre-scrubbed versions of the docrefs are stored, for easier debugging
+            [x["id"] for x in common.read_ndjson(f"{self.errors_dir}/covid_symptom__nlp_results/nlp-errors.ndjson")],
+        )
