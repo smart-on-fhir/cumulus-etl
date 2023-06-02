@@ -94,7 +94,7 @@ def _mimetype_priority(mimetype: str) -> int:
         return 3
     elif mimetype.startswith("text/"):
         return 2
-    elif mimetype in ("application/xml", "application/xhtml+xml"):
+    elif mimetype == "application/xhtml+xml":
         return 1
     return 0
 

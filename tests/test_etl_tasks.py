@@ -252,9 +252,9 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         # list of (URL, contentType), expected text
         ([("http://localhost/file-cough", "text/plain")], "cough"),  # handles absolute URL
         ([("file-cough", "text/html")], "cough"),  # handles text/*
-        ([("file-cough", "application/xml")], "cough"),  # handles app/xml
+        ([("file-cough", "application/xhtml+xml")], "cough"),  # handles xhtml
         ([("file-cough", "text/html"), ("file-fever", "text/plain")], "fever"),  # prefers text/plain to text/*
-        ([("file-cough", "application/xml"), ("file-fever", "text/blarg")], "fever"),  # prefers text/* to app/xml
+        ([("file-cough", "application/xhtml+xml"), ("file-fever", "text/blarg")], "fever"),  # prefers text/* to xhtml
         ([("file-cough", "nope/nope")], None),  # ignores unsupported mimetypes
     )
     @ddt.unpack
