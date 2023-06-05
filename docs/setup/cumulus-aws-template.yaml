@@ -176,7 +176,7 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results"
-            CreateNativeDeltaTable: False
+            CreateNativeDeltaTable: True
             WriteManifest: False
 
   ####################################################
@@ -225,7 +225,7 @@ Resources:
         EnforceWorkGroupConfiguration: True
         PublishCloudWatchMetricsEnabled: True
         EngineVersion:
-          SelectedEngineVersion: "Athena engine version 2"
+          SelectedEngineVersion: "Athena engine version 3"
         ResultConfiguration:
           EncryptionConfiguration:
             EncryptionOption: SSE_KMS
