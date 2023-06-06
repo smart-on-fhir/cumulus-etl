@@ -24,11 +24,11 @@ async def covid_symptoms_extract(
     cnlp_http_client: httpx.AsyncClient = None,
 ) -> Optional[List[dict]]:
     """
-    Extract a list of Observations from NLP-detected symptoms in physician notes
+    Extract a list of Observations from NLP-detected symptoms in clinical notes
 
     :param client: a client ready to talk to a FHIR server
     :param cache: Where to cache NLP results
-    :param docref: Physician Note
+    :param docref: Clinical Note
     :param ctakes_http_client: HTTPX client to use for the cTAKES server
     :param cnlp_http_client: HTTPX client to use for the cNLP transformer server
     :return: list of NLP results encoded as FHIR observations
@@ -42,9 +42,9 @@ async def covid_symptoms_extract(
         return None
     _, encounter_id = fhir_common.unref_resource(encounters[0])
 
-    # Find the physician note among the attachments
+    # Find the clinical note among the attachments
     try:
-        physician_note, _ = await fhir_common.get_docref_note(client, docref)
+        clinical_note, _ = await fhir_common.get_docref_note(client, docref)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Error getting text for docref %s: %s", docref_id, exc)
         return None
@@ -61,7 +61,7 @@ async def covid_symptoms_extract(
     cnlp_namespace = f"{ctakes_namespace}-cnlp_v2"
 
     try:
-        ctakes_json = await extract(cache, ctakes_namespace, physician_note, client=ctakes_http_client)
+        ctakes_json = await extract(cache, ctakes_namespace, clinical_note, client=ctakes_http_client)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         return None
@@ -80,7 +80,7 @@ async def covid_symptoms_extract(
     # there too. We have found this to yield better results than cTAKES alone.
     try:
         spans = ctakes_json.list_spans(matches)
-        polarities_cnlp = await list_polarity(cache, cnlp_namespace, physician_note, spans, client=cnlp_http_client)
+        polarities_cnlp = await list_polarity(cache, cnlp_namespace, clinical_note, spans, client=cnlp_http_client)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Could not check negation for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         return None

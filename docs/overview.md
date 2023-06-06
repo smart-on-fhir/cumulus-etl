@@ -21,7 +21,7 @@ safely and while preserving privacy.
 
 Cumulus provides four main features:
 
-1. Natural language processing of physician notes (to extract symptoms, etc)
+1. Natural language processing of clinical notes (to extract symptoms, etc)
 2. De-identification of patient data
 3. Aggregation of multiple hospitals' data into one data stream
 4. A dashboard for monitoring health in that aggregate population
@@ -48,7 +48,7 @@ their own servers at regular intervals.
 ETL stands for "extract, transform, load."
 Cumulus ETL first **extracts** data from the hospital servers (usually in the form of
 a bulk FHIR export).
-Then it **transforms** that data by de-identifying it and converting physician notes into lists of
+Then it **transforms** that data by de-identifying it and converting clinical notes into lists of
 symptoms.
 And finally it **loads** that data onto the cloud to be consumed by the next phase of the Cumulus
 pipeline.

@@ -119,7 +119,7 @@ The docker-compose.yaml, which defines the network, adds the following container
 
 - The Cumulus ETL process itself
 - A [cTAKES](https://ctakes.apache.org/) server, to handle natural language 
-  processing of physician notes.
+  processing of clinical notes.
 
 ## Cumulus ETL
 

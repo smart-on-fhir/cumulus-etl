@@ -11,7 +11,7 @@ Cumulus will capitalize on “21st Century Cures Act” availability of EHR data
 
 # Cumulus Features
 * Extracts bulk FHIR data
-* Performs natural language processing (NLP) on physician notes via [cTAKES](https://ctakes.apache.org/) to extract symptoms and other information
+* Performs natural language processing (NLP) on clinical notes via [cTAKES](https://ctakes.apache.org/) to extract symptoms and other information
 * De-identifies protected health information (PHI) before any data leaves your health institution
 * All data is encrypted at rest and in transit
 * Focuses on non-human-subject research and minimal disclosures -- researchers only see patient counts

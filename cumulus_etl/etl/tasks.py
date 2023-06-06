@@ -408,7 +408,7 @@ class CovidSymptomNlpResultsTask(EtlTask):
             writer.write(docref)
 
     async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
-        """Passes physician notes through NLP and returns any symptoms found"""
+        """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 
         # one client for both NLP services for now -- no parallel requests yet, so no need to be fancy
