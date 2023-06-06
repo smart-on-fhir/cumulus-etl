@@ -203,7 +203,7 @@ class ValueType(Enum):
     no_value = "@"
     numeric = "N"
     text = "T"
-    physician_notes = "B"
+    clinical_notes = "B"
     NLP = "NLP"
 
 
@@ -265,7 +265,7 @@ class ObservationFact(Dimension):
         LOCATION_CD     -> ref i2b2.visit_dimension
         CONCEPT_CD      -> ref i2b2.concept_dimension
 
-        OBSERVATION_BLOB -> Physician Notes (usually)
+        OBSERVATION_BLOB -> Clinical Notes (usually)
         INSTANCE_NUM    -> unique ID of observation
         VALTYPE_CD      -> @see ValueType(Enum)
         TVAL_CHAR       -> @see ValueEquality(Enum) Labs "Negative" or

@@ -65,7 +65,7 @@ There are three main transformations of PHI inside Cumulus ETL:
 1. A [Microsoft anonymization tool](https://github.com/microsoft/Tools-for-Health-Data-Anonymization)
    is run on the bulk data.
 2. Cumulus ETL replaces all resource IDs with anonymized IDs and runs philter on a few text fields
-3. NLP is run on physician notes (which are then discarded)
+3. NLP is run on clinical notes (which are then discarded)
 
 ### Microsoft Anonymizer
 
@@ -103,9 +103,9 @@ All extensions are removed, except for:
 - The USCDI patient extensions (birth sex, gender identity, race, and ethnicity)
 - "Modifier" extensions which will flag to the ETL that a resource should be skipped
 
-#### Physician Notes
+#### Clinical Notes
 
-Be aware that physician notes are not removed at this stage.
+Be aware that clinical notes are not removed at this stage.
 They are kept for now, so that Cumulus ETL can run natural language processing on them.
 See below for more information on that.
 
@@ -159,9 +159,9 @@ This replaces any detected PHI like names, phone numbers, MRNs, social security 
 
 But be warned that it will significantly slow down the ETL process.
 
-### NLP on Physician Notes
+### NLP on Clinical Notes
 
-Physician notes are kept long enough to run them through cTAKES natural language processing,
+Clinical notes are kept long enough to run them through cTAKES natural language processing,
 then they are thrown away.
 
 The resulting detected symptoms and other medical codes from cTAKES are then kept in the de-identified results.

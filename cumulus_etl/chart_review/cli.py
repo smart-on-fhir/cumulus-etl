@@ -179,12 +179,6 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     access_token = common.read_text(args.ls_token).strip()
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 
-    # TODO: to remove this warning:
-    #  1. Decide that chart-review is good to go for wide release
-    #  2. Make chart-review mode discoverable on standard --help, in some fashion
-    #  3. Make some user docs
-    common.print_header("Chart review support is in development.\nPlease do not attempt to use for anything real.")
-
     async with client:
         ndjson_folder = await gather_docrefs(client, root_input, root_phi, args)
         notes = await read_notes_from_ndjson(client, ndjson_folder.name)

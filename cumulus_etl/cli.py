@@ -57,7 +57,7 @@ async def main(argv: List[str]) -> None:
         if not subcommand:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
-            parser.description += "\n\n" "other commands available:\n" "  convert"
+            parser.description += "\n\n" "other commands available:\n" "  chart-review\n" "  convert"
         await etl.run_etl(parser, argv)
 
 

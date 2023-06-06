@@ -245,7 +245,7 @@ def to_fhir_medicationrequest(obsfact: ObservationFact) -> dict:
 
 ###############################################################################
 #
-# Physician Notes and NLP
+# Clinical Notes and NLP
 #
 ###############################################################################
 

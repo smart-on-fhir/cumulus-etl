@@ -57,7 +57,7 @@ That is, they are mostly concerned with processing data as fast as possible and 
 But the natural language processing (NLP) that Cumulus ETL does can also be _hugely_ sped up with access to a GPU.
 An order of magnitude faster.
 
-For example, BCH ran NLP on 370k physician notes with just a CPU in just under 6 weeks.
+For example, BCH ran NLP on 370k clinical notes with just a CPU in just under 6 weeks.
 But on a GPU, it took three days.
 
 Note that the machine-learning libraries we use depend on the CUDA framework,
