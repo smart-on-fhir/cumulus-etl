@@ -44,7 +44,7 @@ async def covid_symptoms_extract(
 
     # Find the clinical note among the attachments
     try:
-        clinical_note, _ = await fhir_common.get_docref_note(client, docref)
+        clinical_note = await fhir_common.get_docref_note(client, docref)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Error getting text for docref %s: %s", docref_id, exc)
         return None
