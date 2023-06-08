@@ -18,8 +18,9 @@ class TestPhilter(AsyncTestCase):
         ({"CodeableConcept": {"text": "Fever at 123 Main St"}}, {"CodeableConcept": {"text": "Fever at *** **** **"}}),
         ({"Coding": {"display": "Patient 012-34-5678"}}, {"Coding": {"display": "Patient ***-**-****"}}),
         (
+            # philter catches the month for some reason, but correctly leaves the date numbers alone
             {"resourceType": "Observation", "valueString": "Born on december 12 2012"},
-            {"resourceType": "Observation", "valueString": "Born on ******** ** ****"},
+            {"resourceType": "Observation", "valueString": "Born on ******** 12 2012"},
         ),
         (
             {"resourceType": "Observation", "component": [{"valueString": "Contact at foo@bar.com"}]},

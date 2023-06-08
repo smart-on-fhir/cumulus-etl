@@ -311,7 +311,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         self.assertEqual({"John", "Smith", "called"}, {m.text for m in task.matches})
 
         if run_philter:
-            expected_text = "**** ***** called on **/**/****"
+            expected_text = "**** ***** called on 10/13/2010"  # we don't philter dates
         else:
             expected_text = "John Smith called on 10/13/2010"
         self.assertEqual(expected_text, task.text)
