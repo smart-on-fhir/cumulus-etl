@@ -7,7 +7,6 @@ from json import dumps
 from unittest import mock
 
 import ddt
-import responses
 import respx
 from jwcrypto import jwk
 
@@ -271,42 +270,8 @@ class TestBulkExportEndToEnd(AsyncTestCase):
             },
         )
 
-        # /metadata (most of this is just to pass validation -- this endpoint is just for fhirclient to get a token url)
-        # Note that we use the 'responses' module for this, because fhirclient uses the 'requests' module
-        responses.get(
-            f"{self.root.path}/metadata",
-            json={
-                "date": "1900-01-01",
-                "fhirVersion": "4.0.1",
-                "format": ["application/fhir+json"],
-                "kind": "instance",
-                "resourceType": "CapabilityStatement",
-                "rest": [
-                    {
-                        "mode": "server",
-                        "security": {
-                            "extension": [
-                                {
-                                    "url": "http://fhir-registry.smarthealthit.org/StructureDefinition/oauth-uris",
-                                    "extension": [
-                                        # Notably only offer a token URL, just like the bulk-data-server has.
-                                        # Some versions of fhirclient also expect an authorize URL, but we should
-                                        # still work in cases where that isn't available.
-                                        {"url": "token", "valueUri": f"{self.root.path}/token"}
-                                    ],
-                                }
-                            ],
-                        },
-                    }
-                ],
-                "status": "active",
-            },
-        )
-
         # /token
-        # Note that we use the 'responses' module for this, because fhirclient uses the 'requests' module
-        responses.post(
-            f"{self.root.path}/token",
+        respx_mock.post(f"{self.root.path}/token",).respond(
             json={
                 "access_token": "1234567890",
             },
@@ -366,7 +331,6 @@ class TestBulkExportEndToEnd(AsyncTestCase):
             status_code=202,
         )
 
-    @responses.mock.activate(assert_all_requests_are_fired=True)
     async def test_successful_bulk_export(self):
         """Verify a happy path bulk export, from toe to tip"""
         with tempfile.TemporaryDirectory() as tmpdir:
