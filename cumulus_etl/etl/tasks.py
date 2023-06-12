@@ -415,6 +415,12 @@ class CovidSymptomNlpResultsTask(EtlTask):
         http_client = nlp.ctakes_httpx_client()
 
         for docref in self.read_ndjson():
+            # Only bother running NLP on docs that are current & finalized
+            bad_ref_status = docref.get("status") in ("superseded", "entered-in-error")  # status of DocRef itself
+            bad_doc_status = docref.get("docStatus") in ("preliminary", "entered-in-error")  # status of clinical note
+            if bad_ref_status or bad_doc_status:
+                continue
+
             # Check that the note is one of our special allow-listed types (we do this here rather than on the output
             # side to save needing to run everything through NLP).
             # We check both type and category for safety -- we aren't sure yet how EHRs are using these fields.

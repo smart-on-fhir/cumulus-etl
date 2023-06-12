@@ -232,6 +232,26 @@ class TestTasks(CtakesMixin, AsyncTestCase):
         expected_docref = self.codebook.db.resource_hash("present")
         self.assertEqual({expected_docref}, set(df.docref_id))
 
+    @ddt.data(
+        ({"status": "entered-in-error"}, False),
+        ({"status": "superseded"}, False),
+        ({"status": "current"}, True),
+        ({"docStatus": "preliminary"}, False),
+        ({"docStatus": "entered-in-error"}, False),
+        ({"docStatus": "final"}, True),
+        ({"docStatus": "amended"}, True),
+        ({}, True),  # without any docStatus, we still run NLP on it ("status" is required and can't be skipped)
+    )
+    @ddt.unpack
+    async def test_bad_doc_status_is_skipped_for_covid_symptoms(self, status: dict, should_process: bool):
+        """Verify we ignore certain docStatus codes for the covid symptoms NLP"""
+        docref = i2b2_mock_data.documentreference()
+        docref.update(status)
+        self.make_json("DocumentReference.0", "doc", **docref)
+
+        await tasks.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
+        self.assertEqual(1 if should_process else 0, self.format.write_records.call_count)
+
     def test_unknown_task(self):
         with self.assertRaises(SystemExit) as cm:
             tasks.EtlTask.get_selected_tasks(names=["blarg"])
