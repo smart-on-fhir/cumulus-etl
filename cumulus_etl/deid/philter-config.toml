@@ -1,0 +1,1904 @@
+# This file is a copy of:
+# https://github.com/SironaMedical/philter-lite/blob/e1f2d66/philter_lite/configs/philter_delta.toml
+# with the following changes:
+#
+# - Removed all DATE filters.
+#   This is because Cumulus in general finds accurate dates to be useful.
+#   For example, we don't remove dates in the MS anonymizer config, and we also want dates for
+#   non-ETL activities like chart review.
+
+[[filters]]
+title = "ucsf apex safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern apex"
+keyword = "ucsf_regex.ucsf_apex_safe"
+
+[[filters]]
+title = "ucsf MyChart safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern MyChart"
+keyword = "ucsf_regex.ucsf_MyChart_safe"
+
+[[filters]]
+title = "hospital safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern hospital"
+keyword = "safe.hospital_safe"
+
+[[filters]]
+title = "wheezes safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.wheezes_safe"
+
+[[filters]]
+title = "days safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern XX days"
+keyword = "safe.days_safe"
+
+[[filters]]
+title = "assessment and plan safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern XX days"
+keyword = "safe.assessment_&_plan_safe"
+
+[[filters]]
+title = "male safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern year old male"
+keyword = "safe.male_safe"
+
+[[filters]]
+title = "bp safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern bp"
+keyword = "safe.bp_safe"
+
+[[filters]]
+title = "units safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern unit"
+keyword = "safe.units_safe"
+
+[[filters]]
+title = "tablet safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern tablet"
+keyword = "safe.tablet_safe"
+
+[[filters]]
+title = "pain safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern pain"
+keyword = "safe.pain_safe"
+
+[[filters]]
+title = "able to safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern able to"
+keyword = "safe.able_to_safe"
+
+[[filters]]
+title = "attending safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern attending [ologist]"
+keyword = "safe.attending_safe"
+
+[[filters]]
+title = "active safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern active"
+keyword = "safe.active_safe"
+
+[[filters]]
+title = "at measurement safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern at measurement"
+keyword = "safe.at_measurement_safe"
+
+[[filters]]
+title = "age safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern age < 90"
+keyword = "safe.age_safe"
+
+[[filters]]
+title = "airway safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern airway"
+keyword = "safe.airway_safe"
+
+[[filters]]
+title = "alert safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern alert"
+keyword = "safe.alert_safe"
+
+[[filters]]
+title = "a1c safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern a1c"
+keyword = "safe.a1c_safe"
+
+[[filters]]
+title = "AM safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern AM"
+keyword = "safe.AM_safe"
+
+[[filters]]
+title = "arms safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern arms"
+keyword = "safe.arms_safe"
+
+[[filters]]
+title = "assessment safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern assessment"
+keyword = "safe.assessment_safe"
+
+[[filters]]
+title = "as safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern as well as"
+keyword = "safe.as_safe"
+
+[[filters]]
+title = "axis safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern axis"
+keyword = "safe.axis_safe"
+
+[[filters]]
+title = "baby safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern baby"
+keyword = "safe.baby_safe"
+
+[[filters]]
+title = "back safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern back"
+keyword = "safe.back_safe"
+
+[[filters]]
+title = "bal safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern BAL"
+keyword = "safe.bal_safe"
+
+[[filters]]
+title = "balance safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern balance"
+keyword = "safe.balance_safe"
+
+[[filters]]
+title = "barretts esophagus safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern barret's esophagus"
+keyword = "safe.barretts_esophagus_safe"
+
+[[filters]]
+title = "base safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern base"
+keyword = "safe.base_safe"
+
+[[filters]]
+title = "be safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern be xx"
+keyword = "safe.be_safe"
+
+[[filters]]
+title = "bee safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern bee sting etc"
+keyword = "safe.bee_safe"
+
+[[filters]]
+title = "beats safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern beats"
+keyword = "safe.beats_safe"
+
+[[filters]]
+title = "below safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern below"
+keyword = "safe.below_safe"
+
+[[filters]]
+title = "bile safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern bile duct"
+keyword = "safe.bile_safe"
+
+[[filters]]
+title = "birth safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern birth"
+keyword = "safe.birth_safe"
+
+[[filters]]
+title = "bruits safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.bruits_safe"
+
+[[filters]]
+title = "call safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern call"
+keyword = "safe.call_safe"
+
+[[filters]]
+title = "cancer safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern skin cancer"
+keyword = "safe.cancer_safe"
+
+[[filters]]
+title = "case safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern case"
+keyword = "safe.case_safe"
+
+[[filters]]
+title = "central safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern central"
+keyword = "safe.central_safe"
+
+[[filters]]
+title = "cava safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern vena cava"
+keyword = "safe.cava_safe"
+
+[[filters]]
+title = "cd safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern vena CD##"
+keyword = "safe.cd_safe"
+
+[[filters]]
+title = "cea safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.cea_safe"
+
+[[filters]]
+title = "chief safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern chief complaint"
+keyword = "safe.chief_safe"
+
+[[filters]]
+title = "child safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern your child"
+keyword = "safe.child_safe"
+
+[[filters]]
+title = "code safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern code"
+keyword = "safe.code_safe"
+
+[[filters]]
+title = "commonly safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern commonly"
+keyword = "safe.commonly_safe"
+
+[[filters]]
+title = "colon safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern colon"
+keyword = "safe.colon_safe"
+
+[[filters]]
+title = "CT safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.CT_safe"
+
+[[filters]]
+title = "contact safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern contact"
+keyword = "safe.contact_safe"
+
+[[filters]]
+title = "contractions safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.contractions_safe"
+
+[[filters]]
+title = "cord safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern cord"
+keyword = "safe.cord_safe"
+
+[[filters]]
+title = "crohn's diseases safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern crohn's disease"
+keyword = "safe.crohns_disease_safe"
+
+[[filters]]
+title = "day safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern day"
+keyword = "safe.day_safe"
+
+[[filters]]
+title = "decimal range safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern decimal-decimal"
+keyword = "safe.decimal_range_safe"
+
+[[filters]]
+title = "dial safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern dial"
+keyword = "safe.dial_safe"
+
+[[filters]]
+title = "disposition safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern disposition"
+keyword = "safe.disposition_safe"
+
+[[filters]]
+title = "distance safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern distance"
+keyword = "safe.distance_safe"
+
+[[filters]]
+title = "distensable safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern distensable"
+keyword = "safe.distensable_safe"
+
+[[filters]]
+title = "do safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern do not"
+keyword = "safe.do_safe"
+
+[[filters]]
+title = "doesn't safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern doesn't"
+keyword = "safe.doesnt_safe"
+
+[[filters]]
+title = "doppler safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern doppler flow, etc"
+keyword = "safe.doppler_safe"
+
+[[filters]]
+title = "down syndrome safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern down's syndrome"
+keyword = "safe.down_syndrome_safe"
+
+[[filters]]
+title = "drop safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern x drop"
+keyword = "safe.drop_safe"
+
+[[filters]]
+title = "due safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern due to"
+keyword = "safe.due_safe"
+
+[[filters]]
+title = "ED safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern ED"
+keyword = "safe.ED_safe"
+
+[[filters]]
+title = "edge safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern edge"
+keyword = "safe.edge_safe"
+
+[[filters]]
+title = "ems safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.ems_safe"
+
+[[filters]]
+title = "effort safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern effort normal"
+keyword = "safe.effort_safe"
+
+[[filters]]
+title = "est safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern level # est"
+keyword = "safe.est_safe"
+
+[[filters]]
+title = "ekg safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern EKG"
+keyword = "safe.ekg_safe"
+
+[[filters]]
+title = "fall safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern fall risk"
+keyword = "safe.fall_safe"
+
+[[filters]]
+title = "fax safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern fax:"
+keyword = "safe.fax_safe"
+
+[[filters]]
+title = "few safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern few"
+keyword = "safe.few_safe"
+
+[[filters]]
+title = "fiber safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern fiber"
+keyword = "safe.fiber_safe"
+
+[[filters]]
+title = "file safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern on file"
+keyword = "safe.file_safe"
+
+[[filters]]
+title = "floor safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern on the floor"
+keyword = "safe.floor_safe"
+
+[[filters]]
+title = "flexion/extension safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern on the flexion/extension ?/5"
+keyword = "safe.flexion_extension_safe"
+
+[[filters]]
+title = "found safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern found"
+keyword = "safe.found_safe"
+
+[[filters]]
+title = "go safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern go"
+keyword = "safe.go_safe"
+
+[[filters]]
+title = "grade safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern grade"
+keyword = "safe.grade_safe"
+
+[[filters]]
+title = "gross safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern gross description"
+keyword = "safe.gross_safe"
+
+[[filters]]
+title = "index safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern mass index"
+keyword = "safe.index_safe"
+
+[[filters]]
+title = "measurement safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern grams, etc"
+keyword = "safe.measurement_safe"
+
+[[filters]]
+title = "medication safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.medication_safe"
+
+[[filters]]
+title = "hearing safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern hearing loss/aid"
+keyword = "safe.hearing_safe"
+
+[[filters]]
+title = "HENT safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern HENT:"
+keyword = "safe.HENT_safe"
+
+[[filters]]
+title = "hour safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern hour"
+keyword = "safe.hour_safe"
+
+[[filters]]
+title = "how safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern how"
+keyword = "safe.how_safe"
+
+[[filters]]
+title = "id safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.id_safe"
+
+[[filters]]
+title = "independence safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern level of independence"
+keyword = "safe.independence_safe"
+
+[[filters]]
+title = "intake safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern intake/output"
+keyword = "safe.intake_safe"
+
+[[filters]]
+title = "key safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern key part"
+keyword = "safe.key_safe"
+
+[[filters]]
+title = "knee safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern left/right knee"
+keyword = "safe.knee_safe"
+
+[[filters]]
+title = "last safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern last # encounters"
+keyword = "safe.last_safe"
+
+[[filters]]
+title = "lb safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern x lb"
+keyword = "safe.lb_safe"
+
+[[filters]]
+title = "lab safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern lab results"
+keyword = "safe.lab_safe"
+
+[[filters]]
+title = "learn safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern learn"
+keyword = "safe.learn_safe"
+
+[[filters]]
+title = "loop safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern flow-volume loop"
+keyword = "safe.loop_safe"
+
+[[filters]]
+title = "max safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern max x"
+keyword = "safe.max_safe"
+
+[[filters]]
+title = "mac safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern mac mg"
+keyword = "safe.mac_safe"
+
+[[filters]]
+title = "may safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.may_safe"
+
+[[filters]]
+title = "medical safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern medical"
+keyword = "safe.medical_safe"
+
+[[filters]]
+title = "md safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern M.D."
+keyword = "safe.md_safe"
+
+[[filters]]
+title = "mono safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.mono_safe"
+
+[[filters]]
+title = "micro safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern micro source"
+keyword = "safe.micro_safe"
+
+[[filters]]
+title = "morning safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern morning"
+keyword = "safe.morning_safe"
+
+[[filters]]
+title = "mri safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern brain mri"
+keyword = "safe.mri_safe"
+
+[[filters]]
+title = "na safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern na x"
+keyword = "safe.na_safe"
+
+[[filters]]
+title = "night safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern night"
+keyword = "safe.night_safe"
+
+[[filters]]
+title = "non safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern non-x"
+keyword = "safe.non_safe"
+
+[[filters]]
+title = "not safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern not"
+keyword = "safe.not_safe"
+
+[[filters]]
+title = "onset safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern age of onset"
+keyword = "safe.onset_safe"
+
+[[filters]]
+title = "other safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern other"
+keyword = "safe.other_safe"
+
+[[filters]]
+title = "pap safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern pap x"
+keyword = "safe.pap_safe"
+
+[[filters]]
+title = "parkinson safe"
+type = "regex"
+exclude = false
+notes = ""
+keyword = "safe.parkinson_safe"
+
+[[filters]]
+title = "pounds safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern x pounds"
+keyword = "safe.pounds_safe"
+
+[[filters]]
+title = "ROS safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern ROS:"
+keyword = "safe.ROS_safe"
+
+[[filters]]
+title = "scope safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern the scope"
+keyword = "safe.scope_safe"
+
+[[filters]]
+title = "sao2 safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern the sao2%"
+keyword = "safe.sao2_safe"
+
+[[filters]]
+title = "the safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern to the or of the"
+keyword = "safe.the_safe"
+
+[[filters]]
+title = "UTI safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern UTI"
+keyword = "safe.UTI_safe"
+
+[[filters]]
+title = "sci notation safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern in scientific notation"
+keyword = "safe.sci_notation_safe"
+
+[[filters]]
+title = "time range safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern in time range"
+keyword = "safe.time_range_safe"
+
+[[filters]]
+title = "young safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern young adult"
+keyword = "safe.young_safe"
+
+[[filters]]
+title = "oral safe"
+type = "regex"
+exclude = false
+notes = "This should remove anything with pattern oral"
+keyword = "safe.oral_safe"
+
+[[filters]]
+title = "ordering md safe"
+type = "regex"
+exclude = false
+note = ""
+keyword = "safe.ordering_md_safe"
+
+[[filters]]
+title = "order md safe"
+type = "regex"
+exclude = false
+note = ""
+keyword = "safe.order_md_safe"
+
+[[filters]]
+title = "peak safe"
+type = "regex"
+exclude = false
+note = ""
+keyword = "safe.prn_safe"
+
+[[filters]]
+title = "prn safe"
+type = "regex"
+exclude = false
+note = ""
+keyword = "safe.peak_safe"
+
+[[filters]]
+title = "reviewed by safe"
+type = "regex"
+exclude = false
+note = ""
+keyword = "safe.reviewed_by_safe"
+
+[[filters]]
+title = "smoking safe"
+type = "regex"
+exclude = false
+note = ""
+keyword = "safe.smoking_safe"
+
+[[filters]]
+title = "full street address"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a full street address (numbers and words)"
+keyword = "addresses.full_street_address"
+
+[[filters]]
+title = "full street address with concatenated street indicator"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "addresses.full_street_address_with_concatenated_indicator"
+
+[[filters]]
+title = "number streetname city"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "addresses.num_streetname_city"
+
+[[filters]]
+title = "hospital name 1"
+type = "regex"
+exclude = true
+notes = "This should remove anything the resembles a hospital name"
+keyword = "addresses.hospital1"
+
+[[filters]]
+title = "hospital name 2"
+type = "regex"
+exclude = true
+notes = "This should remove anything the resembles a hospital name"
+keyword = "addresses.hospital2"
+
+[[filters]]
+title = "number streetname noindicator suite"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street address with a floor number extension"
+keyword = "addresses.number_streetname_noindicator_suite"
+
+[[filters]]
+title = "number streetname city state"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "addresses.num_streetname_city_state"
+
+[[filters]]
+title = "number streetname extension?"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street address (with a possible extension)"
+keyword = "addresses.num_streetname_extension"
+
+[[filters]]
+title = "number streetname san"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like the beginning of a street address followed by san (like san francsico)"
+keyword = "addresses.num_streetname_san"
+
+[[filters]]
+title = "number streetname"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like the begiing of a street address"
+keyword = "addresses.num_streetname"
+
+[[filters]]
+title = "corner of street & street"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street corner"
+keyword = "addresses.corner_of_street_&_street"
+
+[[filters]]
+title = "street and street"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street corner"
+keyword = "addresses.street_and_street"
+
+[[filters]]
+title = "at street number dash street"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street corner"
+keyword = "addresses.at_street_number_dash_street"
+
+[[filters]]
+title = "at dash street"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street corner"
+keyword = "addresses.at_street_dash_street"
+
+[[filters]]
+title = "short street name"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "addresses.short_street_name"
+
+[[filters]]
+title = "streetname floor number"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a street address with a suite number extension"
+keyword = "addresses.streetname_floor_number"
+
+[[filters]]
+title = "city state zip"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a partial street address (city, state, zip"
+keyword = "addresses.city_state_zip"
+
+[[filters]]
+title = "city zip"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has a city name, followed by a zip code"
+keyword = "addresses.city_zip"
+
+[[filters]]
+title = "lives in"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches pattern lives in/on"
+keyword = "addresses.lives_in"
+
+[[filters]]
+title = "city state"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has a city name, followed by a state name/abbrev"
+keyword = "addresses.city_state"
+
+[[filters]]
+title = "county name"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "addresses.county_name"
+
+[[filters]]
+title = "in city"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has a city name"
+keyword = "addresses.in_city"
+
+[[filters]]
+title = "city"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches pattern [name] [city]"
+keyword = "addresses.city"
+
+[[filters]]
+title = "hospitalized at"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'hospitalized at' followed by a proper noun"
+keyword = "organizations.hospitalized_at_15chars"
+
+[[filters]]
+title = "admission from"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'admission from' followed by a proper noun"
+keyword = "organizations.admission_from_14chars"
+
+[[filters]]
+title = "admitted from"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'admitted from' followed by a proper noun"
+keyword = "organizations.admitted_from_hospital_13chars"
+
+[[filters]]
+title = "admission to"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'admission to' followed by a proper noun"
+keyword = "organizations.admission_to_hospital_12chars"
+
+[[filters]]
+title = "admitted to 1"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'admitted to' followed by a proper noun"
+keyword = "organizations.admitted_to_hospital_11chars"
+
+[[filters]]
+title = "brought to"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'brought to' followed by a proper noun"
+keyword = "organizations.brought_to_hospital_10chars"
+
+[[filters]]
+title = "taken to"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'taken to' followed by a proper noun"
+keyword = "organizations.taken_to_hospital_8chars"
+
+[[filters]]
+title = "admitted to 2"
+type = "regex"
+exclude = true
+notes = "This should remove anything with 'admitted to' followed by a proper noun"
+keyword = "organizations.admitted_to_hospital_7chars"
+
+[[filters]]
+title = "box room"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern box # followed by room #"
+keyword = "addresses.box_room"
+
+[[filters]]
+title = "room box"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern room # followed by box #"
+keyword = "addresses.room_box"
+
+[[filters]]
+title = "floor box"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern floor # followed by box #"
+keyword = "addresses.floor_box"
+
+[[filters]]
+title = "desk #"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern desk #"
+keyword = "addresses.desk_#"
+
+[[filters]]
+title = "pharmacy #"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern pharmacy #"
+keyword = "addresses.pharmacy_#"
+
+[[filters]]
+title = "at location"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern at X"
+keyword = "addresses.at_address_noindicator"
+
+[[filters]]
+title = "number cardinal direction"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "addresses.number_cardinal_direction"
+
+[[filters]]
+title = "waiting room"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern waiting room"
+keyword = "addresses.waiting_room"
+
+[[filters]]
+title = "to state"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern to [state name]"
+keyword = "addresses.to_state"
+
+[[filters]]
+title = "state indicator"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern to [state name]"
+keyword = "addresses.state_indicator"
+
+[[filters]]
+title = "on streetname"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has pattern on [street name]"
+keyword = "addresses.streetname_only"
+
+[[filters]]
+title = "box"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has a box number"
+keyword = "addresses.box"
+
+[[filters]]
+title = "room"
+type = "regex"
+exclude = true
+notes = "This should remove anything that has a room number"
+keyword = "addresses.room_#"
+
+[[filters]]
+title = "model number"
+type = "regex"
+exclude = true
+notes = "This should remove anything with pattern model number"
+keyword = "mrn_id.model_number"
+
+[[filters]]
+title = "lot #"
+type = "regex"
+exclude = true
+notes = "This should remove anything with pattern lot #"
+keyword = "mrn_id.lot_#"
+
+[[filters]]
+title = "id verbose"
+type = "regex"
+exclude = true
+notes = "This should remove anything with pattern ID: XXXXX"
+keyword = "mrn_id.id_verbose"
+
+[[filters]]
+title = "activation code"
+type = "regex"
+exclude = true
+notes = "This should remove anything with pattern activation code: XXXXX-XXXX-XXXXX"
+keyword = "mrn_id.activation_code"
+
+[[filters]]
+title = "six or more digits"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches any number with 6 or more digits (15 limit is arbitrary)"
+keyword = "mrn_id.DDDDDD+"
+
+[[filters]]
+title = "order number"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches order number ..."
+keyword = "mrn_id.order_number"
+
+[[filters]]
+title = "specimen number"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches specimen number ..."
+keyword = "mrn_id.specimen_#"
+
+[[filters]]
+title = "cassette_#"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches cassette_# ..."
+keyword = "mrn_id.cassette_#"
+
+[[filters]]
+title = "# reviewed by"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches # reviewed by ..."
+keyword = "mrn_id.#_reviewed_by"
+
+[[filters]]
+title = "account #"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches account #"
+keyword = "mrn_id.account_#"
+
+[[filters]]
+title = "accession #"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches accession #"
+keyword = "mrn_id.accession_#"
+
+[[filters]]
+title = "tape number"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches tape number"
+keyword = "mrn_id.tape_number"
+
+[[filters]]
+title = "CCC-DD-DDDDD"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "mrn_id.CCC-DD-DDDDD"
+
+[[filters]]
+title = "CCDDDD-D-CC"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches CCDDDD-D-CC"
+keyword = "mrn_id.CCDDDD-D-CC"
+
+[[filters]]
+title = "DDCCCDDD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches DDCCCDDD"
+keyword = "mrn_id.DDCCCDDD"
+
+[[filters]]
+title = "CCDDD_DDD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches NNDDD(anything)DDDD"
+keyword = "mrn_id.CCDDD_DDD"
+
+[[filters]]
+title = "DDDD_DDDD-DD"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "mrn_id.DDDD_DDDD-DD"
+
+[[filters]]
+title = "DDDD_DDD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches DDDD-DDD"
+keyword = "mrn_id.DDDD_DDD"
+
+[[filters]]
+title = "CDD_DDDD+"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches NCDD_DDDD+"
+keyword = "mrn_id.CDD_DDDD+"
+
+[[filters]]
+title = "mixed 2"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches NND"
+keyword = "mrn_id.mixed002"
+
+[[filters]]
+title = "mixed 3"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches DDDDNNN"
+keyword = "mrn_id.mixed003"
+
+[[filters]]
+title = "mixed 4"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches DDDN+"
+keyword = "mrn_id.mixed004"
+
+[[filters]]
+title = "mixed 5"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches CDC"
+keyword = "mrn_id.mixed005"
+
+[[filters]]
+title = "mixed 6"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches CDDDC"
+keyword = "mrn_id.mixed006"
+
+[[filters]]
+title = "mixed 7"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches a weird string of numbers/letters connected by colons etc"
+keyword = "mrn_id.mixed007"
+
+[[filters]]
+title = "mixed 8"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches a (longer) weird string of numbers/letters connected by colons etc"
+keyword = "mrn_id.mixed008"
+
+[[filters]]
+title = "mixed 10"
+type = "regex"
+exclude = true
+notes = "This should remove anything with weird number/letter mashups"
+keyword = "mrn_id.mixed_010"
+
+[[filters]]
+title = "CCCDDD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches CCCDDD"
+keyword = "mrn_id.CCCDDD"
+
+[[filters]]
+title = "visit code"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "mrn_id.visit_code"
+
+[[filters]]
+title = "DDDDCDDDDD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches DDDDCDDDDD"
+keyword = "mrn_id.DDDDCDDDDD"
+
+[[filters]]
+title = "DDD-DD-DD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches any number with pattern DDD-DD-DD"
+keyword = "mrn_id.DDD-DD-DD"
+
+[[filters]]
+title = "DD-DD-DD-DD"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches any numbers separated by 3 dashes"
+keyword = "mrn_id.DD-DD-DD-DD"
+
+[[filters]]
+title = "DD-DDDDDC"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches any number with DD-DDDDDC"
+keyword = "mrn_id.DD-DDDDDC"
+
+[[filters]]
+title = "DD-CDD-DDDD"
+type = "regex"
+exclude = true
+notes = ""
+keyword = "mrn_id.DD-CDD-DDDD"
+
+[[filters]]
+title = "****DC"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches any blocked MRN number with last digits"
+keyword = "mrn_id.blocked_DC"
+
+[[filters]]
+title = "model and serial numbers"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches a model or serial number pattern"
+keyword = "mrn_id.model_and_serial"
+
+[[filters]]
+title = "ssn only"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches XXX-XX-XXXX"
+keyword = "mrn_id.ssn"
+
+[[filters]]
+title = "file indicator"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches XXX-XX-XXXX"
+keyword = "mrn_id.file_indicator"
+
+[[filters]]
+title = "url"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like a url"
+keyword = "contact.url"
+
+[[filters]]
+title = "call #"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches call #: etc."
+keyword = "contact.call_#"
+
+[[filters]]
+title = "emails"
+type = "regex"
+exclude = true
+notes = "This should remove anything that looks like an email"
+keyword = "contact.email"
+
+[[filters]]
+title = "xxx_xxx_xxxx"
+type = "regex"
+exclude = true
+notes = "This should remove anything that xxx.xxx.xxxx"
+keyword = "contact.xxx_xxx_xxxx"
+
+[[filters]]
+title = "xxx_xxx_CCCC"
+type = "regex"
+exclude = true
+notes = "This should remove anything that xxx.xxx.CCCC+"
+keyword = "contact.xxx_xxx_CCCC"
+
+[[filters]]
+title = "5 digit pager"
+type = "regex"
+exclude = true
+notes = "This should remove anything that matches a pager number"
+keyword = "contact.pager"
+
+[[filters]]
+title = "lived to x"
+type = "regex"
+exclude = true
+note = ""
+keyword = "age.lived_to_x"
+
+[[filters]]
+title = "x years old"
+type = "regex"
+exclude = true
+note = ""
+keyword = "age.x_years_old"
+
+[[filters]]
+title = "x year old"
+type = "regex"
+exclude = true
+note = ""
+keyword = "age.x_year_old"
+
+[[filters]]
+title = "age x"
+type = "regex"
+exclude = true
+note = ""
+keyword = "age.age_x"
+
+[[filters]]
+title = "x yo"
+type = "regex"
+exclude = true
+note = ""
+keyword = "age.x_yo"
+
+[[filters]]
+title = "confirmed by name"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.confirmed_by_name"
+
+[[filters]]
+title = "editor name"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.editor_name"
+
+[[filters]]
+title = "code status name"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.code_status_name"
+
+[[filters]]
+title = "attending"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.attending"
+
+[[filters]]
+title = "u_#_patient"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.u_#_patient"
+
+[[filters]]
+title = "patient mrn"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.patient_mrn"
+
+[[filters]]
+title = "name_age"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.name_age"
+
+[[filters]]
+title = "patient/provider"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.patient_provider"
+
+[[filters]]
+title = "patient summary"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.patient_summary"
+
+[[filters]]
+title = "wrote"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.wrote"
+
+[[filters]]
+title = "salutations1"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.pre_salutations_2chars"
+
+[[filters]]
+title = "salutations2"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.pre_salutations_3chars"
+
+[[filters]]
+title = "salutations3"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.pre_salutations_4chars"
+
+[[filters]]
+title = "salutations4"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.pre_salutations_5chars"
+
+[[filters]]
+title = "Md PhD"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.md_phd"
+
+[[filters]]
+title = "salutations5"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.post_salutations_2chars"
+
+[[filters]]
+title = "salutations6"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.post_salutations_3chars"
+
+[[filters]]
+title = "salutations7"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.post_salutations_4chars"
+
+[[filters]]
+title = "names patterns"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.name_patterns"
+
+[[filters]]
+title = "ordering md"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.ordering_md"
+
+[[filters]]
+title = "name indicator"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.name_indicator"
+
+[[filters]]
+title = "relative indicator"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.relative_indicator"
+
+[[filters]]
+title = "dr ambiguous"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.dr_ambiguous"
+
+[[filters]]
+title = "dash doctor"
+type = "regex"
+exclude = true
+note = "________doctor name"
+keyword = "salutations.dash_doctor"
+
+[[filters]]
+title = "patient present"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.patient_present"
+
+[[filters]]
+title = "patient measurements"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.patient_measurements"
+
+[[filters]]
+title = "patholigist"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.pathologist"
+
+[[filters]]
+title = "email header"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.email_header"
+
+[[filters]]
+title = "by doctor number"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.by_doctor_number"
+
+[[filters]]
+title = "sent note to"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.sent_note_to"
+
+[[filters]]
+title = "sincerely"
+type = "regex"
+exclude = true
+note = ""
+keyword = "salutations.sincerely"
+
+[[filters]]
+title = "ucsf SF"
+type = "regex"
+exclude = true
+note = ""
+keyword = "ucsf_regex.ucsf_sf"
+
+[[filters]]
+title = "ucsf bay area"
+type = "regex"
+exclude = true
+note = ""
+keyword = "ucsf_regex.ucsf_bay_area"
+
+[[filters]]
+title = "ucsf neighborhoods"
+type = "regex"
+exclude = true
+note = ""
+keyword = "ucsf_regex.ucsf_neighborhoods"
+
+[[filters]]
+title = "Firstnames Blacklist"
+type = "set"
+exclude = true
+pos = [ "NNP",]
+notes = "These are words we believe are not safe"
+keyword = "firstnames"
+
+[[filters]]
+title = "Lastnames Blacklist"
+type = "set"
+exclude = true
+pos = [ "NNP",]
+notes = "These are words we believe are not safe"
+keyword = "lastnames"
+
+[[filters]]
+title = "Find Names 1"
+type = "regex_context"
+exclude = true
+context = "right"
+context_filter = "Firstnames Blacklist"
+notes = ""
+keyword = "regex_context.names_regex_context1"
+
+[[filters]]
+title = "Find Names 2"
+type = "regex_context"
+exclude = true
+context = "left"
+context_filter = "Firstnames Blacklist"
+notes = ""
+keyword = "regex_context.names_regex_context2"
+
+[[filters]]
+title = "Find Names 3"
+type = "regex_context"
+exclude = true
+context = "left"
+context_filter = "Firstnames Blacklist"
+notes = ""
+keyword = "regex_context.names_regex_context3"
+
+[[filters]]
+title = "Find Names 4"
+type = "regex_context"
+exclude = true
+context = "left"
+context_filter = "Firstnames Blacklist"
+notes = ""
+keyword = "regex_context.names_regex_context4"
+
+[[filters]]
+title = "Whitelist 1"
+type = "set"
+exclude = false
+pos = []
+notes = "These are words we beleive are safe"
+keyword = "nonames"
+
+[[filters]]
+title = "POS MATCHER"
+type = "pos_matcher"
+exclude = false
+pos = [ "CD",]
+notes = "This will include any CDs that aren't included in earlier steps"
+
+[[filters]]
+title = "Find Initials"
+type = "regex_context"
+exclude = true
+context = "left_or_right"
+context_filter = "all"
+notes = ""
+keyword = "regex_context.initials"

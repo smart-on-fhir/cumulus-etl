@@ -19,7 +19,7 @@ class Philter:
         nltk.download("averaged_perceptron_tagger", quiet=True)
 
         # philter-lite does not seem to have any easy way to reference this default config...?
-        filter_config = os.path.join(os.path.dirname(philter_lite.__file__), "configs", "philter_delta.toml")
+        filter_config = os.path.join(os.path.dirname(__file__), "philter-config.toml")
         self.filters = philter_lite.load_filters(filter_config)
 
     def scrub_text(self, text: str) -> str:
