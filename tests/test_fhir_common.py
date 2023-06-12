@@ -1,4 +1,5 @@
 """Tests for fhir_common.py"""
+import base64
 
 import ddt
 
@@ -40,3 +41,27 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     @ddt.unpack
     def test_ref_resource(self, resource_type, resource_id, expected):
         self.assertEqual({"reference": expected}, fhir_common.ref_resource(resource_type, resource_id))
+
+    @ddt.data(
+        ("text/html", "<html><body>He<b>llooooo</b></html>", "Hellooooo"),  # strips html
+        (  # strips xhtml
+            "application/xhtml+xml",
+            '<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml"><html><body>x<b>html!</b></html>',
+            "xhtml!",
+        ),
+        ("text/plain", "What¿up", "What up"),  # strips ¿
+    )
+    @ddt.unpack
+    async def test_docref_note_conversions(self, mimetype, incoming_note, expected_note):
+        docref = {
+            "content": [
+                {
+                    "attachment": {
+                        "contentType": mimetype,
+                        "data": base64.standard_b64encode(incoming_note.encode("utf8")).decode("ascii"),
+                    },
+                },
+            ],
+        }
+        resulting_note = await fhir_common.get_docref_note(None, docref)
+        self.assertEqual(resulting_note, expected_note)

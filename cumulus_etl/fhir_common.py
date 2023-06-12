@@ -3,7 +3,9 @@
 import base64
 import cgi
 import re
-from typing import Optional, Tuple
+from typing import Optional
+
+import inscriptis
 
 from cumulus_etl import fhir_client
 
@@ -92,7 +94,7 @@ def _mimetype_priority(mimetype: str) -> int:
     """
     if mimetype == "text/plain":
         return 3
-    elif mimetype.startswith("text/"):
+    elif mimetype == "text/html":
         return 2
     elif mimetype == "application/xhtml+xml":
         return 1
@@ -127,7 +129,7 @@ async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attac
     raise ValueError("No data or url field present")
 
 
-async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> Tuple[str, str]:
+async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> str:
     attachments = [content["attachment"] for content in docref["content"]]
 
     # Find the best attachment to use, based on mimetype.
@@ -154,8 +156,17 @@ async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> Tuple
 
     note = await _get_docref_note_from_attachment(client, attachments[best_attachment_index])
 
+    if best_attachment_mimetype in ("text/html", "application/xhtml+xml"):
+        # An HTML note can confuse/stall cTAKES and also makes philtering difficult.
+        # It may include mountains of spans/styling or inline base64 images that aren't relevant to our interests.
+        # Chart Review and ETL modes thus both prefer to work with plain text.
+        #
+        # Inscriptis makes a very readable version of the note, with a focus on maintaining the HTML layout,
+        # which is especially helpful for chart-review (and maybe also helps NLP by avoiding odd line breaks).
+        note = inscriptis.get_text(note)
+
     # Strip this "line feed" character that often shows up in notes and is confusing for NLP.
     # Hopefully not many notes are using actual Spanish.
     note = note and note.replace("¿", " ")
 
-    return note, best_attachment_mimetype
+    return note

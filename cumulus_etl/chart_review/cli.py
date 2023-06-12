@@ -6,7 +6,6 @@ import sys
 from typing import Collection, List
 
 import ctakesclient
-import html2text
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir_client, fhir_common, loaders, nlp, store
@@ -57,18 +56,10 @@ async def read_notes_from_ndjson(client: fhir_client.FhirClient, dirname: str) -
     for docref in common.read_resource_ndjson(store.Root(dirname), "DocumentReference"):
         docref_ids.append(docref["id"])
         coroutines.append(fhir_common.get_docref_note(client, docref))
-    text_and_mimetypes = await asyncio.gather(*coroutines)
+    note_texts = await asyncio.gather(*coroutines)
 
     notes = []
-    for i, (text, mimetype) in enumerate(text_and_mimetypes):
-        # If the document is HTML, we should convert it to text first.
-        # Label Studio has an HTML mode, but since we usually want to run philter on the text too, the HTML would
-        # be ruined by philter. So just convert everything to a textual representation first.
-        if mimetype in {"text/html", "application/xhtml+xml"}:
-            # In my testing, other converters (native html.parser, beautifulsoup) did not do formatting like a human
-            # would want; newlines weren't in the right places, etc. I've found html2text to be the most user-friendly
-            # (and is a one-liner) -- but if another converter is found to be nicer, feel free to switch this out.
-            text = html2text.html2text(text)
+    for i, text in enumerate(note_texts):
         notes.append(LabelStudioNote(docref_ids[i], text))
 
     return notes
