@@ -5,7 +5,7 @@ import itertools
 import logging
 import os
 import urllib.parse
-from typing import Container, Iterable, List, Optional
+from collections.abc import Container, Iterable
 
 from cumulus_etl import cli_utils, common, deid, fhir_client, loaders, store
 
@@ -93,7 +93,7 @@ def _write_docrefs_to_output_folder(docrefs: Iterable[dict], output_folder: str)
 
 async def _request_docrefs_for_patient(
     client: fhir_client.FhirClient, patient_id: str, codebook: deid.Codebook, fake_docref_ids: Container[str]
-) -> List[dict]:
+) -> list[dict]:
     """Returns all DocumentReferences for a given patient"""
     params = {
         "patient": patient_id,
@@ -115,7 +115,7 @@ async def _request_docrefs_for_patient(
     return docrefs
 
 
-async def _request_docref(client: fhir_client.FhirClient, docref_id: str) -> Optional[dict]:
+async def _request_docref(client: fhir_client.FhirClient, docref_id: str) -> dict | None:
     """Returns one DocumentReference for a given ID"""
     print(f"  Downloading docref {docref_id}.")
     try:

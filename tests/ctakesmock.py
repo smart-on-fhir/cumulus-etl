@@ -9,7 +9,6 @@ import socketserver
 import tempfile
 import unittest
 from functools import partial
-from typing import List, Optional
 from unittest import mock
 
 from ctakesclient import typesystem
@@ -67,7 +66,7 @@ class CtakesMixin(unittest.TestCase):
         has_started.wait()  # make sure we don't proceed with test until the server we started is ready
 
 
-def _get_mtime(path) -> Optional[float]:
+def _get_mtime(path) -> float | None:
     """Gets mtime of a filename"""
     try:
         return os.stat(path).st_mtime
@@ -234,7 +233,7 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
     return typesystem.CtakesJSON(response)
 
 
-async def fake_transformer_list_polarity(sentence: str, spans: List[tuple], client=None) -> List[typesystem.Polarity]:
+async def fake_transformer_list_polarity(sentence: str, spans: list[tuple], client=None) -> list[typesystem.Polarity]:
     """Simple always-positive fake response from cNLP."""
     del sentence, client
     return [typesystem.Polarity.pos] * len(spans)

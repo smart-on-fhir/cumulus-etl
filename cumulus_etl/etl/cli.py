@@ -8,7 +8,7 @@ import os
 import shutil
 import sys
 import tempfile
-from typing import Iterable, List, Type
+from collections.abc import Iterable
 
 import rich
 import rich.table
@@ -41,8 +41,8 @@ async def load_and_deidentify(loader: loaders.Loader, resources: Iterable[str]) 
 
 
 async def etl_job(
-    config: JobConfig, selected_tasks: List[Type[tasks.EtlTask]], use_philter: bool = False
-) -> List[JobSummary]:
+    config: JobConfig, selected_tasks: list[type[tasks.EtlTask]], use_philter: bool = False
+) -> list[JobSummary]:
     """
     :param config: job config
     :param selected_tasks: the tasks to run
@@ -279,7 +279,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         raise SystemExit(errors.TASK_FAILED)
 
 
-async def run_etl(parser: argparse.ArgumentParser, argv: List[str]) -> None:
+async def run_etl(parser: argparse.ArgumentParser, argv: list[str]) -> None:
     """Parses an etl CLI"""
     define_etl_parser(parser)
     args = parser.parse_args(argv)

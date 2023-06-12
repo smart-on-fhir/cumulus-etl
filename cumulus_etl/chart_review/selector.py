@@ -2,7 +2,7 @@
 
 import functools
 import os
-from typing import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 
 from cumulus_etl import cli_utils, common, deid, loaders, store
 

@@ -3,7 +3,6 @@
 import base64
 import cgi
 import re
-from typing import Optional
 
 import inscriptis
 
@@ -20,7 +19,7 @@ RELATIVE_SEPARATOR_REGEX = re.compile("[/?]")
 ###############################################################################
 
 
-def ref_resource(resource_type: Optional[str], resource_id: str) -> dict:
+def ref_resource(resource_type: str | None, resource_id: str) -> dict:
     """
     Reference the FHIR proper way
     :param resource_type: Name of resource, like "Patient"
@@ -32,7 +31,7 @@ def ref_resource(resource_type: Optional[str], resource_id: str) -> dict:
     return {"reference": f"{resource_type}/{resource_id}" if resource_type else resource_id}
 
 
-def unref_resource(ref: dict) -> (Optional[str], str):
+def unref_resource(ref: dict) -> (str | None, str):
     """
     Returns the type & ID for the target of the reference
 

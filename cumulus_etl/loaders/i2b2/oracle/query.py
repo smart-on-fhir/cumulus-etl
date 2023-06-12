@@ -1,7 +1,5 @@
 """Actual queries to oracle"""
 
-from typing import List
-
 from cumulus_etl.loaders.i2b2.schema import Table, ValueType
 
 
@@ -83,7 +81,7 @@ def sql_concept() -> str:
 ###############################################################################
 
 
-def sql_observation_fact(categories: List[str]) -> str:
+def sql_observation_fact(categories: list[str]) -> str:
     """
     :param categories: the types of fact (or "concept cd" in the database's term)
     :return: SQL for ObservationFact

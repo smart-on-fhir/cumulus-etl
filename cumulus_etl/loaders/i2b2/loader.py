@@ -1,8 +1,9 @@
 """I2B2 loader"""
 
 import os
+from collections.abc import Callable, Iterable
 from functools import partial
-from typing import Callable, Iterable, List, TypeVar
+from typing import TypeVar
 
 from cumulus_etl import cli_utils, common, store
 from cumulus_etl.loaders.base import Directory, Loader
@@ -33,7 +34,7 @@ class I2b2Loader(Loader):
         self.batch_size = batch_size
         self.export_to = export_to
 
-    async def load_all(self, resources: List[str]) -> Directory:
+    async def load_all(self, resources: list[str]) -> Directory:
         if self.root.protocol in ["tcp"]:
             return self._load_all_from_oracle(resources)
 
@@ -41,7 +42,7 @@ class I2b2Loader(Loader):
 
     def _load_all_with_extractors(
         self,
-        resources: List[str],
+        resources: list[str],
         conditions: I2b2ExtractorCallable,
         lab_views: I2b2ExtractorCallable,
         medicationrequests: I2b2ExtractorCallable,
@@ -127,7 +128,7 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_csv(self, resources: List[str]) -> Directory:
+    def _load_all_from_csv(self, resources: list[str]) -> Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
@@ -166,7 +167,7 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_oracle(self, resources: List[str]) -> Directory:
+    def _load_all_from_oracle(self, resources: list[str]) -> Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,

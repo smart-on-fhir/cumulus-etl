@@ -1,7 +1,6 @@
 """Helper code for asking cTAKES & cNLP to process docrefs for covid symptoms"""
 
 import logging
-from typing import List, Optional
 
 import ctakesclient
 import httpx
@@ -15,7 +14,7 @@ async def covid_symptoms_extract(
     docref: dict,
     ctakes_http_client: httpx.AsyncClient = None,
     cnlp_http_client: httpx.AsyncClient = None,
-) -> Optional[List[dict]]:
+) -> list[dict] | None:
     """
     Extract a list of Observations from NLP-detected symptoms in clinical notes
 

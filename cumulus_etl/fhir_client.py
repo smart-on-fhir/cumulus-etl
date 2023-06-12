@@ -8,7 +8,7 @@ import time
 import urllib.parse
 import uuid
 from json import JSONDecodeError
-from typing import Iterable, Optional
+from collections.abc import Iterable
 
 import httpx
 from jwcrypto import jwk, jwt
@@ -214,7 +214,7 @@ class FhirClient:
 
     def __init__(
         self,
-        url: Optional[str],
+        url: str | None,
         resources: Iterable[str],
         basic_user: str = None,
         basic_password: str = None,
@@ -237,7 +237,7 @@ class FhirClient:
         if self._server_root and not self._server_root.endswith("/"):
             self._server_root += "/"  # This will ensure the last segment does not get chopped off by urljoin
         self._auth = self._make_auth(resources, basic_user, basic_password, bearer_token, smart_client_id, smart_jwks)
-        self._session: Optional[httpx.AsyncClient] = None
+        self._session: httpx.AsyncClient | None = None
 
     async def __aenter__(self):
         # Limit the number of connections open at once, because EHRs tend to be very busy.

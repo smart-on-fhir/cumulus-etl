@@ -1,6 +1,6 @@
 """LabelStudio document annotation"""
 
-from typing import Collection, Dict, Iterable, List, Tuple
+from collections.abc import Collection, Iterable
 
 import ctakesclient.typesystem
 import label_studio_sdk
@@ -21,13 +21,13 @@ class LabelStudioNote:
     def __init__(self, ref_id: str, text: str):
         self.ref_id = ref_id
         self.text = text
-        self.matches: List[ctakesclient.typesystem.MatchText] = []
+        self.matches: list[ctakesclient.typesystem.MatchText] = []
 
 
 class LabelStudioClient:
     """Client to talk to Label Studio"""
 
-    def __init__(self, url: str, api_key: str, project_id: int, cui_labels: Dict[str, str]):
+    def __init__(self, url: str, api_key: str, project_id: int, cui_labels: dict[str, str]):
         self._client = label_studio_sdk.Client(url, api_key)
         self._client.check_connection()
         self._project = self._client.get_project(project_id)
@@ -60,7 +60,7 @@ class LabelStudioClient:
             if new_task_count:
                 print(f"  Imported {new_task_count} new tasks")
 
-    def _get_labels_config(self) -> Tuple[str, dict]:
+    def _get_labels_config(self) -> tuple[str, dict]:
         """Finds the first <Labels> tag in the config and returns its name and values, falling back to <Choices>"""
         for k, v in self._project.parsed_label_config.items():
             if v.get("type") == "Labels":

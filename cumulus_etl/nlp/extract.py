@@ -2,7 +2,6 @@
 
 import hashlib
 import os
-from typing import List
 
 import ctakesclient
 import httpx
@@ -41,9 +40,9 @@ async def list_polarity(
     cache: store.Root,
     namespace: str,
     sentence: str,
-    spans: List[tuple],
+    spans: list[tuple],
     client: httpx.AsyncClient = None,
-) -> List[ctakesclient.typesystem.Polarity]:
+) -> list[ctakesclient.typesystem.Polarity]:
     """
     This is a version of ctakesclient.transformer.list_polarity() that also uses a cache
 

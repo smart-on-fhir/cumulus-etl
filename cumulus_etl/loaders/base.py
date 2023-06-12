@@ -1,7 +1,7 @@
 """Base abstract loader"""
 
 import abc
-from typing import List, Protocol
+from typing import Protocol
 
 from cumulus_etl.store import Root
 
@@ -36,7 +36,7 @@ class Loader(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    async def load_all(self, resources: List[str]) -> Directory:
+    async def load_all(self, resources: list[str]) -> Directory:
         """
         Loads the listed remote resources and places them into a local folder as FHIR ndjson
 

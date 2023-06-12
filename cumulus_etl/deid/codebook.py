@@ -5,7 +5,7 @@ import hmac
 import logging
 import os
 import secrets
-from typing import Dict, Iterable, Iterator, Optional
+from collections.abc import Iterable, Iterator
 
 from cumulus_etl import common
 
@@ -28,7 +28,7 @@ class Codebook:
         except (FileNotFoundError, PermissionError):
             self.db = CodebookDB()
 
-    def fake_id(self, resource_type: Optional[str], real_id: str, caching_allowed: bool = True) -> str:
+    def fake_id(self, resource_type: str | None, real_id: str, caching_allowed: bool = True) -> str:
         """
         Returns a new fake ID in place of the provided real ID
 
@@ -58,7 +58,7 @@ class Codebook:
         else:
             return self.db.resource_hash(real_id)
 
-    def real_ids(self, resource_type: str, fake_ids: Iterable[str]) -> Iterator[Optional[str]]:
+    def real_ids(self, resource_type: str, fake_ids: Iterable[str]) -> Iterator[str]:
         """
         Reverse-maps a list of fake IDs into real IDs.
 
@@ -178,7 +178,7 @@ class CodebookDB:
 
         return fake_id
 
-    def get_reverse_mapping(self, resource_type: str) -> Dict[str, str]:
+    def get_reverse_mapping(self, resource_type: str) -> dict[str, str]:
         """
         Returns reversed cached mappings for a given resource.
 

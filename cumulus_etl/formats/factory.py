@@ -1,14 +1,12 @@
 """Create a Format instance"""
 
-from typing import Type
-
 from .base import Format
 from .deltalake import DeltaLakeFormat
 from .ndjson import NdjsonFormat
 from .parquet import ParquetFormat
 
 
-def get_format_class(name: str) -> Type[Format]:
+def get_format_class(name: str) -> type[Format]:
     """
     Returns a Format class of the named type for the target output path.
     """

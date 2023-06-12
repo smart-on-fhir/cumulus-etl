@@ -2,7 +2,6 @@
 
 import base64
 import logging
-from typing import Optional
 
 from cumulus_etl import fhir_common
 from cumulus_etl.loaders.i2b2 import external_mappings
@@ -288,7 +287,7 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> dict:
 ###############################################################################
 
 
-def chop_to_date(yyyy_mm_dd: Optional[str]) -> Optional[str]:
+def chop_to_date(yyyy_mm_dd: str | None) -> str | None:
     """
     To be less sensitive to how i2b2 datetimes are formatted, chop to just the day/date part.
 
@@ -344,7 +343,7 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
     return {"valueQuantity": quantity}
 
 
-def make_concept(code: str, system: Optional[str], display: str = None) -> dict:
+def make_concept(code: str, system: str | None, display: str = None) -> dict:
     """Syntactic sugar to make a codeable concept"""
     coding = {"code": code, "system": system}
     if display is not None:

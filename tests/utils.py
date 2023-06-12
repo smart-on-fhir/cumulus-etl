@@ -9,7 +9,6 @@ import json
 import os
 import time
 import unittest
-from typing import List
 from unittest import mock
 
 import freezegun
@@ -171,7 +170,7 @@ def make_response(status_code=200, json_payload=None, text=None, reason=None, he
     )
 
 
-def read_delta_lake(lake_path: str, *, version: int = None) -> List[dict]:
+def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
     """
     Reads in a delta lake folder at a certain time, sorted by id.
 

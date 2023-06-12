@@ -1,7 +1,7 @@
 """Read files into data structures"""
 
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 import pandas
 

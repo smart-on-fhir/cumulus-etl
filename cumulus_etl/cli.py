@@ -5,7 +5,6 @@ import asyncio
 import enum
 import logging
 import sys
-from typing import List, Optional
 
 from cumulus_etl import chart_review, etl
 from cumulus_etl.etl import convert
@@ -22,7 +21,7 @@ class Command(enum.Enum):
         return [e.value for e in cls]
 
 
-def get_subcommand(argv: List[str]) -> Optional[str]:
+def get_subcommand(argv: list[str]) -> str | None:
     """
     Determines which subcommand was requested by the given command line.
 
@@ -38,7 +37,7 @@ def get_subcommand(argv: List[str]) -> Optional[str]:
             return None  # first positional arg did not match a known command, assume default command
 
 
-async def main(argv: List[str]) -> None:
+async def main(argv: list[str]) -> None:
     logging.basicConfig(format="%(message)s")  # hide gross log prefix of "WARNING:root:" etc, just display message
 
     subcommand = get_subcommand(argv)

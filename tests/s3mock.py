@@ -7,7 +7,7 @@ See https://github.com/aio-libs/aiobotocore/issues/755
 
 import os
 import unittest
-from typing import Callable
+from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
 import aiobotocore.awsrequest

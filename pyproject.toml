@@ -1,6 +1,6 @@
 [project]
 name = "cumulus-etl"
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 # These dependencies are mostly pinned to be under the next major version.
 # That makes particular sense as long as we don't have official releases yet and our code is used
 # by pulling from main directly.

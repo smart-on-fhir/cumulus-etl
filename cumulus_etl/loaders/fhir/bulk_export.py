@@ -4,7 +4,6 @@ import asyncio
 import json
 import os
 import urllib.parse
-from typing import List
 
 import httpx
 
@@ -24,7 +23,7 @@ class BulkExporter:
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
 
     def __init__(
-        self, client: FhirClient, resources: List[str], url: str, destination: str, since: str = None, until: str = None
+        self, client: FhirClient, resources: list[str], url: str, destination: str, since: str = None, until: str = None
     ):
         """
         Initialize a bulk exporter (but does not start an export).
@@ -163,7 +162,7 @@ class BulkExporter:
 
         raise FatalError("Timed out waiting for the bulk FHIR export to finish.")
 
-    async def _gather_all_messages(self, errors: List[dict]) -> (List[str], List[str]):
+    async def _gather_all_messages(self, errors: list[dict]) -> (list[str], list[str]):
         """
         Downloads all outcome message ndjson files from the bulk export server.
 
@@ -192,7 +191,7 @@ class BulkExporter:
 
         return fatal_messages, info_messages
 
-    async def _download_all_ndjson_files(self, files: List[dict]) -> None:
+    async def _download_all_ndjson_files(self, files: list[dict]) -> None:
         """
         Downloads all exported ndjson files from the bulk export server.
 

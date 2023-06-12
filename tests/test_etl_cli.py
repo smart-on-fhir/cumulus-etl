@@ -5,7 +5,6 @@ import json
 import os
 import shutil
 import tempfile
-from typing import Optional
 from unittest import mock
 
 import pytest
@@ -49,7 +48,7 @@ class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
         input_path=None,
         output_path=None,
         phi_path=None,
-        output_format: Optional[str] = "ndjson",
+        output_format: str | None = "ndjson",
         comment=None,
         batch_size=None,
         tasks=None,
