@@ -9,12 +9,23 @@ nav_order: 20
 # Chart Review
 
 Cumulus ETL also offers a chart review mode,
-where it sends clinical notes to [Label Studio](https://labelstud.io/) for expert review.
+where it sends clinical notes to your own [Label Studio](https://labelstud.io/)
+instance for expert review.
 Along the way, it can mark the note with NLP results and/or anonymize the note with
 [philter](https://github.com/SironaMedical/philter-lite).
 
 This is useful for not just actual chart reviews, but also for developing a custom NLP dictionary.
 You can feed Cumulus ETL a custom NLP dictionary, review how it performs, and iterate upon it.
+
+## Preliminary Label Studio Setup
+
+This guide assumes you already have a local instance of Label Studio running.
+They offer Docker images and reasonable
+[installation docs](https://labelstud.io/guide/install.html).
+If you haven't set that up yet, go do that and come back.
+
+The Cumulus team can help you with setting it up if you come talk to us,
+but the rest of this guide will mostly deal with chart review mode itself.
 
 ## Basic Operation
 
@@ -123,6 +134,9 @@ Chart review mode will reverse-engineer the original document IDs and export the
 True!
 But Cumulus ETL saves a cache of all the IDs it makes for your patients (and encounters).
 You can see this cache in your PHI folder, named `codebook-cached-mappings.json`.
+
+(It's worth emphasizing that the contents of this file are never moved outside the PHI folder,
+and are only used for chart review mode.)
 
 By using this mapping file,
 chart review mode can find all the original patient IDs using the `patient_id` column you gave it.
