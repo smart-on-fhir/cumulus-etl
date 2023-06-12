@@ -10,7 +10,6 @@ import uuid
 from json import JSONDecodeError
 from typing import Iterable, Optional
 
-import fhirclient.client
 import httpx
 from jwcrypto import jwk, jwt
 
@@ -48,7 +47,7 @@ class Auth:
             )
             raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
 
-    def sign_headers(self, headers: Optional[dict]) -> dict:
+    def sign_headers(self, headers: dict) -> dict:
         """Add signature token to request headers"""
         return headers
 
@@ -62,8 +61,8 @@ class JwksAuth(Auth):
         self._client_id = client_id
         self._jwks = jwks
         self._resources = list(resources)
-        self._server = None
         self._token_endpoint = None
+        self._access_token = None
 
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         """
@@ -71,44 +70,38 @@ class JwksAuth(Auth):
 
         See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
         """
-        # Have we authorized before?
-        if self._token_endpoint is None:
+        if self._token_endpoint is None:  # grab URL if we haven't before
             self._token_endpoint = await self._get_token_endpoint(session)
-        if reauthorize and self._server.reauthorize():
-            return
-        # Else we must not have been issued a refresh token, let's just authorize from scratch below
 
-        signed_jwt = self._make_signed_jwt()
-        scope = " ".join([f"system/{resource}.read" for resource in self._resources])
-        client = fhirclient.client.FHIRClient(
-            settings={
-                "api_base": self._server_root,
-                "app_id": self._client_id,
-                "jwt_token": signed_jwt,
-                "scope": scope,
-            }
-        )
-        client.wants_patient = False
-        client.prepare()
+        auth_params = {
+            "grant_type": "client_credentials",
+            "scope": " ".join([f"system/{resource}.read" for resource in self._resources]),
+            "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+            "client_assertion": self._make_signed_jwt(),
+        }
 
         try:
-            client.authorize()
-        except Exception as exc:  # pylint: disable=broad-except
-            # This handles both the normal HTTPError and the custom errors that fhirclient uses
-            message = None
-            if hasattr(exc, "response") and exc.response:
+            response = await session.post(self._token_endpoint, data=auth_params)
+            response.raise_for_status()
+            self._access_token = response.json().get("access_token")
+        except httpx.HTTPStatusError as exc:
+            try:
                 response_json = exc.response.json()
-                message = response_json.get("error_description")  # oauth2 error field
+            except JSONDecodeError:
+                response_json = {}
+            message = response_json.get("error_description")  # standard oauth2 error field
+            if not message and "error_uri" in response_json:
+                # Another standard oauth2 error field, which Cerner usually gives back, and it does have helpful info
+                message = f'visit "{response_json.get("error_uri")}" for more details'
             if not message:
                 message = str(exc)
 
-            raise FatalError(f"Could not authenticate with the FHIR server: {message}") from exc
+            errors.fatal(f"Could not authenticate with the FHIR server: {message}", errors.FHIR_AUTH_FAILED)
 
-        self._server = client.server
-
-    def sign_headers(self, headers: Optional[dict]) -> dict:
+    def sign_headers(self, headers: dict) -> dict:
         """Add signature token to request headers"""
-        return self._server.auth.signed_headers(headers)
+        headers["Authorization"] = f"Bearer {self._access_token}"
+        return headers
 
     async def _get_token_endpoint(self, session: httpx.AsyncClient) -> str:
         """
@@ -188,8 +181,7 @@ class BasicAuth(Auth):
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         pass
 
-    def sign_headers(self, headers: Optional[dict]) -> dict:
-        headers = headers or {}
+    def sign_headers(self, headers: dict) -> dict:
         headers["Authorization"] = f"Basic {self._basic_token}"
         return headers
 
@@ -204,8 +196,7 @@ class BearerAuth(Auth):
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         pass
 
-    def sign_headers(self, headers: Optional[dict]) -> dict:
-        headers = headers or {}
+    def sign_headers(self, headers: dict) -> dict:
         headers["Authorization"] = f"Bearer {self._bearer_token}"
         return headers
 
@@ -374,9 +365,7 @@ class FhirClient:
 
         return Auth()
 
-    async def _request_with_signed_headers(
-        self, method: str, url: str, headers: dict = None, **kwargs
-    ) -> httpx.Response:
+    async def _request_with_signed_headers(self, method: str, url: str, headers: dict, **kwargs) -> httpx.Response:
         """
         Issues a GET request and sign the headers with the current access token.
 

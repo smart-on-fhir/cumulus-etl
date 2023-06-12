@@ -5,7 +5,6 @@ import time
 from unittest import mock
 
 import ddt
-import httpx
 import respx
 from jwcrypto import jwk, jwt
 
@@ -71,19 +70,10 @@ class TestFhirClient(AsyncTestCase):
             json=self.smart_configuration,
         )
 
-        # Set up mocks for fhirclient (we don't need to test its oauth code by mocking server responses there)
-        self.mock_client = mock.MagicMock()  # FHIRClient instance
-        self.mock_server = self.mock_client.server  # FHIRServer instance
-        client_patcher = mock.patch("cumulus_etl.fhir_client.fhirclient.client.FHIRClient")
-        self.addCleanup(client_patcher.stop)
-        self.mock_client_class = client_patcher.start()  # FHIRClient class
-        self.mock_client_class.return_value = self.mock_client
-
-    @staticmethod
-    def mock_session(server, *args, **kwargs):
-        session = mock.AsyncMock(spec=httpx.AsyncClient)
-        session.send.return_value = make_response(*args, **kwargs)
-        return mock.patch.object(server, "_session", session)
+        self.respx_mock.post(
+            self.token_url,
+            name="token",
+        ).respond(json={"access_token": "1234"})
 
     async def test_required_arguments(self):
         """Verify that we require both a client ID and a JWK Set"""
@@ -119,32 +109,31 @@ class TestFhirClient(AsyncTestCase):
         # Works fine if both given
         await use_client(smart_client_id="foo", smart_jwks=self.jwks)
 
-    async def test_auth_initial_authorize(self):
+    async def test_auth_with_jwks(self):
         """Verify that we authorize correctly upon class initialization"""
-        async with FhirClient(
-            self.server_url, ["Condition", "Patient"], smart_client_id=self.client_id, smart_jwks=self.jwks
-        ):
-            pass
-
-        # Check initialization of FHIRClient
-        self.assertListEqual(
-            [
-                mock.call(
-                    settings={
-                        "api_base": f"{self.server_url}/",
-                        "app_id": self.client_id,
-                        "jwt_token": self.expected_jwt,
-                        "scope": "system/Condition.read system/Patient.read",
-                    }
-                )
-            ],
-            self.mock_client_class.call_args_list,
+        self.respx_mock.get(
+            f"{self.server_url}/foo",
+            headers={"Authorization": "Bearer 1234"},  # the same access token used in setUp()
         )
 
-        # Check authorization calls to FHIRClient
-        self.assertFalse(self.mock_client.wants_patient)  # otherwise fhirclient adds scopes
-        self.assertListEqual([mock.call()], self.mock_client.prepare.call_args_list)
-        self.assertListEqual([mock.call()], self.mock_client.authorize.call_args_list)
+        async with FhirClient(
+            self.server_url, ["Condition", "Patient"], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ) as client:
+            await client.request("GET", "foo")
+
+        # Check that we asked for a token & we included all the right params
+        self.assertEqual(1, self.respx_mock["token"].call_count)
+        self.assertEqual(
+            "&".join(
+                [
+                    "grant_type=client_credentials",
+                    "scope=system%2FCondition.read+system%2FPatient.read",
+                    "client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer",
+                    f"client_assertion={self.expected_jwt}",
+                ]
+            ),
+            self.respx_mock["token"].calls.last.request.content.decode("utf8"),
+        )
 
     async def test_auth_with_bearer_token(self):
         """Verify that we pass along the bearer token to the server"""
@@ -167,66 +156,31 @@ class TestFhirClient(AsyncTestCase):
             await server.request("GET", "foo")
 
     async def test_get_with_new_header(self):
-        """Verify that we issue a GET correctly for the happy path"""
-        # This is mostly confirming that we call mocks correctly, but that's important since we're mocking out all
-        # of fhirclient. Since we do that, we need to confirm we're driving it well.
+        """Verify that we can add new headers"""
+        self.respx_mock.get(
+            f"{self.server_url}/foo",
+            headers={
+                "Accept": "application/fhir+json",  # just to confirm we don't replace default headers entirely
+                "Test": "Value",
+            },
+        )
 
         async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
-            with self.mock_session(server) as mock_session:
-                # With new header and stream
-                await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
-
-        self.assertEqual(
-            [
-                mock.call(
-                    {
-                        "Accept": "application/fhir+json",
-                        "Accept-Charset": "UTF-8",
-                        "Test": "Value",
-                    }
-                )
-            ],
-            self.mock_server.auth.signed_headers.call_args_list,
-        )
-        self.assertEqual(
-            [
-                mock.call(
-                    "GET",
-                    f"{self.server_url}/foo",
-                    headers=self.mock_server.auth.signed_headers.return_value,
-                )
-            ],
-            mock_session.build_request.call_args_list,
-        )
+            # With new header and stream
+            await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
 
     async def test_get_with_overriden_header(self):
-        """Verify that we issue a GET correctly for the happy path"""
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
-            with self.mock_session(server) as mock_session:
-                # With overriding a header and default stream (False)
-                await server.request("GET", "bar", headers={"Accept": "text/plain"})
+        """Verify that we can overwrite default headers"""
+        self.respx_mock.get(
+            f"{self.server_url}/bar",
+            headers={
+                "Accept": "text/plain",  # yay! it's no longer the default fhir+json one
+            },
+        )
 
-        self.assertEqual(
-            [
-                mock.call(
-                    {
-                        "Accept": "text/plain",
-                        "Accept-Charset": "UTF-8",
-                    }
-                )
-            ],
-            self.mock_server.auth.signed_headers.call_args_list,
-        )
-        self.assertEqual(
-            [
-                mock.call(
-                    "GET",
-                    f"{self.server_url}/bar",
-                    headers=self.mock_server.auth.signed_headers.return_value,
-                )
-            ],
-            mock_session.build_request.call_args_list,
-        )
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+            # With overriding a header and default stream (False)
+            await server.request("GET", "bar", headers={"Accept": "text/plain"})
 
     @ddt.data(
         {},  # no keys
@@ -268,50 +222,59 @@ class TestFhirClient(AsyncTestCase):
             async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
-    async def test_authorize_error_with_response(self):
-        """Verify that we translate authorize http response errors into FatalErrors."""
-        error = Exception()
-        error.response = mock.MagicMock()
-        error.response.json.return_value = {"error_description": "Ouch!"}
-        self.mock_client.authorize.side_effect = error
-        with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: Ouch!"):
+    @ddt.data(
+        ({"json": {"error_description": "Ouch!"}}, "Ouch!"),
+        ({"json": {"error_uri": "http://ouch.com/sadface"}}, 'visit "http://ouch.com/sadface" for more details'),
+        # If nothing comes back, we use the default httpx error message
+        (
+            {},
+            (
+                "Client error '400 Bad Request' for url 'https://auth.example.com/token'\n"
+                "For more information check: https://httpstatuses.com/400"
+            ),
+        ),
+    )
+    @ddt.unpack
+    async def test_authorize_error(self, response_params, expected_error):
+        """Verify that we translate oauth2 errors into fatal errors."""
+        self.respx_mock["token"].respond(400, **response_params)
+
+        with mock.patch("cumulus_etl.errors.fatal") as mock_fatal:
             async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
-    async def test_authorize_error_without_response(self):
-        """Verify that we translate authorize non-response errors into FatalErrors."""
-        self.mock_client.authorize.side_effect = Exception("no memory")
-        with self.assertRaisesRegex(FatalError, "Could not authenticate with the FHIR server: no memory"):
-            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
-                pass
+        self.assertEqual(
+            mock.call(f"Could not authenticate with the FHIR server: {expected_error}", errors.FHIR_AUTH_FAILED),
+            mock_fatal.call_args,
+        )
 
     async def test_get_error_401(self):
         """Verify that an expired token is refreshed."""
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
-            # Check that we correctly tried to re-authenticate
-            with self.mock_session(server) as mock_session:
-                mock_session.send.side_effect = [make_response(status_code=401), make_response()]
-                self.mock_server.reauthorize.return_value = None  # fhirclient gives None if there is no refresh token
-                response = await server.request("GET", "foo")
-                self.assertEqual(200, response.status_code)
+        route = self.respx_mock.get(f"{self.server_url}/foo")
+        route.side_effect = [make_response(status_code=401), make_response()]
 
-        self.assertEqual(1, self.mock_server.reauthorize.call_count)
-        self.assertEqual(2, self.mock_client_class.call_count)
-        self.assertEqual(2, self.mock_client.prepare.call_count)
-        self.assertEqual(2, self.mock_client.authorize.call_count)
+        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+            self.assertEqual(1, self.respx_mock["token"].call_count)
+
+            # Check that we correctly tried to re-authenticate
+            response = await server.request("GET", "foo")
+            self.assertEqual(200, response.status_code)
+
+            self.assertEqual(2, self.respx_mock["token"].call_count)
 
     async def test_get_error_429(self):
         """Verify that 429 errors are passed through and not treated as exceptions."""
+        self.respx_mock.get(f"{self.server_url}/retry-me").respond(429)
+        self.respx_mock.get(f"{self.server_url}/nope").respond(430)
+
         async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             # Confirm 429 passes
-            with self.mock_session(server, status_code=429):
-                response = await server.request("GET", "foo")
-                self.assertEqual(429, response.status_code)
+            response = await server.request("GET", "retry-me")
+            self.assertEqual(429, response.status_code)
 
             # Sanity check that 430 does not
-            with self.mock_session(server, status_code=430):
-                with self.assertRaises(FatalError):
-                    await server.request("GET", "foo")
+            with self.assertRaises(FatalError):
+                await server.request("GET", "nope")
 
     @ddt.data(
         {
@@ -323,10 +286,13 @@ class TestFhirClient(AsyncTestCase):
     )
     async def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
+        self.respx_mock.get(f"{self.server_url}/foo",).mock(
+            return_value=make_response(status_code=500, **response_args),
+        )
+
         async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
-            with self.mock_session(server, status_code=500, **response_args):
-                with self.assertRaisesRegex(FatalError, "testmsg"):
-                    await server.request("GET", "foo")
+            with self.assertRaisesRegex(FatalError, "testmsg"):
+                await server.request("GET", "foo")
 
     @ddt.data(
         ({"DocumentReference", "Patient"}, {"Binary", "DocumentReference", "Patient"}),

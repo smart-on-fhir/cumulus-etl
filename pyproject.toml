@@ -13,8 +13,6 @@ requires-python = ">= 3.8"
 dependencies = [
     "ctakesclient >= 3, < 4",
     "delta-spark >= 2.3, < 3",
-    # This branch includes some jwt fixes we need (and will hopefully be in mainline in future)
-    "fhirclient @ git+https://github.com/mikix/client-py.git@mikix/oauth2-jwt",
     "httpx < 1",
     "inscriptis < 3",
     "jwcrypto < 2",
@@ -74,9 +72,7 @@ tests = [
     "freezegun",
     "moto[s3]",
     "pytest",
-    "responses",
     "respx",
-    "urllib3",
 ]
 dev = [
     "pre-commit",
