@@ -2,7 +2,6 @@
 
 import logging
 import tempfile
-from typing import List
 
 from cumulus_etl import cli_utils, common, errors, store
 from cumulus_etl.fhir_client import FatalError, FhirClient
@@ -39,7 +38,7 @@ class FhirNdjsonLoader(base.Loader):
         self.since = since
         self.until = until
 
-    async def load_all(self, resources: List[str]) -> base.Directory:
+    async def load_all(self, resources: list[str]) -> base.Directory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
             return await self._load_from_bulk_export(resources)
@@ -68,7 +67,7 @@ class FhirNdjsonLoader(base.Loader):
                 logging.warning("No resources found for %s", resource)
         return tmpdir
 
-    async def _load_from_bulk_export(self, resources: List[str]) -> base.Directory:
+    async def _load_from_bulk_export(self, resources: list[str]) -> base.Directory:
         target_dir = cli_utils.make_export_dir(self.export_to)
 
         try:

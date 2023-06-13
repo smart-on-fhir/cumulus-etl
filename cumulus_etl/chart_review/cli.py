@@ -3,7 +3,7 @@
 import argparse
 import asyncio
 import sys
-from typing import Collection, List
+from collections.abc import Collection
 
 import ctakesclient
 from ctakesclient.typesystem import Polarity
@@ -49,7 +49,7 @@ async def gather_docrefs(
         )
 
 
-async def read_notes_from_ndjson(client: fhir_client.FhirClient, dirname: str) -> List[LabelStudioNote]:
+async def read_notes_from_ndjson(client: fhir_client.FhirClient, dirname: str) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
     docref_ids = []
     coroutines = []
@@ -119,7 +119,7 @@ def define_chart_review_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--export-to", metavar="PATH", help="Where to put exported documents (default is to delete after use)"
     )
-    parser.add_argument(  # when we rely on Python 3.9, we can use BooleanOptionalAction instead
+    parser.add_argument(
         "--no-philter", action="store_false", dest="philter", default=True, help="Don’t run philter on notes"
     )
 
@@ -137,9 +137,7 @@ def define_chart_review_parser(parser: argparse.ArgumentParser) -> None:
         help="BSV file with concept CUIs (defaults to Covid)",
         default=ctakesclient.filesystem.covid_symptoms_path(),
     )
-    group.add_argument(  # when we rely on Python 3.9, we can use BooleanOptionalAction instead
-        "--no-nlp", action="store_false", dest="nlp", default=True, help="Don’t run NLP on notes"
-    )
+    group.add_argument("--no-nlp", action="store_false", dest="nlp", default=True, help="Don’t run NLP on notes")
 
     group = parser.add_argument_group("Label Studio")
     group.add_argument("--ls-token", metavar="PATH", help="Token file for Label Studio access", required=True)
@@ -179,7 +177,7 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     push_to_label_studio(notes, access_token, labels, args)
 
 
-async def run_chart_review(parser: argparse.ArgumentParser, argv: List[str]) -> None:
+async def run_chart_review(parser: argparse.ArgumentParser, argv: list[str]) -> None:
     """Parses a chart review CLI"""
     define_chart_review_parser(parser)
     args = parser.parse_args(argv)

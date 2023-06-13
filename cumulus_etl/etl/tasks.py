@@ -2,7 +2,8 @@
 
 import os
 import sys
-from typing import AsyncIterable, AsyncIterator, Iterable, Iterator, List, Set, Type, TypeVar, Union
+from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
+from typing import TypeVar
 
 import pandas
 
@@ -13,7 +14,7 @@ T = TypeVar("T")
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
 
 
-async def _batch_slice(iterable: AsyncIterable[Union[List[T], T]], n: int) -> AsyncIterator[T]:
+async def _batch_slice(iterable: AsyncIterable[T | list[T]], n: int) -> AsyncIterator[T]:
     """
     Returns the first n elements of iterable, flattening lists, but including an entire list if we would end in middle.
 
@@ -42,7 +43,7 @@ async def _async_chain(first: T, rest: AsyncIterator[T]) -> AsyncIterator[T]:
         yield x
 
 
-async def _batch_iterate(iterable: AsyncIterable[Union[List[T], T]], size: int) -> AsyncIterator[AsyncIterator[T]]:
+async def _batch_iterate(iterable: AsyncIterable[T | list[T]], size: int) -> AsyncIterator[AsyncIterator[T]]:
     """
     Yields sub-iterators, each roughly {size} elements from iterable.
 
@@ -65,14 +66,11 @@ async def _batch_iterate(iterable: AsyncIterable[Union[List[T], T]], size: int) 
     if size < 1:
         raise ValueError("Must iterate by at least a batch of 1")
 
-    # aiter() and anext() were added in python 3.10
-    # pylint: disable=unnecessary-dunder-call
-
-    true_iterable = iterable.__aiter__()  # get a real once-through iterable (we want to iterate only once)
+    true_iterable = aiter(iterable)  # get a real once-through iterable (we want to iterate only once)
     while True:
         iter_slice = _batch_slice(true_iterable, size)
         try:
-            peek = await iter_slice.__anext__()
+            peek = await anext(iter_slice)
         except StopAsyncIteration:
             return  # we're done!
         yield _async_chain(peek, iter_slice)
@@ -87,7 +85,7 @@ class EtlTask:
 
     name: str = None
     resource: str = None
-    tags: Set[str] = []
+    tags: set[str] = []
 
     # *** group_field ***
     # Set group_field if your task generates a group of interdependent records (like NLP results from a document).
@@ -116,7 +114,7 @@ class EtlTask:
     ##########################################################################################
 
     @classmethod
-    def get_all_tasks(cls) -> List[Type[AnyTask]]:
+    def get_all_tasks(cls) -> list[type[AnyTask]]:
         """
         Returns classes for every registered task.
 
@@ -138,7 +136,7 @@ class EtlTask:
         ]
 
     @classmethod
-    def get_selected_tasks(cls, names: Iterable[str] = None, filter_tags: Iterable[str] = None) -> List[Type[AnyTask]]:
+    def get_selected_tasks(cls, names: Iterable[str] = None, filter_tags: Iterable[str] = None) -> list[type[AnyTask]]:
         """
         Returns classes for every selected task.
 
@@ -283,7 +281,7 @@ class EtlTask:
         input_root = store.Root(self.task_config.dir_input)
         return common.read_resource_ndjson(input_root, self.resource)
 
-    async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
+    async def read_entries(self) -> AsyncIterator[dict | list[dict]]:
         """
         Reads input entries for the job.
 

@@ -7,7 +7,8 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        # while we are still private, don't go crazy with the Python versions as they eat up CI minutes
+        python-version: ["3.10"]
 
     steps:
       - uses: actions/checkout@v3

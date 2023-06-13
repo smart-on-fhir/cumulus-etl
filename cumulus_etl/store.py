@@ -1,7 +1,7 @@
 """Abstraction for where to write and read data"""
 
 import os
-from typing import Iterator
+from collections.abc import Iterator
 from urllib.parse import urlparse
 
 import fsspec

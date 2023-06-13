@@ -3,7 +3,7 @@
 import copy
 import itertools
 import os
-from typing import AsyncIterator, List, Union
+from collections.abc import AsyncIterator
 
 import ctakesclient
 
@@ -81,7 +81,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
         with common.NdjsonWriter(error_path, "a") as writer:
             writer.write(docref)
 
-    async def read_entries(self) -> AsyncIterator[Union[List[dict], dict]]:
+    async def read_entries(self) -> AsyncIterator[dict | list[dict]]:
         """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 

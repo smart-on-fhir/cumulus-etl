@@ -7,7 +7,6 @@ Usually used for ndjson -> deltalake conversions, after the ndjson has been manu
 import argparse
 import os
 import tempfile
-from typing import List, Type
 
 import pandas
 import rich.progress
@@ -28,10 +27,10 @@ def make_progress_bar() -> rich.progress.Progress:
 
 
 def convert_task(
-    task: Type[tasks.EtlTask],
+    task: type[tasks.EtlTask],
     input_root: store.Root,
     output_root: store.Root,
-    formatter_class: Type[formats.Format],
+    formatter_class: type[formats.Format],
     progress: rich.progress.Progress,
 ) -> None:
     """Converts a single task folder (like output/observation/ or output/covid_symptom__nlp_results/)"""
@@ -77,7 +76,7 @@ def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
         output_root.put(job_config_path, output_root.path, recursive=True)
 
 
-def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: Type[formats.Format]) -> None:
+def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]) -> None:
     all_tasks = tasks.EtlTask.get_all_tasks()
 
     with make_progress_bar() as progress:
@@ -140,7 +139,7 @@ async def convert_main(args: argparse.Namespace) -> None:
     walk_tree(input_root, output_root, formatter_class)
 
 
-async def run_convert(parser: argparse.ArgumentParser, argv: List[str]) -> None:
+async def run_convert(parser: argparse.ArgumentParser, argv: list[str]) -> None:
     """Parse arguments and do the work"""
     define_convert_parser(parser)
     args = parser.parse_args(argv)

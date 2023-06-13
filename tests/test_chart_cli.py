@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 import tempfile
-from typing import Iterable, List, Set, Tuple
+from collections.abc import Iterable
 from unittest import mock
 
 import ddt
@@ -105,7 +105,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         await cli.main(args)
 
     @staticmethod
-    def make_docref(doc_id: str, text: str = None, content: List[dict] = None) -> dict:
+    def make_docref(doc_id: str, text: str = None, content: list[dict] = None) -> dict:
         if content is None:
             text = text or "What's up doc?"
             content = [
@@ -143,24 +143,24 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         respx.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
 
     @staticmethod
-    def write_anon_docrefs(path: str, ids: List[Tuple[str, str]]) -> None:
+    def write_anon_docrefs(path: str, ids: list[tuple[str, str]]) -> None:
         """Fills a file with the provided docref ids of (docref_id, patient_id) tuples"""
         lines = ["docref_id,patient_id"] + [f"{x[0]},{x[1]}" for x in ids]
         with open(path, "w", encoding="utf8") as f:
             f.write("\n".join(lines))
 
     @staticmethod
-    def write_real_docrefs(path: str, ids: List[str]) -> None:
+    def write_real_docrefs(path: str, ids: list[str]) -> None:
         """Fills a file with the provided docref ids"""
         lines = ["docref_id"] + ids
         with open(path, "w", encoding="utf8") as f:
             f.write("\n".join(lines))
 
-    def get_exported_ids(self) -> Set[str]:
+    def get_exported_ids(self) -> set[str]:
         with common.open_file(os.path.join(self.export_path, "DocumentReference.ndjson"), "r") as f:
             return {json.loads(line)["id"] for line in f}
 
-    def get_pushed_ids(self) -> Set[str]:
+    def get_pushed_ids(self) -> set[str]:
         notes = self.ls_client.push_tasks.call_args[0][0]
         return {n.ref_id for n in notes}
 

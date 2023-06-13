@@ -3,7 +3,6 @@ ETL job context, holding some persistent state between runs.
 """
 
 import datetime
-from typing import Optional
 
 from cumulus_etl import common
 
@@ -38,7 +37,7 @@ class JobContext:
             self._data = {}
 
     @property
-    def last_successful_datetime(self) -> Optional[datetime.datetime]:
+    def last_successful_datetime(self) -> datetime.datetime | None:
         value = self._data.get(self._LAST_SUCCESSFUL_DATETIME)
         if value is not None:
             return datetime.datetime.fromisoformat(value)
@@ -49,7 +48,7 @@ class JobContext:
         self._data[self._LAST_SUCCESSFUL_DATETIME] = value.isoformat()
 
     @property
-    def last_successful_input_dir(self) -> Optional[str]:
+    def last_successful_input_dir(self) -> str | None:
         return self._data.get(self._LAST_SUCCESSFUL_INPUT_DIR)
 
     @last_successful_input_dir.setter
@@ -57,7 +56,7 @@ class JobContext:
         self._data[self._LAST_SUCCESSFUL_INPUT_DIR] = value
 
     @property
-    def last_successful_output_dir(self) -> Optional[str]:
+    def last_successful_output_dir(self) -> str | None:
         return self._data.get(self._LAST_SUCCESSFUL_OUTPUT_DIR)
 
     @last_successful_output_dir.setter

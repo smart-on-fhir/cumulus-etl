@@ -3,7 +3,6 @@
 import datetime
 import os
 from socket import gethostname
-from typing import List
 
 from cumulus_etl import common, fhir_client, formats, store
 
@@ -31,7 +30,7 @@ class JobConfig:
         batch_size: int = 1,  # this default is never really used - overridden by command line args
         ctakes_overrides: str = None,
         dir_errors: str = None,
-        tasks: List[str] = None,
+        tasks: list[str] = None,
     ):
         self._dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid

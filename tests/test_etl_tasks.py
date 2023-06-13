@@ -3,7 +3,7 @@
 import os
 import shutil
 import tempfile
-from typing import AsyncIterator, List
+from collections.abc import AsyncIterator
 from unittest import mock
 
 import ddt
@@ -68,12 +68,12 @@ class TestTasks(TaskTestCase):
         # pylint: disable=protected-access
 
         # Tiny little convenience method to be turn sync lists into async iterators.
-        async def async_iter(values: List) -> AsyncIterator:
+        async def async_iter(values: list) -> AsyncIterator:
             for x in values:
                 yield x
 
         # Handles converting all the async code into synchronous lists for ease of testing
-        async def assert_batches_equal(expected: List, values: List, batch_size: int) -> None:
+        async def assert_batches_equal(expected: list, values: list, batch_size: int) -> None:
             collected = []
             async for batch in tasks._batch_iterate(async_iter(values), batch_size):
                 batch_list = []

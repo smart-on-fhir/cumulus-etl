@@ -1,7 +1,7 @@
 """Extract data types from oracle"""
 
 import time
-from typing import Iterable, List
+from collections.abc import Iterable
 
 from cumulus_etl import common
 from cumulus_etl.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
@@ -40,7 +40,7 @@ def execute(dsn: str, desc: str, sql_statement: str) -> Iterable[dict]:
     print(f"Done with {desc}! Downloaded {count:,} total.")
 
 
-def list_observation_fact(dsn: str, categories: List[str]) -> List[ObservationFact]:
+def list_observation_fact(dsn: str, categories: list[str]) -> list[ObservationFact]:
     """
     Grabs a single category of observation facts.
 
@@ -68,28 +68,28 @@ def list_observation_fact(dsn: str, categories: List[str]) -> List[ObservationFa
     return facts
 
 
-def list_patient(dsn: str) -> List[PatientDimension]:
+def list_patient(dsn: str) -> list[PatientDimension]:
     patients = []
     for row in execute(dsn, "PatientDimension", query.sql_patient()):
         patients.append(PatientDimension(row))
     return patients
 
 
-def list_visit(dsn: str) -> List[VisitDimension]:
+def list_visit(dsn: str) -> list[VisitDimension]:
     visits = []
     for row in execute(dsn, "VisitDimension", query.sql_visit()):
         visits.append(VisitDimension(row))
     return visits
 
 
-def list_concept(dsn: str) -> List[ConceptDimension]:
+def list_concept(dsn: str) -> list[ConceptDimension]:
     concepts = []
     for row in execute(dsn, "ConceptDimension", query.sql_concept()):
         concepts.append(ConceptDimension(row))
     return concepts
 
 
-def list_provider(dsn: str) -> List[ProviderDimension]:
+def list_provider(dsn: str) -> list[ProviderDimension]:
     providers = []
     for row in execute(dsn, "ProviderDimension", query.sql_provider()):
         providers.append(ProviderDimension(row))

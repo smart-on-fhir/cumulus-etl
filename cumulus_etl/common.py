@@ -6,7 +6,8 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, Iterator, List, Optional
+from collections.abc import Iterator
+from typing import Any
 from urllib.parse import urlparse
 
 import fsspec
@@ -19,7 +20,7 @@ import fsspec
 ###############################################################################
 
 
-def ls_resources(root, resource: str) -> List[str]:
+def ls_resources(root, resource: str) -> list[str]:
     pattern = re.compile(rf".*/([0-9]+.)?{resource}(.[0-9]+)?.ndjson")
     all_files = root.ls()
     return sorted(filter(pattern.match, all_files))
@@ -112,7 +113,7 @@ def read_json(path: str) -> Any:
         return json.load(f)
 
 
-def write_json(path: str, data: Any, indent: Optional[int] = None) -> None:
+def write_json(path: str, data: Any, indent: int = None) -> None:
     """
     Writes data to the given path, in json format
     :param path: filesystem path
