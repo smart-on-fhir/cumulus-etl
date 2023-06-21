@@ -1,0 +1,100 @@
+{
+  "resourceType": "Procedure",
+  "id": "1",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+
+  "instantiatesCanonical": ["https://example.org/canonical"],
+  "instantiatesUri": ["https://example.org/hello"],
+  "basedOn": [{ "reference": "ServiceRequest/1" }],
+  "partOf": [{  "reference": "Observation/1"  }],
+  "status": "not-done",
+  "statusReason": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "416237000"
+    }]
+  },
+  "category": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "103693007"
+    }]
+  },
+  "code": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "166001"
+    }]
+  },
+  "subject": { "reference": "Patient/1" },
+  "encounter": { "reference": "Encounter/1" },
+  "performedDateTime": "2010-12-03T00:12:34Z",
+  "recorder": { "reference": "Practitioner/1" },
+  "asserter": { "reference": "Practitioner/2" },
+  "performer": [{
+    "function": {
+      "coding": [{
+        "system": "http://snomed.info/sct",
+        "code": "11935004"
+      }]
+    },
+    "actor": { "reference": "Practitioner/1" },
+    "onBehalfOf": { "reference": "Organization/1" }
+  }],
+  "location": { "reference": "Location/2" },
+  "reasonCode": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "168000"
+    }]
+  }],
+  "reasonReference": [{ "reference": "Observation/1" }],
+  "bodySite": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "235004"
+    }]
+  }],
+  "outcome": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "385669000"
+    }]
+  },
+  "report": [{ "reference": "DocumentReference/1" }],
+  "complication": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "134006"
+    }]
+  }],
+  "complicationDetail": [{ "reference": "Condition/1" }],
+  "followUp": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "229506003"
+    }]
+  }],
+  "focalDevice": [{
+    "action": {
+      "coding": [{
+        "system": "http://snomed.info/sct",
+        "code": "129283009"
+      }]
+    },
+    "manipulated": { "reference": "Device/1" }
+  }],
+  "usedReference": [{ "reference": "Device/1" }],
+  "usedCode": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "1422002"
+    }]
+  }]
+}

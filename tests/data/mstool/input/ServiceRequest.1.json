@@ -1,0 +1,77 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "1",
+
+  "identifier": [{ "value": "drop" }],
+  "instantiatesCanonical": ["https://example.org/canonical"],
+  "instantiatesUri": ["https://example.org/hello"],
+  "basedOn": [{ "reference": "ServiceRequest/1" }],
+  "replaces": [{ "reference": "ServiceRequest/0" }],
+  "requisition": { "value": "drop" },
+  "status": "draft",
+  "intent": "proposal",
+  "category": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "409073007"
+    }]
+  }],
+  "priority": "routine",
+  "doNotPerform": true,
+  "code": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "135007"
+    }]
+  },
+  "orderDetail": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "59427005"
+    }]
+  }],
+  "quantityQuantity": { "unit": "a little bit" },
+  "subject": { "reference": "Patient/1" },
+  "encounter": { "reference": "Encounter/1" },
+  "occurrenceDateTime": "2022-03-12T10:29:59Z",
+  "asNeededBoolean": true,
+  "authoredOn": "2022-03-13T15:00:00Z",
+  "requester": { "reference": "Practitioner/1" },
+  "performerType": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "4577005"
+    }]
+  },
+  "performer": [{ "reference": "Practitioner/1" }],
+  "locationCode": [{
+    "coding": [{
+      "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+      "code": "ENDOS"
+    }]
+  }],
+  "locationReference": [{ "reference": "Location/1" }],
+  "reasonCode": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "165002"
+    }]
+  }],
+  "reasonReference": [{ "reference": "Condition/1" }],
+  "insurance": [{ "reference": "Coverage/1" }],
+  "supportingInfo": [{ "reference": "DocumentReference/1" }],
+  "specimen": [{ "reference": "Specimen/1" }],
+  "bodySite": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "774007"
+    }]
+  }],
+  "note": [{
+    "authorReference": { "reference": "Practitioner/1" },
+    "time": "2010-12-20",
+    "text": "to-remove"
+  }],
+  "patientInstruction": "Call if you have any questions",
+  "relevantHistory": [{ "reference": "Provenance/1" }]
+}

@@ -132,6 +132,8 @@ class EtlTask:
             MedicationRequestTask,
             ObservationTask,
             PatientTask,
+            ProcedureTask,
+            ServiceRequestTask,
             covid_symptom.CovidSymptomNlpResultsTask,
         ]
 
@@ -343,4 +345,16 @@ class ObservationTask(EtlTask):
 class PatientTask(EtlTask):
     name = "patient"
     resource = "Patient"
+    tags = {"cpu"}
+
+
+class ProcedureTask(EtlTask):
+    name = "procedure"
+    resource = "Procedure"
+    tags = {"cpu"}
+
+
+class ServiceRequestTask(EtlTask):
+    name = "servicerequest"
+    resource = "ServiceRequest"
     tags = {"cpu"}
