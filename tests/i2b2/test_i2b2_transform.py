@@ -94,6 +94,26 @@ class TestI2b2Transform(AsyncTestCase):
 
         self.assertEqual("2021-01-02", lab_fhir["effectiveDateTime"])
 
+    def test_to_fhir_observation_lab_case_does_not_matter(self):
+        dim = i2b2_mock_data.observation_dim()
+        dim.tval_char = "POSitiVE"
+        lab_fhir = transform.to_fhir_observation_lab(dim)
+
+        self.assertEqual("10828004", lab_fhir["valueCodeableConcept"]["coding"][0]["code"])
+        self.assertEqual("POSitiVE", lab_fhir["valueCodeableConcept"]["coding"][0]["display"])
+        self.assertEqual("http://snomed.info/sct", lab_fhir["valueCodeableConcept"]["coding"][0]["system"])
+
+    def test_to_fhir_observation_lab_unknown_tval(self):
+        dim = i2b2_mock_data.observation_dim()
+        dim.tval_char = "Nope"
+        lab_fhir = transform.to_fhir_observation_lab(dim)
+
+        self.assertEqual("Nope", lab_fhir["valueCodeableConcept"]["coding"][0]["code"])
+        self.assertEqual("Nope", lab_fhir["valueCodeableConcept"]["coding"][0]["display"])
+        self.assertEqual(
+            "http://cumulus.smarthealthit.org/i2b2", lab_fhir["valueCodeableConcept"]["coding"][0]["system"]
+        )
+
     def test_to_fhir_medicationrequest(self):
         medicationrequest = i2b2_mock_data.medicationrequest()
         # print(json.dumps(medicationrequest, indent=4))
