@@ -23,7 +23,7 @@ class Format(abc.ABC):
         (e.g. some expensive setup that can be shared across per-table format instances, or eventually across threads)
         """
 
-    def __init__(self, root: store.Root, dbname: str, group_field: str = None):
+    def __init__(self, root: store.Root, dbname: str, group_field: str = None, resource_type: str = None):
         """
         Initialize a new Format class
         :param root: the base location to write data to
@@ -32,10 +32,12 @@ class Format(abc.ABC):
          deleted -- for example "docref_id" will mean that any existing rows matching docref_id will be deleted before
          inserting any from this dataframe. Make sure that all records for a given group are in one single dataframe.
          See the comments for the EtlTask.group_field class attribute for more context.
+        :param resource_type: the name of the FHIR resource being stored, in case a fuller schema is needed
         """
         self.root = root
         self.dbname = dbname
         self.group_field = group_field
+        self.resource_type = resource_type
 
     def write_records(self, dataframe: pandas.DataFrame, batch: int) -> bool:
         """

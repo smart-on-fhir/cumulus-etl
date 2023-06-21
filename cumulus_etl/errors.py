@@ -31,6 +31,10 @@ LABEL_STUDIO_MISSING = 31
 FHIR_AUTH_FAILED = 32
 
 
+class FatalError(Exception):
+    """An unrecoverable error"""
+
+
 def fatal(message: str, status: int) -> NoReturn:
     """Convenience method to exit the program with a user-friendly error message a test-friendly status code"""
     print(message, file=sys.stderr)

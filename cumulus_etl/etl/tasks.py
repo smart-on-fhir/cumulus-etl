@@ -83,9 +83,16 @@ class EtlTask:
     Subclasses might want to re-implement read_entries() if they have custom processing.
     """
 
-    name: str = None
-    resource: str = None
+    name: str = None  # task & table name
+    resource: str = None  # incoming resource that this task operates on (will be included in bulk exports etc)
     tags: set[str] = []
+
+    # *** output_resource ***
+    # This field determines the schema of the output table.
+    # Put a FHIR resource name (like "Observation") here, to fill the output table with an appropriate schema.
+    # It defaults to the same name as `resource` above, but you can set to None to disable this feature or use any
+    # FHIR resource name.
+    output_resource: str = "__same__"
 
     # *** group_field ***
     # Set group_field if your task generates a group of interdependent records (like NLP results from a document).
@@ -209,7 +216,12 @@ class EtlTask:
             return summary
 
         # No data is read or written yet, so do any initial setup the formatter wants
-        formatter = self.task_config.create_formatter(self.name, self.group_field)
+        format_resource_type = self.resource if self.output_resource == "__same__" else self.output_resource
+        formatter = self.task_config.create_formatter(
+            self.name,
+            group_field=self.group_field,
+            resource_type=format_resource_type,
+        )
 
         entries = self.read_entries()
 

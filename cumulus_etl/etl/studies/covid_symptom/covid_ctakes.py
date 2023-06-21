@@ -5,11 +5,11 @@ import logging
 import ctakesclient
 import httpx
 
-from cumulus_etl import fhir_client, fhir_common, nlp, store
+from cumulus_etl import fhir, nlp, store
 
 
 async def covid_symptoms_extract(
-    client: fhir_client.FhirClient,
+    client: fhir.FhirClient,
     cache: store.Root,
     docref: dict,
     ctakes_http_client: httpx.AsyncClient = None,
@@ -26,17 +26,17 @@ async def covid_symptoms_extract(
     :return: list of NLP results encoded as FHIR observations
     """
     docref_id = docref["id"]
-    _, subject_id = fhir_common.unref_resource(docref["subject"])
+    _, subject_id = fhir.unref_resource(docref["subject"])
 
     encounters = docref.get("context", {}).get("encounter", [])
     if not encounters:
         logging.warning("No encounters for docref %s", docref_id)
         return None
-    _, encounter_id = fhir_common.unref_resource(encounters[0])
+    _, encounter_id = fhir.unref_resource(encounters[0])
 
     # Find the clinical note among the attachments
     try:
-        clinical_note = await fhir_common.get_docref_note(client, docref)
+        clinical_note = await fhir.get_docref_note(client, docref)
     except Exception as exc:  # pylint: disable=broad-except
         logging.warning("Error getting text for docref %s: %s", docref_id, exc)
         return None

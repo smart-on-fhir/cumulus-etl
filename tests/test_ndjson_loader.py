@@ -5,7 +5,6 @@ import tempfile
 from unittest import mock
 
 from cumulus_etl import cli, errors, loaders, store
-from cumulus_etl.fhir_client import FatalError
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase
 
@@ -34,7 +33,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter = mock.AsyncMock()
         self.mock_exporter_class.return_value = self.mock_exporter
 
-    @mock.patch("cumulus_etl.etl.cli.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     @mock.patch("cumulus_etl.etl.cli.loaders.FhirNdjsonLoader")
     async def test_etl_passes_args(self, mock_loader, mock_client):
         """Verify that we are passed the client ID and JWKS from the command line"""
@@ -64,7 +63,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.assertEqual("2018", mock_loader.call_args[1]["since"])
         self.assertEqual("2020", mock_loader.call_args[1]["until"])
 
-    @mock.patch("cumulus_etl.etl.cli.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     async def test_reads_client_id_from_file(self, mock_client):
         """Verify that we try to read a client ID from a file."""
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
@@ -97,7 +96,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 )
             self.assertEqual("inside-file", mock_client.call_args[1]["smart_client_id"])
 
-    @mock.patch("cumulus_etl.etl.cli.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     async def test_reads_bearer_token(self, mock_client):
         """Verify that we read the bearer token file"""
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
@@ -116,7 +115,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 )
             self.assertEqual("inside-file", mock_client.call_args[1]["bearer_token"])
 
-    @mock.patch("cumulus_etl.etl.cli.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     async def test_reads_basic_auth(self, mock_client):
         """Verify that we read the basic password file and pass it along"""
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
@@ -138,7 +137,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.assertEqual("UserName", mock_client.call_args[1]["basic_user"])
         self.assertEqual("inside-file", mock_client.call_args[1]["basic_password"])
 
-    @mock.patch("cumulus_etl.etl.cli.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     async def test_fhir_url(self, mock_client):
         """Verify that we handle the user provided --fhir-client correctly"""
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
@@ -194,7 +193,7 @@ class TestNdjsonLoader(AsyncTestCase):
             )
         self.assertEqual("https://example.com/hello4", mock_client.call_args[0][0])
 
-    @mock.patch("cumulus_etl.etl.cli.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     async def test_export_flow(self, mock_client):
         """
         Verify that we make the right calls down as far as the bulk export helper classes, with the right resources.
@@ -220,7 +219,7 @@ class TestNdjsonLoader(AsyncTestCase):
 
     async def test_fatal_errors_are_fatal(self):
         """Verify that when a FatalError is raised, we do really quit"""
-        self.mock_exporter.export.side_effect = FatalError
+        self.mock_exporter.export.side_effect = errors.FatalError
 
         with self.assertRaises(SystemExit) as cm:
             await loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock()).load_all(["Patient"])

@@ -16,10 +16,6 @@ from jwcrypto import jwk, jwt
 from cumulus_etl import common, errors, store
 
 
-class FatalError(Exception):
-    """An unrecoverable error"""
-
-
 def _urljoin(base: str, path: str) -> str:
     """Basically just urllib.parse.urljoin, but with some extra error checking"""
     path_is_absolute = bool(urllib.parse.urlparse(path).netloc)
@@ -131,7 +127,9 @@ class JwksAuth(Auth):
             or not {"ES384", "RS384"} & set(config.get("token_endpoint_auth_signing_alg_values_supported", []))
             or not config.get("token_endpoint")
         ):
-            raise FatalError(f"Server {self._server_root} does not support the client-confidential-asymmetric protocol")
+            raise errors.FatalError(
+                f"Server {self._server_root} does not support the client-confidential-asymmetric protocol"
+            )
 
         return config["token_endpoint"]
 
@@ -148,7 +146,7 @@ class JwksAuth(Auth):
             if key.get("alg") in ["ES384", "RS384"] and "sign" in key.get("key_ops", []) and key.get("kid"):
                 break
         else:  # no valid private JWK found
-            raise FatalError("No private ES384 or RS384 key found in the provided JWKS file.")
+            raise errors.FatalError("No private ES384 or RS384 key found in the provided JWKS file.")
 
         # Now generate a signed JWT based off the given JWK
         header = {
@@ -308,7 +306,7 @@ class FhirClient:
             if not message:
                 message = str(exc)
 
-            raise FatalError(f'An error occurred when connecting to "{url}": {message}') from exc
+            raise errors.FatalError(f'An error occurred when connecting to "{url}": {message}') from exc
 
         return response
 

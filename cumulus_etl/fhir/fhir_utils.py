@@ -6,7 +6,7 @@ import re
 
 import inscriptis
 
-from cumulus_etl import fhir_client
+from cumulus_etl.fhir import fhir_client
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)

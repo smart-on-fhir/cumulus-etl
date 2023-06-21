@@ -7,11 +7,11 @@ import os
 import urllib.parse
 from collections.abc import Container, Iterable
 
-from cumulus_etl import cli_utils, common, deid, fhir_client, loaders, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
 
 
 async def download_docrefs_from_fhir_server(
-    client: fhir_client.FhirClient,
+    client: fhir.FhirClient,
     root_input: store.Root,
     root_phi: store.Root,
     docrefs: str = None,
@@ -29,7 +29,7 @@ async def download_docrefs_from_fhir_server(
 
 
 async def _download_docrefs_from_fake_ids(
-    client: fhir_client.FhirClient,
+    client: fhir.FhirClient,
     dir_phi: str,
     docref_csv: str,
     export_to: str = None,
@@ -60,7 +60,7 @@ async def _download_docrefs_from_fake_ids(
 
 
 async def _download_docrefs_from_real_ids(
-    client: fhir_client.FhirClient,
+    client: fhir.FhirClient,
     docref_csv: str,
     export_to: str = None,
 ) -> loaders.Directory:
@@ -92,7 +92,7 @@ def _write_docrefs_to_output_folder(docrefs: Iterable[dict], output_folder: str)
 
 
 async def _request_docrefs_for_patient(
-    client: fhir_client.FhirClient, patient_id: str, codebook: deid.Codebook, fake_docref_ids: Container[str]
+    client: fhir.FhirClient, patient_id: str, codebook: deid.Codebook, fake_docref_ids: Container[str]
 ) -> list[dict]:
     """Returns all DocumentReferences for a given patient"""
     params = {
@@ -115,12 +115,12 @@ async def _request_docrefs_for_patient(
     return docrefs
 
 
-async def _request_docref(client: fhir_client.FhirClient, docref_id: str) -> dict | None:
+async def _request_docref(client: fhir.FhirClient, docref_id: str) -> dict | None:
     """Returns one DocumentReference for a given ID"""
     print(f"  Downloading docref {docref_id}.")
     try:
         response = await client.request("GET", f"DocumentReference/{docref_id}")
         return response.json()
-    except fhir_client.FatalError:
+    except errors.FatalError:
         logging.warning("Error getting docref %s", docref_id)
         return None

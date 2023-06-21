@@ -4,7 +4,7 @@ import logging
 import tempfile
 from typing import Any
 
-from cumulus_etl import fhir_common
+from cumulus_etl import fhir
 from cumulus_etl.deid import codebook, mstool, philter
 
 
@@ -148,7 +148,7 @@ class Scrubber:
         # References
         # "reference" can sometimes be a URL or non-FHIRReference element -- at some point we'll need to be smarter.
         elif key == "reference":
-            resource_type, real_id = fhir_common.unref_resource(node)
+            resource_type, real_id = fhir.unref_resource(node)
 
             # Handle contained references (see comments in unref_resource for more detail)
             prefix = ""
@@ -157,7 +157,7 @@ class Scrubber:
                 real_id = real_id[1:]
 
             fake_id = f"{prefix}{self.codebook.fake_id(resource_type, real_id)}"
-            node["reference"] = fhir_common.ref_resource(resource_type, fake_id)["reference"]
+            node["reference"] = fhir.ref_resource(resource_type, fake_id)["reference"]
 
     def _check_text(self, node: dict, key: str, value: Any):
         """Scrubs text values that got through the MS config by passing them through philter"""
