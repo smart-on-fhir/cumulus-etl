@@ -140,8 +140,7 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> dict:
     observation["code"] = make_concept(obs_code, obs_system)
 
     # lab result
-    if obsfact.tval_char in external_mappings.SNOMED_LAB_RESULT:
-        lab_result = external_mappings.SNOMED_LAB_RESULT[obsfact.tval_char]
+    if lab_result := external_mappings.SNOMED_LAB_RESULT.get(obsfact.tval_char.lower()):
         lab_result_system = "http://snomed.info/sct"
     else:
         lab_result = obsfact.tval_char

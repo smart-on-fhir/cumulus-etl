@@ -54,7 +54,11 @@ LOINC_COVID_LAB_TESTS = {
 # PHIN VADS General adjectival modifier (qualifier value) {106234000 , SNOMED-CT }
 # Subset of codes related to evaluating lab results
 # system: http://snomed.info/sct
-SNOMED_LAB_RESULT = {"Positive": "10828004", "Negative": "260385009", "Absent": "272519000"}
+SNOMED_LAB_RESULT = {
+    "positive": "10828004",
+    "negative": "260385009",
+    "absent": "272519000",
+}
 
 
 # PHIN VADS Admission statuses {308277006, SNOMED-CT }
