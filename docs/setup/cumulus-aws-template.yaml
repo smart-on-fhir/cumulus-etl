@@ -175,6 +175,8 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/medicationrequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/procedure"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/servicerequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results"
             CreateNativeDeltaTable: True
             WriteManifest: False

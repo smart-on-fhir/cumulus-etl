@@ -47,9 +47,9 @@ class BatchedFileFormat(Format):
             self.root.rm(parent_dir, recursive=True)
         except FileNotFoundError:
             pass
-        self.root.makedirs(parent_dir)
 
     def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
         """Writes the whole dataframe to a single file"""
+        self.root.makedirs(self.root.joinpath(self.dbname))
         full_path = self.root.joinpath(f"{self.dbname}/{self.dbname}.{batch:03}.{self.suffix}")
         self.write_format(dataframe, full_path)
