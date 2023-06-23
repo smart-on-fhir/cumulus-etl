@@ -19,10 +19,10 @@ def extract_csv(path_csv: str, batch_size: int) -> Iterator[dict]:
         with pandas.read_csv(path_csv, dtype=str, na_filter=False, chunksize=batch_size) as reader:
             print(f"Reading csv {path_csv}...")
             for chunk in reader:
-                print(f"  Read {count:,} entries...")
                 for _, row in chunk.iterrows():
                     yield dict(row)
                 count += batch_size
+                print(f"  Read {count:,} entries...")
             print(f"Done reading {path_csv}.")
     except FileNotFoundError:
         print(f"No {path_csv}, skipping.")

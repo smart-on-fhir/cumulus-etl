@@ -153,13 +153,18 @@ class TestDeltaLake(utils.AsyncTestCase):
 
     def test_merged_schema_for_resource(self):
         """Verify that the lake's schemas is derived from the full resource schema and also merged with real data"""
-        # This nested_struct row will:
+        # This dataframe will:
         # (A) be missing 99% of the schema
-        # (B) include a nested FHIR struct that our default (non-recursvie) resource schemas will not include
-        # (C) include a whole new non-FHIR column
+        # (B) include a nested FHIR struct that our default (non-recursive) resource schemas will not include
+        # (C) include whole new non-FHIR columns
         # Ideally the final result includes those two new elements and all the normal FHIR schema.
-        nested_struct = {"id": "bare-row", "contact": [{"name": {"text": "Jane Doe"}}], "newColumn": 2000}
-        self.store(pandas.DataFrame([nested_struct]), resource_type="Patient")
+        rows = [
+            # We specifically make the new columns int & bool types because pandas can have difficulty with nullable
+            # versions of those columns -- this will verify that the schema arrives back out correctly.
+            {"id": "int-row", "contact": [{"name": {"text": "Jane Doe"}}], "newIntColumn": 2000},
+            {"id": "bool-row", "contact": [{"name": {"text": "John Doe"}}], "newBoolColumn": True},
+        ]
+        self.store(pandas.DataFrame(rows), resource_type="Patient")
 
         table_path = os.path.join(self.output_dir, "patient")
         table_df = DeltaLakeFormat.spark.read.format("delta").load(table_path)
@@ -178,7 +183,8 @@ class TestDeltaLake(utils.AsyncTestCase):
  |    |    |    |-- text: string (nullable = true)
  |    |    |-- id: string (nullable = true)
  |    |    |-- gender: string (nullable = true)
- |-- newColumn: long (nullable = true)
+ |-- newIntColumn: long (nullable = true)
+ |-- newBoolColumn: boolean (nullable = true)
  |-- implicitRules: string (nullable = true)
  |-- language: string (nullable = true)
  |-- meta: struct (nullable = true)

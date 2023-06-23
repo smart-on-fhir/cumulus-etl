@@ -186,8 +186,10 @@ class DeltaLakeFormat(Format):
             data_path = os.path.join(parquet_dir, "data.parquet")
             schema_path = os.path.join(parquet_dir, "schema.parquet")
 
-            # Write the pandas dataframe to parquet to force full nested schemas
-            dataframe.to_parquet(data_path, index=False)
+            # Write the pandas dataframe to parquet to force full nested schemas.
+            # We also convert dtypes, to get modern nullable pandas types (rather than using its default behavior of
+            # converting a nullable integer column into a float column).
+            dataframe.convert_dtypes().to_parquet(data_path, index=False)
             del dataframe  # allow GC to clean this up
             paths = [data_path]
 
