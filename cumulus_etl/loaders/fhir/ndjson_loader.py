@@ -3,8 +3,7 @@
 import logging
 import tempfile
 
-from cumulus_etl import cli_utils, common, errors, store
-from cumulus_etl.fhir_client import FatalError, FhirClient
+from cumulus_etl import cli_utils, common, errors, fhir, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 
@@ -20,7 +19,7 @@ class FhirNdjsonLoader(base.Loader):
     def __init__(
         self,
         root: store.Root,
-        client: FhirClient = None,
+        client: fhir.FhirClient = None,
         export_to: str = None,
         since: str = None,
         until: str = None,
@@ -75,7 +74,7 @@ class FhirNdjsonLoader(base.Loader):
                 self.client, resources, self.root.path, target_dir.name, self.since, self.until
             )
             await bulk_exporter.export()
-        except FatalError as exc:
+        except errors.FatalError as exc:
             errors.fatal(str(exc), errors.BULK_EXPORT_FAILED)
 
         return target_dir

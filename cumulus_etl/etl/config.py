@@ -4,7 +4,7 @@ import datetime
 import os
 from socket import gethostname
 
-from cumulus_etl import common, fhir_client, formats, store
+from cumulus_etl import common, fhir, formats, store
 
 
 class JobConfig:
@@ -24,7 +24,7 @@ class JobConfig:
         dir_phi: str,
         input_format: str,
         output_format: str,
-        client: fhir_client.FhirClient,
+        client: fhir.FhirClient,
         timestamp: datetime.datetime = None,
         comment: str = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
@@ -52,8 +52,8 @@ class JobConfig:
         self._format_class = formats.get_format_class(self._output_format)
         self._format_class.initialize_class(self._output_root)
 
-    def create_formatter(self, dbname: str, group_field: str = None) -> formats.Format:
-        return self._format_class(self._output_root, dbname, group_field)
+    def create_formatter(self, dbname: str, group_field: str = None, resource_type: str = None) -> formats.Format:
+        return self._format_class(self._output_root, dbname, group_field=group_field, resource_type=resource_type)
 
     def path_config(self) -> str:
         return os.path.join(self.dir_job_config(), "job_config.json")

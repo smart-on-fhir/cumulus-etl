@@ -63,6 +63,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
     name = "covid_symptom__nlp_results"
     resource = "DocumentReference"
     tags = {"covid_symptom", "gpu"}
+    output_resource = None  # custom format
     group_field = "docref_id"
 
     async def prepare_task(self) -> bool:

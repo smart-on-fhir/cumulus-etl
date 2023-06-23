@@ -14,7 +14,7 @@ import pandas
 import pyspark
 from pyspark.sql.utils import AnalysisException
 
-from cumulus_etl import store
+from cumulus_etl import fhir, store
 from cumulus_etl.formats.base import Format
 
 # This class would be a lot simpler if we could use fsspec & pandas directly, since that's what the rest of our code
@@ -83,15 +83,7 @@ class DeltaLakeFormat(Format):
 
     def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
         """Writes the whole dataframe to a delta lake"""
-        # First, convert our pandas dataframe to a spark dataframe.
-        # You'd think that self.spark.createDataFrame(df) would be the right thing to do, but actually, it can't
-        # seem to correctly infer the nested schema (it doesn't give nested fields names, just the types).
-        # But parquet does this well, and spark can read parquet well. So we do this dance of pandas -> parquet ->
-        # sparks.
-        with tempfile.NamedTemporaryFile() as parquet_file:
-            dataframe.to_parquet(parquet_file.name, index=False)
-            del dataframe  # allow GC to clean this up
-            updates = self.spark.read.parquet(parquet_file.name)
+        with self.pandas_to_spark_with_schema(dataframe) as updates:
             table = self.update_delta_table(updates)
 
         table.generate("symlink_format_manifest")
@@ -165,3 +157,45 @@ class DeltaLakeFormat(Format):
         region_name = fsspec_options.get("client_kwargs", {}).get("region_name")
         if region_name:
             spark.conf.set("fs.s3a.endpoint.region", region_name)
+
+    @contextlib.contextmanager
+    def pandas_to_spark_with_schema(self, dataframe: pandas.DataFrame) -> pyspark.sql.DataFrame:
+        """Transforms a pandas DF to a spark DF with a full FHIR schema included"""
+        # This method solves two problems:
+        # 1. Pandas schemas are very loosey-goosey (and don't really take nested data into account), so simply
+        #    calling self.spark.createDataFrame(df) does not give names for nested struct fields.
+        # 2. We want to provide column info for all valid FHIR fields (at least shallowly) so that the
+        #    downstream SQL can reference all toplevel columns even if the source data doesn't have those fields.
+        #
+        # Issue #1 is solved by writing to parquet and reading it back in (a little wonky, but it gives full schemas).
+        # Issue #2 is solved by merging a computed FHIR schema with the actual data schema.
+        #
+        # Some devils-in-the-details:
+        # - Pyspark does not let us merge schemas in python code, we can only seem to do it while reading in multiple
+        #   dataframes. So we write out the schema as an empty parquet file and read it back in with the data.
+        #   We could write some manual schema-merging code, but I'm leery that we'd get it right or that it's worth
+        #   doing ourselves rather than just writing this weird file and letting pyspark do it for us.
+        # - Our FHIR schema is incomplete and shallow (it skips all nested structs) to avoid infinite recursion issues,
+        #   and we simply merge this incomplete schema in with the actual data schema, which will have full nested
+        #   inferred schemas for exactly the fields it uses. We always write to the delta lake with autoMerge of
+        #   schemas enabled, so incrementally adding fields to existing lakes will be fine.
+        # - Delta Lake does not like columns that have null types nor struct types with no children. So we make sure
+        #   that every column has *some* definition, and that structs have content.
+
+        with tempfile.TemporaryDirectory() as parquet_dir:
+            data_path = os.path.join(parquet_dir, "data.parquet")
+            schema_path = os.path.join(parquet_dir, "schema.parquet")
+
+            # Write the pandas dataframe to parquet to force full nested schemas
+            dataframe.to_parquet(data_path, index=False)
+            del dataframe  # allow GC to clean this up
+            paths = [data_path]
+
+            # Write the empty schema dataframe, so we can merge it with the above real dataframe
+            if self.resource_type:
+                schema = fhir.create_spark_schema_for_resource(self.resource_type)
+                self.spark.createDataFrame([], schema=schema).write.parquet(schema_path)
+                paths.append(schema_path)
+
+            # Provide the happy merged result, coalesced to one partition (because our schema trick above creates 2)
+            yield self.spark.read.parquet(*paths, mergeSchema=True).coalesce(1)

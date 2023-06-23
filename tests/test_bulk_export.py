@@ -10,8 +10,7 @@ import ddt
 import respx
 from jwcrypto import jwk
 
-from cumulus_etl import cli, common, store
-from cumulus_etl.fhir_client import FatalError
+from cumulus_etl import cli, common, errors, store
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase, make_response
 
@@ -88,7 +87,7 @@ class TestBulkExporter(AsyncTestCase):
         """Verify that we send since & until parameters correctly to the server"""
         self.server.request.side_effect = (make_response(status_code=500),)  # early exit
 
-        with self.assertRaises(FatalError):
+        with self.assertRaises(errors.FatalError):
             await self.export(since="2000-01-01T00:00:00+00.00", until="2010")
 
         self.assertListEqual(
@@ -131,7 +130,9 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202),  # delete request
         ]
 
-        with self.assertRaisesRegex(FatalError, "Errors occurred during export:\n - err1\n - err2\n - err3\n - err4"):
+        with self.assertRaisesRegex(
+            errors.FatalError, "Errors occurred during export:\n - err1\n - err2\n - err3\n - err4"
+        ):
             await self.export()
 
         self.assertListEqual(
@@ -176,7 +177,7 @@ class TestBulkExporter(AsyncTestCase):
     async def test_unexpected_status_code(self):
         """Verify that we bail if we see a successful code we don't understand"""
         self.server.request.return_value = make_response(status_code=204)  # "no content"
-        with self.assertRaisesRegex(FatalError, "Unexpected status code 204"):
+        with self.assertRaisesRegex(errors.FatalError, "Unexpected status code 204"):
             await self.export()
 
     @mock.patch("cumulus_etl.loaders.fhir.bulk_export.asyncio.sleep")
@@ -193,7 +194,7 @@ class TestBulkExporter(AsyncTestCase):
         ]
 
         exporter = self.make_exporter()
-        with self.assertRaisesRegex(FatalError, "Timed out waiting"):
+        with self.assertRaisesRegex(errors.FatalError, "Timed out waiting"):
             await exporter.export()
 
         # 86760 == 24 hours + six minutes
@@ -213,11 +214,11 @@ class TestBulkExporter(AsyncTestCase):
         """Verify that we still delete the export on the server if we raise an exception during the middle of export"""
         self.server.request.side_effect = [
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff done
-            FatalError("Test Status Call Failed"),  # status error
+            errors.FatalError("Test Status Call Failed"),  # status error
             make_response(status_code=501),  # also verify that an error during delete does not override the first
         ]
 
-        with self.assertRaisesRegex(FatalError, "Test Status Call Failed"):
+        with self.assertRaisesRegex(errors.FatalError, "Test Status Call Failed"):
             await self.export()
 
         self.assertListEqual(

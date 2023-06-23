@@ -3,7 +3,7 @@
 import base64
 import logging
 
-from cumulus_etl import fhir_common
+from cumulus_etl import fhir
 from cumulus_etl.loaders.i2b2 import external_mappings
 from cumulus_etl.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
 
@@ -88,7 +88,7 @@ def to_fhir_encounter(visit: VisitDimension) -> dict:
     encounter = {
         "resourceType": "Encounter",
         "id": str(visit.encounter_num),
-        "subject": fhir_common.ref_resource("Patient", visit.patient_num),
+        "subject": fhir.ref_resource("Patient", visit.patient_num),
         "meta": {"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-encounter"]},
         "status": "unknown",
         "period": {"start": chop_to_date(visit.start_date), "end": chop_to_date(visit.end_date)},
@@ -124,8 +124,8 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> dict:
     observation = {
         "resourceType": "Observation",
         "id": str(obsfact.instance_num),
-        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
-        "encounter": fhir_common.ref_resource("Encounter", obsfact.encounter_num),
+        "subject": fhir.ref_resource("Patient", obsfact.patient_num),
+        "encounter": fhir.ref_resource("Encounter", obsfact.encounter_num),
         "category": [make_concept("laboratory", "http://terminology.hl7.org/CodeSystem/observation-category")],
         "effectiveDateTime": chop_to_date(obsfact.start_date),
         "status": "unknown",
@@ -165,8 +165,8 @@ def to_fhir_observation_vitals(obsfact: ObservationFact) -> dict:
         "status": "unknown",
         "category": [make_concept("vital-signs", "http://terminology.hl7.org/CodeSystem/observation-category")],
         "code": make_concept(obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2"),
-        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
-        "encounter": fhir_common.ref_resource("Encounter", obsfact.encounter_num),
+        "subject": fhir.ref_resource("Patient", obsfact.patient_num),
+        "encounter": fhir.ref_resource("Encounter", obsfact.encounter_num),
         "effectiveDateTime": chop_to_date(obsfact.start_date),
     }
 
@@ -184,8 +184,8 @@ def to_fhir_condition(obsfact: ObservationFact) -> dict:
     condition = {
         "resourceType": "Condition",
         "id": str(obsfact.instance_num),
-        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
-        "encounter": fhir_common.ref_resource("Encounter", obsfact.encounter_num),
+        "subject": fhir.ref_resource("Patient", obsfact.patient_num),
+        "encounter": fhir.ref_resource("Encounter", obsfact.encounter_num),
         "meta": {"profile": ["http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition"]},
         "category": [
             make_concept(
@@ -235,8 +235,8 @@ def to_fhir_medicationrequest(obsfact: ObservationFact) -> dict:
         "medicationCodeableConcept": make_concept(
             obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2", display=obsfact.concept_cd
         ),
-        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
-        "encounter": fhir_common.ref_resource("Encounter", obsfact.encounter_num),
+        "subject": fhir.ref_resource("Patient", obsfact.patient_num),
+        "encounter": fhir.ref_resource("Encounter", obsfact.encounter_num),
         "authoredOn": chop_to_date(obsfact.start_date),
     }
 
@@ -259,9 +259,9 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> dict:
     return {
         "resourceType": "DocumentReference",
         "id": str(obsfact.instance_num),
-        "subject": fhir_common.ref_resource("Patient", obsfact.patient_num),
+        "subject": fhir.ref_resource("Patient", obsfact.patient_num),
         "context": {
-            "encounter": [fhir_common.ref_resource("Encounter", obsfact.encounter_num)],
+            "encounter": [fhir.ref_resource("Encounter", obsfact.encounter_num)],
             "period": {"start": chop_to_date(obsfact.start_date), "end": chop_to_date(obsfact.end_date)},
         },
         # It would be nice to get a real mapping for the "NOTE:" concept CD types to a real system.

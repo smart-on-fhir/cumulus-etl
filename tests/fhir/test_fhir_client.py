@@ -8,13 +8,12 @@ import ddt
 import respx
 from jwcrypto import jwk, jwt
 
-from cumulus_etl import errors, store
-from cumulus_etl.fhir_client import FatalError, FhirClient, create_fhir_client_for_cli
+from cumulus_etl import errors, fhir, store
 from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
-@mock.patch("cumulus_etl.fhir_client.uuid.uuid4", new=lambda: "1234")
+@mock.patch("cumulus_etl.fhir.fhir_client.uuid.uuid4", new=lambda: "1234")
 class TestFhirClient(AsyncTestCase):
     """
     Test case for FHIR client oauth2 / request support.
@@ -83,7 +82,7 @@ class TestFhirClient(AsyncTestCase):
         # Simple helper to open and make a call on client.
         async def use_client(request=False, code=None, url=self.server_url, **kwargs):
             try:
-                async with FhirClient(url, [], **kwargs) as client:
+                async with fhir.FhirClient(url, [], **kwargs) as client:
                     if request:
                         await client.request("GET", "test")
             except SystemExit as exc:
@@ -116,7 +115,7 @@ class TestFhirClient(AsyncTestCase):
             headers={"Authorization": "Bearer 1234"},  # the same access token used in setUp()
         )
 
-        async with FhirClient(
+        async with fhir.FhirClient(
             self.server_url, ["Condition", "Patient"], smart_client_id=self.client_id, smart_jwks=self.jwks
         ) as client:
             await client.request("GET", "foo")
@@ -142,7 +141,7 @@ class TestFhirClient(AsyncTestCase):
             headers={"Authorization": "Bearer fob"},
         )
 
-        async with FhirClient(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
+        async with fhir.FhirClient(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
             await server.request("GET", "foo")
 
     async def test_auth_with_basic_auth(self):
@@ -152,7 +151,7 @@ class TestFhirClient(AsyncTestCase):
             headers={"Authorization": "Basic VXNlcjpwNHNzdzByZA=="},
         )
 
-        async with FhirClient(self.server_url, [], basic_user="User", basic_password="p4ssw0rd") as server:
+        async with fhir.FhirClient(self.server_url, [], basic_user="User", basic_password="p4ssw0rd") as server:
             await server.request("GET", "foo")
 
     async def test_get_with_new_header(self):
@@ -165,7 +164,7 @@ class TestFhirClient(AsyncTestCase):
             },
         )
 
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             # With new header and stream
             await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
 
@@ -178,7 +177,7 @@ class TestFhirClient(AsyncTestCase):
             },
         )
 
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             # With overriding a header and default stream (False)
             await server.request("GET", "bar", headers={"Accept": "text/plain"})
 
@@ -190,8 +189,8 @@ class TestFhirClient(AsyncTestCase):
         {"keys": [{"alg": "RS384", "key_ops": ["sign"]}]},  # no kid
     )
     async def test_jwks_without_suitable_key(self, bad_jwks):
-        with self.assertRaisesRegex(FatalError, "No private ES384 or RS384 key found"):
-            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks):
+        with self.assertRaisesRegex(errors.FatalError, "No private ES384 or RS384 key found"):
+            async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks):
                 pass
 
     @ddt.data(
@@ -218,8 +217,8 @@ class TestFhirClient(AsyncTestCase):
             json=self.smart_configuration,
         )
 
-        with self.assertRaisesRegex(FatalError, "does not support the client-confidential-asymmetric protocol"):
-            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
+        with self.assertRaisesRegex(errors.FatalError, "does not support the client-confidential-asymmetric protocol"):
+            async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
     @ddt.data(
@@ -240,7 +239,7 @@ class TestFhirClient(AsyncTestCase):
         self.respx_mock["token"].respond(400, **response_params)
 
         with mock.patch("cumulus_etl.errors.fatal") as mock_fatal:
-            async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
+            async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 
         self.assertEqual(
@@ -253,7 +252,7 @@ class TestFhirClient(AsyncTestCase):
         route = self.respx_mock.get(f"{self.server_url}/foo")
         route.side_effect = [make_response(status_code=401), make_response()]
 
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             self.assertEqual(1, self.respx_mock["token"].call_count)
 
             # Check that we correctly tried to re-authenticate
@@ -267,13 +266,13 @@ class TestFhirClient(AsyncTestCase):
         self.respx_mock.get(f"{self.server_url}/retry-me").respond(429)
         self.respx_mock.get(f"{self.server_url}/nope").respond(430)
 
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
             # Confirm 429 passes
             response = await server.request("GET", "retry-me")
             self.assertEqual(429, response.status_code)
 
             # Sanity check that 430 does not
-            with self.assertRaises(FatalError):
+            with self.assertRaises(errors.FatalError):
                 await server.request("GET", "nope")
 
     @ddt.data(
@@ -290,8 +289,8 @@ class TestFhirClient(AsyncTestCase):
             return_value=make_response(status_code=500, **response_args),
         )
 
-        async with FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
-            with self.assertRaisesRegex(FatalError, "testmsg"):
+        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+            with self.assertRaisesRegex(errors.FatalError, "testmsg"):
                 await server.request("GET", "foo")
 
     @ddt.data(
@@ -299,11 +298,11 @@ class TestFhirClient(AsyncTestCase):
         ({"Patient"}, {"Patient"}),
     )
     @ddt.unpack
-    @mock.patch("cumulus_etl.fhir_client.FhirClient")
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     def test_added_binary_scope(self, resources_in, expected_resources_out, mock_client):
         """Verify that we add a Binary scope if DocumentReference is requested"""
         args = argparse.Namespace(
             fhir_url=None, smart_client_id=None, smart_jwks=None, basic_user=None, basic_passwd=None, bearer_token=None
         )
-        create_fhir_client_for_cli(args, store.Root("/tmp"), resources_in)
+        fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), resources_in)
         self.assertEqual(mock_client.call_args[0][1], expected_resources_out)

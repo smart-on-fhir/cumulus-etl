@@ -1,9 +1,9 @@
-"""Tests for fhir_common.py"""
+"""Tests for fhir_utils.py"""
 import base64
 
 import ddt
 
-from cumulus_etl import fhir_common
+from cumulus_etl import fhir
 from tests import utils
 
 
@@ -20,7 +20,7 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     )
     @ddt.unpack
     def test_unref_successes(self, full_reference, expected_type, expected_id):
-        parsed = fhir_common.unref_resource(full_reference)
+        parsed = fhir.unref_resource(full_reference)
         self.assertEqual((expected_type, expected_id), parsed)
 
     @ddt.data(
@@ -32,7 +32,7 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     )
     def test_unref_failures(self, reference):
         with self.assertRaises(ValueError):
-            fhir_common.unref_resource({"reference": reference})
+            fhir.unref_resource({"reference": reference})
 
     @ddt.data(
         ("Patient", "123", "Patient/123"),
@@ -40,7 +40,7 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     )
     @ddt.unpack
     def test_ref_resource(self, resource_type, resource_id, expected):
-        self.assertEqual({"reference": expected}, fhir_common.ref_resource(resource_type, resource_id))
+        self.assertEqual({"reference": expected}, fhir.ref_resource(resource_type, resource_id))
 
     @ddt.data(
         ("text/html", "<html><body>He<b>llooooo</b></html>", "Hellooooo"),  # strips html
@@ -63,5 +63,5 @@ class TestReferenceHandlers(utils.AsyncTestCase):
                 },
             ],
         }
-        resulting_note = await fhir_common.get_docref_note(None, docref)
+        resulting_note = await fhir.get_docref_note(None, docref)
         self.assertEqual(resulting_note, expected_note)

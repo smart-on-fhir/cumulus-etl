@@ -8,7 +8,7 @@ from unittest import mock
 
 import ddt
 
-from cumulus_etl import common, deid, errors, fhir_client
+from cumulus_etl import common, deid, errors, fhir
 from cumulus_etl.etl import config, tasks
 
 from tests.utils import AsyncTestCase
@@ -20,7 +20,7 @@ class TaskTestCase(AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
 
-        client = fhir_client.FhirClient("http://localhost/", [])
+        client = fhir.FhirClient("http://localhost/", [])
         self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         self.input_dir = os.path.join(self.tmpdir.name, "input")
         self.phi_dir = os.path.join(self.tmpdir.name, "phi")

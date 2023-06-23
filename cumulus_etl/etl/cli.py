@@ -13,7 +13,7 @@ from collections.abc import Iterable
 import rich
 import rich.table
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir_client, loaders, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, nlp, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
 
@@ -227,7 +227,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     # This is useful even if we aren't doing a bulk export, because some resources like DocumentReference can still
     # reference external resources on the server (like the document text).
     # If we don't need this client (e.g. we're using local data and don't download any attachments), this is a no-op.
-    client = fhir_client.create_fhir_client_for_cli(args, root_input, required_resources)
+    client = fhir.create_fhir_client_for_cli(args, root_input, required_resources)
 
     async with client:
         if args.input_format == "i2b2":

@@ -8,7 +8,7 @@ from collections.abc import Collection
 import ctakesclient
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir_client, fhir_common, loaders, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, nlp, store
 from cumulus_etl.chart_review import downloader, selector
 from cumulus_etl.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
 
@@ -29,7 +29,7 @@ def init_checks(args: argparse.Namespace):
 
 
 async def gather_docrefs(
-    client: fhir_client.FhirClient, root_input: store.Root, root_phi: store.Root, args: argparse.Namespace
+    client: fhir.FhirClient, root_input: store.Root, root_phi: store.Root, args: argparse.Namespace
 ) -> loaders.Directory:
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
@@ -49,13 +49,13 @@ async def gather_docrefs(
         )
 
 
-async def read_notes_from_ndjson(client: fhir_client.FhirClient, dirname: str) -> list[LabelStudioNote]:
+async def read_notes_from_ndjson(client: fhir.FhirClient, dirname: str) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
     docref_ids = []
     coroutines = []
     for docref in common.read_resource_ndjson(store.Root(dirname), "DocumentReference"):
         docref_ids.append(docref["id"])
-        coroutines.append(fhir_common.get_docref_note(client, docref))
+        coroutines.append(fhir.get_docref_note(client, docref))
     note_texts = await asyncio.gather(*coroutines)
 
     notes = []
@@ -164,7 +164,7 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     root_phi = store.Root(args.dir_phi, create=True)
 
     # Auth & read files early for quick error feedback
-    client = fhir_client.create_fhir_client_for_cli(args, root_input, ["DocumentReference"])
+    client = fhir.create_fhir_client_for_cli(args, root_input, ["DocumentReference"])
     access_token = common.read_text(args.ls_token).strip()
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 

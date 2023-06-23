@@ -13,6 +13,7 @@ requires-python = ">= 3.10"
 dependencies = [
     "ctakesclient >= 3, < 4",
     "delta-spark >= 2.3, < 3",
+    "fhirclient < 5",
     "httpx < 1",
     "inscriptis < 3",
     "jwcrypto < 2",
@@ -20,7 +21,7 @@ dependencies = [
     "oracledb < 2",
     "pandas < 3",
     "philter-lite < 1",
-    "pyarrow < 12",
+    "pyarrow < 13",
     "rich < 14",
     "s3fs",
 ]

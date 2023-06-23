@@ -7,8 +7,7 @@ import urllib.parse
 
 import httpx
 
-from cumulus_etl import common
-from cumulus_etl.fhir_client import FatalError, FhirClient
+from cumulus_etl import common, errors, fhir
 
 
 class BulkExporter:
@@ -23,7 +22,13 @@ class BulkExporter:
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
 
     def __init__(
-        self, client: FhirClient, resources: list[str], url: str, destination: str, since: str = None, until: str = None
+        self,
+        client: fhir.FhirClient,
+        resources: list[str],
+        url: str,
+        destination: str,
+        since: str = None,
+        until: str = None,
     ):
         """
         Initialize a bulk exporter (but does not start an export).
@@ -91,11 +96,11 @@ class BulkExporter:
 
             # Were there any server-side errors during the export?
             # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
-            errors, warnings = await self._gather_all_messages(response_json.get("error", []))
-            if errors:
-                raise FatalError("\n - ".join(["Errors occurred during export:"] + errors))
-            if warnings:
-                print("\n - ".join(["Messages from server:"] + warnings))
+            error_texts, warning_texts = await self._gather_all_messages(response_json.get("error", []))
+            if error_texts:
+                raise errors.FatalError("\n - ".join(["Errors occurred during export:"] + error_texts))
+            if warning_texts:
+                print("\n - ".join(["Messages from server:"] + warning_texts))
 
             # Download all the files
             print("Bulk FHIR export finished, now downloading resources...")
@@ -114,7 +119,7 @@ class BulkExporter:
         """As a kindness, send a DELETE to the polling location. Then the server knows it can delete the files."""
         try:
             await self._request_with_delay(poll_url, method="DELETE", target_status_code=202)
-        except FatalError:
+        except errors.FatalError:
             # Ignore any fatal issue with this, since we don't actually need this to succeed
             pass
 
@@ -158,19 +163,21 @@ class BulkExporter:
                 # It feels silly to abort on an unknown *success* code, but the spec has such clear guidance on
                 # what the expected response codes are, that it's not clear if a code outside those parameters means
                 # we should keep waiting or stop waiting. So let's be strict here for now.
-                raise FatalError(f"Unexpected status code {response.status_code} from the bulk FHIR export server.")
+                raise errors.FatalError(
+                    f"Unexpected status code {response.status_code} from the bulk FHIR export server."
+                )
 
-        raise FatalError("Timed out waiting for the bulk FHIR export to finish.")
+        raise errors.FatalError("Timed out waiting for the bulk FHIR export to finish.")
 
-    async def _gather_all_messages(self, errors: list[dict]) -> (list[str], list[str]):
+    async def _gather_all_messages(self, error_list: list[dict]) -> (list[str], list[str]):
         """
         Downloads all outcome message ndjson files from the bulk export server.
 
-        :param errors: info about each error file from the bulk FHIR server
+        :param error_list: info about each error file from the bulk FHIR server
         :returns: (error messages, non-fatal messages)
         """
         coroutines = []
-        for error in errors:
+        for error in error_list:
             if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
                 coroutines.append(self._request_with_delay(error["url"], headers={"Accept": "application/fhir+ndjson"}))
         responses = await asyncio.gather(*coroutines)
