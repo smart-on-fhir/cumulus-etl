@@ -2,4 +2,4 @@
 
 from .fhir_client import FhirClient, create_fhir_client_for_cli
 from .fhir_schemas import create_spark_schema_for_resource
-from .fhir_utils import get_docref_note, ref_resource, unref_resource
+from .fhir_utils import download_reference, get_docref_note, ref_resource, unref_resource

@@ -71,17 +71,16 @@ class TestConvert(utils.AsyncTestCase):
         await self.run_convert()
 
         # Test first conversion results
-        self.assertEqual(
-            {t.name for t in tasks.EtlTask.get_all_tasks()} | {"JobConfig"}, set(os.listdir(self.target_path))
-        )
+        expected_tables = {output.get_name(t) for t in tasks.get_all_tasks() for output in t.outputs}
+        self.assertEqual(expected_tables | {"JobConfig"}, set(os.listdir(self.target_path)))
         self.assertEqual(
             {"test": True}, common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json")
         )
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # spot check some patients
         self.assertEqual(2, len(patients))
         self.assertEqual("1de9ea66-70d3-da1f-c735-df5ef7697fb9", patients[0]["id"])
-        self.assertEqual(1982, patients[0]["birthDate"])
-        self.assertEqual(1983, patients[1]["birthDate"])
+        self.assertEqual("1982", patients[0]["birthDate"])
+        self.assertEqual("1983", patients[1]["birthDate"])
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
@@ -91,8 +90,8 @@ class TestConvert(utils.AsyncTestCase):
         delta_path = os.path.join(self.tmpdir, "delta")
         os.makedirs(f"{delta_path}/patient")
         with common.NdjsonWriter(f"{delta_path}/patient/new.ndjson") as writer:
-            writer.write({"resourceType": "Patient", "id": "1de9ea66-70d3-da1f-c735-df5ef7697fb9", "birthDate": 1800})
-            writer.write({"resourceType": "Patient", "id": "z-gen", "birthDate": 2005})
+            writer.write({"resourceType": "Patient", "id": "1de9ea66-70d3-da1f-c735-df5ef7697fb9", "birthDate": "1800"})
+            writer.write({"resourceType": "Patient", "id": "z-gen", "birthDate": "2005"})
         delta_config_dir = f"{delta_path}/JobConfig/{delta_timestamp}"
         os.makedirs(delta_config_dir)
         common.write_json(f"{delta_config_dir}/job_config.json", {"delta": "yup"})
@@ -105,9 +104,9 @@ class TestConvert(utils.AsyncTestCase):
         self.assertEqual({"delta": "yup"}, common.read_json(f"{delta_config_dir}/job_config.json"))
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # re-check the patients
         self.assertEqual(3, len(patients))
-        self.assertEqual(1800, patients[0]["birthDate"])  # these rows are sorted by id, so these are reliable indexes
-        self.assertEqual(1983, patients[1]["birthDate"])
-        self.assertEqual(2005, patients[2]["birthDate"])
+        self.assertEqual("1800", patients[0]["birthDate"])  # these rows are sorted by id, so these are reliable indexes
+        self.assertEqual("1983", patients[1]["birthDate"])
+        self.assertEqual("2005", patients[2]["birthDate"])
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions shouldn't change at all
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])

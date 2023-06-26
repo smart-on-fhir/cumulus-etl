@@ -21,7 +21,7 @@ def extract_csv(path_csv: str, batch_size: int) -> Iterator[dict]:
             for chunk in reader:
                 for _, row in chunk.iterrows():
                     yield dict(row)
-                count += batch_size
+                count += len(chunk)
                 print(f"  Read {count:,} entries...")
             print(f"Done reading {path_csv}.")
     except FileNotFoundError:

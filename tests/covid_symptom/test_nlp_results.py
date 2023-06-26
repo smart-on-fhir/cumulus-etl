@@ -10,7 +10,7 @@ from cumulus_etl.etl.studies import covid_symptom
 
 from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
-from tests.test_etl_tasks import TaskTestCase
+from tests.etl.test_tasks import TaskTestCase
 
 
 @ddt.ddt
@@ -65,10 +65,9 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
-        self.assertEqual(1 if expected else 0, self.format.write_records.call_count)
-        if expected:
-            df = self.format.write_records.call_args[0][0]
-            self.assertEqual(4, len(df))
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][0]
+        self.assertEqual(4 if expected else 0, len(df))
 
     async def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
@@ -105,7 +104,9 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         self.make_json("DocumentReference.0", "doc", **docref)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
-        self.assertEqual(1 if should_process else 0, self.format.write_records.call_count)
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][0]
+        self.assertEqual(should_process, not df.empty)
 
     @ddt.data(
         # list of (URL, contentType), expected text
@@ -132,12 +133,12 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         async with self.job_config.client:
             await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][0]
         if expected_text:
-            self.assertEqual(1, self.format.write_records.call_count)
-            df = self.format.write_records.call_args[0][0]
             self.assertEqual(expected_text, df.iloc[0].match["text"])
         else:
-            self.assertEqual(0, self.format.write_records.call_count)
+            self.assertTrue(df.empty)
 
     async def test_nlp_errors_saved(self):
         docref = i2b2_mock_data.documentreference()

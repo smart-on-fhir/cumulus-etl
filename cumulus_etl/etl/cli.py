@@ -3,7 +3,6 @@
 import argparse
 import datetime
 import itertools
-import json
 import os
 import shutil
 import sys
@@ -54,11 +53,12 @@ async def etl_job(
     scrubber = deid.Scrubber(config.dir_phi, use_philter=use_philter)
     for task_class in selected_tasks:
         task = task_class(config, scrubber)
-        summary = await task.run()
-        summary_list.append(summary)
+        task_summaries = await task.run()
+        summary_list.extend(task_summaries)
 
-        path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
-        common.write_json(path, summary.as_json(), indent=4)
+        for summary in task_summaries:
+            path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
+            common.write_json(path, summary.as_json(), indent=4)
 
     return summary_list
 
@@ -208,7 +208,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
     task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
-    selected_tasks = tasks.EtlTask.get_selected_tasks(task_names, task_filters)
+    selected_tasks = tasks.get_selected_tasks(task_names, task_filters)
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)
@@ -260,11 +260,6 @@ async def etl_main(args: argparse.Namespace) -> None:
 
         # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
         summaries = await etl_job(config, selected_tasks, use_philter=args.philter)
-
-    # Print results to the console
-    common.print_header("Results:")
-    for summary in summaries:
-        print(json.dumps(summary.as_json(), indent=4))
 
     # Update job context for future runs
     job_context.last_successful_datetime = job_datetime

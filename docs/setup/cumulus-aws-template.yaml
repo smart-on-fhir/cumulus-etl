@@ -172,6 +172,7 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/condition"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/documentreference"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/encounter"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/medication"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/medicationrequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"

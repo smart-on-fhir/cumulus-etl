@@ -132,8 +132,8 @@ class TreeCompareMixin(unittest.TestCase):
             right_json = json.loads(right_contents.decode("utf8"))
             self.assertEqual(left_json, right_json, f"{right_path} vs {left_path}")
         elif left_path.endswith(".ndjson"):
-            left_split = left_contents.decode("utf8").splitlines()
-            right_split = right_contents.decode("utf8").splitlines()
+            left_split = left_contents.decode("utf8").strip().splitlines()
+            right_split = right_contents.decode("utf8").strip().splitlines()
             left_rows = list(map(json.loads, left_split))
             right_rows = list(map(json.loads, right_split))
             self.assertEqual(left_rows, right_rows, f"{right_path} vs {left_path}")

@@ -14,9 +14,10 @@ class BulkExporter:
     """
     Perform a bulk export from a FHIR server that supports the Backend Service SMART profile.
 
-    This has been manually tested against:
+    This has been manually tested against at least:
     - The bulk-data-server test server (https://github.com/smart-on-fhir/bulk-data-server)
-    - Cerner Millennium (https://www.cerner.com/)
+    - Cerner (https://www.cerner.com/)
+    - Epic (https://www.epic.com/)
     """
 
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout

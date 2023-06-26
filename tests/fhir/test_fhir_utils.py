@@ -1,5 +1,6 @@
 """Tests for fhir_utils.py"""
 import base64
+from unittest import mock
 
 import ddt
 
@@ -65,3 +66,19 @@ class TestReferenceHandlers(utils.AsyncTestCase):
         }
         resulting_note = await fhir.get_docref_note(None, docref)
         self.assertEqual(resulting_note, expected_note)
+
+    @ddt.data(
+        (None, None),
+        ("", None),
+        ("#contained", None),
+        ("Reference/relative", {"id": "ref"}),
+        ("https://example.com/absolute/url", {"id": "ref"}),
+    )
+    @ddt.unpack
+    async def test_download_reference(self, reference, expected_result):
+        mock_client = mock.AsyncMock()
+        mock_client.request.return_value = utils.make_response(json_payload={"id": "ref"})
+
+        result = await fhir.download_reference(mock_client, reference)
+        self.assertEqual(expected_result, result)
+        self.assertEqual([mock.call("GET", reference)] if expected_result else [], mock_client.request.call_args_list)
