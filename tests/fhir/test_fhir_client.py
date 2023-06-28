@@ -285,7 +285,9 @@ class TestFhirClient(AsyncTestCase):
     )
     async def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
-        self.respx_mock.get(f"{self.server_url}/foo",).mock(
+        self.respx_mock.get(
+            f"{self.server_url}/foo",
+        ).mock(
             return_value=make_response(status_code=500, **response_args),
         )
 

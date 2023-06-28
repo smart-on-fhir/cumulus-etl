@@ -50,9 +50,9 @@ def condition_dim() -> transform.ObservationFact:
 
 
 def condition() -> dict:
-
-    return transform.to_fhir_condition(condition_dim(),codebook={
-  "http://hl7.org/fhir/sid/icd-10-cm": {"U07.1": "COVID-19"}})
+    return transform.to_fhir_condition(
+        condition_dim(), codebook={"http://hl7.org/fhir/sid/icd-10-cm": {"U07.1": "COVID-19"}}
+    )
 
 
 def documentreference_dim() -> transform.ObservationFact:
