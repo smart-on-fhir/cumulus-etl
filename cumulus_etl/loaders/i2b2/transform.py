@@ -1,7 +1,10 @@
 """Transformations from i2b2 to FHIR"""
 
 import base64
+import json
 import logging
+
+from pathlib import Path
 
 from cumulus_etl import fhir
 from cumulus_etl.loaders.i2b2 import external_mappings
@@ -14,6 +17,8 @@ from cumulus_etl.loaders.i2b2.schema import PatientDimension, VisitDimension, Ob
 #
 ###############################################################################
 
+
+ICD_CODE_DICT = json.load(open(Path(Path(__file__).resolve().parent,'icd.json')))
 
 def to_fhir_patient(patient: PatientDimension) -> dict:
     """
@@ -347,4 +352,6 @@ def make_concept(code: str, system: str | None, display: str = None) -> dict:
     coding = {"code": code, "system": system}
     if display is not None:
         coding["display"] = display
+    elif system in ICD_CODE_DICT:
+        coding["display"] = ICD_CODE_DICT[system].get(code, 'Display not found')
     return {"coding": [coding]}

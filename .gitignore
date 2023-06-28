@@ -4,6 +4,8 @@
 /example-output/
 /example-phi-build/
 .aws-sam/
+.python_version
+.DS_Store
 
 # Python gitignore https://github.com/github/gitignore/blob/main/Python.gitignore
 # Byte-compiled / optimized / DLL files
