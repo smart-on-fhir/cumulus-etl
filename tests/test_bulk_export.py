@@ -272,9 +272,7 @@ class TestBulkExportEndToEnd(AsyncTestCase):
         )
 
         # /token
-        respx_mock.post(
-            f"{self.root.path}/token",
-        ).respond(
+        respx_mock.post(f"{self.root.path}/token",).respond(
             json={
                 "access_token": "1234567890",
             },

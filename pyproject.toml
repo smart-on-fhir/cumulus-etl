@@ -77,4 +77,5 @@ tests = [
 ]
 dev = [
     "pre-commit",
+    "black == 22.12.0"
 ]
