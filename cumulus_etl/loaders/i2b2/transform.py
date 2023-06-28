@@ -3,8 +3,6 @@
 import base64
 import logging
 
-from pathlib import Path
-
 from cumulus_etl import fhir
 from cumulus_etl.loaders.i2b2 import external_mappings
 from cumulus_etl.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact

@@ -61,7 +61,8 @@ class I2b2Loader(Loader):
         tmpdir = cli_utils.make_export_dir(self.export_to)
 
         if "Condition" in resources:
-            code_dict = json.load(open(Path(Path(__file__).resolve().parent, "icd.json")))
+            with open(Path(Path(__file__).resolve().parent, "icd.json"), encoding="utf-8") as code_json:
+                code_dict = json.load(code_json)
             self._loop(
                 conditions(),
                 partial(transform.to_fhir_condition, codebook=code_dict),
