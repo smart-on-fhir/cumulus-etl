@@ -1,8 +1,10 @@
 """I2B2 loader"""
 
+import json
 import os
 from collections.abc import Callable, Iterable
 from functools import partial
+from pathlib import Path
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, common, store
@@ -59,9 +61,11 @@ class I2b2Loader(Loader):
         tmpdir = cli_utils.make_export_dir(self.export_to)
 
         if "Condition" in resources:
+            with open(Path(Path(__file__).resolve().parent, "icd.json"), encoding="utf-8") as code_json:
+                code_dict = json.load(code_json)
             self._loop(
                 conditions(),
-                transform.to_fhir_condition,
+                partial(transform.to_fhir_condition, codebook=code_dict),
                 os.path.join(tmpdir.name, "Condition.ndjson"),
             )
 

@@ -68,6 +68,7 @@ class TestI2b2Transform(AsyncTestCase):
         self.assertEqual("Encounter/67890", condition["encounter"]["reference"])
         self.assertEqual("U07.1", condition["code"]["coding"][0]["code"])
         self.assertEqual("http://hl7.org/fhir/sid/icd-10-cm", condition["code"]["coding"][0]["system"])
+        self.assertEqual("COVID-19", condition["code"]["coding"][0]["display"])
 
     def test_to_fhir_documentreference(self):
         docref = i2b2_mock_data.documentreference()

@@ -175,7 +175,7 @@ def to_fhir_observation_vitals(obsfact: ObservationFact) -> dict:
     return observation
 
 
-def to_fhir_condition(obsfact: ObservationFact) -> dict:
+def to_fhir_condition(obsfact: ObservationFact, codebook: dict) -> dict:
     """
     :param obsfact: i2b2 observation fact containing ICD9, ICD10, or SNOMED
                     diagnosis
@@ -216,8 +216,7 @@ def to_fhir_condition(obsfact: ObservationFact) -> dict:
         logging.warning("Condition: unknown system %s", i2b2_sys)
         i2b2_sys = "http://cumulus.smarthealthit.org/i2b2"
         i2b2_code = obsfact.concept_cd
-
-    condition["code"] = make_concept(i2b2_code, i2b2_sys)
+    condition["code"] = make_concept(i2b2_code, i2b2_sys, codebook=codebook)
 
     return condition
 
@@ -342,9 +341,12 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
     return {"valueQuantity": quantity}
 
 
-def make_concept(code: str, system: str | None, display: str = None) -> dict:
+def make_concept(code: str, system: str | None, display: str = None, codebook: dict = None) -> dict:
     """Syntactic sugar to make a codeable concept"""
     coding = {"code": code, "system": system}
-    if display is not None:
+    if display:
         coding["display"] = display
+    elif codebook:
+        if system in codebook:
+            coding["display"] = codebook[system].get(code, "Unknown")
     return {"coding": [coding]}
