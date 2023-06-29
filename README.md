@@ -1,34 +1,42 @@
-# Cumulus: Clinical Investigation at Population Scale
-Cumulus will enable the flow of aggregate and de-identified data on a broad set of health condition and patient population trends over time.
-Cumulus is based out of Boston Children’s Hospital with collaborations in US hospitals and departments of public health.
+# Cumulus ETL
 
-* [SMART push button population health](https://www.nature.com/articles/s41746-020-00358-4)
-* [AEGIS infectious disease monitoring](https://pubmed.ncbi.nlm.nih.gov/17600100)
+[Cumulus](https://docs.smarthealthit.org/cumulus/)
+is an entire healthcare pipeline for population-scale clinical investigations.
 
-## 21st Century Cures Act: effective Jan 1, 2023
-Cumulus will capitalize on “21st Century Cures Act” availability of EHR data in bulk FHIR to enable population health investigations locally, regionally, and nationally.
-21st century federal regulations take effect beginning Jan 2023, and Cumulus will capitalize on this new clinical datasource for clinical investigations.
+Cumulus ETL is the first critical piece of that pipeline.
+- It **extracts** bulk patient data from your EHR.
+- It **transforms** that data by anonymizing it and running NLP on clinical notes
+- It **loads** that data onto the cloud to be queried by
+  [Cumulus Library](https://github.com/smart-on-fhir/cumulus-library) SQL
 
-# Cumulus Features
-* Extracts bulk FHIR data
-* Performs natural language processing (NLP) on clinical notes via [cTAKES](https://ctakes.apache.org/) to extract symptoms and other information
-* De-identifies protected health information (PHI) before any data leaves your health institution
-* All data is encrypted at rest and in transit
-* Focuses on non-human-subject research and minimal disclosures -- researchers only see patient counts
-* A dashboard provides graphs of patient count data, for multiple studies
-* Regional clustering and aggregation
+## Documentation
 
-## SQL Queries Over Patient Populations
-Use the provided [Cumulus Library](https://github.com/smart-on-fhir/cumulus-library-core)
-* Packages "public health data feeds" into well-defined patient cohorts
-* Simplifies FHIR data as SQL views for easier accessibility to biomedical staff
-* Simplifies common views like Patient demographics, Hospital Encounters, Condition coding, etc
+For guides on installing & using Cumulus ETL,
+[read our documentation](https://docs.smarthealthit.org/cumulus/etl/).
 
-## Regional Cluster
-* [Federalist principles for healthcare data networks](https://www.nature.com/articles/nbt.3180)
+## Example
 
-# Further Reading
-* An [overview of how Cumulus works](docs/overview.md) (non-technical)
-* An [explanation of how Cumulus de-identifies patient data](docs/deid.md) (lightly-technical)
-* A [first-time setup guide](docs/setup/index.md) (highly technical)
-* An [integration guide](https://github.com/smart-on-fhir/cumulus-aggregator/docs/site_integration.md) for the Cumulus system (highly technical)
+A simple run of Cumulus ETL might look something like:
+```shell
+docker compose run \
+  cumulus-etl \
+  s3://my-input-bucket/bulk-export/ \
+  s3://my-output-bucket/delta-lakes/ \
+  s3://my-phi-bucket/build-and-phi-artifacts/
+```
+
+This line would read ndjson files from the input bucket,
+drop the result as [Delta Lakes](https://delta.io/) into the output bucket,
+and save some bookkeeping configuration to a build/phi bucket.
+
+## Contributing
+
+We love 💖 contributions!
+
+If you have a good suggestion 💡 or found a bug 🐛,
+[read our brief contributors guide](CONTRIBUTING.md)
+for pointers to filing issues and what to expect.
+
+If you're a programmer ⌨ and are looking for a starting place to help, we keep a
+[list of good bite-size issues](https://github.com/smart-on-fhir/cumulus-etl/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+for first-time contributions.
