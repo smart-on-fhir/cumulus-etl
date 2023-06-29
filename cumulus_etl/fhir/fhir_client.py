@@ -122,13 +122,12 @@ class JwksAuth(Auth):
         # Some servers (like Cerner) don't advertise their support with the 'client-confidential-asymmetric'
         # capability keyword, so let's not bother checking for it. But we can confirm that the pieces are there.
         config = response.json()
-        if (
-            "private_key_jwt" not in config.get("token_endpoint_auth_methods_supported", [])
-            or not {"ES384", "RS384"} & set(config.get("token_endpoint_auth_signing_alg_values_supported", []))
-            or not config.get("token_endpoint")
+        if "private_key_jwt" not in config.get("token_endpoint_auth_methods_supported", []) or not config.get(
+            "token_endpoint"
         ):
-            raise errors.FatalError(
-                f"Server {self._server_root} does not support the client-confidential-asymmetric protocol"
+            errors.fatal(
+                f"Server {self._server_root} does not support the client-confidential-asymmetric protocol",
+                errors.FHIR_AUTH_FAILED,
             )
 
         return config["token_endpoint"]

@@ -60,7 +60,6 @@ class TestFhirClient(AsyncTestCase):
             "capabilities": ["client-confidential-asymmetric"],
             "token_endpoint": self.token_url,
             "token_endpoint_auth_methods_supported": ["private_key_jwt"],
-            "token_endpoint_auth_signing_alg_values_supported": ["RS384"],
         }
         self.respx_mock.get(
             f"{self.server_url}/.well-known/smart-configuration",
@@ -196,8 +195,6 @@ class TestFhirClient(AsyncTestCase):
     @ddt.data(
         {"token_endpoint_auth_methods_supported": None},
         {"token_endpoint_auth_methods_supported": ["nope"]},
-        {"token_endpoint_auth_signing_alg_values_supported": None},
-        {"token_endpoint_auth_signing_alg_values_supported": ["nope"]},
         {"token_endpoint": None},
         {"token_endpoint": ""},
     )
@@ -217,7 +214,7 @@ class TestFhirClient(AsyncTestCase):
             json=self.smart_configuration,
         )
 
-        with self.assertRaisesRegex(errors.FatalError, "does not support the client-confidential-asymmetric protocol"):
+        with self.assertRaisesRegex(SystemExit, str(errors.FHIR_AUTH_FAILED)):
             async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
                 pass
 

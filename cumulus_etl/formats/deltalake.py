@@ -84,6 +84,8 @@ class DeltaLakeFormat(Format):
     def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
         """Writes the whole dataframe to a delta lake"""
         with self.pandas_to_spark_with_schema(dataframe) as updates:
+            if updates is None:
+                return
             table = self.update_delta_table(updates)
 
         table.generate("symlink_format_manifest")
@@ -159,7 +161,7 @@ class DeltaLakeFormat(Format):
             spark.conf.set("fs.s3a.endpoint.region", region_name)
 
     @contextlib.contextmanager
-    def pandas_to_spark_with_schema(self, dataframe: pandas.DataFrame) -> pyspark.sql.DataFrame:
+    def pandas_to_spark_with_schema(self, dataframe: pandas.DataFrame) -> pyspark.sql.DataFrame | None:
         """Transforms a pandas DF to a spark DF with a full FHIR schema included"""
         # This method solves two problems:
         # 1. Pandas schemas are very loosey-goosey (and don't really take nested data into account), so simply
@@ -183,21 +185,28 @@ class DeltaLakeFormat(Format):
         #   that every column has *some* definition, and that structs have content.
 
         with tempfile.TemporaryDirectory() as parquet_dir:
-            data_path = os.path.join(parquet_dir, "data.parquet")
-            schema_path = os.path.join(parquet_dir, "schema.parquet")
+            paths = []
 
             # Write the pandas dataframe to parquet to force full nested schemas.
             # We also convert dtypes, to get modern nullable pandas types (rather than using its default behavior of
             # converting a nullable integer column into a float column).
-            dataframe.convert_dtypes().to_parquet(data_path, index=False)
-            del dataframe  # allow GC to clean this up
-            paths = [data_path]
+            if not dataframe.empty:  # delta lake doesn't like empty parquet files
+                data_path = os.path.join(parquet_dir, "data.parquet")
+                dataframe.convert_dtypes().to_parquet(data_path, index=False)
+                del dataframe  # allow GC to clean this up
+                paths.append(data_path)
 
             # Write the empty schema dataframe, so we can merge it with the above real dataframe
             if self.resource_type:
+                schema_path = os.path.join(parquet_dir, "schema.parquet")
                 schema = fhir.create_spark_schema_for_resource(self.resource_type)
                 self.spark.createDataFrame([], schema=schema).write.parquet(schema_path)
                 paths.append(schema_path)
 
-            # Provide the happy merged result, coalesced to one partition (because our schema trick above creates 2)
-            yield self.spark.read.parquet(*paths, mergeSchema=True).coalesce(1)
+            if paths:
+                # Provide the happy merged result, coalesced to one partition (because our schema trick above creates 2)
+                yield self.spark.read.parquet(*paths, mergeSchema=True).coalesce(1)
+            else:
+                # Rare path, but possible - we have one task that uses a non-FHIR output format.
+                # So if it also has no data and has no schema, we hit this.
+                yield None

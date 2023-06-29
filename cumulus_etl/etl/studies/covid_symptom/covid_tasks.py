@@ -3,7 +3,6 @@
 import copy
 import itertools
 import os
-from collections.abc import AsyncIterator
 
 import ctakesclient
 
@@ -63,8 +62,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
     name = "covid_symptom__nlp_results"
     resource = "DocumentReference"
     tags = {"covid_symptom", "gpu"}
-    output_resource = None  # custom format
-    group_field = "docref_id"
+    outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
 
     async def prepare_task(self) -> bool:
         bsv_path = ctakesclient.filesystem.covid_symptoms_path()
@@ -82,7 +80,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
         with common.NdjsonWriter(error_path, "a") as writer:
             writer.write(docref)
 
-    async def read_entries(self) -> AsyncIterator[dict | list[dict]]:
+    async def read_entries(self) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 

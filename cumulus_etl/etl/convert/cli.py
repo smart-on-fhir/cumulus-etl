@@ -26,16 +26,17 @@ def make_progress_bar() -> rich.progress.Progress:
     return rich.progress.Progress(*columns)
 
 
-def convert_task(
+def convert_task_table(
     task: type[tasks.EtlTask],
+    table: tasks.OutputTable,
     input_root: store.Root,
     output_root: store.Root,
     formatter_class: type[formats.Format],
     progress: rich.progress.Progress,
 ) -> None:
-    """Converts a single task folder (like output/observation/ or output/covid_symptom__nlp_results/)"""
+    """Converts a task's output folder (like output/observation/ or output/covid_symptom__nlp_results/)"""
     # Does the task dir even exist?
-    task_input_dir = input_root.joinpath(task.name)
+    task_input_dir = input_root.joinpath(table.get_name(task))
     if not input_root.exists(task_input_dir):
         # Don't error out in this case -- it's not the user's fault if the folder doesn't exist.
         # We're just checking all task folders.
@@ -49,19 +50,25 @@ def convert_task(
         return
 
     # Let's convert! Make the formatter and chew through the files
-    formatter = formatter_class(output_root, task.name, group_field=task.group_field)
+    formatter = formatter_class(
+        output_root,
+        table.get_name(task),
+        group_field=table.group_field,
+        resource_type=table.get_schema(task),
+    )
 
     count = len(ndjson_paths) + 1  # add one for finalize step
-    task = progress.add_task(task.name, total=count)
+    progress_task = progress.add_task(table.get_name(task), total=count)
 
     for index, ndjson_path in enumerate(ndjson_paths):
-        df = pandas.read_json(ndjson_path, lines=True)
+        rows = common.read_ndjson(ndjson_path)
+        df = pandas.DataFrame(rows)
         df.drop_duplicates("id", inplace=True)
         formatter.write_records(df, index)
-        progress.update(task, advance=1)
+        progress.update(progress_task, advance=1)
 
     formatter.finalize()
-    progress.update(task, advance=1)
+    progress.update(progress_task, advance=1)
 
 
 def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
@@ -77,11 +84,12 @@ def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
 
 
 def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]) -> None:
-    all_tasks = tasks.EtlTask.get_all_tasks()
+    all_tasks = tasks.get_all_tasks()
 
     with make_progress_bar() as progress:
         for task in all_tasks:
-            convert_task(task, input_root, output_root, formatter_class, progress)
+            for table in task.outputs:
+                convert_task_table(task, table, input_root, output_root, formatter_class, progress)
 
         # Copy JobConfig files over too.
         # To consider: Marking the job_config.json file in these JobConfig directories as "converted" in some way.

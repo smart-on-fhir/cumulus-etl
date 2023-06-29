@@ -267,7 +267,6 @@ class TestBulkExportEndToEnd(AsyncTestCase):
                 "capabilities": ["client-confidential-asymmetric"],
                 "token_endpoint": f"{self.root.path}/token",
                 "token_endpoint_auth_methods_supported": ["private_key_jwt"],
-                "token_endpoint_auth_signing_alg_values_supported": ["ES384"],
             },
         )
 

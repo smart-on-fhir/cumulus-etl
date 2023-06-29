@@ -6,7 +6,7 @@ import re
 
 import inscriptis
 
-from cumulus_etl.fhir import fhir_client
+from cumulus_etl import fhir
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -31,7 +31,7 @@ def ref_resource(resource_type: str | None, resource_id: str) -> dict:
     return {"reference": f"{resource_type}/{resource_id}" if resource_type else resource_id}
 
 
-def unref_resource(ref: dict) -> (str | None, str):
+def unref_resource(ref: dict | None) -> (str | None, str):
     """
     Returns the type & ID for the target of the reference
 
@@ -72,6 +72,30 @@ def unref_resource(ref: dict) -> (str | None, str):
 
 ######################################################################################################################
 #
+# Resource downloading
+#
+######################################################################################################################
+
+
+async def download_reference(client: fhir.FhirClient, reference: str) -> dict | None:
+    """
+    Downloads a resource, given a FHIR reference.
+
+    :param client: a FhirClient instance
+    :param reference: the "reference" field from a Reference FHIR object (i.e. a string like "Resource/123" or a URL)
+    :returns: the downloaded resource or None if it didn't need to be downloaded (contained resource)
+    """
+    # Is it a blank or contained reference? We can just bail if so.
+    if not reference or reference.startswith("#"):
+        return None
+
+    # FhirClient will figure out whether this is an absolute or relative URL for us
+    response = await client.request("GET", reference)
+    return response.json()
+
+
+######################################################################################################################
+#
 # DocumentReference parsing (downloading notes etc)
 #
 ######################################################################################################################
@@ -100,7 +124,7 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
-async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attachment: dict) -> str:
+async def _get_docref_note_from_attachment(client: fhir.FhirClient, attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -128,7 +152,7 @@ async def _get_docref_note_from_attachment(client: fhir_client.FhirClient, attac
     raise ValueError("No data or url field present")
 
 
-async def get_docref_note(client: fhir_client.FhirClient, docref: dict) -> str:
+async def get_docref_note(client: fhir.FhirClient, docref: dict) -> str:
     attachments = [content["attachment"] for content in docref["content"]]
 
     # Find the best attachment to use, based on mimetype.
