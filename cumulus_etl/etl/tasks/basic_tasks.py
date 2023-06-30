@@ -52,9 +52,9 @@ class MedicationRequestTask(tasks.EtlTask):
         # But let's try initially with keeping it around for the whole task.
         self.medication_ids = set()
 
-    def scrub_medication(self, medication: dict) -> bool:
+    def scrub_medication(self, medication: dict | None) -> bool:
         """Scrub incoming medication resources, returns False if it should be skipped"""
-        if not self.scrubber.scrub_resource(medication):  # standard scrubbing
+        if not medication or not self.scrubber.scrub_resource(medication):  # standard scrubbing
             return False
 
         # Normally the above is all we'd need to do.
@@ -75,12 +75,13 @@ class MedicationRequestTask(tasks.EtlTask):
         if not reference:
             return None
 
-        # Don't duplicate medications we've already seen this run.
-        # This will still duplicate medications from previous runs, but avoiding that feels like more work than it's
-        # worth - just download em again and push em through (there might be updates to the resources, too!)
-        if reference in self.medication_ids:
-            return None
-        self.medication_ids.add(reference)
+        if not reference.startswith("#"):
+            # Don't duplicate medications we've already seen this run.
+            # This will still duplicate medications from previous runs, but avoiding that feels like more work than it's
+            # worth - just download em again and push em through (there might be updates to the resources, too!)
+            if reference in self.medication_ids:
+                return None
+            self.medication_ids.add(reference)
 
         try:
             medication = await fhir.download_reference(self.task_config.client, reference)

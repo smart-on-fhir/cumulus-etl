@@ -172,6 +172,22 @@ class TestMedicationRequestTask(TaskTestCase):
         df2 = self.format2.write_records.call_args[0][0]
         self.assertTrue(df2.empty)
 
+    async def test_contained_medications(self):
+        """Verify that we pass it through and don't blow up"""
+        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "#123"})
+
+        await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
+
+        # Confirm we wrote the basic MedicationRequest
+        self.assertEqual(1, self.format.write_records.call_count)
+        df = self.format.write_records.call_args[0][0]
+        self.assertEqual(f'#{self.codebook.db.resource_hash("123")}', df.iloc[0].medicationReference["reference"])
+
+        # Confirm we wrote an empty dataframe to the medication table
+        self.assertEqual(1, self.format2.write_records.call_count)
+        df2 = self.format2.write_records.call_args[0][0]
+        self.assertTrue(df2.empty)
+
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications(self, mock_download):
         """Verify that we download referenced medications"""
