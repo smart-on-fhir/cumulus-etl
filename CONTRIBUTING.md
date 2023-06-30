@@ -1,4 +1,4 @@
-# How to contribute to Cumulus
+# How to contribute to Cumulus ETL
 
 ## Did you find a bug?
 
@@ -43,7 +43,7 @@ go through several automated CI steps and a manual code review.
 
 Here's what GitHub will automatically run:
 - unit tests (run `pytest` locally to confirm your tests pass)
-- lint tests (run `pylint cumulus tests` to confirm your code passes)
+- lint tests (run `pylint cumulus_etl tests` to confirm your code passes)
 - security static analysis (via `bandit`)
 
 #### Manual review

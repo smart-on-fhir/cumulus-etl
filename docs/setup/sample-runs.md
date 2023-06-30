@@ -40,58 +40,20 @@ Before we dive in, you're going to want the following things in place:
 2. A [UMLS](https://www.nlm.nih.gov/research/umls/index.html) API key
     * Your hospital probably already has one, but they are also easy to
       [request](https://www.nlm.nih.gov/databases/umls.html).
-3. A deploy key for the Cumulus ETL repository (see below)
 
 In several places further down in these instructions, we'll reference sample data from the
 `./tests/data/simple/input/` folder, which is great for checking if you've got your configuration
 correct. However, if you'd like some more realistic data, there are 
 [sample bulk FHIR datasets](https://github.com/smart-on-fhir/sample-bulk-fhir-datasets) available
-for download - the 1,000 patient zip file is a good starting point - you can just swap the path
+for download - the 100 patient zip file is a good starting point - you can just swap the path
 you use for file inputs to point to where you extracted the dataset. 
 
-### Access to Cumulus ETL Code
+### Grab the Code
 
-At the time of writing, Cumulus is still not a publicly available project.
-You yourself might already have access to the Cumulus ETL repository,
-but for installing and running on hospital servers, you probably don't want to use your personal
-GitHub credentials.
-
-Instead, you'll use a [GitHub deploy key](https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys).
-
-1. Follow [GitHub's instructions](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent#generating-a-new-ssh-key)
-to generate a new SSH key for your server.
-1. Keep your private key in a safe place (e.g. AWS Secrets Manager).
-1. Give the public key to your contact at SMART.
-They'll add it to the repository as a valid deploy key.
-1. Follow the instructions below for actually pulling the code correctly.
-
-#### Configuring Git Clone
-
-To clone the [Cumulus ETL repository](https://github.com/smart-on-fhir/cumulus-etl),
-you'll need to connect over SSH rather than HTTP (to use the SSH deploy key from above).
-
-But often, hospital firewalls block SSH traffic.
-Thankfully, GitHub has set up an SSH server on the HTTPS port to accommodate this use case.
-Instead of cloning from `github.com` like normal, we'll clone from `ssh.github.com:443`.
-
-Now on to the cloning:
-
-1. Put the private key from above into place.
-```sh
-cp MY_PRIVATE_KEY ~/.ssh/id_ed25519
-chmod 0600 ~/.ssh/id_ed25519 # make sure it has the permissions that ssh requires
+Simply clone the Cumulus ETL repository:
+```shell
+git clone https://github.com/smart-on-fhir/cumulus-etl.git
 ```
-2. Put the correct SSH fingerprint (for `ssh.github.com:443`) into place.
-If you don't do this step, `git` will complain about an unknown server.
-```sh
-echo '[ssh.github.com]:443 ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=' >> ~/.ssh/known_hosts
-```
-3. And finally, clone the repository.
-```sh
-git clone --depth=1 ssh://git@ssh.github.com:443/smart-on-fhir/cumulus-etl.git
-```
-
-Now you have the Cumulus ETL code!
 
 ## Docker
 
@@ -112,20 +74,23 @@ systemctl enable containerd.service
 
 ## Docker Compose
 
-[Docker Compose](https://docs.docker.com/compose/) is included with Docker, and allows you to deploy a self-contained network.
+[Docker Compose](https://docs.docker.com/compose/) is included with Docker,
+and allows you to deploy a self-contained network.
 We're using it to simplify deploying the Cumulus ETL project in your ecosystem.
 
-The docker-compose.yaml, which defines the network, adds the following containers:
+The `compose.yaml` file, which defines the network, adds the following containers:
 
 - The Cumulus ETL process itself
 - A [cTAKES](https://ctakes.apache.org/) server, to handle natural language 
   processing of clinical notes.
+- A [cNLP transformer](https://github.com/Machine-Learning-for-Medical-Language/cnlp_transformers)
+  server, to run a second-pass negation of cTAKES results.
 
 ## Cumulus ETL
 
 ### Building a Docker Image
-Again, because Cumulus isn't yet a public project, we don't offer a turnkey docker image.
-But we _do_ ship a Dockerfile that you can use to build a docker image yourself for now.
+We plan to eventually offer a turnkey docker image.
+But for now you have to build a docker image yourself.
 
 You _could_ run Cumulus ETL directly from your cloned repository, but rather than worrying about
 all the dependencies it needs (including a whole
@@ -174,7 +139,7 @@ After running this command, you should be able to see output in
 `$CUMULUS_REPO_PATH/example-output` and some build artifacts in
 `$CUMULUS_REPO_PATH/example-phi-build`. The ndjson flag shows what the data leaving your
 organization looks like - take a look if you'd like to confirm that there isn't PHI
-in the output direcotry. 
+in the output directory.
 
 Congratulations! You've run your first Cumulus ETL process. The first of many!
 

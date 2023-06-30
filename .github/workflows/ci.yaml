@@ -3,11 +3,13 @@ on:
   pull_request:
     paths-ignore:
       - 'docs/**'
+      - '*.md'
   push:
     branches:
       - main
     paths-ignore:
       - 'docs/**'
+      - '*.md'
 
 # The goal here is to cancel older workflows when a PR is updated (because it's pointless work)
 concurrency:
