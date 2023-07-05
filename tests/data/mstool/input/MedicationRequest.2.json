@@ -1,0 +1,21 @@
+{
+  "resourceType": "MedicationRequest",
+  "id": "2-contained",
+  "contained": [
+    {
+      "resourceType": "Medication",
+      "id": "contained",
+      "status": "active",
+      "code": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/sid/ndc",
+            "code": "0069-2587-10",
+            "display": "Vancomycin Hydrochloride (VANCOMYCIN HYDROCHLORIDE)"
+          }
+        ]
+      }
+    }
+  ],
+  "medicationReference": { "reference": "#contained" }
+}
