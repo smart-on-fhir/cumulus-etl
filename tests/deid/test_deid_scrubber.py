@@ -69,15 +69,21 @@ class TestScrubber(utils.AsyncTestCase):
         self.assertNotIn("data", docref["content"][0]["attachment"])
 
     def test_contained_reference(self):
-        """Verify that we leave contained references contained"""
+        """Verify that we leave contained references contained but scrubbed"""
         scrubber = Scrubber()
         condition = i2b2_mock_data.condition()
+        condition["contained"] = [
+            {
+                "resourceType": "Patient",
+                "id": "p12",
+            }
+        ]
         condition["subject"]["reference"] = "#p12"
 
         self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertEqual(
-            "#221044b59936243b79da55c551b0c60ec7278733dde4acf65f83468cbd64bd0f", condition["subject"]["reference"]
-        )
+        fake_id = "221044b59936243b79da55c551b0c60ec7278733dde4acf65f83468cbd64bd0f"
+        self.assertEqual(fake_id, condition["contained"][0]["id"])
+        self.assertEqual(f"#{fake_id}", condition["subject"]["reference"])
 
     def test_unknown_modifier_extension(self):
         """Confirm we skip resources with unknown modifier extensions"""

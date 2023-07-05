@@ -18,8 +18,8 @@
       "gender": "male"
     },
     {
-      "resourceType": "Medication",
-      "id": "#med"
+      "resourceType": "CarePlan",
+      "id": "#careplan"
     }
   ],
 

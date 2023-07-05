@@ -156,6 +156,18 @@
     {"path": "Encounter.serviceProvider", "method": "keep"},
     {"path": "Encounter.partOf", "method": "keep"},
 
+    {"comment": "** https://www.hl7.org/fhir/R4/medication.html **", "path": "xxx", "method": "redact"},
+    {"path": "Medication.code", "method": "keep"},
+    {"path": "Medication.status", "method": "keep"},
+    {"path": "Medication.manufacturer", "method": "keep"},
+    {"path": "Medication.form", "method": "keep"},
+    {"path": "Medication.amount", "method": "keep"},
+    {"path": "Medication.ingredient.item", "method": "keep"},
+    {"path": "Medication.ingredient.isActive", "method": "keep"},
+    {"path": "Medication.ingredient.strength", "method": "keep"},
+    {"path": "Medication.batch.lotNumber", "method": "keep"},
+    {"path": "Medication.batch.expirationDate", "method": "keep"},
+
     {"comment": "** https://www.hl7.org/fhir/R4/medicationrequest.html **", "path": "xxx", "method": "redact"},
     {"path": "MedicationRequest.status", "method": "keep"},
     {"path": "MedicationRequest.statusReason", "method": "keep"},

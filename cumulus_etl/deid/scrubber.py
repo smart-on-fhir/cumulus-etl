@@ -110,7 +110,7 @@ class Scrubber:
     ) -> None:
         """Examines one single property of a node"""
         # For now, just manually run each operation. If this grows further, we can abstract it more.
-        self._check_ids(node_path, node, key, value)
+        self._check_ids(node, key, value)
         self._check_modifier_extensions(key, value)
         self._check_security(node_path, node, key, value)
         self._check_text(node, key, value)
@@ -139,10 +139,13 @@ class Scrubber:
             if url not in known_extensions:
                 raise SkipResource(f'Unrecognized modifierExtension with URL "{url}"')
 
-    def _check_ids(self, node_path: str, node: dict, key: str, value: Any) -> None:
+    def _check_ids(self, node: dict, key: str, value: Any) -> None:
         """Converts any IDs and references to a de-identified version"""
-        # ID values ("id" is only ever used as a resource ID)
-        if node_path == "root" and key == "id":
+        # ID values ("id" is only ever used as a resource/element ID)
+        # Can occur at the root node, contained resources, and TECHNICALLY in any backbone element.
+        # But the backbone elements won't have resourceType, and we can ignore those as non-resources/non-PHI.
+        # So we only convert if there's also a resourceType present.
+        if key == "id" and "resourceType" in node:
             node["id"] = self.codebook.fake_id(node["resourceType"], value)
 
         # References
