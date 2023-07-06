@@ -159,7 +159,7 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     """
     init_checks(args)
 
-    common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
+    store.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
     root_input = store.Root(args.dir_input)
     root_phi = store.Root(args.dir_phi, create=True)
 

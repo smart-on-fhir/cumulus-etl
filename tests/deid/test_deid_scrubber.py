@@ -5,6 +5,7 @@ from unittest import mock
 
 from ctakesclient import text2fhir, typesystem
 
+from cumulus_etl import common
 from cumulus_etl.deid import Scrubber
 from cumulus_etl.deid.codebook import CodebookDB
 from tests import i2b2_mock_data, utils
@@ -136,9 +137,7 @@ class TestScrubber(utils.AsyncTestCase):
             scrubber.scrub_resource(encounter_bad)
 
             # make sure that we raise an error on an unexpected cookbook version
-            db.settings["version"] = ".99"
-            db.modified = True
-            db.save(tmpdir)
+            common.write_json(f"{tmpdir}/codebook.json", {"version": ".99"})
             with self.assertRaises(Exception) as context:
                 Scrubber(tmpdir)
             self.assertIn(".99", str(context.exception))
