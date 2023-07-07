@@ -135,7 +135,7 @@ def define_convert_parser(parser: argparse.ArgumentParser) -> None:
 
 async def convert_main(args: argparse.Namespace) -> None:
     """Main logic for converting"""
-    common.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
+    store.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
 
     input_root = store.Root(args.input_dir)
     validate_input_dir(input_root)

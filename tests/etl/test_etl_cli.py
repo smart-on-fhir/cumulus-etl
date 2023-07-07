@@ -108,9 +108,9 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             # Run a couple checks to ensure that we do indeed have PHI in this dir
             self.assertIn("Patient.ndjson", os.listdir(phi_dir))
-            with common.open_file(os.path.join(phi_dir, "Patient.ndjson"), "r") as f:
-                first = json.loads(f.readlines()[0])
-                self.assertEqual("02139", first["address"][0]["postalCode"])
+            patients = list(common.read_ndjson(os.path.join(phi_dir, "Patient.ndjson")))
+            first = patients[0]
+            self.assertEqual("02139", first["address"][0]["postalCode"])
 
             # Then raise an exception to interrupt the ETL flow before we normally would be able to clean up
             raise KeyboardInterrupt
