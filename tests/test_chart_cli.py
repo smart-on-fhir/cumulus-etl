@@ -1,6 +1,7 @@
 """Tests for chart_review/cli.py"""
 
 import base64
+import json
 import os
 import shutil
 import tempfile
@@ -156,8 +157,8 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             f.write("\n".join(lines))
 
     def get_exported_ids(self) -> set[str]:
-        rows = common.read_ndjson(f"{self.export_path}/DocumentReference.ndjson")
-        return {row["id"] for row in rows}
+        with common.open_file(os.path.join(self.export_path, "DocumentReference.ndjson"), "r") as f:
+            return {json.loads(line)["id"] for line in f}
 
     def get_pushed_ids(self) -> set[str]:
         notes = self.ls_client.push_tasks.call_args[0][0]

@@ -145,8 +145,7 @@ class EtlTask:
                 self.table_batch_cleanup(table_index, batch_index)
 
                 print(f"  {summary.success:,} processed for {formatter.dbname}")
-
-            batch_index += 1
+                batch_index += 1
 
     def _touch_remaining_tables(self):
         """Writes empty dataframe to any table we haven't written to yet"""
