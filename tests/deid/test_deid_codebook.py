@@ -128,9 +128,6 @@ class TestCodebookDB(utils.AsyncTestCase):
             # Confirm that an empty book starts modified
             db = CodebookDB()
             self.assertTrue(db.save(tmpdir))
-            self.assertTrue(os.path.exists(f"{tmpdir}/codebook.json"))
-            self.assertFalse(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json"))
-            codebook_mtime = os.path.getmtime(f"{tmpdir}/codebook.json")
 
             # But after a save, we are no longer modified
             self.assertFalse(db.save(tmpdir))
@@ -142,9 +139,6 @@ class TestCodebookDB(utils.AsyncTestCase):
             # Add a new patient, and we can save (because cached mapping changed)
             db.patient("1")
             self.assertTrue(db.save(tmpdir))
-            self.assertTrue(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json"))
-            # main codebook shouldn't be written for just mappings changes
-            self.assertEqual(codebook_mtime, os.path.getmtime(f"{tmpdir}/codebook.json"))
 
             # But if we make a call that doesn't modify the db, don't save
             db.patient("1")

@@ -103,9 +103,8 @@ class CodebookDB:
             "Encounter": {},
         }
 
-        # Tracks whether we need to write out our settings or mappings
-        self.settings_modified = False
-        self.mappings_modified = False
+        # Modified is true if *either* setting or cached_mapping has changed
+        self.modified = True
 
         if codebook_dir:
             self._load_saved_settings(common.read_json(os.path.join(codebook_dir, "codebook.json")))
@@ -113,6 +112,7 @@ class CodebookDB:
                 self.cached_mapping = common.read_json(os.path.join(codebook_dir, "codebook-cached-mappings.json"))
             except (FileNotFoundError, PermissionError):
                 pass
+            self.modified = False
 
         # Initialize salt if we don't have one yet
         if "id_salt" not in self.settings:
@@ -123,7 +123,7 @@ class CodebookDB:
             # The sha256 algorithm is sitting on top of this salt, and a key size equal to the output size is also
             # recommended, so 256 bits seem good (which is 32 bytes).
             self.settings["id_salt"] = secrets.token_hex(32)
-            self.settings_modified = True
+            self.modified = True
 
     def patient(self, real_id: str, cache_mapping: bool = True) -> str:
         """
@@ -174,7 +174,7 @@ class CodebookDB:
             # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
             # but is written defensively in case a bad mapping got saved for some reason.
             self.cached_mapping[resource_type][real_id] = fake_id
-            self.mappings_modified = True
+            self.modified = True
 
         return fake_id
 
@@ -242,16 +242,16 @@ class CodebookDB:
         """
         saved = False
 
-        if self.settings_modified:
+        if self.modified:
+            logging.info("Saving codebook to: %s", codebook_dir)
+
             codebook_path = os.path.join(codebook_dir, "codebook.json")
             common.write_json(codebook_path, self.settings)
-            self.settings_modified = False
-            saved = True
 
-        if self.mappings_modified:
             cached_mapping_path = os.path.join(codebook_dir, "codebook-cached-mappings.json")
             common.write_json(cached_mapping_path, self.cached_mapping)
-            self.mappings_modified = False
+
+            self.modified = False
             saved = True
 
         return saved
