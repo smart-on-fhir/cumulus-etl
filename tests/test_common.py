@@ -1,16 +1,15 @@
 """Tests for common.py"""
 import contextlib
-import io
-import os
+import itertools
 import tempfile
 from unittest import mock
 
 import ddt
 import fsspec
-from fsspec.implementations.local import LocalFileOpener
+import s3fs
 
 from cumulus_etl import common
-from tests import utils
+from tests import s3mock, utils
 
 
 @ddt.ddt
@@ -43,34 +42,79 @@ class TestLogging(utils.AsyncTestCase):
 
 
 @ddt.ddt
-class TestIOUtils(utils.AsyncTestCase):
-    """Tests for our read/write helper methods"""
+class TestIOUtils(s3mock.S3Mixin, utils.AsyncTestCase):
+    """
+    Tests for our read/write helper methods.
+
+    Mostly against S3 because that's such an important target FS and s3fs might have its own set of bugs/behavior.
+    """
 
     @contextlib.contextmanager
     def exploding_text(self):
         """Yields text data that when fed to S3 writes, will explode after some but not all data has been uploaded"""
-        orig_write = LocalFileOpener.write
+        orig_write = s3fs.core.S3File.write
 
         def exploding_write(*args, **kwargs):
             orig_write(*args, **kwargs)
             raise KeyboardInterrupt
 
-        with mock.patch("fsspec.implementations.local.LocalFileOpener.write", new=exploding_write):
+        with mock.patch("s3fs.core.S3File.write", new=exploding_write):
             with self.assertRaises(KeyboardInterrupt):
-                yield "1" * io.DEFAULT_BUFFER_SIZE
+                yield "1" * (fsspec.spec.AbstractBufferedFile.DEFAULT_BLOCK_SIZE + 1)
 
-    async def test_writes_are_atomic(self):
+    def test_writes_are_atomic(self):
         """Verify that our write utilities are atomic."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # Try a couple of our write methods, confirm that nothing makes it through
-            with self.exploding_text() as text:
-                common.write_text(f"{tmpdir}/atomic.txt", text)
-            with self.exploding_text() as text:
-                common.write_json(f"{tmpdir}/atomic.json", {"hello": text})
-            self.assertEqual([], os.listdir(tmpdir))
+        # Try a couple of our write methods, confirm that nothing makes it through
+        with self.exploding_text() as text:
+            common.write_text(f"{self.bucket_url}/atomic.txt", text)
+        with self.exploding_text() as text:
+            common.write_json(f"{self.bucket_url}/atomic.json", {"hello": text})
+        self.assertEqual([], self.s3fs.ls(self.bucket_url, detail=False))
 
-            # By default, fsspec writes are not atomic - just sanity check that text _can_ get through exploding_text
-            with self.exploding_text() as text:
-                with fsspec.open(f"{tmpdir}/partial.txt", "w") as f:
-                    f.write(text)
-            self.assertEqual(["partial.txt"], os.listdir(tmpdir))
+        # By default, fsspec writes are not atomic - just sanity check that text _can_ get through exploding_text
+        with self.exploding_text() as text:
+            with fsspec.open(f"{self.bucket_url}/partial.txt", "w", endpoint_url=s3mock.S3Mixin.ENDPOINT_URL) as f:
+                f.write(text)
+        self.assertEqual([f"{self.bucket}/partial.txt"], self.s3fs.ls(self.bucket_url, detail=False))
+
+    @ddt.idata(
+        # Every combination of these sizes, backends, and data formats:
+        itertools.product(
+            [5, fsspec.spec.AbstractBufferedFile.DEFAULT_BLOCK_SIZE + 1],
+            ["local", "s3"],
+            ["json", "text"],
+        )
+    )
+    @ddt.unpack
+    def test_writes_happy_path(self, size, backend, data_format):
+        """
+        Verify that writes of various sizes and formats are written out correctly.
+
+        This may seem paranoid, but we've seen S3FS not write them out inside a transaction,
+        because we forgot to close or flush the file.
+        """
+        match data_format:
+            case "text":
+                write = common.write_text
+                read = common.read_text
+                data = "1" * size
+            case "json":
+                write = common.write_json
+                read = common.read_json
+                data = ["1" * size]
+            case _:
+                raise ValueError
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            match backend:
+                case "local":
+                    directory = tmpdir
+                case "s3":
+                    directory = self.bucket_url
+                case _:
+                    raise ValueError
+
+            write(f"{directory}/file.txt", data)
+            result = read(f"{directory}/file.txt")
+
+        self.assertEqual(data, result)

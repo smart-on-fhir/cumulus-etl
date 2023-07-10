@@ -51,6 +51,18 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(patcher.stop)
         return patcher.start()
 
+    def patch_dict(self, *args, **kwargs) -> mock.Mock:
+        """Syntactic sugar to ease making a dictionary mock over a test's lifecycle, without decorators"""
+        patcher = mock.patch.dict(*args, **kwargs)
+        self.addCleanup(patcher.stop)
+        return patcher.start()
+
+    def patch_object(self, *args, **kwargs) -> mock.Mock:
+        """Syntactic sugar to ease making an object mock over a test's lifecycle, without decorators"""
+        patcher = mock.patch.object(*args, **kwargs)
+        self.addCleanup(patcher.stop)
+        return patcher.start()
+
     async def _catch_system_exit(self, method):
         try:
             ret = method()

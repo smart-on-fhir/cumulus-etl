@@ -39,9 +39,8 @@ def _atomic_open(path: str, mode: str) -> TextIO:
 
     # fsspec is atomic per-transaction -- if an error occurs inside the transaction, partial writes will be discarded
     with root.fs.transaction:
-        file = root.fs.open(path, mode=mode, encoding="utf8")
-        yield file
-        file.flush()
+        with root.fs.open(path, mode=mode, encoding="utf8") as file:
+            yield file
 
 
 def read_text(path: str) -> str:

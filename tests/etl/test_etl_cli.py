@@ -8,7 +8,6 @@ import tempfile
 from unittest import mock
 
 import pytest
-import s3fs
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli, common, deid, errors, loaders, store
@@ -340,12 +339,9 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
     """Test case for our support of writing to S3"""
 
     async def test_etl_job_s3(self):
-        fs = s3fs.S3FileSystem()
-        fs.makedirs("s3://mockbucket/")
-
         await self.run_etl(output_path="s3://mockbucket/root")
 
-        all_files = {x for x in fs.find("mockbucket/root") if "/JobConfig/" not in x}
+        all_files = {x for x in self.s3fs.find("mockbucket/root") if "/JobConfig/" not in x}
         self.assertEqual(
             {
                 "mockbucket/root/condition/condition.000.ndjson",
