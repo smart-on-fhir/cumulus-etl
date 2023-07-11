@@ -71,7 +71,7 @@ tests = [
     "coverage",
     "ddt",
     "freezegun",
-    "moto[s3]",
+    "moto[server,s3]",
     "pytest",
     "respx",
 ]

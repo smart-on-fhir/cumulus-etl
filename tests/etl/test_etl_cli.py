@@ -8,7 +8,6 @@ import tempfile
 from unittest import mock
 
 import pytest
-import s3fs
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli, common, deid, errors, loaders, store
@@ -108,9 +107,9 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             # Run a couple checks to ensure that we do indeed have PHI in this dir
             self.assertIn("Patient.ndjson", os.listdir(phi_dir))
-            with common.open_file(os.path.join(phi_dir, "Patient.ndjson"), "r") as f:
-                first = json.loads(f.readlines()[0])
-                self.assertEqual("02139", first["address"][0]["postalCode"])
+            patients = list(common.read_ndjson(os.path.join(phi_dir, "Patient.ndjson")))
+            first = patients[0]
+            self.assertEqual("02139", first["address"][0]["postalCode"])
 
             # Then raise an exception to interrupt the ETL flow before we normally would be able to clean up
             raise KeyboardInterrupt
@@ -340,12 +339,9 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
     """Test case for our support of writing to S3"""
 
     async def test_etl_job_s3(self):
-        fs = s3fs.S3FileSystem()
-        fs.makedirs("s3://mockbucket/")
-
         await self.run_etl(output_path="s3://mockbucket/root")
 
-        all_files = {x for x in fs.find("mockbucket/root") if "/JobConfig/" not in x}
+        all_files = {x for x in self.s3fs.find("mockbucket/root") if "/JobConfig/" not in x}
         self.assertEqual(
             {
                 "mockbucket/root/condition/condition.000.ndjson",

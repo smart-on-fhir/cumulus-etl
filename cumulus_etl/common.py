@@ -7,10 +7,9 @@ import json
 import logging
 import re
 from collections.abc import Iterator
-from typing import Any
-from urllib.parse import urlparse
+from typing import Any, TextIO
 
-import fsspec
+from cumulus_etl import store
 
 
 ###############################################################################
@@ -32,49 +31,16 @@ def ls_resources(root, resource: str) -> list[str]:
 #
 ###############################################################################
 
-_user_fs_options = {}  # don't access this directly, use get_fs_options()
 
+@contextlib.contextmanager
+def _atomic_open(path: str, mode: str) -> TextIO:
+    """A version of open() that handles atomic file access across many filesystems (like S3)"""
+    root = store.Root(path)
 
-def set_user_fs_options(args: dict) -> None:
-    """Records user arguments that can affect filesystem options (like s3_region)"""
-    _user_fs_options.update(args)
-
-
-def get_fs_options(protocol: str) -> dict:
-    """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
-    options = {}
-
-    if protocol == "s3":
-        # Check for region manually. If you aren't using us-east-1, you usually need to specify the region
-        # explicitly, and fsspec doesn't seem to check the environment variables for us, nor pull it from
-        # ~/.aws/config
-        region_name = _user_fs_options.get("s3_region")
-        if region_name:
-            options["client_kwargs"] = {"region_name": region_name}
-
-        # Assume KMS encryption for now - we can make this tunable to AES256 if folks have a need.
-        # But in general, I believe we want to enforce server side encryption when possible, KMS or not.
-        options["s3_additional_kwargs"] = {
-            "ServerSideEncryption": "aws:kms",
-        }
-
-        # Buckets can be set up to require a specific KMS key ID, so allow specifying it here
-        kms_key = _user_fs_options.get("s3_kms_key")
-        if kms_key:
-            options["s3_additional_kwargs"]["SSEKMSKeyId"] = kms_key
-
-    return options
-
-
-def open_file(path: str, mode: str):
-    """A version of open() that handles remote access, like to S3"""
-    # Grab protocol if present
-    parsed = urlparse(path)
-    protocol = parsed.scheme or "file"  # assume local if no obvious scheme
-
-    # We pass auto_mkdir because on some backends (like S3), we may not have permissions that fsspec might want,
-    # like CreateBucket. We elsewhere call Root.makedirs as needed.
-    return fsspec.open(path, mode, encoding="utf8", auto_mkdir=False, **get_fs_options(protocol))
+    # fsspec is atomic per-transaction -- if an error occurs inside the transaction, partial writes will be discarded
+    with root.fs.transaction:
+        with root.fs.open(path, mode=mode, encoding="utf8") as file:
+            yield file
 
 
 def read_text(path: str) -> str:
@@ -85,7 +51,7 @@ def read_text(path: str) -> str:
     """
     logging.debug("read_text() %s", path)
 
-    with open_file(path, "r") as f:
+    with _atomic_open(path, "r") as f:
         return f.read()
 
 
@@ -97,7 +63,7 @@ def write_text(path: str, text: str) -> None:
     """
     logging.debug("write_text() %s", path)
 
-    with open_file(path, "w") as f:
+    with _atomic_open(path, "w") as f:
         f.write(text)
 
 
@@ -109,7 +75,7 @@ def read_json(path: str) -> Any:
     """
     logging.debug("read_json() %s", path)
 
-    with open_file(path, "r") as f:
+    with _atomic_open(path, "r") as f:
         return json.load(f)
 
 
@@ -122,7 +88,7 @@ def write_json(path: str, data: Any, indent: int = None) -> None:
     """
     logging.debug("write_json() %s", path)
 
-    with open_file(path, "w") as f:
+    with _atomic_open(path, "w") as f:
         json.dump(data, f, indent=indent)
 
 
@@ -134,7 +100,7 @@ def read_csv(path: str) -> csv.DictReader:
 
 def read_ndjson(path: str) -> Iterator[dict]:
     """Yields parsed json from the input ndjson file, line-by-line."""
-    with open_file(path, "r") as f:
+    with _atomic_open(path, "r") as f:
         for line in f:
             yield json.loads(line)
 
@@ -150,7 +116,7 @@ def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
 
 
 class NdjsonWriter:
-    """Convenience context manager to write multiple objects to an ndjson file."""
+    """Convenience context manager to write multiple objects to a local ndjson file."""
 
     def __init__(self, path: str, mode: str = "w"):
         self._path = path

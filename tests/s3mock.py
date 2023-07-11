@@ -1,101 +1,74 @@
 """
 Support for mocking out an S3 server during a test.
-
-ALso, patch aiobotocore (used by pandas) to work with moto
-See https://github.com/aio-libs/aiobotocore/issues/755
 """
 
 import os
-import unittest
-from collections.abc import Callable
-from unittest.mock import MagicMock, patch
 
-import aiobotocore.awsrequest
-import aiobotocore.endpoint
-import aiohttp
-import aiohttp.client_reqrep
-import aiohttp.typedefs
-import botocore.awsrequest
-import botocore.model
-from moto import mock_s3
+import moto
+import s3fs
+from moto.server import ThreadedMotoServer
+
+from cumulus_etl import store
+from tests import utils
 
 
-class S3Mixin(unittest.TestCase):
+class S3Mixin(utils.AsyncTestCase):
     """Subclass this to automatically support s3:// paths in your tests"""
+
+    ENDPOINT_URL = "http://localhost:5000"
 
     def setUp(self):
         super().setUp()
 
         # Moto recommends clearing out these variables, to avoid using any
         # real credentials floating around in your environment
-        os.environ["AWS_ACCESS_KEY_ID"] = "testing"
-        os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
-        os.environ["AWS_SECURITY_TOKEN"] = "testing"
-        os.environ["AWS_SESSION_TOKEN"] = "testing"
-        os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+        self.patch_dict(
+            os.environ,
+            {
+                "AWS_ACCESS_KEY_ID": "testing",
+                "AWS_SECRET_ACCESS_KEY": "testing",
+                "AWS_SECURITY_TOKEN": "testing",
+                "AWS_SESSION_TOKEN": "testing",
+                "AWS_DEFAULT_REGION": "us-east-1",
+            },
+        )
 
-        # Work around https://github.com/aio-libs/aiobotocore/issues/755
-        aiobmock = patch_aiobotocore()
-        self.addCleanup(aiobmock.stop)
-        aiobmock.start()
+        # We use a moto server rather than starting moto.mock_s3() because we've found that aiobotocore (used by s3fs)
+        # and moto do not get along well. See https://github.com/aio-libs/aiobotocore/issues/755
+        # But an external server avoids all that.
+        self.server = ThreadedMotoServer()
+        self.server.start()
 
-        # Start Moto's mock S3 server
-        s3mock = mock_s3()
+        s3mock = moto.mock_s3()
         self.addCleanup(s3mock.stop)
         s3mock.start()
 
+        # Insert our new endpoint into the default S3 args
+        self.patch_object(store.Root, "fsspec_options", new=self.fake_fsspec_options)
 
-###############################################################################
-#
-# Everything below is a lightly-edited copy of
-# https://github.com/aio-libs/aiobotocore/issues/755#issuecomment-1242592893
-#
-###############################################################################
+        # Create a helpful S3FS filesystem already safely using our endpoint, and a starting bucket
+        s3fs.S3FileSystem.clear_instance_cache()
+        self.s3fs = s3fs.S3FileSystem(endpoint_url=S3Mixin.ENDPOINT_URL)
+        self.bucket = "mockbucket"
+        self.bucket_url = f"s3://{self.bucket}"
 
+        try:
+            self.s3fs.mkdir(self.bucket)  # create the bucket as a quickstart
+        except Exception:  # pylint: disable=broad-except
+            self._kill_moto_server()
+            self.fail("Stale moto server")
 
-class MockAWSResponse(aiobotocore.awsrequest.AioAWSResponse):
-    """Mock aws response"""
+    def tearDown(self):
+        super().tearDown()
+        self._kill_moto_server()
 
-    def __init__(self, response: botocore.awsrequest.AWSResponse):
-        super().__init__("", response.status_code, {}, MockHttpClientResponse(response))
-        self._moto_response = response
+    def _kill_moto_server(self):
+        self.server.stop()
+        s3fs.S3FileSystem.clear_instance_cache()
 
-    # adapt async methods to use moto's response
-    async def _content_prop(self) -> bytes:
-        return self._moto_response.content
-
-    async def _text_prop(self) -> str:
-        return self._moto_response.text
-
-
-class MockHttpClientResponse(aiohttp.client_reqrep.ClientResponse):
-    """Mock http response"""
-
-    def __init__(self, response: botocore.awsrequest.AWSResponse):
-        # pylint: disable=super-init-not-called
-
-        async def read(self, n: int = -1) -> bytes:
-            del self, n
-            # streaming/range requests. used by s3fs
-            return response.content
-
-        self.content = MagicMock(aiohttp.StreamReader)
-        self.content.read = read
-
-    @property
-    # pylint: disable-next=invalid-overridden-method
-    def raw_headers(self) -> aiohttp.typedefs.RawHeaders:
-        return tuple()
-
-
-def patch_aiobotocore():
-    def factory(original: Callable) -> Callable:
-        def patched_convert_to_response_dict(
-            http_response: botocore.awsrequest.AWSResponse, operation_model: botocore.model.OperationModel
-        ):
-            return original(MockAWSResponse(http_response), operation_model)
-
-        return patched_convert_to_response_dict
-
-    original = aiobotocore.endpoint.convert_to_response_dict
-    return patch.object(aiobotocore.endpoint, "convert_to_response_dict", new=factory(original))
+    @staticmethod
+    def fake_fsspec_options(obj) -> dict:
+        original = store.get_fs_options(obj.protocol)
+        if obj.protocol == "s3":
+            original["endpoint_url"] = S3Mixin.ENDPOINT_URL
+        return original
