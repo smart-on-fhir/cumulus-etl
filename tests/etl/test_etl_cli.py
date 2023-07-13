@@ -12,11 +12,10 @@ from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli, common, deid, errors, loaders, store
 from cumulus_etl.etl import context
-from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
 from tests.s3mock import S3Mixin
-from tests.utils import FROZEN_TIME_UTC, AsyncTestCase, TreeCompareMixin
+from tests.utils import FROZEN_TIME_UTC, AsyncTestCase, TreeCompareMixin, read_delta_lake
 
 
 @pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
@@ -471,8 +470,8 @@ class TestEtlNlp(BaseEtlSimple):
 
         def table_ids():
             path = os.path.join(self.output_path, "covid_symptom__nlp_results")
-            df = DeltaLakeFormat.spark.read.format("delta").load(path).sort("id").toPandas()
-            return [row["id"] for _, row in df.iterrows()]
+            rows = read_delta_lake(path)
+            return [row["id"] for row in rows]
 
         # Get a baseline, with two symptoms per document
         await self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])

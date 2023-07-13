@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 import time
+import tracemalloc
 import unittest
 from unittest import mock
 
@@ -188,7 +189,7 @@ def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
 
     DeltaLakeFormat.initialize_class() must have already been called.
 
-    Compare the results to a pandas dataframe with df.to_dict(orient="records") or just as a list of dicts.
+    Compare the results to a pyarrow table with table.to_pylist() or just as a list of dicts.
     """
     # Read spark table
     reader = DeltaLakeFormat.spark.read
@@ -204,10 +205,30 @@ def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
 
 
 @contextlib.contextmanager
-def timeit(desc: str = None):
+def time_it(desc: str = None):
     """Tiny little timer context manager that is useful when debugging"""
     start = time.perf_counter()
     yield
     end = time.perf_counter()
     suffix = f" ({desc})" if desc else ""
-    print(f"TIMEIT: {end - start:.2f}s{suffix}")
+    print(f"TIME IT: {end - start:.2f}s{suffix}")
+
+
+@contextlib.contextmanager
+def mem_it(desc: str = None):
+    """Tiny little context manager to measure memory usage"""
+    start_tracing = not tracemalloc.is_tracing()
+    if start_tracing:
+        tracemalloc.start()
+
+    before, before_peak = tracemalloc.get_traced_memory()
+    yield
+    after, after_peak = tracemalloc.get_traced_memory()
+
+    if start_tracing:
+        tracemalloc.stop()
+
+    suffix = f" ({desc})" if desc else ""
+    if after_peak > before_peak:
+        suffix = f"{suffix} ({after_peak - before_peak:,} PEAK change)"
+    print(f"MEM IT: {after - before:,}{suffix}")

@@ -2,9 +2,8 @@
 
 import abc
 
-import pandas
-
 from cumulus_etl.formats.base import Format
+from cumulus_etl.formats.batch import Batch
 
 
 class BatchedFileFormat(Format):
@@ -24,9 +23,9 @@ class BatchedFileFormat(Format):
         """
 
     @abc.abstractmethod
-    def write_format(self, df: pandas.DataFrame, path: str) -> None:
+    def write_format(self, batch: Batch, path: str) -> None:
         """
-        Write the data in `df` to the target path file
+        Write the data in `batch` to the target path file
         """
 
     ##########################################################################################
@@ -48,8 +47,8 @@ class BatchedFileFormat(Format):
         except FileNotFoundError:
             pass
 
-    def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
+    def _write_one_batch(self, batch: Batch) -> None:
         """Writes the whole dataframe to a single file"""
         self.root.makedirs(self.root.joinpath(self.dbname))
-        full_path = self.root.joinpath(f"{self.dbname}/{self.dbname}.{batch:03}.{self.suffix}")
-        self.write_format(dataframe, full_path)
+        full_path = self.root.joinpath(f"{self.dbname}/{self.dbname}.{batch.index:03}.{self.suffix}")
+        self.write_format(batch, full_path)

@@ -89,7 +89,7 @@ class TestOracleExtraction(AsyncTestCase):
         mock_extract.list_visit.return_value = [i2b2_mock_data.encounter_dim()]
 
         root = store.Root("tcp://localhost/foo")
-        oracle_loader = loader.I2b2Loader(root, 5)
+        oracle_loader = loader.I2b2Loader(root)
         tmpdir = await oracle_loader.load_all(["Condition", "Encounter", "Patient"])
 
         # Check results

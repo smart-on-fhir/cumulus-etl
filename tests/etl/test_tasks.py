@@ -6,6 +6,7 @@ import tempfile
 from unittest import mock
 
 import ddt
+import pyarrow
 
 from cumulus_etl import common, deid, errors, fhir
 from cumulus_etl.etl import config, tasks
@@ -40,9 +41,22 @@ class TaskTestCase(AsyncTestCase):
             dir_errors=self.errors_dir,
         )
 
-        self.format = mock.MagicMock(dbname="table")
-        self.format2 = mock.MagicMock(dbname="table2")  # for tasks that have multiple output streams
-        self.create_formatter_mock = mock.MagicMock(side_effect=[self.format, self.format2])
+        def make_formatter(dbname: str, group_field: str = None, resource_type: str = None):
+            formatter = mock.MagicMock(dbname=dbname, group_field=group_field, resource_type=resource_type)
+            self.format_count += 1
+            if self.format_count == 1:
+                self.format = self.format or formatter
+                return self.format
+            elif self.format_count == 2:
+                self.format2 = self.format2 or formatter
+                return self.format2
+            else:
+                return formatter  # stop keeping track
+
+        self.format = None
+        self.format2 = None  # for tasks that have multiple output streams
+        self.format_count = 0
+        self.create_formatter_mock = mock.MagicMock(side_effect=make_formatter)
         self.job_config.create_formatter = self.create_formatter_mock
 
         self.scrubber = deid.Scrubber()
@@ -90,8 +104,8 @@ class TestTasks(TaskTestCase):
 
         # Confirm that only patient 0 got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual([self.codebook.db.patient("0")], list(df.id))
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual([self.codebook.db.patient("0")], [row["id"] for row in batch.rows])
 
     def test_unknown_task(self):
         with self.assertRaises(SystemExit) as cm:
@@ -120,15 +134,18 @@ class TestTasks(TaskTestCase):
 
         # Confirm that only one version of patient A got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual(2, len(df.id))
-        self.assertEqual(sorted([self.codebook.db.patient("A"), self.codebook.db.patient("B")]), sorted(df.id))
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(2, len(batch.rows))
+        self.assertEqual(
+            {self.codebook.db.patient("A"), self.codebook.db.patient("B")}, {row["id"] for row in batch.rows}
+        )
 
     async def test_batch_write_errors_saved(self):
         self.make_json("Patient.1", "A")
         self.make_json("Patient.2", "B")
         self.make_json("Patient.3", "C")
         self.job_config.batch_size = 1
+        self.format = mock.MagicMock(dbname="patient")
         self.format.write_records.side_effect = [False, True, False]  # First and third will fail
 
         await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
@@ -145,6 +162,122 @@ class TestTasks(TaskTestCase):
             common.read_json(f"{self.errors_dir}/patient/write-error.002.ndjson"),
         )
 
+    async def test_batch_has_wide_schema(self):
+        self.make_json("Patient.1", "A")  # no interesting fields
+
+        await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
+
+        schema = self.format.write_records.call_args[0][0].schema
+        self.assertListEqual(
+            [
+                "resourceType",
+                "id",
+                "implicitRules",
+                "language",
+                "meta",
+                "contained",
+                "extension",
+                "modifierExtension",
+                "text",
+                "active",
+                "address",
+                "birthDate",
+                "communication",
+                "contact",
+                "deceasedBoolean",
+                "deceasedDateTime",
+                "gender",
+                "generalPractitioner",
+                "identifier",
+                "link",
+                "managingOrganization",
+                "maritalStatus",
+                "multipleBirthBoolean",
+                "multipleBirthInteger",
+                "name",
+                "photo",
+                "telecom",
+            ],
+            schema.names,
+        )
+
+        # Spot check a few of the types
+        self.assertEqual(pyarrow.string(), schema.field("id").type)
+        self.assertEqual(pyarrow.bool_(), schema.field("deceasedBoolean").type)
+        self.assertEqual(pyarrow.int32(), schema.field("multipleBirthInteger").type)
+        # Note how struct types only have basic types inside of them - this is intentional, no recursion of structs
+        # is done by the ETL.
+        self.assertEqual(
+            pyarrow.struct({"id": pyarrow.string(), "div": pyarrow.string(), "status": pyarrow.string()}),
+            schema.field("text").type,
+        )
+        self.assertEqual(
+            pyarrow.list_(pyarrow.struct({"id": pyarrow.string(), "preferred": pyarrow.bool_()})),
+            schema.field("communication").type,
+        )
+
+    async def test_batch_schema_includes_inferred_fields(self):
+        """Verify that deep (inferred) fields are also included in the final schema"""
+        # Make sure that we include different deep fields for each - final schema should be a union
+        self.make_json("ServiceRequest.1", "A", category=[{"coding": [{"version": "1.0"}]}])
+        self.make_json("ServiceRequest.2", "B", asNeededCodeableConcept={"coding": [{"userSelected": True}]})
+
+        await basic_tasks.ServiceRequestTask(self.job_config, self.scrubber).run()
+
+        schema = self.format.write_records.call_args[0][0].schema
+
+        # Start with simple, non-inferred CodeableConcept -- this should be bare-bones
+        self.assertEqual(
+            pyarrow.struct({"id": pyarrow.string(), "text": pyarrow.string()}), schema.field("performerType").type
+        )
+        # Now the two custom/inferred/deep fields
+        self.assertEqual(
+            pyarrow.list_(
+                pyarrow.struct(
+                    {
+                        "id": pyarrow.string(),
+                        "coding": pyarrow.list_(
+                            pyarrow.struct(
+                                {
+                                    "version": pyarrow.string(),
+                                }
+                            )
+                        ),
+                        "text": pyarrow.string(),
+                    }
+                )
+            ),
+            schema.field("category").type,
+        )
+        self.assertEqual(
+            pyarrow.struct(
+                {
+                    "id": pyarrow.string(),
+                    "coding": pyarrow.list_(
+                        pyarrow.struct(
+                            {
+                                "userSelected": pyarrow.bool_(),
+                            }
+                        )
+                    ),
+                    "text": pyarrow.string(),
+                }
+            ),
+            schema.field("asNeededCodeableConcept").type,
+        )
+
+    async def test_batch_schema_types_are_coerced(self):
+        """Verify that fields with "wrong" input types (like int instead of float) are correct in final schema"""
+        # Make sure that we include both wide and deep fields - we should coerce both into FHIR spec schema
+        self.make_json("ServiceRequest.1", "A", quantityQuantity={"value": 1})  # should be floating type
+        self.make_json("ServiceRequest.2", "B", quantityRange={"low": {"value": 2}})  # should be floating type
+
+        await basic_tasks.ServiceRequestTask(self.job_config, self.scrubber).run()
+
+        schema = self.format.write_records.call_args[0][0].schema
+        self.assertEqual(pyarrow.float64(), schema.field("quantityQuantity").type.field("value").type)
+        self.assertEqual(pyarrow.float64(), schema.field("quantityRange").type.field("low").type.field("value").type)
+
 
 @ddt.ddt
 class TestMedicationRequestTask(TaskTestCase):
@@ -158,19 +291,19 @@ class TestMedicationRequestTask(TaskTestCase):
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(1, self.format.write_records.call_count)
-        df1 = self.format.write_records.call_args[0][0]
+        batch = self.format.write_records.call_args[0][0]
         self.assertEqual(
             {
                 self.codebook.db.resource_hash("InlineCode"),
                 self.codebook.db.resource_hash("NoCode"),
             },
-            set(df1.id),
+            {row["id"] for row in batch.rows},
         )
 
         # Confirm we wrote an empty dataframe to the medication table
         self.assertEqual(1, self.format2.write_records.call_count)
-        df2 = self.format2.write_records.call_args[0][0]
-        self.assertTrue(df2.empty)
+        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual([], batch.rows)
 
     async def test_contained_medications(self):
         """Verify that we pass it through and don't blow up"""
@@ -180,13 +313,13 @@ class TestMedicationRequestTask(TaskTestCase):
 
         # Confirm we wrote the basic MedicationRequest
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual(f'#{self.codebook.db.resource_hash("123")}', df.iloc[0].medicationReference["reference"])
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(f'#{self.codebook.db.resource_hash("123")}', batch.rows[0]["medicationReference"]["reference"])
 
         # Confirm we wrote an empty dataframe to the medication table
         self.assertEqual(1, self.format2.write_records.call_count)
-        df2 = self.format2.write_records.call_args[0][0]
-        self.assertTrue(df2.empty)
+        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(0, len(batch.rows))
 
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications(self, mock_download):
@@ -208,16 +341,19 @@ class TestMedicationRequestTask(TaskTestCase):
 
         # Confirm we wrote the basic MedicationRequest
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual([self.codebook.db.resource_hash("A")], list(df.id))
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual([self.codebook.db.resource_hash("A")], [row["id"] for row in batch.rows])
         self.assertEqual(
-            f'Medication/{self.codebook.db.resource_hash("123")}', df.iloc[0].medicationReference["reference"]
+            f'Medication/{self.codebook.db.resource_hash("123")}',
+            batch.rows[0]["medicationReference"]["reference"],
         )
 
         # AND that we wrote the downloaded resource!
         self.assertEqual(1, self.format2.write_records.call_count)
-        df = self.format2.write_records.call_args[0][0]
-        self.assertEqual([self.codebook.db.resource_hash("med1")], list(df.id))  # meds should be scrubbed too
+        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(
+            [self.codebook.db.resource_hash("med1")], [row["id"] for row in batch.rows]
+        )  # meds should be scrubbed too
 
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medication_scrubbed(self, mock_download):
@@ -236,14 +372,14 @@ class TestMedicationRequestTask(TaskTestCase):
 
         # Check result
         self.assertEqual(1, self.format2.write_records.call_count)
-        df = self.format2.write_records.call_args[0][0]
+        batch = self.format2.write_records.call_args[0][0]
         self.assertEqual(
             {
                 "resourceType": "Medication",
                 "id": self.codebook.db.resource_hash("med1"),
                 "status": "active",
             },
-            dict(df.iloc[0]),
+            common.sparse_dict(batch.rows[0]),
         )
 
     @mock.patch("cumulus_etl.fhir.download_reference")
@@ -262,13 +398,13 @@ class TestMedicationRequestTask(TaskTestCase):
 
         # Confirm we still wrote out all three request resources
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual(3, len(df.id))
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(3, len(batch.rows))
 
         # Confirm we still wrote out the medication for B
         self.assertEqual(1, self.format2.write_records.call_count)
-        df = self.format2.write_records.call_args[0][0]
-        self.assertEqual([self.codebook.db.resource_hash("medB")], list(df.id))
+        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual([self.codebook.db.resource_hash("medB")], [row["id"] for row in batch.rows])
 
         # And we saved the error?
         med_error_dir = f"{self.errors_dir}/medicationrequest"
@@ -303,10 +439,10 @@ class TestMedicationRequestTask(TaskTestCase):
 
         # Confirm we wrote just the downloaded resources, and didn't repeat the dup at all
         self.assertEqual(2, self.format2.write_records.call_count)
-        df1 = self.format2.write_records.call_args_list[0][0][0]
-        self.assertEqual([self.codebook.db.resource_hash("dup")], list(df1.id))
-        df2 = self.format2.write_records.call_args_list[1][0][0]
-        self.assertEqual([self.codebook.db.resource_hash("new")], list(df2.id))
+        batch = self.format2.write_records.call_args_list[0][0][0]
+        self.assertEqual([self.codebook.db.resource_hash("dup")], [row["id"] for row in batch.rows])
+        batch = self.format2.write_records.call_args_list[1][0][0]
+        self.assertEqual([self.codebook.db.resource_hash("new")], [row["id"] for row in batch.rows])
 
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications_skips_unknown_modifiers(self, mock_download):
@@ -328,5 +464,5 @@ class TestMedicationRequestTask(TaskTestCase):
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(1, self.format2.write_records.call_count)
-        df = self.format2.write_records.call_args[0][0]
-        self.assertEqual([self.codebook.db.resource_hash("good")], list(df.id))  # no "odd" written
+        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual([self.codebook.db.resource_hash("good")], [row["id"] for row in batch.rows])  # no "odd"

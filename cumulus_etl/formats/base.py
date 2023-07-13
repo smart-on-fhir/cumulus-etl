@@ -3,9 +3,8 @@
 import abc
 import logging
 
-import pandas
-
 from cumulus_etl import store
+from cumulus_etl.formats.batch import Batch
 
 
 class Format(abc.ABC):
@@ -39,31 +38,29 @@ class Format(abc.ABC):
         self.group_field = group_field
         self.resource_type = resource_type
 
-    def write_records(self, dataframe: pandas.DataFrame, batch: int) -> bool:
+    def write_records(self, batch: Batch) -> bool:
         """
-        Writes a single dataframe to the output root.
+        Writes a single batch of data to the output root.
 
-        The dataframe must contain a unique (no duplicates) "id" column.
+        The batch must contain a unique (no duplicates) "id" column.
 
-        :param dataframe: the data records to write
-        :param batch: the batch number, from zero up
+        :param batch: the batch of data
         :returns: whether the batch was successfully written
         """
 
         try:
-            self._write_one_batch(dataframe, batch)
+            self._write_one_batch(batch)
             return True
         except Exception:  # pylint: disable=broad-except
             logging.exception("Could not process data records")
             return False
 
     @abc.abstractmethod
-    def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
+    def _write_one_batch(self, batch: Batch) -> None:
         """
-        Writes a single dataframe to the output root.
+        Writes a single batch to the output root.
 
-        :param dataframe: the data records to write
-        :param batch: the batch number, from zero up
+        :param batch: the batch of data
         """
 
     def finalize(self) -> None:

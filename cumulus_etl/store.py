@@ -15,7 +15,7 @@ def set_user_fs_options(args: dict) -> None:
 
 
 def get_fs_options(protocol: str) -> dict:
-    """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
+    """Provides a set of storage option kwargs for fsspec calls"""
     options = {}
 
     if protocol == "s3":
@@ -130,5 +130,5 @@ class Root:
         self.fs.rm(path, recursive=recursive)
 
     def fsspec_options(self) -> dict:
-        """Provides a set of storage option kwargs for fsspec calls or pandas storage_options arguments"""
+        """Provides a set of storage option kwargs for fsspec calls"""
         return get_fs_options(self.protocol)
