@@ -15,17 +15,6 @@ from cumulus_etl import cli_utils, common, errors, formats, store
 from cumulus_etl.etl import tasks
 
 
-def make_progress_bar() -> rich.progress.Progress:
-    # The default columns don't change to elapsed time when finished.
-    columns = [
-        rich.progress.TextColumn("[progress.description]{task.description}"),
-        rich.progress.BarColumn(),
-        rich.progress.TaskProgressColumn(),
-        rich.progress.TimeRemainingColumn(elapsed_when_finished=True),
-    ]
-    return rich.progress.Progress(*columns)
-
-
 def convert_task_table(
     task: type[tasks.EtlTask],
     table: tasks.OutputTable,
@@ -86,7 +75,7 @@ def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
 def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]) -> None:
     all_tasks = tasks.get_all_tasks()
 
-    with make_progress_bar() as progress:
+    with cli_utils.make_progress_bar() as progress:
         for task in all_tasks:
             for table in task.outputs:
                 convert_task_table(task, table, input_root, output_root, formatter_class, progress)

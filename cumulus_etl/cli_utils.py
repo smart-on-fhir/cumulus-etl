@@ -7,6 +7,8 @@ import tempfile
 import time
 import urllib.parse
 
+import rich.progress
+
 from cumulus_etl import errors, loaders
 
 
@@ -90,3 +92,14 @@ def is_url_available(url: str, retry: bool = True) -> bool:
                 time.sleep(3)
 
     return False
+
+
+def make_progress_bar() -> rich.progress.Progress:
+    # The default columns don't change to elapsed time when finished.
+    columns = [
+        rich.progress.TextColumn("[progress.description]{task.description}"),
+        rich.progress.BarColumn(),
+        rich.progress.TaskProgressColumn(),
+        rich.progress.TimeRemainingColumn(elapsed_when_finished=True),
+    ]
+    return rich.progress.Progress(*columns)
