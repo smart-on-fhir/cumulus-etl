@@ -123,7 +123,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         }
 
     @staticmethod
-    def mock_search_url(patient: str, doc_ids: Iterable[str]) -> None:
+    def mock_search_url(respx_mock: respx.MockRouter, patient: str, doc_ids: Iterable[str]) -> None:
         bundle = {
             "resourceType": "Bundle",
             "entry": [
@@ -134,12 +134,12 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             ],
         }
 
-        respx.get(f"https://localhost/DocumentReference?patient={patient}&_elements=content").respond(json=bundle)
+        respx_mock.get(f"https://localhost/DocumentReference?patient={patient}&_elements=content").respond(json=bundle)
 
     @staticmethod
-    def mock_read_url(doc_id: str, code: int = 200, **kwargs) -> None:
+    def mock_read_url(respx_mock: respx.MockRouter, doc_id: str, code: int = 200, **kwargs) -> None:
         docref = TestChartReview.make_docref(doc_id, **kwargs)
-        respx.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
+        respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
 
     @staticmethod
     def write_anon_docrefs(path: str, ids: list[tuple[str, str]]) -> None:
@@ -169,11 +169,11 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             await self.run_chart_review(anon_docrefs="foo", docrefs="bar")
         self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
 
-    @respx.mock
-    async def test_gather_anon_docrefs_from_server(self):
-        self.mock_search_url("P1", ["NotMe", "D1", "NotThis", "D3"])
-        self.mock_search_url("P2", ["D2"])
-        respx.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
+    @respx.mock(assert_all_mocked=False)
+    async def test_gather_anon_docrefs_from_server(self, respx_mock):
+        self.mock_search_url(respx_mock, "P1", ["NotMe", "D1", "NotThis", "D3"])
+        self.mock_search_url(respx_mock, "P2", ["D2"])
+        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         with tempfile.NamedTemporaryFile() as file:
             self.write_anon_docrefs(
@@ -190,13 +190,13 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         self.assertEqual({"D1", "D2", "D3"}, self.get_exported_ids())
         self.assertEqual({"D1", "D2", "D3"}, self.get_pushed_ids())
 
-    @respx.mock
-    async def test_gather_real_docrefs_from_server(self):
-        self.mock_read_url("D1")
-        self.mock_read_url("D2")
-        self.mock_read_url("D3")
-        self.mock_read_url("unknown-doc", code=404)
-        respx.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
+    @respx.mock(assert_all_mocked=False)
+    async def test_gather_real_docrefs_from_server(self, respx_mock):
+        self.mock_read_url(respx_mock, "D1")
+        self.mock_read_url(respx_mock, "D2")
+        self.mock_read_url(respx_mock, "D3")
+        self.mock_read_url(respx_mock, "unknown-doc", code=404)
+        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         with tempfile.NamedTemporaryFile() as file:
             self.write_real_docrefs(file.name, ["D1", "D2", "D3", "unknown-doc"])
