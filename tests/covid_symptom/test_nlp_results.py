@@ -118,13 +118,13 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         ([("file-cough", "text/nope")], None),  # ignores unsupported mimetypes
     )
     @ddt.unpack
-    @respx.mock
-    async def test_note_urls_downloaded(self, attachments, expected_text):
+    @respx.mock(assert_all_mocked=False, assert_all_called=False)
+    async def test_note_urls_downloaded(self, attachments, expected_text, respx_mock):
         """Verify that we download any attachments with URLs"""
         # We return three words due to how our cTAKES mock works. It wants 3 words -- fever word is in middle.
-        respx.get("http://localhost/file-cough").respond(text="has cough bad")
-        respx.get("http://localhost/file-fever").respond(text="has fever bad")
-        respx.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
+        respx_mock.get("http://localhost/file-cough").respond(text="has cough bad")
+        respx_mock.get("http://localhost/file-fever").respond(text="has fever bad")
+        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         docref0 = i2b2_mock_data.documentreference()
         docref0["content"] = [{"attachment": {"url": a[0], "contentType": a[1]}} for a in attachments]
