@@ -250,13 +250,14 @@ def warn_mode():
 _first_header = True
 
 
-def print_header(name: str) -> None:
+def print_header(name: str | None = None) -> None:
     """Prints a section break to the console, with a name for the user"""
     global _first_header
     if not _first_header:
         print("###############################################################")
     _first_header = False
-    print(name)
+    if name:
+        print(name)
 
 
 ###############################################################################
