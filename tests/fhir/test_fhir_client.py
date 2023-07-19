@@ -13,7 +13,7 @@ from tests.utils import AsyncTestCase, make_response
 
 
 @ddt.ddt
-@mock.patch("cumulus_etl.fhir.fhir_client.uuid.uuid4", new=lambda: "1234")
+@mock.patch("cumulus_etl.fhir.fhir_auth.uuid.uuid4", new=lambda: "1234")
 class TestFhirClient(AsyncTestCase):
     """
     Test case for FHIR client oauth2 / request support.
@@ -67,6 +67,9 @@ class TestFhirClient(AsyncTestCase):
         ).respond(
             json=self.smart_configuration,
         )
+
+        # empty capabilities (no vendor quirks) by default
+        self.respx_mock.get(f"{self.server_url}/metadata").respond(json={})
 
         self.respx_mock.post(
             self.token_url,
@@ -303,3 +306,44 @@ class TestFhirClient(AsyncTestCase):
         )
         fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), resources_in)
         self.assertEqual(mock_client.call_args[0][1], expected_resources_out)
+
+
+@ddt.ddt
+@mock.patch("cumulus_etl.fhir.fhir_auth.uuid.uuid4", new=lambda: "1234")
+class TestFhirClientEpicQuirks(AsyncTestCase):
+    """Test case for FHIR client handling of Epic-specific vendor quirks."""
+
+    def setUp(self):
+        super().setUp()
+        self.server_url = "http://localhost"
+
+        self.respx_mock = respx.mock(assert_all_called=False)
+        self.addCleanup(self.respx_mock.stop)
+        self.respx_mock.start()
+
+    def mock_as_server_type(self, server_type: str | None):
+        response_json = {}
+        if server_type == "epic":
+            response_json = {"software": {"name": "Epic"}}
+
+        self.respx_mock.get(f"{self.server_url}/metadata").respond(json=response_json)
+
+    @ddt.data(
+        ("epic", "present"),
+        (None, "missing"),
+    )
+    @ddt.unpack
+    async def test_client_id_in_header(self, server_type, expected_text):
+        # Mock with header
+        self.respx_mock.get(f"{self.server_url}/file", headers={"Epic-Client-ID": "my-id"},).respond(
+            text="present",
+        )
+        # And without
+        self.respx_mock.get(f"{self.server_url}/file",).respond(
+            text="missing",
+        )
+
+        self.mock_as_server_type(server_type)
+        async with fhir.FhirClient(self.server_url, [], bearer_token="foo", smart_client_id="my-id") as server:
+            response = await server.request("GET", "file")
+            self.assertEqual(expected_text, response.text)

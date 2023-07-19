@@ -258,6 +258,11 @@ class TestBulkExportEndToEnd(AsyncTestCase):
         self.jwks_path = self.jwks_file.name
 
     def set_up_requests(self, respx_mock):
+        # /metadata
+        respx_mock.get(
+            f"{self.root.path}/metadata",
+        ).respond(json={})
+
         # /.well-known/smart-configuration
         respx_mock.get(
             f"{self.root.path}/.well-known/smart-configuration",
