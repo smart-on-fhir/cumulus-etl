@@ -231,7 +231,7 @@ async def etl_main(args: argparse.Namespace) -> None:
 
     async with client:
         if args.input_format == "i2b2":
-            config_loader = loaders.I2b2Loader(root_input, args.batch_size, export_to=args.export_to)
+            config_loader = loaders.I2b2Loader(root_input, export_to=args.export_to)
         else:
             config_loader = loaders.FhirNdjsonLoader(
                 root_input, client=client, export_to=args.export_to, since=args.since, until=args.until

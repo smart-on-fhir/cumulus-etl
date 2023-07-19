@@ -6,15 +6,17 @@ import os
 import shutil
 import tempfile
 
-import pandas
-import pytest
+import ddt
+import pyarrow
+import pyspark.sql
 from pyspark.sql.utils import AnalysisException
 
-from cumulus_etl import store
+from cumulus_etl import formats, store
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
 from tests import utils
 
 
+@ddt.ddt
 class TestDeltaLake(utils.AsyncTestCase):
     """
     Test case for the Delta Lake format writer.
@@ -39,29 +41,36 @@ class TestDeltaLake(utils.AsyncTestCase):
         shutil.rmtree(self.output_dir, ignore_errors=True)
 
     @staticmethod
-    def df(**kwargs) -> pandas.DataFrame:
+    def df(**kwargs) -> list[dict]:
         """
-        Creates a dummy DataFrame with ids & values equal to each kwarg provided.
+        Creates a dummy Table with ids & values equal to each kwarg provided.
         """
-        rows = [{"id": k, "value": v} for k, v in kwargs.items()]
-        return pandas.DataFrame(rows)
+        return [{"id": k, "value": v} for k, v in kwargs.items()]
 
-    def store(self, df: pandas.DataFrame, batch: int = 10, group_field: str = None, resource_type: str = None) -> None:
+    def get_spark_schema(self, df: pyspark.sql.DataFrame) -> str:
+        # pyspark's printSchema function is much more readable/concise than other schema inspection methods,
+        # but it doesn't expose the internal calls it makes to produce that - so let's just capture stdout.
+        with contextlib.redirect_stdout(io.StringIO()) as schema_tree:
+            df.printSchema()
+        return schema_tree.getvalue().strip()
+
+    def store(
+        self, rows: list[dict], batch_index: int = 10, schema: pyarrow.Schema = None, group_field: str = None
+    ) -> bool:
         """
         Writes a single batch of data to the data lake.
 
-        :param df: the data to insert
-        :param batch: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
+        :param rows: the data to insert
+        :param batch_index: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
+        :param schema: the batch schema, in pyarrow format
         :param group_field: a group field name, used to delete non-matching group rows
-        :param resource_type: the name of the resource being stored
         """
-        deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field, resource_type=resource_type)
-        deltalake.write_records(df, batch)
+        deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field)
+        return deltalake.write_records(formats.Batch(rows, index=batch_index, schema=schema))
 
-    def assert_lake_equal(self, df: pandas.DataFrame) -> None:
+    def assert_lake_equal(self, rows: list[dict]) -> None:
         table_path = os.path.join(self.output_dir, "patient")
-        table_records = utils.read_delta_lake(table_path)
-        self.assertListEqual(df.to_dict(orient="records"), table_records)
+        self.assertListEqual(rows, utils.read_delta_lake(table_path))
 
     def test_creates_if_empty(self):
         """Verify that the lake is created when empty"""
@@ -98,15 +107,25 @@ class TestDeltaLake(utils.AsyncTestCase):
         self.store(self.df(b={"one": 1}))
         self.assert_lake_equal(self.df(a={"one": 1, "two": 2}, b={"one": 1}))
 
-    # This currently fails because delta silently drops field data that can't be converted to the correct type.
-    # Here is a request to change this behavior into an error: https://github.com/delta-io/delta/issues/1551
-    # See https://github.com/smart-on-fhir/cumulus-etl/issues/133 for some discussion of this issue.
-    @pytest.mark.xfail
     def test_altered_field(self):
-        """Verify that field types cannot be altered."""
-        self.store(self.df(a={"one": 1}))
-        self.store(self.df(b={"one": "string"}))  # should error out / not update
-        self.assert_lake_equal(self.df(a={"one": 1}))
+        """Verify that field types cannot be altered, as long as we have a schema."""
+        schema = pyarrow.schema(
+            [
+                pyarrow.field("id", pyarrow.string()),
+                pyarrow.field("value", pyarrow.int32()),
+            ]
+        )
+        self.assertTrue(self.store(self.df(a=1), schema=schema))
+        self.assertFalse(self.store(self.df(b="string"), schema=schema))
+        self.assert_lake_equal(self.df(a=1))
+
+        # And just confirm the mildly buggy behavior that Delta Lake will silently ignore
+        # altered types when we don't force a schema. This is one reason we like to force a schema!
+        # We don't desire or care about this behavior, but just testing it here as a sort of documentation,
+        # in case they ever fix that, and then we get to know about it.
+        # Upstream issue: https://github.com/delta-io/delta/issues/1551
+        self.assertTrue(self.store(self.df(b="string")))
+        self.assert_lake_equal([{"id": "a", "value": 1}, {"id": "b"}])
 
     def test_schema_has_names(self):
         """Verify that the lake's schemas has valid nested names, which may not always happen with spark"""
@@ -152,27 +171,19 @@ class TestDeltaLake(utils.AsyncTestCase):
         )
 
     def test_merged_schema_for_resource(self):
-        """Verify that the lake's schemas is derived from the full resource schema and also merged with real data"""
-        # This dataframe will:
-        # (A) be missing 99% of the schema
-        # (B) include a nested FHIR struct that our default (non-recursive) resource schemas will not include
-        # (C) include whole new non-FHIR columns
-        # Ideally the final result includes those two new elements and all the normal FHIR schema.
+        """Verify that the lake's schemas is updated over time as new fields appear"""
         rows = [
-            # We specifically make the new columns int & bool types because pandas can have difficulty with nullable
-            # versions of those columns -- this will verify that the schema arrives back out correctly.
+            {"id": "bare-row"},
             {"id": "int-row", "contact": [{"name": {"text": "Jane Doe"}}], "newIntColumn": 2000},
-            {"id": "bool-row", "contact": [{"name": {"text": "John Doe"}}], "newBoolColumn": True},
+            {"id": "bool-row", "contact": [{"name": {"given": ["John"]}}], "newBoolColumn": True},
         ]
-        self.store(pandas.DataFrame(rows), resource_type="Patient")
+        for row in rows:
+            self.store([row])
 
         table_path = os.path.join(self.output_dir, "patient")
         table_df = DeltaLakeFormat.spark.read.format("delta").load(table_path)
 
-        # pyspark's printSchema function is much more readable/concise than other schema inspection methods,
-        # but it doesn't expose the internal calls it makes to produce that - so let's just capture stdout.
-        with contextlib.redirect_stdout(io.StringIO()) as schema_tree:
-            table_df.printSchema()
+        schema_tree = self.get_spark_schema(table_df)
 
         self.assertEqual(
             """root
@@ -181,156 +192,53 @@ class TestDeltaLake(utils.AsyncTestCase):
  |    |-- element: struct (containsNull = true)
  |    |    |-- name: struct (nullable = true)
  |    |    |    |-- text: string (nullable = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- gender: string (nullable = true)
+ |    |    |    |-- given: array (nullable = true)
+ |    |    |    |    |-- element: string (containsNull = true)
  |-- newIntColumn: long (nullable = true)
- |-- newBoolColumn: boolean (nullable = true)
- |-- implicitRules: string (nullable = true)
- |-- language: string (nullable = true)
- |-- meta: struct (nullable = true)
- |    |-- id: string (nullable = true)
- |    |-- lastUpdated: string (nullable = true)
- |    |-- profile: array (nullable = true)
- |    |    |-- element: string (containsNull = true)
- |    |-- source: string (nullable = true)
- |    |-- versionId: string (nullable = true)
- |-- contained: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- implicitRules: string (nullable = true)
- |    |    |-- language: string (nullable = true)
- |-- extension: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- url: string (nullable = true)
- |    |    |-- valueBase64Binary: string (nullable = true)
- |    |    |-- valueBoolean: boolean (nullable = true)
- |    |    |-- valueCanonical: string (nullable = true)
- |    |    |-- valueCode: string (nullable = true)
- |    |    |-- valueDate: string (nullable = true)
- |    |    |-- valueDateTime: string (nullable = true)
- |    |    |-- valueDecimal: double (nullable = true)
- |    |    |-- valueId: string (nullable = true)
- |    |    |-- valueInstant: string (nullable = true)
- |    |    |-- valueInteger: long (nullable = true)
- |    |    |-- valueMarkdown: string (nullable = true)
- |    |    |-- valueOid: string (nullable = true)
- |    |    |-- valuePositiveInt: long (nullable = true)
- |    |    |-- valueString: string (nullable = true)
- |    |    |-- valueTime: string (nullable = true)
- |    |    |-- valueUnsignedInt: long (nullable = true)
- |    |    |-- valueUri: string (nullable = true)
- |    |    |-- valueUrl: string (nullable = true)
- |    |    |-- valueUuid: string (nullable = true)
- |-- modifierExtension: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- url: string (nullable = true)
- |    |    |-- valueBase64Binary: string (nullable = true)
- |    |    |-- valueBoolean: boolean (nullable = true)
- |    |    |-- valueCanonical: string (nullable = true)
- |    |    |-- valueCode: string (nullable = true)
- |    |    |-- valueDate: string (nullable = true)
- |    |    |-- valueDateTime: string (nullable = true)
- |    |    |-- valueDecimal: double (nullable = true)
- |    |    |-- valueId: string (nullable = true)
- |    |    |-- valueInstant: string (nullable = true)
- |    |    |-- valueInteger: long (nullable = true)
- |    |    |-- valueMarkdown: string (nullable = true)
- |    |    |-- valueOid: string (nullable = true)
- |    |    |-- valuePositiveInt: long (nullable = true)
- |    |    |-- valueString: string (nullable = true)
- |    |    |-- valueTime: string (nullable = true)
- |    |    |-- valueUnsignedInt: long (nullable = true)
- |    |    |-- valueUri: string (nullable = true)
- |    |    |-- valueUrl: string (nullable = true)
- |    |    |-- valueUuid: string (nullable = true)
- |-- text: struct (nullable = true)
- |    |-- id: string (nullable = true)
- |    |-- div: string (nullable = true)
- |    |-- status: string (nullable = true)
- |-- active: boolean (nullable = true)
- |-- address: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- city: string (nullable = true)
- |    |    |-- country: string (nullable = true)
- |    |    |-- district: string (nullable = true)
- |    |    |-- line: array (nullable = true)
- |    |    |    |-- element: string (containsNull = true)
- |    |    |-- postalCode: string (nullable = true)
- |    |    |-- state: string (nullable = true)
- |    |    |-- text: string (nullable = true)
- |    |    |-- type: string (nullable = true)
- |    |    |-- use: string (nullable = true)
- |-- birthDate: string (nullable = true)
- |-- communication: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- preferred: boolean (nullable = true)
- |-- deceasedBoolean: boolean (nullable = true)
- |-- deceasedDateTime: string (nullable = true)
- |-- gender: string (nullable = true)
- |-- generalPractitioner: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- display: string (nullable = true)
- |    |    |-- reference: string (nullable = true)
- |    |    |-- type: string (nullable = true)
- |-- identifier: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- system: string (nullable = true)
- |    |    |-- use: string (nullable = true)
- |    |    |-- value: string (nullable = true)
- |-- link: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- type: string (nullable = true)
- |-- managingOrganization: struct (nullable = true)
- |    |-- id: string (nullable = true)
- |    |-- display: string (nullable = true)
- |    |-- reference: string (nullable = true)
- |    |-- type: string (nullable = true)
- |-- maritalStatus: struct (nullable = true)
- |    |-- id: string (nullable = true)
- |    |-- text: string (nullable = true)
- |-- multipleBirthBoolean: boolean (nullable = true)
- |-- multipleBirthInteger: long (nullable = true)
- |-- name: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- family: string (nullable = true)
- |    |    |-- given: array (nullable = true)
- |    |    |    |-- element: string (containsNull = true)
- |    |    |-- prefix: array (nullable = true)
- |    |    |    |-- element: string (containsNull = true)
- |    |    |-- suffix: array (nullable = true)
- |    |    |    |-- element: string (containsNull = true)
- |    |    |-- text: string (nullable = true)
- |    |    |-- use: string (nullable = true)
- |-- photo: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- contentType: string (nullable = true)
- |    |    |-- creation: string (nullable = true)
- |    |    |-- data: string (nullable = true)
- |    |    |-- hash: string (nullable = true)
- |    |    |-- language: string (nullable = true)
- |    |    |-- size: long (nullable = true)
- |    |    |-- title: string (nullable = true)
- |    |    |-- url: string (nullable = true)
- |-- telecom: array (nullable = true)
- |    |-- element: struct (containsNull = true)
- |    |    |-- id: string (nullable = true)
- |    |    |-- rank: long (nullable = true)
- |    |    |-- system: string (nullable = true)
- |    |    |-- use: string (nullable = true)
- |    |    |-- value: string (nullable = true)
-
-""",
-            schema_tree.getvalue(),
+ |-- newBoolColumn: boolean (nullable = true)""",
+            schema_tree,
         )
+
+    @ddt.data(
+        # In general, the first type used wins
+        (pyarrow.int64(), 2000, pyarrow.int32(), 2000, "long", 2000),
+        (pyarrow.int32(), 2000, pyarrow.int64(), 2000, "integer", 2000),
+        (pyarrow.int64(), 3000000000, pyarrow.int32(), 2000, "long", 2000),
+        # Interestingly, delta lake will silently down-convert for us.
+        # This is not an expected scenario, but we should beware this gotcha.
+        (pyarrow.int32(), 2000, pyarrow.int64(), 3000000000, "integer", -1294967296),
+    )
+    @ddt.unpack
+    def test_column_type_merges(self, type1, val1, type2, val2, expected_type, expected_value):
+        """Verify that if we write a slightly different, but compatible field to the delta lake, it works"""
+        schema1 = pyarrow.schema(
+            [
+                pyarrow.field("id", pyarrow.string()),
+                pyarrow.field("int", type1),
+            ]
+        )
+        self.store([{"id": "1", "int": val1}], schema=schema1)
+
+        schema2 = pyarrow.schema(
+            [
+                pyarrow.field("id", pyarrow.string()),
+                pyarrow.field("int", type2),
+            ]
+        )
+        self.store([{"id": "1", "int": val2}], schema=schema2)
+
+        table_path = os.path.join(self.output_dir, "patient")
+        table_df = DeltaLakeFormat.spark.read.format("delta").load(table_path)
+        schema_tree = self.get_spark_schema(table_df)
+        self.assertEqual(
+            f"""root
+ |-- id: string (nullable = true)
+ |-- int: {expected_type} (nullable = true)""",
+            schema_tree,
+        )
+
+        values = utils.read_delta_lake(table_path)
+        self.assertEqual(expected_value, values[0]["int"])
 
     def test_group_field(self):
         """Verify that we can safely delete some data from the lake using groups"""

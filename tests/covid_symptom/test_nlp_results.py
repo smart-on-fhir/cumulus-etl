@@ -35,9 +35,9 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         # Confirm that only symptoms from docref 0 got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
+        batch = self.format.write_records.call_args[0][0]
         expected_subject = self.codebook.db.patient("1234")
-        self.assertEqual({expected_subject}, set(df.subject_id))
+        self.assertEqual({expected_subject}, {row["subject_id"] for row in batch.rows})
 
     @ddt.data(
         # (coding, expected valid note)
@@ -66,8 +66,8 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual(4 if expected else 0, len(df))
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(4 if expected else 0, len(batch.rows))
 
     async def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
@@ -82,9 +82,9 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         # Confirm that only symptoms from docref 'present' got stored
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
+        batch = self.format.write_records.call_args[0][0]
         expected_docref = self.codebook.db.resource_hash("present")
-        self.assertEqual({expected_docref}, set(df.docref_id))
+        self.assertEqual({expected_docref}, {row["docref_id"] for row in batch.rows})
 
     @ddt.data(
         ({"status": "entered-in-error"}, False),
@@ -105,8 +105,8 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
-        self.assertEqual(should_process, not df.empty)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(2 if should_process else 0, len(batch.rows))
 
     @ddt.data(
         # list of (URL, contentType), expected text
@@ -134,11 +134,11 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
             await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(1, self.format.write_records.call_count)
-        df = self.format.write_records.call_args[0][0]
+        batch = self.format.write_records.call_args[0][0]
         if expected_text:
-            self.assertEqual(expected_text, df.iloc[0].match["text"])
+            self.assertEqual(expected_text, batch.rows[0]["match"]["text"])
         else:
-            self.assertTrue(df.empty)
+            self.assertEqual(0, len(batch.rows))
 
     async def test_nlp_errors_saved(self):
         docref = i2b2_mock_data.documentreference()

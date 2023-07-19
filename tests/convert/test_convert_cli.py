@@ -84,6 +84,9 @@ class TestConvert(utils.AsyncTestCase):
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
+        symptoms = utils.read_delta_lake(f"{self.target_path}/covid_symptom__nlp_results")  # and covid symptoms
+        self.assertEqual(4, len(symptoms))
+        self.assertEqual("for", symptoms[0]["match"]["text"])
 
         # Now make a second small, partial output folder to layer into the existing Delta Lake
         delta_timestamp = "2023-02-29__19.53.08"

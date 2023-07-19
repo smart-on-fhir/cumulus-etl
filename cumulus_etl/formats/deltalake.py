@@ -10,18 +10,20 @@ import os
 import tempfile
 
 import delta
-import pandas
+import pyarrow
+import pyarrow.parquet
 import pyspark
 from pyspark.sql.utils import AnalysisException
 
-from cumulus_etl import fhir, store
+from cumulus_etl import store
 from cumulus_etl.formats.base import Format
+from cumulus_etl.formats.batch import Batch
 
-# This class would be a lot simpler if we could use fsspec & pandas directly, since that's what the rest of our code
+# This class would be a lot simpler if we could use fsspec & pyarrow directly, since that's what the rest of our code
 # uses and expects (in terms of filesystem writing).
 #
 # There is a 1st party Delta Lake implementation (`deltalake`) based off native Rust code and which talks to
-# fsspec & pandas by default. But it is missing some critical features as of this writing (mostly merges):
+# fsspec & pyarrow by default. But it is missing some critical features as of this writing (mostly merges):
 # - Merge support in deltalake bindings: https://github.com/delta-io/delta-rs/issues/850
 
 
@@ -81,14 +83,14 @@ class DeltaLakeFormat(Format):
         cls.spark.sparkContext.setLogLevel("ERROR")
         cls._configure_fs(root, cls.spark)
 
-    def _write_one_batch(self, dataframe: pandas.DataFrame, batch: int) -> None:
+    def _write_one_batch(self, batch: Batch) -> None:
         """Writes the whole dataframe to a delta lake"""
-        with self.pandas_to_spark_with_schema(dataframe) as updates:
+        with self.batch_to_spark(batch) as updates:
             if updates is None:
                 return
-            table = self.update_delta_table(updates)
+            delta_table = self.update_delta_table(updates)
 
-        table.generate("symlink_format_manifest")
+        delta_table.generate("symlink_format_manifest")
 
     def update_delta_table(self, updates: pyspark.sql.DataFrame) -> delta.DeltaTable:
         full_path = self._table_path(self.dbname)
@@ -161,52 +163,14 @@ class DeltaLakeFormat(Format):
             spark.conf.set("fs.s3a.endpoint.region", region_name)
 
     @contextlib.contextmanager
-    def pandas_to_spark_with_schema(self, dataframe: pandas.DataFrame) -> pyspark.sql.DataFrame | None:
-        """Transforms a pandas DF to a spark DF with a full FHIR schema included"""
-        # This method solves two problems:
-        # 1. Pandas schemas are very loosey-goosey (and don't really take nested data into account), so simply
-        #    calling self.spark.createDataFrame(df) does not give names for nested struct fields.
-        # 2. We want to provide column info for all valid FHIR fields (at least shallowly) so that the
-        #    downstream SQL can reference all toplevel columns even if the source data doesn't have those fields.
-        #
-        # Issue #1 is solved by writing to parquet and reading it back in (a little wonky, but it gives full schemas).
-        # Issue #2 is solved by merging a computed FHIR schema with the actual data schema.
-        #
-        # Some devils-in-the-details:
-        # - Pyspark does not let us merge schemas in python code, we can only seem to do it while reading in multiple
-        #   dataframes. So we write out the schema as an empty parquet file and read it back in with the data.
-        #   We could write some manual schema-merging code, but I'm leery that we'd get it right or that it's worth
-        #   doing ourselves rather than just writing this weird file and letting pyspark do it for us.
-        # - Our FHIR schema is incomplete and shallow (it skips all nested structs) to avoid infinite recursion issues,
-        #   and we simply merge this incomplete schema in with the actual data schema, which will have full nested
-        #   inferred schemas for exactly the fields it uses. We always write to the delta lake with autoMerge of
-        #   schemas enabled, so incrementally adding fields to existing lakes will be fine.
-        # - Delta Lake does not like columns that have null types nor struct types with no children. So we make sure
-        #   that every column has *some* definition, and that structs have content.
+    def batch_to_spark(self, batch: Batch) -> pyspark.sql.DataFrame | None:
+        """Transforms a batch to a spark DF"""
+        # This is the quick and dirty way - write batch to parquet with pyarrow and read it back.
+        # But a more direct way would be to convert the pyarrow schema to a pyspark schema and just
+        # call self.spark.createDataFrame(batch.rows, schema=pyspark_schema). A future improvement.
+        with tempfile.NamedTemporaryFile() as data_path:
+            table = pyarrow.Table.from_pylist(batch.rows, schema=batch.schema)
+            pyarrow.parquet.write_table(table, data_path.name)
+            del table
 
-        with tempfile.TemporaryDirectory() as parquet_dir:
-            paths = []
-
-            # Write the pandas dataframe to parquet to force full nested schemas.
-            # We also convert dtypes, to get modern nullable pandas types (rather than using its default behavior of
-            # converting a nullable integer column into a float column).
-            if not dataframe.empty:  # delta lake doesn't like empty parquet files
-                data_path = os.path.join(parquet_dir, "data.parquet")
-                dataframe.convert_dtypes().to_parquet(data_path, index=False)
-                del dataframe  # allow GC to clean this up
-                paths.append(data_path)
-
-            # Write the empty schema dataframe, so we can merge it with the above real dataframe
-            if self.resource_type:
-                schema_path = os.path.join(parquet_dir, "schema.parquet")
-                schema = fhir.create_spark_schema_for_resource(self.resource_type)
-                self.spark.createDataFrame([], schema=schema).write.parquet(schema_path)
-                paths.append(schema_path)
-
-            if paths:
-                # Provide the happy merged result, coalesced to one partition (because our schema trick above creates 2)
-                yield self.spark.read.parquet(*paths, mergeSchema=True).coalesce(1)
-            else:
-                # Rare path, but possible - we have one task that uses a non-FHIR output format.
-                # So if it also has no data and has no schema, we hit this.
-                yield None
+            yield self.spark.read.parquet(data_path.name)

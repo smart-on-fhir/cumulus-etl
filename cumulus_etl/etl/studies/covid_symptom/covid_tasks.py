@@ -5,8 +5,9 @@ import itertools
 import os
 
 import ctakesclient
+import pyarrow
 
-from cumulus_etl import common, nlp, store
+from cumulus_etl import common, formats, nlp, store
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
@@ -118,3 +119,39 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
             yield symptoms
+
+    @classmethod
+    def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema:
+        return pyarrow.schema(
+            [
+                pyarrow.field("id", pyarrow.string()),
+                pyarrow.field("docref_id", pyarrow.string()),
+                pyarrow.field("encounter_id", pyarrow.string()),
+                pyarrow.field("subject_id", pyarrow.string()),
+                pyarrow.field(
+                    "match",
+                    pyarrow.struct(
+                        [
+                            pyarrow.field("begin", pyarrow.int32()),
+                            pyarrow.field("end", pyarrow.int32()),
+                            pyarrow.field("text", pyarrow.string()),
+                            pyarrow.field("polarity", pyarrow.int8()),
+                            pyarrow.field("type", pyarrow.string()),
+                            pyarrow.field(
+                                "conceptAttributes",
+                                pyarrow.list_(
+                                    pyarrow.struct(
+                                        [
+                                            pyarrow.field("code", pyarrow.string()),
+                                            pyarrow.field("codingScheme", pyarrow.string()),
+                                            pyarrow.field("cui", pyarrow.string()),
+                                            pyarrow.field("tui", pyarrow.string()),
+                                        ]
+                                    )
+                                ),
+                            ),
+                        ]
+                    ),
+                ),
+            ]
+        )
