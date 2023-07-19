@@ -33,14 +33,18 @@ def ls_resources(root, resource: str) -> list[str]:
 
 
 @contextlib.contextmanager
-def _atomic_open(path: str, mode: str) -> TextIO:
+def _atomic_open(path: str, mode: str, **kwargs) -> TextIO:
     """A version of open() that handles atomic file access across many filesystems (like S3)"""
     root = store.Root(path)
 
-    # fsspec is atomic per-transaction -- if an error occurs inside the transaction, partial writes will be discarded
-    with root.fs.transaction:
-        with root.fs.open(path, mode=mode, encoding="utf8") as file:
-            yield file
+    with contextlib.ExitStack() as stack:
+        if "w" in mode:
+            # fsspec is atomic per-transaction.
+            # If an error occurs inside the transaction, partial writes will be discarded.
+            # But we only want a transaction if we're writing - read transactions may error out
+            stack.enter_context(root.fs.transaction)
+
+        yield stack.enter_context(root.fs.open(path, mode=mode, encoding="utf8", **kwargs))
 
 
 def read_text(path: str) -> str:
@@ -94,7 +98,8 @@ def write_json(path: str, data: Any, indent: int = None) -> None:
 
 @contextlib.contextmanager
 def read_csv(path: str) -> csv.DictReader:
-    with open(path, newline="", encoding="utf8") as csvfile:
+    # Python docs say to use newline="", to support quoted multi-line fields
+    with _atomic_open(path, "r", newline="") as csvfile:
         yield csv.DictReader(csvfile)
 
 
@@ -115,13 +120,34 @@ def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
         yield from read_ndjson(filename)
 
 
-class NdjsonWriter:
-    """Convenience context manager to write multiple objects to a local ndjson file."""
+def write_rows_to_ndjson(path: str, rows: list[dict], sparse: bool = False) -> None:
+    """
+    Writes the data out, row by row, to an .ndjson file (non-atomically).
 
-    def __init__(self, path: str, mode: str = "w"):
-        self._path = path
+    :param path: where to write the file
+    :param rows: data to write
+    :param sparse: if True, None entries are skipped
+    """
+    with NdjsonWriter(path, allow_empty=True) as f:
+        for row in rows:
+            if sparse:
+                row = sparse_dict(row)
+            f.write(row)
+
+
+class NdjsonWriter:
+    """
+    Convenience context manager to write multiple objects to a ndjson file.
+
+    Note that this is not atomic - partial writes will make it to the target file.
+    """
+
+    def __init__(self, path: str, mode: str = "w", allow_empty: bool = False):
+        self._root = store.Root(path)
         self._mode = mode
         self._file = None
+        if allow_empty:
+            self._ensure_file()
 
     def __enter__(self):
         return self
@@ -131,13 +157,29 @@ class NdjsonWriter:
             self._file.close()
             self._file = None
 
-    def write(self, obj: dict) -> None:
-        # lazily create the file, to avoid 0-line ndjson files
+    def _ensure_file(self):
         if not self._file:
-            self._file = open(self._path, self._mode, encoding="utf8")  # pylint: disable=consider-using-with
+            self._file = self._root.fs.open(self._root.path, self._mode, encoding="utf8")
+
+    def write(self, obj: dict) -> None:
+        # lazily create the file, to avoid 0-line ndjson files (unless created in __init__)
+        self._ensure_file()
 
         json.dump(obj, self._file)
         self._file.write("\n")
+
+
+def sparse_dict(dictionary: dict) -> dict:
+    """Returns a value of the input dictionary without any keys with None values."""
+
+    def iteration(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {key: iteration(val) for key, val in item.items() if val is not None}
+        elif isinstance(item, list):
+            return [iteration(x) for x in item]
+        return item
+
+    return iteration(dictionary)
 
 
 ###############################################################################
@@ -162,7 +204,6 @@ def human_file_size(count: int) -> str:
     Returns a human-readable version of a count of bytes.
 
     I couldn't find a version of this that's sitting in a library we use. Very annoying.
-    Pandas has one, but it's private.
     """
     for suffix in ("KB", "MB"):
         count /= 1024

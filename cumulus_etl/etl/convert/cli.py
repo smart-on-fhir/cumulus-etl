@@ -8,7 +8,6 @@ import argparse
 import os
 import tempfile
 
-import pandas
 import rich.progress
 
 from cumulus_etl import cli_utils, common, errors, formats, store
@@ -50,10 +49,9 @@ def convert_task_table(
     progress_task = progress.add_task(table.get_name(task), total=count)
 
     for index, ndjson_path in enumerate(ndjson_paths):
-        rows = common.read_ndjson(ndjson_path)
-        df = pandas.DataFrame(rows)
-        df.drop_duplicates("id", inplace=True)
-        formatter.write_records(df, index)
+        rows = list(common.read_ndjson(ndjson_path))
+        batch = task.make_batch_from_rows(formatter, rows, index=index)
+        formatter.write_records(batch)
         progress.update(progress_task, advance=1)
 
     formatter.finalize()

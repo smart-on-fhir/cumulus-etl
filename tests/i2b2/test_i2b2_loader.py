@@ -16,7 +16,7 @@ class TestI2b2Loader(AsyncTestCase):
         """Verify that we don't error out if files are missing, we just ignore the ones that are"""
         with tempfile.TemporaryDirectory() as tmpdir:
             root = store.Root(tmpdir)
-            i2b2_loader = loader.I2b2Loader(root, 5)
+            i2b2_loader = loader.I2b2Loader(root)
 
             # Write one file, but not others, just to confirm we do a partial read if possible.
             vitals = f"{self.datadir}/i2b2/input/observation_fact_vitals.csv"
