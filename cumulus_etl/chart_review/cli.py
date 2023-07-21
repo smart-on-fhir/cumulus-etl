@@ -8,7 +8,7 @@ from collections.abc import Collection
 import ctakesclient
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
 from cumulus_etl.chart_review import downloader, selector
 from cumulus_etl.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
 
@@ -30,7 +30,7 @@ def init_checks(args: argparse.Namespace):
 
 async def gather_docrefs(
     client: fhir.FhirClient, root_input: store.Root, root_phi: store.Root, args: argparse.Namespace
-) -> loaders.Directory:
+) -> common.Directory:
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
 

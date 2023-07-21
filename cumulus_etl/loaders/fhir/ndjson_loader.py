@@ -37,7 +37,7 @@ class FhirNdjsonLoader(base.Loader):
         self.since = since
         self.until = until
 
-    async def load_all(self, resources: list[str]) -> base.Directory:
+    async def load_all(self, resources: list[str]) -> common.Directory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
             return await self._load_from_bulk_export(resources)
@@ -56,7 +56,7 @@ class FhirNdjsonLoader(base.Loader):
         #
         # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
         # TemporaryDirectory gets discarded), but that seems reasonable.
-        common.print_header("Copying ndjson input files...")
+        common.print_header("Copying ndjson input files…")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         for resource in resources:
             filenames = common.ls_resources(self.root, resource)
@@ -66,7 +66,7 @@ class FhirNdjsonLoader(base.Loader):
                 logging.warning("No resources found for %s", resource)
         return tmpdir
 
-    async def _load_from_bulk_export(self, resources: list[str]) -> base.Directory:
+    async def _load_from_bulk_export(self, resources: list[str]) -> common.Directory:
         target_dir = cli_utils.make_export_dir(self.export_to)
 
         try:

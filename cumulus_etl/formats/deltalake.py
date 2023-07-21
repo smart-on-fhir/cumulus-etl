@@ -103,7 +103,7 @@ class DeltaLakeFormat(Format):
             merge = (
                 table.alias("table")
                 .merge(source=updates.alias("updates"), condition="table.id = updates.id")
-                .whenMatchedUpdateAll()
+                .whenMatchedUpdateAll(condition=self._get_match_condition(updates.schema))
                 .whenNotMatchedInsertAll()
             )
 
@@ -144,6 +144,45 @@ class DeltaLakeFormat(Format):
 
     def _table_path(self, dbname: str) -> str:
         return self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
+
+    @staticmethod
+    def _get_match_condition(schema: pyspark.sql.types.StructType) -> str | None:
+        """
+        Determine what (if any) whenMatchedUpdateAll condition to use for the given update schema.
+
+        Usually, this means checking the meta.lastUpdated value and skipping updates if the new row is older than the
+        existing data. But we only want to check that if the field exists (and it might not in some cases - like if
+        this is a custom table ala covid_symptom__nlp_results).
+        """
+        # See if this update dataframe has a meta.lastUpdated field.
+        # If not (which might be true for custom tables like covid_symptom__nlp_results or unit tests),
+        # unconditionally update matching rows by returning None for the condition.
+        meta_type = "meta" in schema.fieldNames() and schema["meta"].dataType
+        has_last_updated_field = (
+            meta_type
+            and isinstance(meta_type, pyspark.sql.types.StructType)
+            and "lastUpdated" in meta_type.fieldNames()
+        )
+        if not has_last_updated_field:
+            return None
+
+        # OK, the field exists (which is typical for any FHIR resource tables, as we provide a wide FHIR schema),
+        # so we want to conditionally update rows based on the timestamp.
+        #
+        # We skip the update row if both the table and the update have a lastUpdated value and the update's value
+        # is in the past. But err on the side of caution if anything is missing, by taking the update.
+        #
+        # This uses less-than instead of less-than-or-equal just to avoid needless churn.
+        # If we eventually decide that sub-second updates are a real concern, we can make it <= and
+        # additionally compare versionId. But I don't know how you extracted both versions so quickly. :)
+        #
+        # The cast-as-timestamp does not seem to noticeably slow us down.
+        # If it becomes an issue, we could always actually convert this string column to a real date/time column.
+        return (
+            "table.meta.lastUpdated is null or "
+            "updates.meta.lastUpdated is null or "
+            "CAST(table.meta.lastUpdated AS TIMESTAMP) < CAST(updates.meta.lastUpdated AS TIMESTAMP)"
+        )
 
     @staticmethod
     def _configure_fs(root: store.Root, spark: pyspark.sql.SparkSession):

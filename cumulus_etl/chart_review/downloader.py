@@ -33,7 +33,7 @@ async def _download_docrefs_from_fake_ids(
     dir_phi: str,
     docref_csv: str,
     export_to: str = None,
-) -> loaders.Directory:
+) -> common.Directory:
     """Download DocumentReference resources for the given patient and docref identifiers"""
     output_folder = cli_utils.make_export_dir(export_to)
 
@@ -63,7 +63,7 @@ async def _download_docrefs_from_real_ids(
     client: fhir.FhirClient,
     docref_csv: str,
     export_to: str = None,
-) -> loaders.Directory:
+) -> common.Directory:
     """Download DocumentReference resources for the given patient and docref identifiers"""
     output_folder = cli_utils.make_export_dir(export_to)
 

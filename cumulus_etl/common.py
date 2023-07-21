@@ -7,9 +7,29 @@ import json
 import logging
 import re
 from collections.abc import Iterator
-from typing import Any, TextIO
+from typing import Any, Protocol, TextIO
+
+import rich
 
 from cumulus_etl import store
+
+
+###############################################################################
+#
+# Types
+#
+###############################################################################
+
+# We often want the ability to provide a TemporaryDirectory _or_ an actual real folder that isn't temporary.
+# So for that use case, we define a Directory protocol for typing purposes, which looks like a TemporaryDirectory.
+# And then a RealDirectory class that does not delete its folder.
+class Directory(Protocol):
+    name: str
+
+
+class RealDirectory:
+    def __init__(self, path: str):
+        self.name = path
 
 
 ###############################################################################
@@ -247,15 +267,9 @@ def warn_mode():
     logging.getLogger().setLevel(logging.WARN)
 
 
-_first_header = True
-
-
 def print_header(name: str | None = None) -> None:
     """Prints a section break to the console, with a name for the user"""
-    global _first_header
-    if not _first_header:
-        print("###############################################################")
-    _first_header = False
+    rich.get_console().rule()
     if name:
         print(name)
 

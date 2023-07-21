@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, common, store
-from cumulus_etl.loaders.base import Directory, Loader
+from cumulus_etl.loaders.base import Loader
 from cumulus_etl.loaders.i2b2 import extract, schema, transform
 from cumulus_etl.loaders.i2b2.oracle import extract as oracle_extract
 
@@ -34,7 +34,7 @@ class I2b2Loader(Loader):
         super().__init__(root)
         self.export_to = export_to
 
-    async def load_all(self, resources: list[str]) -> Directory:
+    async def load_all(self, resources: list[str]) -> common.Directory:
         if self.root.protocol in ["tcp"]:
             return self._load_all_from_oracle(resources)
 
@@ -50,7 +50,7 @@ class I2b2Loader(Loader):
         documentreferences: I2b2ExtractorCallable,
         patients: I2b2ExtractorCallable,
         encounters: I2b2ExtractorCallable,
-    ) -> Directory:
+    ) -> common.Directory:
         """
         Load i2b2 content into a local folder as ndjson
 
@@ -130,7 +130,7 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_csv(self, resources: list[str]) -> Directory:
+    def _load_all_from_csv(self, resources: list[str]) -> common.Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
@@ -163,7 +163,7 @@ class I2b2Loader(Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_oracle(self, resources: list[str]) -> Directory:
+    def _load_all_from_oracle(self, resources: list[str]) -> common.Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
