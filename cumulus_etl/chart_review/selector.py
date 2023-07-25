@@ -4,12 +4,12 @@ import functools
 import os
 from collections.abc import Callable, Iterable, Iterator
 
-from cumulus_etl import cli_utils, common, deid, loaders, store
+from cumulus_etl import cli_utils, common, deid, store
 
 
 def select_docrefs_from_files(
     root_input: store.Root, root_phi: store.Root, docrefs: str = None, anon_docrefs: str = None, export_to: str = None
-) -> loaders.Directory:
+) -> common.Directory:
     """Takes an input folder of ndjson and exports just the chosen docrefs to a new ndjson folder"""
     # Get an appropriate filter method, for the given docrefs
     docref_filter = _create_docref_filter(root_phi, docrefs, anon_docrefs)

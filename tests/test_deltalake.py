@@ -70,7 +70,8 @@ class TestDeltaLake(utils.AsyncTestCase):
 
     def assert_lake_equal(self, rows: list[dict]) -> None:
         table_path = os.path.join(self.output_dir, "patient")
-        self.assertListEqual(rows, utils.read_delta_lake(table_path))
+        rows_by_id = sorted(rows, key=lambda x: x["id"])
+        self.assertListEqual(rows_by_id, utils.read_delta_lake(table_path))
 
     def test_creates_if_empty(self):
         """Verify that the lake is created when empty"""
@@ -96,6 +97,71 @@ class TestDeltaLake(utils.AsyncTestCase):
         self.store(self.df(a={"one": 1}))
         self.store(self.df(b={"one": 1, "two": 2}))
         self.assert_lake_equal(self.df(a={"one": 1}, b={"one": 1, "two": 2}))
+
+    def test_last_updated_support(self):
+        """Verify that we don't knowingly overwrite current data with old data"""
+        past = "2000-01-01T01:00:00.000-00:00"
+        past_with_offset = "2000-01-01T04:00:00.000+03:00"  # lexically later than now
+        now = "2000-01-01T02:00:00.000Z"
+        now_without_zed = "2000-01-01T02:00:00.000-00:00"  # lexically earlier than now
+        future = "2000-01-01T03:00:00.000-00:00"
+        future_with_offset = "2000-01-01T00:00:00.000-03:00"  # lexically earlier than now
+        self.store(  # original table (all "value" fields are 1)
+            [
+                {"id": "past", "meta": {"lastUpdated": past}, "value": 1},
+                {"id": "past-with-offset", "meta": {"lastUpdated": past_with_offset}, "value": 1},
+                {"id": "now", "meta": {"lastUpdated": now}, "value": 1},
+                {"id": "now-without-zed", "meta": {"lastUpdated": now_without_zed}, "value": 1},
+                {"id": "future", "meta": {"lastUpdated": future}, "value": 1},
+                {"id": "future-with-offset", "meta": {"lastUpdated": future_with_offset}, "value": 1},
+                # this next one is off-spec (lastUpdated must provide at least seconds), but still
+                {"id": "future-partial", "meta": {"lastUpdated": "3000-01-01"}, "value": 1},
+                {"id": "missing-date-table", "meta": {}, "value": 1},
+                {"id": "missing-date-update", "meta": {"lastUpdated": future}, "value": 1},
+                {"id": "missing-date-both", "meta": {}, "value": 1},
+                {"id": "missing-meta-table", "value": 1},
+                {"id": "missing-meta-update", "meta": {"lastUpdated": future}, "value": 1},
+                {"id": "missing-meta-both", "value": 1},
+                {"id": "unmatched-table", "value": 1},
+            ]
+        )
+        self.store(  # update (all "value" fields are 2 and all "lastUpdated" fields are "now")
+            [
+                {"id": "past", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "past-with-offset", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "now", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "now-without-zed", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "future", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "future-with-offset", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "future-partial", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "missing-date-table", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "missing-date-update", "meta": {}, "value": 2},
+                {"id": "missing-date-both", "meta": {}, "value": 2},
+                {"id": "missing-meta-table", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "missing-meta-update", "value": 2},
+                {"id": "missing-meta-both", "value": 2},
+                {"id": "unmatched-update", "value": 2},
+            ]
+        )
+        self.assert_lake_equal(
+            [
+                {"id": "past", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "past-with-offset", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "now", "meta": {"lastUpdated": now}, "value": 1},
+                {"id": "now-without-zed", "meta": {"lastUpdated": now_without_zed}, "value": 1},
+                {"id": "future", "meta": {"lastUpdated": future}, "value": 1},
+                {"id": "future-with-offset", "meta": {"lastUpdated": future_with_offset}, "value": 1},
+                {"id": "future-partial", "meta": {"lastUpdated": "3000-01-01"}, "value": 1},
+                {"id": "missing-date-table", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "missing-date-update", "meta": {}, "value": 2},
+                {"id": "missing-date-both", "meta": {}, "value": 2},
+                {"id": "missing-meta-table", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "missing-meta-update", "meta": {}, "value": 2},
+                {"id": "missing-meta-both", "meta": {}, "value": 2},
+                {"id": "unmatched-table", "value": 1},
+                {"id": "unmatched-update", "value": 2},
+            ]
+        )
 
     def test_missing_field(self):
         """

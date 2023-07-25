@@ -10,7 +10,7 @@ from unittest import mock
 import ddt
 import respx
 
-from cumulus_etl import cli, common, errors, loaders
+from cumulus_etl import cli, common, errors
 from cumulus_etl.chart_review.labelstudio import LabelStudioNote
 
 from tests.ctakesmock import CtakesMixin
@@ -210,7 +210,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         # Mock out the bulk export loading, as that's well tested elsewhere
         async def load_all(*args):
             del args
-            return loaders.RealDirectory(self.input_path)
+            return common.RealDirectory(self.input_path)
 
         load_all_mock = mock_loader.return_value.load_all
         load_all_mock.side_effect = load_all

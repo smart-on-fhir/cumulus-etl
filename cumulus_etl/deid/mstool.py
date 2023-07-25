@@ -9,7 +9,7 @@ import glob
 import os
 import sys
 
-from cumulus_etl import cli_utils, common, errors
+from cumulus_etl import cli_utils, errors
 
 MSTOOL_CMD = "Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool"
 
@@ -24,8 +24,6 @@ async def run_mstool(input_dir: str, output_dir: str) -> None:
 
     The input must be in ndjson format. And the output will be as well.
     """
-    common.print_header()
-
     process = await asyncio.create_subprocess_exec(
         MSTOOL_CMD,
         "--bulkData",

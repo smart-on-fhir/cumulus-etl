@@ -9,7 +9,7 @@ import urllib.parse
 
 import rich.progress
 
-from cumulus_etl import errors, loaders
+from cumulus_etl import common, errors
 
 
 def add_auth(parser: argparse.ArgumentParser) -> None:
@@ -47,7 +47,7 @@ def add_debugging(parser: argparse.ArgumentParser):
     return group
 
 
-def make_export_dir(export_to: str = None) -> loaders.Directory:
+def make_export_dir(export_to: str = None) -> common.Directory:
     """Makes a temporary directory to drop exported ndjson files into"""
     # Handle the easy case -- just a random temp dir
     if not export_to:
@@ -62,7 +62,7 @@ def make_export_dir(export_to: str = None) -> loaders.Directory:
 
     confirm_dir_is_empty(export_to)
 
-    return loaders.RealDirectory(export_to)
+    return common.RealDirectory(export_to)
 
 
 def confirm_dir_is_empty(path: str) -> None:
