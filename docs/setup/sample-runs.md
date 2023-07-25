@@ -55,6 +55,15 @@ Simply clone the Cumulus ETL repository:
 git clone https://github.com/smart-on-fhir/cumulus-etl.git
 ```
 
+Further instructions below will pass Docker the argument `-f $CUMULUS_REPO_PATH/compose.yaml`.
+You can set that variable like so:
+```shell
+CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
+```
+
+Or if you run Docker commands directly from inside the cloned path,
+you can drop that `-f` argument entirely.
+
 ## Docker
 
 The next few steps will require Docker.
@@ -87,23 +96,6 @@ The `compose.yaml` file, which defines the network, adds the following container
   server, to run a second-pass negation of cTAKES results.
 
 ## Cumulus ETL
-
-### Building a Docker Image
-We plan to eventually offer a turnkey docker image.
-But for now you have to build a docker image yourself.
-
-You _could_ run Cumulus ETL directly from your cloned repository, but rather than worrying about
-all the dependencies it needs (including a whole
-[C# app from Microsoft](https://github.com/microsoft/Tools-for-Health-Data-Anonymization)
-that does some of the de-identification for us), we'll just build the docker image, using
-the Docker Compose network definition.
-
-```sh
-CUMULUS_REPO_PATH=/path-to-cloned-cumulus-etl-repo
-COMPOSE_DOCKER_CLI_BUILD=1 DOCKER_BUILDKIT=1 docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile etl build
-```
-
-And now you have Cumulus ETL installed!
 
 ### Running Cumulus ETL
 
