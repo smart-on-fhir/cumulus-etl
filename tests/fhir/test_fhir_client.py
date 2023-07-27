@@ -185,19 +185,17 @@ class TestFhirClient(AsyncTestCase):
 
     @ddt.data(
         {},  # no keys
-        {"keys": [{"alg": "RS384"}]},  # no key op
-        {"keys": [{"alg": "RS384", "key_ops": ["verify"], "kid": "a"}]},  # bad key op
-        {"keys": [{"alg": "RS128", "key_ops": ["sign"]}], "kid": "a"},  # bad algo
+        {"keys": [{"key_ops": ["sign"], "kid": "a"}]},  # no alg
+        {"keys": [{"alg": "RS384", "kid": "a"}]},  # no key op
         {"keys": [{"alg": "RS384", "key_ops": ["sign"]}]},  # no kid
+        {"keys": [{"alg": "RS384", "key_ops": ["verify"], "kid": "a"}]},  # bad key op
     )
     async def test_jwks_without_suitable_key(self, bad_jwks):
-        with self.assertRaisesRegex(errors.FatalError, "No private ES384 or RS384 key found"):
+        with self.assertRaisesRegex(errors.FatalError, "No valid private key found"):
             async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks):
                 pass
 
     @ddt.data(
-        {"token_endpoint_auth_methods_supported": None},
-        {"token_endpoint_auth_methods_supported": ["nope"]},
         {"token_endpoint": None},
         {"token_endpoint": ""},
     )
