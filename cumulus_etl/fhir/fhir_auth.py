@@ -115,16 +115,17 @@ class JwksAuth(Auth):
             timeout=300,  # five minutes
         )
         response.raise_for_status()
-
-        # Validate that the server can talk the client-confidential-asymmetric protocol with us.
-        # Some servers (like Cerner) don't advertise their support with the 'client-confidential-asymmetric'
-        # capability keyword, so let's not bother checking for it. But we can confirm that the pieces are there.
         config = response.json()
-        if "private_key_jwt" not in config.get("token_endpoint_auth_methods_supported", []) or not config.get(
-            "token_endpoint"
-        ):
+
+        # We used to validate some other pieces of this response (like support for the 'client-confidential-asymmetric'
+        # capability keyword or 'private_key_jwt' in the 'token_endpoint_auth_methods_supported' field).
+        # But servers rarely advertise correctly (No one seems to use the asymmetric capability keyword and Veradigm
+        # doesn't fill out the endpoint auth methods field with all methods it supports).
+        # So :shrug: we'll just assume things are fine and error out later if they aren't fine.
+        # The only thing we _need_ is the token endpoint.
+        if not config.get("token_endpoint"):
             errors.fatal(
-                f"Server {self._server_root} does not support the client-confidential-asymmetric protocol",
+                f"Server {self._server_root} does not expose an OAuth token endpoint",
                 errors.FHIR_AUTH_FAILED,
             )
 
@@ -140,10 +141,10 @@ class JwksAuth(Auth):
         """
         # Find a usable singing JWK from JWKS
         for key in self._jwks.get("keys", []):
-            if key.get("alg") in ["ES384", "RS384"] and "sign" in key.get("key_ops", []) and key.get("kid"):
+            if "sign" in key.get("key_ops", []) and key.get("kid") and key.get("alg"):
                 break
         else:  # no valid private JWK found
-            raise errors.FatalError("No private ES384 or RS384 key found in the provided JWKS file.")
+            raise errors.FatalError("No valid private key found in the provided JWKS file.")
 
         # Now generate a signed JWT based off the given JWK
         header = {
