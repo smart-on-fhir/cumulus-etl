@@ -123,6 +123,21 @@ class TestTasks(TaskTestCase):
             tasks.get_selected_tasks(names=["condition"], filter_tags=["gpu"])
         self.assertEqual(errors.TASK_FILTERED_OUT, cm.exception.code)
 
+    @ddt.data(
+        (None, "all"),
+        ([], "all"),
+        (filter(None, []), "all"),  # iterable, not list
+        (["observation", "condition", "procedure"], ["condition", "observation", "procedure"]),  # re-ordered
+        (["condition", "patient", "encounter"], ["encounter", "patient", "condition"]),  # encounter and patient first
+    )
+    @ddt.unpack
+    def test_task_selection_ordering(self, user_tasks, expected_tasks):
+        """Verify we define the order, not the user, and that encounter & patient are early"""
+        names = [t.name for t in tasks.get_selected_tasks(names=user_tasks)]
+        if expected_tasks == "all":
+            expected_tasks = [t.name for t in tasks.get_all_tasks()]
+        self.assertEqual(expected_tasks, names)
+
     async def test_drop_duplicates(self):
         """Verify that we run() will drop duplicate rows inside an input batch."""
         # Two "A" ids and one "B" id
