@@ -154,6 +154,8 @@ class FhirClient:
         if not self._server_root:
             return
 
+        print("Connecting to server…")
+
         try:
             response = await self._session.get(
                 fhir_auth.urljoin(self._server_root, "metadata"),

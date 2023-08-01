@@ -3,6 +3,7 @@
 import contextlib
 import csv
 import datetime
+import itertools
 import json
 import logging
 import re
@@ -39,7 +40,7 @@ class RealDirectory:
 ###############################################################################
 
 
-def ls_resources(root, resource: str) -> list[str]:
+def ls_resources(root: store.Root, resource: str) -> list[str]:
     pattern = re.compile(rf".*/([0-9]+.)?{resource}(.[0-9]+)?.ndjson")
     all_files = root.ls()
     return sorted(filter(pattern.match, all_files))
@@ -130,7 +131,7 @@ def read_ndjson(path: str) -> Iterator[dict]:
             yield json.loads(line)
 
 
-def read_resource_ndjson(root, resource: str) -> Iterator[dict]:
+def read_resource_ndjson(root: store.Root, resource: str) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
 
@@ -187,6 +188,15 @@ class NdjsonWriter:
 
         json.dump(obj, self._file)
         self._file.write("\n")
+
+
+def read_local_line_count(path) -> int:
+    """Reads a local file and provides the count of new line characters."""
+    # From https://stackoverflow.com/a/27517681/239668
+    # Copyright Michael Bacon, licensed CC-BY-SA 3.0
+    with open(path, "rb") as f:
+        bufgen = itertools.takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in itertools.repeat(None)))
+        return sum(buf.count(b"\n") for buf in bufgen if buf)
 
 
 def sparse_dict(dictionary: dict) -> dict:

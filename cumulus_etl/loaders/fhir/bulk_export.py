@@ -6,6 +6,8 @@ import os
 import urllib.parse
 
 import httpx
+import rich.live
+import rich.text
 
 from cumulus_etl import common, errors, fhir
 
@@ -69,7 +71,7 @@ class BulkExporter:
         See http://hl7.org/fhir/uv/bulkdata/export/index.html for details.
         """
         # Initiate bulk export
-        common.print_header("Starting bulk FHIR export...")
+        print("Starting bulk FHIR export…")
 
         params = {"_type": ",".join(self._resources)}
         if self._since:
@@ -104,7 +106,7 @@ class BulkExporter:
                 print("\n - ".join(["Messages from server:"] + warning_texts))
 
             # Download all the files
-            print("Bulk FHIR export finished, now downloading resources...")
+            print("Bulk FHIR export finished, now downloading resources…")
             files = response_json.get("output", [])
             await self._download_all_ndjson_files(files)
         finally:
@@ -136,37 +138,42 @@ class BulkExporter:
         :param method: HTTP method to request
         :returns: the HTTP response
         """
-        while self._total_wait_time < self._TIMEOUT_THRESHOLD:
-            response = await self._client.request(method, path, headers=headers)
+        status_box = rich.text.Text()
+        with rich.get_console().status(status_box) as status:
+            while self._total_wait_time < self._TIMEOUT_THRESHOLD:
+                response = await self._client.request(method, path, headers=headers)
 
-            if response.status_code == target_status_code:
-                return response
+                if response.status_code == target_status_code:
+                    if status_box.plain:
+                        status.stop()
+                        print(f"  Waited for a total of {common.human_time_offset(self._total_wait_time)}")
+                    return response
 
-            # 202 == server is still working on it, 429 == server is busy -- in both cases, we wait
-            if response.status_code in [202, 429]:
-                # Print a message to the user, so they don't see us do nothing for a while
-                delay = int(response.headers.get("Retry-After", 60))
-                if response.status_code == 202:
-                    # Some servers can request unreasonably long delays (e.g. I've seen Cerner ask for five hours),
-                    # which is... not helpful for our UX and often way too long for small exports.
-                    # So as long as the server isn't telling us it's overloaded, limit the delay time to five minutes.
-                    delay = min(delay, 300)
-                progress_msg = response.headers.get("X-Progress", "waiting...")
-                formatted_total = common.human_time_offset(self._total_wait_time)
-                formatted_delay = common.human_time_offset(delay)
-                print(f"  {progress_msg} ({formatted_total} so far, waiting for {formatted_delay} more)")
+                # 202 == server is still working on it, 429 == server is busy -- in both cases, we wait
+                if response.status_code in [202, 429]:
+                    # Print a message to the user, so they don't see us do nothing for a while
+                    delay = int(response.headers.get("Retry-After", 60))
+                    if response.status_code == 202:
+                        # Some servers can request unreasonably long delays (e.g. I've seen Cerner ask for five hours),
+                        # which is... not helpful for our UX and often way too long for small exports.
+                        # So as long as the server isn't telling us it's overloaded, limit the delay time to 5 minutes.
+                        delay = min(delay, 300)
+                    progress_msg = response.headers.get("X-Progress", "waiting…")
+                    formatted_total = common.human_time_offset(self._total_wait_time)
+                    formatted_delay = common.human_time_offset(delay)
+                    status_box.plain = f"{progress_msg} ({formatted_total} so far, waiting for {formatted_delay} more)"
 
-                # And wait as long as the server requests
-                await asyncio.sleep(delay)
-                self._total_wait_time += delay
+                    # And wait as long as the server requests
+                    await asyncio.sleep(delay)
+                    self._total_wait_time += delay
 
-            else:
-                # It feels silly to abort on an unknown *success* code, but the spec has such clear guidance on
-                # what the expected response codes are, that it's not clear if a code outside those parameters means
-                # we should keep waiting or stop waiting. So let's be strict here for now.
-                raise errors.FatalError(
-                    f"Unexpected status code {response.status_code} from the bulk FHIR export server."
-                )
+                else:
+                    # It feels silly to abort on an unknown *success* code, but the spec has such clear guidance on
+                    # what the expected response codes are, that it's not clear if a code outside those parameters means
+                    # we should keep waiting or stop waiting. So let's be strict here for now.
+                    raise errors.FatalError(
+                        f"Unexpected status code {response.status_code} from the bulk FHIR export server."
+                    )
 
         raise errors.FatalError("Timed out waiting for the bulk FHIR export to finish.")
 

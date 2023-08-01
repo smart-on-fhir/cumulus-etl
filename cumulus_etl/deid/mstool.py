@@ -48,7 +48,7 @@ async def _wait_for_completion(process: asyncio.subprocess.Process, input_dir: s
     stdout, stderr = None, None
 
     with cli_utils.make_progress_bar() as progress:
-        task = progress.add_task("De-identifying data…", total=1)
+        task = progress.add_task("De-identifying data", total=1)
         target = _count_file_sizes(f"{input_dir}/*.ndjson")
 
         while process.returncode is None:
