@@ -186,6 +186,8 @@ class EtlTask:
                 if self._write_one_table_batch(formatter, rows, batch_index):
                     summary.success += batch_len
                     update_status()
+                else:
+                    summary.had_errors = True
 
                 self.table_batch_cleanup(table_index, batch_index)
 

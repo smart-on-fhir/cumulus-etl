@@ -270,8 +270,7 @@ async def etl_main(args: argparse.Namespace) -> None:
 
     # Flag final status to user
     common.print_header()
-    failed = any(s.success < s.attempt for s in summaries)
-    if failed:
+    if any(s.had_errors for s in summaries):
         print("🚨 One or more tasks above did not 100% complete! 🚨", file=sys.stderr)
         raise SystemExit(errors.TASK_FAILED)
     else:
