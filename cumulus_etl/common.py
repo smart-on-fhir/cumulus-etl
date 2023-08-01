@@ -6,6 +6,7 @@ import datetime
 import itertools
 import json
 import logging
+import os
 import re
 from collections.abc import Iterator
 from typing import Any, Protocol, TextIO
@@ -31,6 +32,39 @@ class Directory(Protocol):
 class RealDirectory:
     def __init__(self, path: str):
         self.name = path
+
+
+###############################################################################
+#
+# Helper Functions: temporary dir handling
+#
+###############################################################################
+
+_temp_dir: str | None = None
+
+
+def set_global_temp_dir(path: str) -> None:
+    global _temp_dir
+    _temp_dir = path
+
+
+def get_temp_dir(subdir: str) -> str:
+    """
+    Use to access a specific subdir of the ETL temporary directory.
+
+    This directory is guaranteed to exist and to be removed when the ETL stops running.
+
+    Use this for sensitive content that you want to share among tasks, like downloaded clinical notes.
+
+    :returns: an absolute path to a temporary folder
+    """
+    if not _temp_dir:
+        raise ValueError("No temporary directory was created yet")
+
+    full_path = os.path.join(_temp_dir, subdir)
+    os.makedirs(full_path, mode=0o700, exist_ok=True)
+
+    return full_path
 
 
 ###############################################################################

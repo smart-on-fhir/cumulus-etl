@@ -1,10 +1,11 @@
 """Tests for fhir_utils.py"""
 import base64
+import shutil
 from unittest import mock
 
 import ddt
 
-from cumulus_etl import fhir
+from cumulus_etl import common, fhir
 from tests import utils
 
 
@@ -43,6 +44,24 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     def test_ref_resource(self, resource_type, resource_id, expected):
         self.assertEqual({"reference": expected}, fhir.ref_resource(resource_type, resource_id))
 
+
+@ddt.ddt
+class TestDocrefNotesUtils(utils.AsyncTestCase):
+    """Tests for the utility methods dealing with document reference clinical notes"""
+
+    def make_docref(self, docref_id: str, mimetype: str, note: str) -> dict:
+        return {
+            "id": docref_id,
+            "content": [
+                {
+                    "attachment": {
+                        "contentType": mimetype,
+                        "data": base64.standard_b64encode(note.encode("utf8")).decode("ascii"),
+                    },
+                },
+            ],
+        }
+
     @ddt.data(
         ("text/html", "<html><body>He<b>llooooo</b></html>", "Hellooooo"),  # strips html
         (  # strips xhtml
@@ -54,18 +73,32 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     )
     @ddt.unpack
     async def test_docref_note_conversions(self, mimetype, incoming_note, expected_note):
-        docref = {
-            "content": [
-                {
-                    "attachment": {
-                        "contentType": mimetype,
-                        "data": base64.standard_b64encode(incoming_note.encode("utf8")).decode("ascii"),
-                    },
-                },
-            ],
-        }
+        docref = self.make_docref("1", mimetype, incoming_note)
         resulting_note = await fhir.get_docref_note(None, docref)
         self.assertEqual(resulting_note, expected_note)
+
+    async def test_docref_note_caches_results(self):
+        """Verify that get_docref_note has internal caching"""
+
+        async def assert_note_is(docref_id, text, expected_text):
+            docref = self.make_docref(docref_id, "text/plain", text)
+            note = await fhir.get_docref_note(None, docref)
+            self.assertEqual(expected_text, note)
+
+        # Confirm that we cache
+        await assert_note_is("same", "hello", "hello")
+        await assert_note_is("same", "goodbye", "hello")
+
+        # Confirm that we cache empty string correctly (i.e. empty string is not handled same as None)
+        await assert_note_is("empty", "", "")
+        await assert_note_is("empty", "not empty", "")
+
+        # Confirm that a new id is not cached
+        await assert_note_is("new", "fresh", "fresh")
+
+        # Sanity-check that if we blow away the cache, we get new text
+        shutil.rmtree(common.get_temp_dir("notes"))
+        await assert_note_is("same", "goodbye", "goodbye")
 
     @ddt.data(
         (None, None),

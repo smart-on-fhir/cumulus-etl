@@ -5,10 +5,11 @@ import asyncio
 import enum
 import logging
 import sys
+import tempfile
 
 import rich.logging
 
-from cumulus_etl import chart_review, etl
+from cumulus_etl import chart_review, common, etl
 from cumulus_etl.etl import convert
 
 
@@ -56,16 +57,20 @@ async def main(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(prog=prog)
 
     if subcommand == Command.CHART_REVIEW.value:
-        await chart_review.run_chart_review(parser, argv)
+        run_method = chart_review.run_chart_review
     elif subcommand == Command.CONVERT.value:
-        await convert.run_convert(parser, argv)
+        run_method = convert.run_convert
     else:
         parser.description = "Extract, transform, and load FHIR data."
         if not subcommand:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
             parser.description += "\n\n" "other commands available:\n" "  chart-review\n" "  convert"
-        await etl.run_etl(parser, argv)
+        run_method = etl.run_etl
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        common.set_global_temp_dir(tempdir)
+        await run_method(parser, argv)
 
 
 def main_cli():
