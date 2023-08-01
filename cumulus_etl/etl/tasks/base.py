@@ -1,12 +1,17 @@
 """ETL tasks"""
 
+import contextlib
 import dataclasses
 import os
 from collections.abc import AsyncIterator, Iterator
 
 import pyarrow
+import rich.live
+import rich.progress
+import rich.table
+import rich.text
 
-from cumulus_etl import common, deid, fhir, formats, store
+from cumulus_etl import cli_utils, common, deid, fhir, formats, store
 from cumulus_etl.etl import config
 from cumulus_etl.etl.tasks import batching
 
@@ -95,25 +100,35 @@ class EtlTask:
         """
         common.print_header(f"{self.name}:")
 
-        if not await self.prepare_task():
-            return self.summaries
+        # Set up progress table with a slight left indent
+        grid = rich.table.Table.grid(padding=(0, 0, 0, 1), pad_edge=True)
+        progress = cli_utils.make_progress_bar()
+        text_box = rich.text.Text()
+        grid.add_row(progress)
+        grid.add_row(text_box)
 
-        entries = self.read_entries()
+        with rich.live.Live(grid):
+            with self._indeterminate_progress(progress, "Preparing"):
+                if not await self.prepare_task():
+                    return self.summaries
 
-        # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
-        # We want to batch them up, to allow resuming from interruptions more easily.
-        await self._write_tables_in_batches(entries)
+                entries = self.read_entries()
+                total_batches = self._count_total_batches()
 
-        # Ensure that we touch every output table (to create them and/or to confirm schema).
-        # Consider case of Medication for an EHR that only has inline Medications inside MedicationRequest.
-        # The Medication table wouldn't get created otherwise. Plus this is a good place to push any schema changes.
-        # (The reason it's nice if the table & schema exist is so that downstream SQL can be dumber.)
-        self._touch_remaining_tables()
+            # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
+            # We want to batch them up, to allow resuming from interruptions more easily.
+            await self._write_tables_in_batches(entries, total=total_batches, progress=progress, status=text_box)
 
-        # All data is written, now do any final cleanup the formatters want
-        for table_index, formatter in enumerate(self.formatters):
-            formatter.finalize()
-            print(f"  ⭐ done with {formatter.dbname} ({self.summaries[table_index].success:,} processed) ⭐")
+            with self._indeterminate_progress(progress, "Finalizing"):
+                # Ensure that we touch every output table (to create them and/or to confirm schema).
+                # Consider case of Medication for an EHR that only has inline Medications inside MedicationRequest.
+                # The Medication table wouldn't get created otherwise. Plus this is a good place to push any schema
+                # changes. (The reason it's nice if the table & schema exist is so that downstream SQL can be dumber.)
+                self._touch_remaining_tables()
+
+                # All data is written, now do any final cleanup the formatters want
+                for formatter in self.formatters:
+                    formatter.finalize()
 
         return self.summaries
 
@@ -128,9 +143,33 @@ class EtlTask:
     #
     ##########################################################################################
 
-    async def _write_tables_in_batches(self, entries: EntryIterator) -> None:
+    @contextlib.contextmanager
+    def _indeterminate_progress(self, progress: rich.progress.Progress, description: str):
+        task = progress.add_task(description=description, total=None)
+        yield
+        progress.update(task, completed=1, total=1)
+
+    def _count_total_batches(self):
+        input_root = store.Root(self.task_config.dir_input)
+        filenames = common.ls_resources(input_root, self.resource)
+        line_count = sum(common.read_local_line_count(filename) for filename in filenames)
+        num_batches, remainder = divmod(line_count, self.task_config.batch_size)
+        if remainder:
+            num_batches += 1
+        return num_batches
+
+    async def _write_tables_in_batches(
+        self, entries: EntryIterator, *, total: int, progress: rich.progress.Progress, status: rich.text.Text
+    ) -> None:
         """Writes all entries to each output tables in batches"""
+
+        def update_status():
+            status.plain = "\n".join(f"{x.success:,} processed for {x.label}" for x in self.summaries)
+
         batch_index = 0
+        batch_task = progress.add_task(f"0/{total} batches", total=total)
+        update_status()
+
         async for batches in batching.batch_iterate(entries, self.task_config.batch_size):
             # Batches is a tuple of lists of resources - the tuple almost never matters, but it is there in case the
             # task is generating multiple types of resources. Like MedicationRequest creating Medications as it goes.
@@ -146,12 +185,12 @@ class EtlTask:
                 summary.attempt += batch_len
                 if self._write_one_table_batch(formatter, rows, batch_index):
                     summary.success += batch_len
+                    update_status()
 
                 self.table_batch_cleanup(table_index, batch_index)
 
-                print(f"  {summary.success:,} processed for {formatter.dbname}")
-
             batch_index += 1
+            progress.update(batch_task, description=f"{batch_index}/{total} batches", advance=1)
 
     def _touch_remaining_tables(self):
         """Writes empty dataframe to any table we haven't written to yet"""

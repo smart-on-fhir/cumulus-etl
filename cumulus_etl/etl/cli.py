@@ -212,6 +212,7 @@ async def etl_main(args: argparse.Namespace) -> None:
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)
+    common.print_header()  # all "prep" comes in this next section, like connecting to server, bulk export, and de-id
 
     if args.errors_to:
         cli_utils.confirm_dir_is_empty(args.errors_to)
@@ -267,11 +268,14 @@ async def etl_main(args: argparse.Namespace) -> None:
     job_context.last_successful_output_dir = args.dir_output
     job_context.save()
 
-    # If any task had a failure, flag that for the user
+    # Flag final status to user
+    common.print_header()
     failed = any(s.success < s.attempt for s in summaries)
     if failed:
-        print("** One or more tasks above did not 100% complete! **", file=sys.stderr)
+        print("🚨 One or more tasks above did not 100% complete! 🚨", file=sys.stderr)
         raise SystemExit(errors.TASK_FAILED)
+    else:
+        print("⭐ All tasks completed successfully! ⭐", file=sys.stderr)
 
 
 async def run_etl(parser: argparse.ArgumentParser, argv: list[str]) -> None:
