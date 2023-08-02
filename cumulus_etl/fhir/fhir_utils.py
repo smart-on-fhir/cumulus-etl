@@ -6,7 +6,7 @@ import re
 
 import inscriptis
 
-from cumulus_etl import fhir
+from cumulus_etl import common, fhir
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -152,7 +152,35 @@ async def _get_docref_note_from_attachment(client: fhir.FhirClient, attachment: 
     raise ValueError("No data or url field present")
 
 
+def _get_cached_docref_note_path(docref: dict) -> str:
+    return f"{common.get_temp_dir('notes')}/{docref['id']}.txt"
+
+
+def _get_cached_docref_note(docref: dict) -> str | None:
+    note_path = _get_cached_docref_note_path(docref)
+    try:
+        return common.read_text(note_path)
+    except FileNotFoundError:
+        return None
+
+
+def _save_cached_docref_note(docref: dict, note: str) -> None:
+    note_path = _get_cached_docref_note_path(docref)
+    common.write_text(note_path, note)
+
+
 async def get_docref_note(client: fhir.FhirClient, docref: dict) -> str:
+    """
+    Returns the clinical note contained in or referenced by the given docref.
+
+    It will try to find the simplest version (plain text) or convert html to plain text if needed.
+
+    This also caches the note for the duration of the ETL, to avoid redundant downloads.
+    """
+    note = _get_cached_docref_note(docref)
+    if note is not None:
+        return note
+
     attachments = [content["attachment"] for content in docref["content"]]
 
     # Find the best attachment to use, based on mimetype.
@@ -190,6 +218,7 @@ async def get_docref_note(client: fhir.FhirClient, docref: dict) -> str:
 
     # Strip this "line feed" character that often shows up in notes and is confusing for NLP.
     # Hopefully not many notes are using actual Spanish.
-    note = note and note.replace("¿", " ")
+    note = note.replace("¿", " ")
 
+    _save_cached_docref_note(docref, note)
     return note
