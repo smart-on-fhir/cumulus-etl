@@ -13,6 +13,7 @@ class TestConfigSummary(AsyncTestCase):
         summary = config.JobSummary("empty")
         expected = {
             "attempt": 0,
+            "had_errors": False,
             "hostname": gethostname(),
             "label": "empty",
             "success": 0,

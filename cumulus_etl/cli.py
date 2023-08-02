@@ -6,6 +6,8 @@ import enum
 import logging
 import sys
 
+import rich.logging
+
 from cumulus_etl import chart_review, etl
 from cumulus_etl.etl import convert
 
@@ -38,7 +40,13 @@ def get_subcommand(argv: list[str]) -> str | None:
 
 
 async def main(argv: list[str]) -> None:
-    logging.basicConfig(format="%(message)s")  # hide gross log prefix of "WARNING:root:" etc, just display message
+    # Use RichHandler for logging because it works better when interacting with other rich components
+    # (e.g. I've seen the default logger lose the last warning emitted when progress bars are also active).
+    # But also turn off all the complex bits - we just want the message.
+    logging.basicConfig(
+        format="%(message)s",
+        handlers=[rich.logging.RichHandler(show_time=False, show_level=False, show_path=False)],
+    )
 
     subcommand = get_subcommand(argv)
 

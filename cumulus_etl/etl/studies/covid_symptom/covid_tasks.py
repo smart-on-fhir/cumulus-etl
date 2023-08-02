@@ -70,6 +70,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
         success = nlp.restart_ctakes_with_bsv(self.task_config.ctakes_overrides, bsv_path)
         if not success:
             print(f"Skipping {self.name}.")
+            self.summaries[0].had_errors = True
         return success
 
     def add_error(self, docref: dict) -> None:
@@ -112,6 +113,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
                 cnlp_http_client=http_client,
             )
             if symptoms is None:
+                self.summaries[0].had_errors = True
                 self.add_error(orig_docref)
                 continue
 

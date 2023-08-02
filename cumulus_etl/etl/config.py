@@ -84,6 +84,7 @@ class JobSummary:
         self.label = label
         self.attempt = 0
         self.success = 0
+        self.had_errors = False
         self.timestamp = common.timestamp_datetime()
         self.hostname = gethostname()
 
@@ -102,6 +103,7 @@ class JobSummary:
             "attempt": self.attempt,
             "success": self.success,
             "success_rate": self.success_rate(),
+            "had_errors": self.had_errors,
             "timestamp": self.timestamp,
             "hostname": self.hostname,
         }
