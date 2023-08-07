@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from typing import TypeVar
 
 from cumulus_etl import errors
-from cumulus_etl.etl.studies import covid_symptom
+from cumulus_etl.etl.studies import covid_symptom, hftest
 from cumulus_etl.etl.tasks.basic_tasks import (
     ConditionTask,
     DocumentReferenceTask,
@@ -28,6 +28,18 @@ def get_all_tasks() -> list[type[AnyTask]]:
     """
     # Right now, just hard-code these. One day we might allow plugins or something similarly dynamic.
     # Note: tasks will be run in the order listed here.
+    return get_default_tasks() + [
+        hftest.HuggingFaceTestTask,
+    ]
+
+
+def get_default_tasks() -> list[type[AnyTask]]:
+    """
+    Returns classes for all default tasks (which tend to be the core FHIR resource tasks).
+
+    :returns: a list of all EtlTask subclasses, to instantiate and run
+    """
+    # Note: tasks will be run in the order listed here.
     return [
         # Run encounter & patient first, to reduce churn on the codebook (the cached mappings would mostly be written
         # out during the encounter task and wouldn't need to be re-written later, one would hope)
@@ -40,7 +52,7 @@ def get_all_tasks() -> list[type[AnyTask]]:
         ObservationTask,
         ProcedureTask,
         ServiceRequestTask,
-        covid_symptom.CovidSymptomNlpResultsTask,
+        covid_symptom.CovidSymptomNlpResultsTask,  # TODO: remove from default list at some point
     ]
 
 
@@ -52,11 +64,15 @@ def get_selected_tasks(names: Iterable[str] = None, filter_tags: Iterable[str] =
     :param filter_tags: only tasks that have all the listed tags will be eligible for selection
     :returns: a list of selected EtlTask subclasses, to instantiate and run
     """
-    all_tasks = get_all_tasks()
     names = names and set(names)
+    filter_tag_set = set(filter_tags or [])
+
+    # Just give back the default set if the user didn't specify any constraints
+    if not names and not filter_tag_set:
+        return get_default_tasks()
 
     # Filter out any tasks that don't have every required tag
-    filter_tag_set = frozenset(filter_tags or [])
+    all_tasks = get_all_tasks()
     filtered_tasks = list(filter(lambda x: filter_tag_set.issubset(x.tags), all_tasks))
 
     # If the user didn't list any names, great! We're done.
