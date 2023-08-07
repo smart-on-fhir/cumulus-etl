@@ -108,16 +108,14 @@ class EtlTask:
         grid.add_row(text_box)
 
         with rich.live.Live(grid):
-            with self._indeterminate_progress(progress, "Preparing"):
-                if not await self.prepare_task():
-                    return self.summaries
+            if not await self.prepare_task():
+                return self.summaries
 
-                entries = self.read_entries()
-                total_batches = self._count_total_batches()
+            entries = self.read_entries(progress=progress)
 
             # At this point we have a giant iterable of de-identified FHIR objects, ready to be written out.
             # We want to batch them up, to allow resuming from interruptions more easily.
-            await self._write_tables_in_batches(entries, total=total_batches, progress=progress, status=text_box)
+            await self._write_tables_in_batches(entries, progress=progress, status=text_box)
 
             with self._indeterminate_progress(progress, "Finalizing"):
                 # Ensure that we touch every output table (to create them and/or to confirm schema).
@@ -149,17 +147,8 @@ class EtlTask:
         yield
         progress.update(task, completed=1, total=1)
 
-    def _count_total_batches(self):
-        input_root = store.Root(self.task_config.dir_input)
-        filenames = common.ls_resources(input_root, self.resource)
-        line_count = sum(common.read_local_line_count(filename) for filename in filenames)
-        num_batches, remainder = divmod(line_count, self.task_config.batch_size)
-        if remainder:
-            num_batches += 1
-        return num_batches
-
     async def _write_tables_in_batches(
-        self, entries: EntryIterator, *, total: int, progress: rich.progress.Progress, status: rich.text.Text
+        self, entries: EntryIterator, *, progress: rich.progress.Progress, status: rich.text.Text
     ) -> None:
         """Writes all entries to each output tables in batches"""
 
@@ -167,10 +156,14 @@ class EtlTask:
             status.plain = "\n".join(f"{x.success:,} processed for {x.label}" for x in self.summaries)
 
         batch_index = 0
-        batch_task = progress.add_task(f"0/{total} batches", total=total)
+        format_progress_task = None
         update_status()
 
         async for batches in batching.batch_iterate(entries, self.task_config.batch_size):
+            if format_progress_task is not None:
+                progress.update(format_progress_task, visible=False)  # hide old batches, to save screen space
+            format_progress_task = progress.add_task(f"Writing batch {batch_index + 1:,}", total=None)
+
             # Batches is a tuple of lists of resources - the tuple almost never matters, but it is there in case the
             # task is generating multiple types of resources. Like MedicationRequest creating Medications as it goes.
             # Each tuple of batches collectively adds up to roughly our target batch size.
@@ -191,8 +184,8 @@ class EtlTask:
 
                 self.table_batch_cleanup(table_index, batch_index)
 
+            progress.update(format_progress_task, completed=1, total=1)
             batch_index += 1
-            progress.update(batch_task, description=f"{batch_index}/{total} batches", advance=1)
 
     def _touch_remaining_tables(self):
         """Writes empty dataframe to any table we haven't written to yet"""
@@ -275,16 +268,30 @@ class EtlTask:
     #
     ##########################################################################################
 
-    def read_ndjson(self) -> Iterator[dict]:
+    def read_ndjson(self, *, progress: rich.progress.Progress = None) -> Iterator[dict]:
         """
         Grabs all ndjson files from a folder, of a particular resource type.
 
         Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
         """
         input_root = store.Root(self.task_config.dir_input)
-        return common.read_resource_ndjson(input_root, self.resource)
 
-    async def read_entries(self) -> EntryIterator:
+        if progress:
+            # Make new task to track processing of rows
+            row_task = progress.add_task("Reading", total=None)
+
+            # Find total number of lines
+            filenames = common.ls_resources(input_root, self.resource)
+            total = sum(common.read_local_line_count(filename) for filename in filenames)
+            progress.update(row_task, total=total, visible=bool(total))
+
+        # Actually read the lines
+        for line in common.read_resource_ndjson(input_root, self.resource):
+            yield line
+            if progress:
+                progress.advance(row_task)
+
+    async def read_entries(self, *, progress: rich.progress.Progress = None) -> EntryIterator:
         """
         Reads input entries for the job.
 
@@ -298,7 +305,7 @@ class EtlTask:
         Something like "yield x, y" or "yield x, [y, z]" - these streams of entries will be kept
         separated into two different DataFrames.
         """
-        for x in filter(self.scrubber.scrub_resource, self.read_ndjson()):
+        for x in filter(self.scrubber.scrub_resource, self.read_ndjson(progress=progress)):
             yield x
 
     def table_batch_cleanup(self, table_index: int, batch_index: int) -> None:

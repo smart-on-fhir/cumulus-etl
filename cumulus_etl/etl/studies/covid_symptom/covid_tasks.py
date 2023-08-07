@@ -6,6 +6,7 @@ import os
 
 import ctakesclient
 import pyarrow
+import rich.progress
 
 from cumulus_etl import common, formats, nlp, store
 from cumulus_etl.etl import tasks
@@ -82,14 +83,14 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
         with common.NdjsonWriter(error_path, "a") as writer:
             writer.write(docref)
 
-    async def read_entries(self) -> tasks.EntryIterator:
+    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 
         # one client for both NLP services for now -- no parallel requests yet, so no need to be fancy
         http_client = nlp.ctakes_httpx_client()
 
-        for docref in self.read_ndjson():
+        for docref in self.read_ndjson(progress=progress):
             # Only bother running NLP on docs that are current & finalized
             bad_ref_status = docref.get("status") in ("superseded", "entered-in-error")  # status of DocRef itself
             bad_doc_status = docref.get("docStatus") in ("preliminary", "entered-in-error")  # status of clinical note
