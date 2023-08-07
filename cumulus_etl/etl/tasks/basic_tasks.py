@@ -4,6 +4,8 @@ import copy
 import logging
 import os
 
+import rich.progress
+
 from cumulus_etl import common, fhir, store
 from cumulus_etl.etl import tasks
 
@@ -99,8 +101,8 @@ class MedicationRequestTask(tasks.EtlTask):
 
         return medication if self.scrub_medication(medication) else None
 
-    async def read_entries(self) -> tasks.EntryIterator:
-        for resource in self.read_ndjson():
+    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+        for resource in self.read_ndjson(progress=progress):
             orig_resource = copy.deepcopy(resource)
             if not self.scrubber.scrub_resource(resource):
                 continue
