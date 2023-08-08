@@ -5,7 +5,7 @@ import logging
 import ctakesclient
 import httpx
 
-from cumulus_etl import fhir, nlp, store
+from cumulus_etl import common, fhir, nlp, store
 
 
 async def covid_symptoms_extract(
@@ -52,6 +52,8 @@ async def covid_symptoms_extract(
     #   v2: we started dropping non-covid symptoms, which changes the span ordering
     cnlp_namespace = f"{ctakes_namespace}-cnlp_v2"
 
+    timestamp = common.datetime_now().isoformat()
+
     try:
         ctakes_json = await nlp.ctakes_extract(cache, ctakes_namespace, clinical_note, client=ctakes_http_client)
     except Exception as exc:  # pylint: disable=broad-except
@@ -87,6 +89,7 @@ async def covid_symptoms_extract(
                     "docref_id": docref_id,
                     "encounter_id": encounter_id,
                     "subject_id": subject_id,
+                    "generated_on": timestamp,
                     "match": match.as_json(),
                 }
             )
