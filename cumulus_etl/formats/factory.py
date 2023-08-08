@@ -3,7 +3,6 @@
 from .base import Format
 from .deltalake import DeltaLakeFormat
 from .ndjson import NdjsonFormat
-from .parquet import ParquetFormat
 
 
 def get_format_class(name: str) -> type[Format]:
@@ -13,7 +12,6 @@ def get_format_class(name: str) -> type[Format]:
     classes = {
         "deltalake": DeltaLakeFormat,
         "ndjson": NdjsonFormat,
-        "parquet": ParquetFormat,
     }
     try:
         return classes[name]

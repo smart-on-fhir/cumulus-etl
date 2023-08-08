@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 import ddt
 
@@ -113,3 +114,35 @@ class TestConvert(utils.AsyncTestCase):
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions shouldn't change at all
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
+
+    @mock.patch("cumulus_etl.formats.Format.write_records")
+    async def test_batch_metadata(self, mock_write):
+        """Verify that we pass along per-batch metadata like groups"""
+        # Set up input path
+        shutil.copytree(  # First, one table that has no metadata
+            f"{self.datadir}/simple/output/patient",
+            f"{self.original_path}/patient",
+        )
+        shutil.copytree(  # Then, one that does (from batched-output, to confirm we read each batch in turn)
+            f"{self.datadir}/simple/batched-output/covid_symptom__nlp_results",
+            f"{self.original_path}/covid_symptom__nlp_results",
+        )
+        common.write_json(  # change metadata to reference nonexistent group, to confirm we do read from this file
+            f"{self.original_path}/covid_symptom__nlp_results/covid_symptom__nlp_results.001.meta",
+            {"groups": ["nonexistent"]},
+        )
+        os.makedirs(f"{self.original_path}/JobConfig")
+
+        # Run conversion
+        await self.run_convert()
+
+        # Test results
+        self.assertEqual(3, mock_write.call_count)
+        self.assertEqual(set(), mock_write.call_args_list[0][0][0].groups)
+        self.assertEqual(
+            {
+                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd",
+            },
+            mock_write.call_args_list[1][0][0].groups,
+        )
+        self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)

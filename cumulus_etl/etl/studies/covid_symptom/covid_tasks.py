@@ -66,6 +66,10 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
     tags = {"covid_symptom", "gpu"}
     outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.seen_docrefs = set()
+
     async def prepare_task(self) -> bool:
         bsv_path = ctakesclient.filesystem.covid_symptoms_path()
         success = nlp.restart_ctakes_with_bsv(self.task_config.ctakes_overrides, bsv_path)
@@ -118,10 +122,24 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
                 self.add_error(orig_docref)
                 continue
 
+            # Record this docref as processed (so we can delete it from our table if we don't generate symptoms).
+            #
+            # We could move this up to the beginning of the loop and delete symptoms for notes now marked as
+            # superseded or are no longer considered an ED docref, for database cleanliness.
+            # But the current approach instead focuses purely on accuracy and makes sure that we zero-out any dangling
+            # entries for groups that we do process.
+            # Downstream SQL can ignore the above cases itself, as needed.
+            self.seen_docrefs.add(docref["id"])
+
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
             yield symptoms
+
+    def pop_current_group_values(self, table_index: int) -> set[str]:
+        values = self.seen_docrefs
+        self.seen_docrefs = set()
+        return values
 
     @classmethod
     def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema:

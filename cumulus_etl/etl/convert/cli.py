@@ -14,6 +14,18 @@ from cumulus_etl import cli_utils, common, errors, formats, store
 from cumulus_etl.etl import tasks
 
 
+def make_batch(task: type[tasks.EtlTask], formatter: formats.Format, index: int, path: str) -> formats.Batch:
+    metadata_path = path.removesuffix(".ndjson") + ".meta"
+    try:
+        metadata = common.read_json(metadata_path)
+    except FileNotFoundError:
+        metadata = {}
+
+    rows = list(common.read_ndjson(path))
+    groups = set(metadata.get("groups", []))
+    return task.make_batch_from_rows(formatter, rows, groups=groups, index=index)
+
+
 def convert_task_table(
     task: type[tasks.EtlTask],
     table: tasks.OutputTable,
@@ -32,7 +44,7 @@ def convert_task_table(
 
     # Grab all the files in the task dir
     all_paths = store.Root(task_input_dir).ls()
-    ndjson_paths = list(filter(lambda x: x.endswith(".ndjson"), all_paths))
+    ndjson_paths = sorted(filter(lambda x: x.endswith(".ndjson"), all_paths))
     if not ndjson_paths:
         # Again, don't error out in this case -- if the ETL made an empty dir, it's not a user-visible error
         return
@@ -49,8 +61,7 @@ def convert_task_table(
     progress_task = progress.add_task(table.get_name(task), total=count)
 
     for index, ndjson_path in enumerate(ndjson_paths):
-        rows = list(common.read_ndjson(ndjson_path))
-        batch = task.make_batch_from_rows(formatter, rows, index=index)
+        batch = make_batch(task, formatter, index, ndjson_path)
         formatter.write_records(batch)
         progress.update(progress_task, advance=1)
 
