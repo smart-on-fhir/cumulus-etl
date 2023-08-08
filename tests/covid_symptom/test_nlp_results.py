@@ -154,3 +154,35 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
             ["A", "C"],  # pre-scrubbed versions of the docrefs are stored, for easier debugging
             [x["id"] for x in common.read_ndjson(f"{self.errors_dir}/covid_symptom__nlp_results/nlp-errors.ndjson")],
         )
+
+    async def test_group_values_noted(self):
+        """Verify that the task does keep track of group values per batch"""
+        docref = i2b2_mock_data.documentreference()
+        docref_no_text = i2b2_mock_data.documentreference()
+        docref_no_text["content"][0]["attachment"]["data"] = ""
+        self.make_json("DocumentReference.1", "has-symptoms", **docref)
+        self.make_json("DocumentReference.2", "not-examined", **docref, docStatus="preliminary")
+        self.make_json("DocumentReference.3", "zero-symptoms", **docref_no_text)
+        self.make_json("DocumentReference.4", "second-batch", **docref)
+
+        self.job_config.batch_size = 2  # two symptoms for each doc that has them
+        await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(2, self.format.write_records.call_count)
+
+        # First batch
+        first_batch = self.format.write_records.call_args_list[0][0][0]
+        expected_row_docs = {self.codebook.db.resource_hash("has-symptoms")}
+        self.assertEqual(expected_row_docs, {row["docref_id"] for row in first_batch.rows})
+        self.assertEqual(expected_row_docs, first_batch.groups)
+
+        # Second batch
+        second_batch = self.format.write_records.call_args_list[1][0][0]
+        expected_row_docs = {self.codebook.db.resource_hash("second-batch")}
+        self.assertEqual(expected_row_docs, {row["docref_id"] for row in second_batch.rows})
+        expected_groups = {
+            # The task will have cleared the group list and the first batch should not be present
+            self.codebook.db.resource_hash("second-batch"),
+            self.codebook.db.resource_hash("zero-symptoms"),  # even without rows, it shows up in group list
+        }
+        self.assertEqual(expected_groups, second_batch.groups)

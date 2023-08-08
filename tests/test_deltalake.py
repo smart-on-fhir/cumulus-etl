@@ -55,7 +55,12 @@ class TestDeltaLake(utils.AsyncTestCase):
         return schema_tree.getvalue().strip()
 
     def store(
-        self, rows: list[dict], batch_index: int = 10, schema: pyarrow.Schema = None, group_field: str = None
+        self,
+        rows: list[dict],
+        batch_index: int = 10,
+        schema: pyarrow.Schema = None,
+        group_field: str = None,
+        groups: set[str] = None,
     ) -> bool:
         """
         Writes a single batch of data to the data lake.
@@ -64,9 +69,11 @@ class TestDeltaLake(utils.AsyncTestCase):
         :param batch_index: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
         :param schema: the batch schema, in pyarrow format
         :param group_field: a group field name, used to delete non-matching group rows
+        :param groups: all group values for this batch (ignored if group_field is not set)
         """
         deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field)
-        return deltalake.write_records(formats.Batch(rows, index=batch_index, schema=schema))
+        batch = formats.Batch(rows, groups=groups, index=batch_index, schema=schema)
+        return deltalake.write_records(batch)
 
     def assert_lake_equal(self, rows: list[dict]) -> None:
         table_path = os.path.join(self.output_dir, "patient")
@@ -309,19 +316,41 @@ class TestDeltaLake(utils.AsyncTestCase):
     def test_group_field(self):
         """Verify that we can safely delete some data from the lake using groups"""
         self.store(
-            self.df(aa={"group": "X", "val": 5}, ab={"group": "X", "val": 10}, b={"group": "Y", "val": 1}),
+            self.df(
+                aa={"group": "A", "val": 5},  # will be deleted as stale group member
+                ab={"group": "A", "val": 10},  # will be updated
+                b={"group": "B", "val": 1},  # will be ignored because 2nd batch won't have group B in it
+                c={"group": "C", "val": 2},  # will be deleted as group with zero members in new batch
+            ),
             group_field="value.group",
+            groups={"A", "B", "C"},
         )
+        # Sanity check that group settings don't change anything with a fresh delta lake
+        self.assert_lake_equal(
+            self.df(
+                aa={"group": "A", "val": 5},
+                ab={"group": "A", "val": 10},
+                b={"group": "B", "val": 1},
+                c={"group": "C", "val": 2},
+            )
+        )
+
+        # Now update the delta lake with a new batch
         self.store(
-            # Add a quote as part of the Z group identifier, just to confirm we escape these strings
-            self.df(ab={"group": "X", "val": 11}, ac={"group": "X", "val": 16}, c={"group": 'Z"', "val": 2}),
+            self.df(
+                ab={"group": "A", "val": 11},  # same id, new value
+                ac={"group": "A", "val": 16},  # new group member
+                # Add a quote as part of the D group identifier, just to confirm we escape these strings
+                d={"group": 'D"', "val": 3},  # whole new group
+            ),
             group_field="value.group",
+            groups={"A", "C", 'D"'},  # C is present but with no rows (existing rows will be deleted)
         )
         self.assert_lake_equal(
             self.df(
-                ab={"group": "X", "val": 11},
-                ac={"group": "X", "val": 16},
-                b={"group": "Y", "val": 1},
-                c={"group": 'Z"', "val": 2},
+                ab={"group": "A", "val": 11},
+                ac={"group": "A", "val": 16},
+                b={"group": "B", "val": 1},
+                d={"group": 'D"', "val": 3},
             )
         )

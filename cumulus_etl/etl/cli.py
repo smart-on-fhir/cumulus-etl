@@ -115,7 +115,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--output-format",
         default="deltalake",
-        choices=["deltalake", "ndjson", "parquet"],
+        choices=["deltalake", "ndjson"],
         help="output format (default is deltalake)",
     )
     parser.add_argument(

@@ -140,7 +140,7 @@ class TreeCompareMixin(unittest.TestCase):
         # change formatting, or even want the test files in an
         # easier-to-read format than the actual output files. In theory all
         # json files are equal once parsed.
-        if left_path.endswith(".json"):
+        if left_path.endswith(".json") or left_path.endswith(".meta"):
             left_json = json.loads(left_contents.decode("utf8"))
             right_json = json.loads(right_contents.decode("utf8"))
             self.assertEqual(left_json, right_json, f"{right_path} vs {left_path}")

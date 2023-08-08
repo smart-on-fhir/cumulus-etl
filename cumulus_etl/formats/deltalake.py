@@ -88,11 +88,11 @@ class DeltaLakeFormat(Format):
         with self.batch_to_spark(batch) as updates:
             if updates is None:
                 return
-            delta_table = self.update_delta_table(updates)
+            delta_table = self.update_delta_table(updates, groups=batch.groups)
 
         delta_table.generate("symlink_format_manifest")
 
-    def update_delta_table(self, updates: pyspark.sql.DataFrame) -> delta.DeltaTable:
+    def update_delta_table(self, updates: pyspark.sql.DataFrame, groups: set[str]) -> delta.DeltaTable:
         full_path = self._table_path(self.dbname)
 
         try:
@@ -107,11 +107,10 @@ class DeltaLakeFormat(Format):
                 .whenNotMatchedInsertAll()
             )
 
-            if self.group_field:
+            if self.group_field and groups:
                 # Delete any entries for groups touched by this update that are no longer present in the group
                 # (we are guaranteed to have all members of each group in the `updates` dataframe).
-                distinct_values = [row[0] for row in updates.select(self.group_field).distinct().collect()]
-                condition_column = table.toDF()[self.group_field].isin(distinct_values)
+                condition_column = table.toDF()[self.group_field].isin(groups)
                 merge = merge.whenNotMatchedBySourceDelete(condition_column)
 
             merge.execute()

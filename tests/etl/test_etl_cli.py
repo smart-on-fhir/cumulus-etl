@@ -261,38 +261,6 @@ class TestEtlFormats(BaseEtlSimple):
         await self.run_etl()
         self.assert_output_equal("output")
 
-    async def test_etl_job_parquet(self):
-        await self.run_etl(output_format="parquet")
-
-        # Merely test that the files got created. It's a binary format, so
-        # diffs aren't helpful, and looks like it can differ from machine to
-        # machine. So, let's do minimal checking here.
-
-        all_files = [
-            os.path.relpath(os.path.join(root, name), start=self.output_path)
-            for root, dirs, files in os.walk(self.output_path)
-            for name in files
-        ]
-
-        # Filter out job config files, we don't care about those for now
-        all_files = filter(lambda filename: "JobConfig" not in filename, all_files)
-
-        self.assertEqual(
-            {
-                "condition/condition.000.parquet",
-                "documentreference/documentreference.000.parquet",
-                "encounter/encounter.000.parquet",
-                "medication/medication.000.parquet",
-                "medicationrequest/medicationrequest.000.parquet",
-                "observation/observation.000.parquet",
-                "patient/patient.000.parquet",
-                "procedure/procedure.000.parquet",
-                "servicerequest/servicerequest.000.parquet",
-                "covid_symptom__nlp_results/covid_symptom__nlp_results.000.parquet",
-            },
-            set(all_files),
-        )
-
     async def test_etl_job_deltalake(self):
         await self.run_etl(output_format=None)  # deltalake should be default output format
 
@@ -353,6 +321,7 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
                 "mockbucket/root/procedure/procedure.000.ndjson",
                 "mockbucket/root/servicerequest/servicerequest.000.ndjson",
                 "mockbucket/root/covid_symptom__nlp_results/covid_symptom__nlp_results.000.ndjson",
+                "mockbucket/root/covid_symptom__nlp_results/covid_symptom__nlp_results.000.meta",
             },
             all_files,
         )
@@ -384,7 +353,7 @@ class TestEtlNlp(BaseEtlSimple):
         return [json.loads(line) for line in lines]
 
     async def test_stores_cached_json(self):
-        await self.run_etl(output_format="parquet", tasks=["covid_symptom__nlp_results"])
+        await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         self.assertTrue(self.was_ctakes_called())
 

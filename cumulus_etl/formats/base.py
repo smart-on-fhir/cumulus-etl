@@ -11,7 +11,7 @@ class Format(abc.ABC):
     """
     An abstraction for how to write cumulus output.
 
-    Subclass this to provide a different output format (like ndjson or parquet).
+    Subclass this to provide a different output format (like ndjson or deltalake).
     """
 
     @classmethod

@@ -131,9 +131,9 @@ class EtlTask:
         return self.summaries
 
     @classmethod
-    def make_batch_from_rows(cls, formatter: formats.Format, rows: list[dict], index: int = 0):
+    def make_batch_from_rows(cls, formatter: formats.Format, rows: list[dict], groups: set[str] = None, index: int = 0):
         schema = cls.get_schema(formatter, rows)
-        return formats.Batch(rows, schema=schema, index=index)
+        return formats.Batch(rows, groups=groups, schema=schema, index=index)
 
     ##########################################################################################
     #
@@ -171,12 +171,10 @@ class EtlTask:
                 if not rows:
                     continue
 
-                formatter = self._get_formatter(table_index)
                 batch_len = len(rows)
-
                 summary = self.summaries[table_index]
                 summary.attempt += batch_len
-                if self._write_one_table_batch(formatter, rows, batch_index):
+                if self._write_one_table_batch(rows, table_index, batch_index):
                     summary.success += batch_len
                     update_status()
                 else:
@@ -191,8 +189,7 @@ class EtlTask:
         """Writes empty dataframe to any table we haven't written to yet"""
         for table_index, formatter in enumerate(self.formatters):
             if formatter is None:  # No data got written yet
-                formatter = self._get_formatter(table_index)
-                self._write_one_table_batch(formatter, [], 0)  # just write an empty dataframe (should be fast)
+                self._write_one_table_batch([], table_index, 0)  # just write an empty dataframe (should be fast)
 
     def _get_formatter(self, table_index: int) -> formats.Format:
         """
@@ -237,15 +234,17 @@ class EtlTask:
 
         return [row for row in rows if is_unique(row)]
 
-    def _write_one_table_batch(self, formatter: formats.Format, rows: list[dict], batch_index: int) -> bool:
+    def _write_one_table_batch(self, rows: list[dict], table_index: int, batch_index: int) -> bool:
         # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
         # updated codebook with no data than data with an inaccurate codebook.
         self.scrubber.save()
 
+        formatter = self._get_formatter(table_index)
         rows = self._uniquify_rows(rows)
-        batch = self.make_batch_from_rows(formatter, rows, index=batch_index)
+        groups = self.pop_current_group_values(table_index)
+        batch = self.make_batch_from_rows(formatter, rows, groups=groups, index=batch_index)
 
-        # Now we write that batch to the target folder, in the requested format (e.g. parquet).
+        # Now we write that batch to the target folder, in the requested format (e.g. ndjson).
         success = formatter.write_records(batch)
         if not success:
             # We should write the "bad" batch to the error dir, for later review
@@ -320,6 +319,22 @@ class EtlTask:
         :returns: False if this task should be skipped and end immediately
         """
         return True
+
+    def pop_current_group_values(self, table_index: int) -> set[str]:
+        """
+        If your subclass uses the `group_field` output parameter, this returns all group values for the current batch.
+
+        Consider the case where you generate NLP results from docrefs and your group_field is `docref_id`.
+        You processed note A with five results yesterday.
+        If you re-process note A today, but it now generates no (or less) results, there may be entries in the
+        database that the formatter should delete.
+        This set of group values will indicate which groups this current batch represents.
+        Any group members not overwritten by this batch can be deleted.
+
+        (Your subclass should clear its internal tracking as part of this call, for the next batch.)
+        """
+        del table_index
+        return set()
 
     @classmethod
     def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema | None:
