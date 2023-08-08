@@ -149,6 +149,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
                 pyarrow.field("docref_id", pyarrow.string()),
                 pyarrow.field("encounter_id", pyarrow.string()),
                 pyarrow.field("subject_id", pyarrow.string()),
+                pyarrow.field("generated_on", pyarrow.string()),
                 pyarrow.field(
                     "match",
                     pyarrow.struct(
