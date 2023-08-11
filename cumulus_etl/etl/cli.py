@@ -188,7 +188,7 @@ def print_config(args: argparse.Namespace, job_datetime: datetime.datetime, all_
     if args.errors_to:
         table.add_row("Errors path:", args.errors_to)
     table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
-    table.add_row("Batch size:", str(args.batch_size))
+    table.add_row("Batch size:", f"{args.batch_size:,}")
     table.add_row("Tasks:", ", ".join(sorted(t.name for t in all_tasks)))
     if args.comment:
         table.add_row("Comment:", args.comment)

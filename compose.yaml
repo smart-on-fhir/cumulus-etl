@@ -11,6 +11,7 @@ services:
       - AWS_SESSION_TOKEN
       - AWS_PROFILE
       - AWS_DEFAULT_PROFILE
+      - CUMULUS_HUGGING_FACE_URL
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlp-transformers:8000/negation/process
     volumes:
