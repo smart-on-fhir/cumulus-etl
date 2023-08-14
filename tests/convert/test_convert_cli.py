@@ -72,7 +72,7 @@ class TestConvert(utils.AsyncTestCase):
         await self.run_convert()
 
         # Test first conversion results
-        expected_tables = {output.get_name(t) for t in tasks.get_all_tasks() for output in t.outputs}
+        expected_tables = {output.get_name(t) for t in tasks.get_default_tasks() for output in t.outputs}
         self.assertEqual(expected_tables | {"JobConfig"}, set(os.listdir(self.target_path)))
         self.assertEqual(
             {"test": True}, common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json")

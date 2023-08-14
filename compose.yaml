@@ -70,6 +70,31 @@ services:
           devices:
             - capabilities: [gpu]
 
+  llama2:
+    image: ghcr.io/huggingface/text-generation-inference:1.0.0
+    environment:
+      # If you update anything here that could affect NLP results, consider updating the
+      # task_version of any tasks that use this docker.
+      - HUGGING_FACE_HUB_TOKEN
+      - MAX_BATCH_PREFILL_TOKENS=2048  # default of 4096 overwhelms a 16GB machine
+      - MODEL_ID=meta-llama/Llama-2-7b-chat-hf
+      - REVISION=08751db2aca9bf2f7f80d2e516117a53d7450235
+    healthcheck:
+      # There's no curl or wget inside this container, but there is python3!
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 80))"]
+      start_period: 20m  # give plenty of time for startup, since we may be downloading a model
+    volumes:
+      - hf-data:/data
+    networks:
+      - cumulus-etl
+    ports:
+      - 8086:80
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
   # these images are intended specifically for development work
   cumulus-etl-test:
     extends:
@@ -156,3 +181,4 @@ networks:
 
 volumes:
   ctakes-overrides:
+  hf-data:
