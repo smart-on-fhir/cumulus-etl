@@ -63,7 +63,7 @@ class I2b2Loader(Loader):
                 code_dict = json.load(code_json)
             self._loop(
                 conditions(),
-                partial(transform.to_fhir_condition, codebook=code_dict),
+                partial(transform.to_fhir_condition, display_codes=code_dict),
                 os.path.join(tmpdir.name, "Condition.ndjson"),
             )
 
