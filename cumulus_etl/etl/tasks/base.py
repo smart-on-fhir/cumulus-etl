@@ -75,6 +75,7 @@ class EtlTask:
     name: str = None  # task & table name
     resource: str = None  # incoming resource that this task operates on (will be included in bulk exports etc)
     tags: set[str] = []
+    needs_bulk_deid = True  # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
 
     outputs: list[OutputTable] = [OutputTable()]
 
