@@ -95,11 +95,13 @@ def is_url_available(url: str, retry: bool = True) -> bool:
 
 
 def make_progress_bar() -> rich.progress.Progress:
-    # The default columns don't change to elapsed time when finished.
+    # The default columns use time remaining, which has felt inaccurate/less useful than a simple elapsed counter.
+    # - The estimation logic seems rough (often jumping time around).
+    # - For indeterminate bars, the estimate shows nothing.
     columns = [
         rich.progress.TextColumn("[progress.description]{task.description}"),
         rich.progress.BarColumn(),
         rich.progress.TaskProgressColumn(),
-        rich.progress.TimeRemainingColumn(elapsed_when_finished=True),
+        rich.progress.TimeElapsedColumn(),
     ]
     return rich.progress.Progress(*columns)

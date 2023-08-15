@@ -153,7 +153,7 @@ class EtlTask:
         """Writes all entries to each output tables in batches"""
 
         def update_status():
-            status.plain = "\n".join(f"{x.success:,} processed for {x.label}" for x in self.summaries)
+            status.plain = "\n".join(f"{x.success:,} written to {x.label}" for x in self.summaries)
 
         batch_index = 0
         format_progress_task = None
