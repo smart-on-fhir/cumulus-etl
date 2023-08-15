@@ -64,6 +64,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
     name = "covid_symptom__nlp_results"
     resource = "DocumentReference"
     tags = {"covid_symptom", "gpu"}
+    needs_bulk_deid = False
     outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
 
     def __init__(self, *args, **kwargs):

@@ -7,6 +7,7 @@ import shutil
 import tempfile
 from unittest import mock
 
+import ddt
 import pytest
 from ctakesclient.typesystem import Polarity
 
@@ -88,12 +89,26 @@ class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
         self.assert_etl_output_equal(os.path.join(self.data_dir, folder), self.output_path)
 
 
+@ddt.ddt
 class TestEtlJobFlow(BaseEtlSimple):
     """Test case for the sequence of data through the system"""
 
     async def test_batched_output(self):
         await self.run_etl(batch_size=1)
         self.assert_output_equal("batched-output")
+
+    @ddt.data(
+        (["covid_symptom__nlp_results"], False),
+        (["patient"], True),
+        (["covid_symptom__nlp_results", "patient"], True),
+    )
+    @ddt.unpack
+    async def test_ms_deid_skipped_if_not_needed(self, tasks: list[str], expected_ms_deid: bool):
+        with self.assertRaises(SystemExit):
+            with mock.patch("cumulus_etl.deid.Scrubber.scrub_bulk_data") as mock_deid:
+                with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit):
+                    await self.run_etl(tasks=tasks)
+        self.assertEqual(1 if expected_ms_deid else 0, mock_deid.call_count)
 
     async def test_downloaded_phi_is_not_kept(self):
         """Verify we remove all downloaded PHI even if interrupted"""

@@ -15,6 +15,7 @@ class HuggingFaceTestTask(tasks.EtlTask):
 
     name = "hftest__summary"
     resource = "DocumentReference"
+    needs_bulk_deid = False
     outputs = [tasks.OutputTable(schema=None)]
 
     # Task Version

@@ -6,7 +6,6 @@ import itertools
 import os
 import shutil
 import sys
-import tempfile
 from collections.abc import Iterable
 
 import rich
@@ -22,21 +21,6 @@ from cumulus_etl.etl.config import JobConfig, JobSummary
 # Main Pipeline (run all tasks)
 #
 ###############################################################################
-
-
-async def load_and_deidentify(loader: loaders.Loader, resources: Iterable[str]) -> tempfile.TemporaryDirectory:
-    """
-    Loads the input directory and does a first-pass de-identification
-
-    Code outside this method should never see the original input files.
-
-    :returns: a temporary directory holding the de-identified files in FHIR ndjson format
-    """
-    # First step is loading all the data into a local ndjson format
-    loaded_dir = await loader.load_all(list(resources))
-
-    # Second step is de-identifying that data (at a bulk level)
-    return await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
 
 
 async def etl_job(
@@ -238,13 +222,20 @@ async def etl_main(args: argparse.Namespace) -> None:
                 root_input, client=client, export_to=args.export_to, since=args.since, until=args.until
             )
 
-        # Pull down resources and run the MS tool on them
-        deid_dir = await load_and_deidentify(config_loader, required_resources)
+        # Pull down resources from any remote location (like s3), convert from i2b2, or do a bulk export
+        loaded_dir = await config_loader.load_all(list(required_resources))
+
+        # If *any* of our tasks need bulk MS de-identification, run it
+        if any(t.needs_bulk_deid for t in selected_tasks):
+            loaded_dir = await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
+        else:
+            print("Skipping bulk de-identification.")
+            print("These selected tasks will de-identify resources as they are processed.")
 
         # Prepare config for jobs
         config = JobConfig(
             args.dir_input,
-            deid_dir.name,
+            loaded_dir.name,
             args.dir_output,
             args.dir_phi,
             args.input_format,
