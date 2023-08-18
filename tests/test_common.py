@@ -8,7 +8,7 @@ import ddt
 import fsspec
 import s3fs
 
-from cumulus_etl import common
+from cumulus_etl import common, store
 from tests import s3mock, utils
 
 
@@ -39,6 +39,39 @@ class TestLogging(utils.AsyncTestCase):
     def test_human_time_offset(self, seconds, expected_str):
         """Verify human_time_offset works correctly"""
         self.assertEqual(expected_str, common.human_time_offset(seconds))
+
+
+class TestListingUtils(utils.AsyncTestCase):
+    """Tests for our resource listing methods."""
+
+    def test_ls_resources_pattern(self):
+        included = [
+            "1.Patient.ndjson",  # bulk-data-client format
+            "Patient.1.ndjson",  # cumulus-etl format
+            "Patient.ndjson",
+            "1.Patient.2.ndjson",
+            "1.Patient.since.2020.10.02.ndjson",  # we ignore anything between resource name and file type
+        ]
+        excluded = [
+            "Condition.1.ndjson",  # wrong resource
+            "MyPatient.ndjson",
+            "1-Patient.ndjson",
+            "Patient-ndjson",
+            "Patient.json",
+            "My.Patient.ndjson",  # only numeric prefixes allowed (not a necessary restriction, but not onerous)
+        ]
+        all_paths = included + excluded
+
+        # Just create each file as an empty one
+        with tempfile.TemporaryDirectory() as tmpdir:
+            for path in all_paths:
+                with open(f"{tmpdir}/{path}", "w", encoding="utf8"):
+                    pass
+
+            resource_paths = common.ls_resources(store.Root(tmpdir), "Patient")
+
+        expected_paths = [f"{tmpdir}/{x}" for x in sorted(included)]
+        self.assertListEqual(expected_paths, resource_paths)
 
 
 @ddt.ddt

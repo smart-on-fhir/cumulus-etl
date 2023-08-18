@@ -75,7 +75,7 @@ def get_temp_dir(subdir: str) -> str:
 
 
 def ls_resources(root: store.Root, resource: str) -> list[str]:
-    pattern = re.compile(rf".*/([0-9]+.)?{resource}(.[0-9]+)?.ndjson")
+    pattern = re.compile(rf".*/([0-9]+\.)?{resource}(\.[^/]+)?\.ndjson")
     all_files = root.ls()
     return sorted(filter(pattern.match, all_files))
 
