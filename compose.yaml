@@ -11,7 +11,7 @@ services:
       - AWS_SESSION_TOKEN
       - AWS_PROFILE
       - AWS_DEFAULT_PROFILE
-      - CUMULUS_HUGGING_FACE_URL
+      - CUMULUS_HUGGING_FACE_URL=http://llama2:8086/
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlp-transformers:8000/negation/process
     volumes:
@@ -71,25 +71,27 @@ services:
           devices:
             - capabilities: [gpu]
 
+  # This is a WIP llama2 setup, currently suitable for running in a g5.xlarge AWS instance.
   llama2:
-    image: ghcr.io/huggingface/text-generation-inference:1.0.0
+    image: ghcr.io/huggingface/text-generation-inference:1.0.1
     environment:
       # If you update anything here that could affect NLP results, consider updating the
       # task_version of any tasks that use this docker.
       - HUGGING_FACE_HUB_TOKEN
-      - MAX_BATCH_PREFILL_TOKENS=2048  # default of 4096 overwhelms a 16GB machine
-      - MODEL_ID=meta-llama/Llama-2-7b-chat-hf
-      - REVISION=08751db2aca9bf2f7f80d2e516117a53d7450235
+      - MODEL_ID=meta-llama/Llama-2-13b-chat-hf
+      - QUANTIZE=bitsandbytes-nf4  # 4bit
+      - PORT=8086
+      - REVISION=0ba94ac9b9e1d5a0037780667e8b219adde1908c
     healthcheck:
       # There's no curl or wget inside this container, but there is python3!
-      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 80))"]
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 8086))"]
       start_period: 20m  # give plenty of time for startup, since we may be downloading a model
     volumes:
       - hf-data:/data
     networks:
       - cumulus-etl
     ports:
-      - 8086:80
+      - 8086:8086
     deploy:
       resources:
         reservations:

@@ -63,6 +63,11 @@ async def hf_prompt(prompt: str | dict, *, client: httpx.AsyncClient = None) -> 
             "options": {
                 "wait_for_model": True,
             },
+            "parameters": {
+                # Maybe max_new_tokens should be configurable, but let's hope a universal value is fine for now.
+                # When bumping this, consider whether you should bump the task version of any tasks that call this.
+                "max_new_tokens": 1000,
+            },
         },
     )
     response.raise_for_status()

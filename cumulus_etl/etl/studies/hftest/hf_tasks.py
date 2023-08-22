@@ -30,11 +30,11 @@ class HuggingFaceTestTask(tasks.EtlTask):
     # ** 0 **
     #   This is fluid until we actually promote this to a real task - feel free to update without bumping the version.
     #   container: ghcr.io/huggingface/text-generation-inference
-    #   container reversion: 3ef5ffbc6400370ff2e1546550a6bad3ac61b079
+    #   container reversion: 09eca6422788b1710c54ee0d05dd6746f16bb681
     #   container properties:
-    #     MAX_BATCH_PREFILL_TOKENS=2048
-    #   model: meta-llama/Llama-2-7b-chat-hf
-    #   model revision: 08751db2aca9bf2f7f80d2e516117a53d7450235
+    #     QUANTIZE=bitsandbytes-nf4
+    #   model: meta-llama/Llama-2-13b-chat-hf
+    #   model revision: 0ba94ac9b9e1d5a0037780667e8b219adde1908c
     #   system prompt:
     #     "You will be given a clinical note, and you should reply with a short summary of that note."
     #   user prompt: a clinical note
@@ -51,9 +51,9 @@ class HuggingFaceTestTask(tasks.EtlTask):
 
         # Sanity check a few of the properties, to make sure we don't accidentally get pointed at an unexpected model.
         expected_info_present = (
-            raw_info.get("model_id") == "meta-llama/Llama-2-7b-chat-hf"
-            and raw_info.get("model_sha") == "08751db2aca9bf2f7f80d2e516117a53d7450235"
-            and raw_info.get("sha") == "3ef5ffbc6400370ff2e1546550a6bad3ac61b079"
+            raw_info.get("model_id") == "meta-llama/Llama-2-13b-chat-hf"
+            and raw_info.get("model_sha") == "0ba94ac9b9e1d5a0037780667e8b219adde1908c"
+            and raw_info.get("sha") == "09eca6422788b1710c54ee0d05dd6746f16bb681"
         )
         if not expected_info_present:
             logging.warning(" Skipping task: NLP server is using an unexpected model setup.")
@@ -64,7 +64,7 @@ class HuggingFaceTestTask(tasks.EtlTask):
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through HF and returns any symptoms found"""
-        http_client = httpx.AsyncClient()
+        http_client = httpx.AsyncClient(timeout=300)
 
         for docref in self.read_ndjson(progress=progress):
             can_process = nlp.is_docref_valid(docref) and self.scrubber.scrub_resource(docref, scrub_attachments=False)
