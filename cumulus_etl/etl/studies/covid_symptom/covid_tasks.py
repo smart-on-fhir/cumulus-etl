@@ -67,6 +67,25 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
     needs_bulk_deid = False
     outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
 
+    # Task Version
+    # The "task_version" field is a simple integer that gets incremented any time an NLP-relevant parameter is changed.
+    # This is a reference to a bundle of metadata (cTAKES version, cNLP version, ICD10 code list).
+    # We could combine all that info into a field we save with the results. But it's more human-friendly to have a
+    # simple version to refer to. So anytime these properties get changed, bump the version and record the old bundle
+    # of metadata too.
+    task_version = 1
+
+    # Task Version History:
+    # ** 1 (2023-08): Updated ICD10 codes from ctakesclient **
+    #   cTAKES: smartonfhir/ctakes-covid:1.1
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
+    #   ctakesclient: 5.0
+    #
+    # ** null (before we added a task version) **
+    #   cTAKES: smartonfhir/ctakes-covid:1.1
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
+    #   ctakesclient: 3.0
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.seen_docrefs = set()
@@ -112,6 +131,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
                 self.task_config.client,
                 phi_root,
                 docref,
+                task_version=self.task_version,
                 ctakes_http_client=http_client,
                 cnlp_http_client=http_client,
             )
@@ -148,6 +168,7 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
                 pyarrow.field("encounter_id", pyarrow.string()),
                 pyarrow.field("subject_id", pyarrow.string()),
                 pyarrow.field("generated_on", pyarrow.string()),
+                pyarrow.field("task_version", pyarrow.int32()),
                 pyarrow.field(
                     "match",
                     pyarrow.struct(
