@@ -12,6 +12,8 @@ async def covid_symptoms_extract(
     client: fhir.FhirClient,
     cache: store.Root,
     docref: dict,
+    *,
+    task_version: int,
     ctakes_http_client: httpx.AsyncClient = None,
     cnlp_http_client: httpx.AsyncClient = None,
 ) -> list[dict] | None:
@@ -21,6 +23,7 @@ async def covid_symptoms_extract(
     :param client: a client ready to talk to a FHIR server
     :param cache: Where to cache NLP results
     :param docref: Clinical Note
+    :param task_version: version of task to inject into results
     :param ctakes_http_client: HTTPX client to use for the cTAKES server
     :param cnlp_http_client: HTTPX client to use for the cNLP transformer server
     :return: list of NLP results encoded as FHIR observations
@@ -90,6 +93,7 @@ async def covid_symptoms_extract(
                     "encounter_id": encounter_id,
                     "subject_id": subject_id,
                     "generated_on": timestamp,
+                    "task_version": task_version,
                     "match": match.as_json(),
                 }
             )
