@@ -7,7 +7,7 @@ Parameters:
     Description: 'Prefix for Cumulus bucket names (they will look like {BucketPrefix}-{purpose}-{AWS::AccountId}-{AWS::Region})'
   DatabasePrefix:
     Type: 'String'
-    Description: 'Prefix for Athena-related AWS resources (they will look like {BucketPrefix}-{service related suffix}. It can be left as default unless you need to run multiple instances of this stack.'
+    Description: 'Prefix for Athena-related AWS resources (they will look like {DatabasePrefix}-{service related suffix}. It can be left as default unless you need to run multiple instances of this stack.'
     Default: 'cumulus-deid'
   EtlSubdir:
     Type: 'String'
