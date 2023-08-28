@@ -5,10 +5,6 @@ Parameters:
   BucketPrefix:
     Type: 'String'
     Description: 'Prefix for Cumulus bucket names (they will look like {BucketPrefix}-{purpose}-{AWS::AccountId}-{AWS::Region})'
-  DatabasePrefix:
-    Type: 'String'
-    Description: 'Prefix for Athena-related AWS resources (they will look like {BucketPrefix}-{service related suffix}. It can be left as default unless you need to run multiple instances of this stack.'
-    Default: 'cumulus-deid'
   EtlSubdir:
     Type: 'String'
     Description: 'Subdirectory on the Cumulus ETL output bucket where files will be placed. This should match the path you give when running Cumulus ETL. Using a subdirectory is recommended to allow for test runs of Cumulus ETL in different subdirectories and general future-proofing.'
@@ -120,7 +116,7 @@ Resources:
         S3Encryptions:
           - KmsKeyArn: !Ref KMSMasterKeyID
             S3EncryptionMode: SSE-KMS
-      Name: !Sub "${DatabasePrefix}-kms"
+      Name: cumulus-deid-kms
 
   CrawlerRole:
     Type: AWS::IAM::Role
@@ -152,17 +148,12 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: 
-          Fn::Join: # replace hyphens with underscores for ease of SQL (hyphens are reserved)
-          - '_'
-          - Fn::Split:
-            - '-'
-            - !Sub "${DatabasePrefix}_db"
+        Name: cumulus_deid_db # use underscores for ease of SQL (hyphens are reserved)
 
   GlueCrawler:
     Type: AWS::Glue::Crawler
     Properties:
-      Name: !Sub "${DatabasePrefix}-crawler"
+      Name: cumulus-deid-crawler
       DatabaseName: !Ref GlueDB
       Role: !GetAtt CrawlerRole.Arn
       CrawlerSecurityConfiguration: !Ref GlueSecurity
@@ -231,7 +222,7 @@ Resources:
   AthenaWorkGroup:
     Type: AWS::Athena::WorkGroup
     Properties:
-      Name: !Sub "${DatabasePrefix}"
+      Name: cumulus-deid
       State: ENABLED
       WorkGroupConfiguration:
         EnforceWorkGroupConfiguration: True
