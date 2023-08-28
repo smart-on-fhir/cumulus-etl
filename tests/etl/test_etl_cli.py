@@ -379,13 +379,13 @@ class TestEtlNlp(BaseEtlSimple):
 
         for index, checksum in enumerate(self.expected_checksums):
             ner = fake_ctakes_extract(facts[index])
-            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("covid_symptom_v1", checksum)))
-            self.assertEqual([0, 0], common.read_json(self.path_for_checksum("covid_symptom_v1-cnlp_v2", checksum)))
+            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("covid_symptom_v2", checksum)))
+            self.assertEqual([0, 0], common.read_json(self.path_for_checksum("covid_symptom_v2-cnlp_v2", checksum)))
 
     async def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
-            filename = self.path_for_checksum("covid_symptom_v1", checksum)
+            filename = self.path_for_checksum("covid_symptom_v2", checksum)
             os.makedirs(os.path.dirname(filename))
             common.write_json(
                 filename,
@@ -405,7 +405,7 @@ class TestEtlNlp(BaseEtlSimple):
                 },
             )
 
-            cnlp_filename = self.path_for_checksum("covid_symptom_v1-cnlp_v2", checksum)
+            cnlp_filename = self.path_for_checksum("covid_symptom_v2-cnlp_v2", checksum)
             os.makedirs(os.path.dirname(cnlp_filename))
             common.write_json(cnlp_filename, [0])
 

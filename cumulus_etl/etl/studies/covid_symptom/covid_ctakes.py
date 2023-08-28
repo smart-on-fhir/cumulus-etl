@@ -46,9 +46,8 @@ async def covid_symptoms_extract(
 
     # cTAKES cache namespace history (and thus, cache invalidation history):
     #   v1: original cTAKES processing
-    # TODO: Ideally we'd also be able to ask ctakesclient for NLP algorithm information as part of this namespace.
-    #  For now, we'll manually update this namespace if/when the cTAKES algorithm we use changes.
-    ctakes_namespace = "covid_symptom_v1"
+    #   v2+: see CovidSymptomNlpResultsTask's version history
+    ctakes_namespace = f"covid_symptom_v{task_version}"
 
     # cNLP cache namespace history (and thus, cache invalidation history):
     #   v1: original addition of cNLP filtering
