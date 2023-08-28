@@ -73,9 +73,14 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
     # We could combine all that info into a field we save with the results. But it's more human-friendly to have a
     # simple version to refer to. So anytime these properties get changed, bump the version and record the old bundle
     # of metadata too.
-    task_version = 1
+    task_version = 2
 
     # Task Version History:
+    # ** 2 (2023-08): Corrected the cache location (version 1 results might be using stale cache) **
+    #   cTAKES: smartonfhir/ctakes-covid:1.1
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
+    #   ctakesclient: 5.0
+    #
     # ** 1 (2023-08): Updated ICD10 codes from ctakesclient **
     #   cTAKES: smartonfhir/ctakes-covid:1.1
     #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
