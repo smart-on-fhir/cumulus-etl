@@ -313,6 +313,18 @@ class EtlTask:
         del table_index
         del batch_index
 
+    @classmethod
+    async def init_check(cls) -> None:
+        """
+        Called during ETL initialization to see if all your external dependencies are available.
+
+        If your subclass needs certain services available or the ability to connect to a FHIR server, this is a good
+        place to check that. Raise a fatal exception if not
+        """
+        # Sample method:
+        # if not cli_utils.is_url_available("my-url"):
+        #   errors.fatal("Oh no!", errors.SERVICE_MISSING)
+
     async def prepare_task(self) -> bool:
         """
         If your subclass needs to do any preparation at the beginning of run(), override this.

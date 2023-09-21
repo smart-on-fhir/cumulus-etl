@@ -4,15 +4,17 @@ import logging
 
 import ctakesclient
 import httpx
+from ctakesclient.transformer import TransformerModel
 
 from cumulus_etl import common, fhir, nlp, store
 
 
 async def covid_symptoms_extract(
-    client: fhir.FhirClient,
     cache: store.Root,
     docref: dict,
+    clinical_note: str,
     *,
+    polarity_model: TransformerModel,
     task_version: int,
     ctakes_http_client: httpx.AsyncClient = None,
     cnlp_http_client: httpx.AsyncClient = None,
@@ -20,9 +22,10 @@ async def covid_symptoms_extract(
     """
     Extract a list of Observations from NLP-detected symptoms in clinical notes
 
-    :param client: a client ready to talk to a FHIR server
     :param cache: Where to cache NLP results
-    :param docref: Clinical Note
+    :param docref: DocumentReference resource (scrubbed)
+    :param clinical_note: the clinical note already extracted from the docref
+    :param polarity_model: how to test the polarity of cTAKES responses
     :param task_version: version of task to inject into results
     :param ctakes_http_client: HTTPX client to use for the cTAKES server
     :param cnlp_http_client: HTTPX client to use for the cNLP transformer server
@@ -37,22 +40,22 @@ async def covid_symptoms_extract(
         return None
     _, encounter_id = fhir.unref_resource(encounters[0])
 
-    # Find the clinical note among the attachments
-    try:
-        clinical_note = await fhir.get_docref_note(client, docref)
-    except Exception as exc:  # pylint: disable=broad-except
-        logging.warning("Error getting text for docref %s: %s", docref_id, exc)
-        return None
-
     # cTAKES cache namespace history (and thus, cache invalidation history):
     #   v1: original cTAKES processing
     #   v2+: see CovidSymptomNlpResultsTask's version history
     ctakes_namespace = f"covid_symptom_v{task_version}"
 
-    # cNLP cache namespace history (and thus, cache invalidation history):
-    #   v1: original addition of cNLP filtering
-    #   v2: we started dropping non-covid symptoms, which changes the span ordering
-    cnlp_namespace = f"{ctakes_namespace}-cnlp_v2"
+    match polarity_model:
+        case TransformerModel.NEGATION:  # original
+            # cNLP cache namespace history (and thus, cache invalidation history):
+            #   v1: original addition of cNLP filtering
+            #   v2: we started dropping non-covid symptoms, which changes the span ordering
+            cnlp_namespace = f"{ctakes_namespace}-cnlp_v2"
+        case TransformerModel.TERM_EXISTS:
+            cnlp_namespace = f"{ctakes_namespace}-cnlp_term_exists_v1"
+        case _:
+            logging.warning("Unknown polarity method: %s", polarity_model.value)
+            return None
 
     timestamp = common.datetime_now().isoformat()
 
@@ -76,9 +79,11 @@ async def covid_symptoms_extract(
     # there too. We have found this to yield better results than cTAKES alone.
     try:
         spans = ctakes_json.list_spans(matches)
-        polarities_cnlp = await nlp.list_polarity(cache, cnlp_namespace, clinical_note, spans, client=cnlp_http_client)
+        polarities_cnlp = await nlp.list_polarity(
+            cache, cnlp_namespace, clinical_note, spans, model=polarity_model, client=cnlp_http_client
+        )
     except Exception as exc:  # pylint: disable=broad-except
-        logging.warning("Could not check negation for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
+        logging.warning("Could not check polarity for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         return None
 
     # Now filter out any non-positive matches

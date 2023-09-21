@@ -108,11 +108,10 @@ Cumulus ETL installed correctly.
 
 ### Local Test Run
 
-Once you've done that, you'll need the UMLS key mentioned at the top of this document. First, we're going
-to start the network (here we're setting the UMLS_API_KEY, which cTAKES requires):
+Once you've done that, you'll need the UMLS key mentioned at the top of this document.
+Let's set the UMLS_API_KEY, so that Cumulus ETL can see it:
 ```sh
 export UMLS_API_KEY=your-umls-api-key
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile etl-support up -d
 ```
 
 The compose file will handle the environment variable mapping and volume mounts for you.

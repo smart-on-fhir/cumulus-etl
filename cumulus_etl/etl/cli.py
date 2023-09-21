@@ -11,7 +11,7 @@ from collections.abc import Iterable
 import rich
 import rich.table
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
 
@@ -68,15 +68,15 @@ def check_mstool() -> None:
         raise SystemExit(errors.MSTOOL_MISSING)
 
 
-def check_requirements() -> None:
+async def check_requirements(selected_tasks: Iterable[type[tasks.EtlTask]]) -> None:
     """
     Verifies that all external services and programs are ready
 
     May block while waiting a bit for them.
     """
-    nlp.check_ctakes()
-    nlp.check_cnlpt()
     check_mstool()
+    for task in selected_tasks:
+        await task.init_check()
 
 
 ###############################################################################
@@ -203,7 +203,7 @@ async def etl_main(args: argparse.Namespace) -> None:
 
     # Check that cTAKES is running and any other services or binaries we require
     if not args.skip_init_checks:
-        check_requirements()
+        await check_requirements(selected_tasks)
 
     # Grab a list of all required resource types for the tasks we are running
     required_resources = set(t.resource for t in selected_tasks)

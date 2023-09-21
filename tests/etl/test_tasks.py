@@ -1,78 +1,15 @@
 """Tests for etl/tasks/"""
 
 import os
-import shutil
-import tempfile
 from unittest import mock
 
 import ddt
 import pyarrow
 
-from cumulus_etl import common, deid, errors, fhir
-from cumulus_etl.etl import config, tasks
+from cumulus_etl import common, errors
+from cumulus_etl.etl import tasks
 from cumulus_etl.etl.tasks import basic_tasks
-
-from tests.utils import AsyncTestCase
-
-
-class TaskTestCase(AsyncTestCase):
-    """Base class for task-focused test suites"""
-
-    def setUp(self) -> None:
-        super().setUp()
-
-        client = fhir.FhirClient("http://localhost/", [])
-        self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        self.input_dir = os.path.join(self.tmpdir.name, "input")
-        self.phi_dir = os.path.join(self.tmpdir.name, "phi")
-        self.errors_dir = os.path.join(self.tmpdir.name, "errors")
-        os.makedirs(self.input_dir)
-        os.makedirs(self.phi_dir)
-
-        self.job_config = config.JobConfig(
-            self.input_dir,
-            self.input_dir,
-            self.tmpdir.name,
-            self.phi_dir,
-            "ndjson",
-            "ndjson",
-            client,
-            batch_size=5,
-            dir_errors=self.errors_dir,
-        )
-
-        def make_formatter(dbname: str, group_field: str = None, resource_type: str = None):
-            formatter = mock.MagicMock(dbname=dbname, group_field=group_field, resource_type=resource_type)
-            self.format_count += 1
-            if self.format_count == 1:
-                self.format = self.format or formatter
-                return self.format
-            elif self.format_count == 2:
-                self.format2 = self.format2 or formatter
-                return self.format2
-            else:
-                return formatter  # stop keeping track
-
-        self.format = None
-        self.format2 = None  # for tasks that have multiple output streams
-        self.format_count = 0
-        self.create_formatter_mock = mock.MagicMock(side_effect=make_formatter)
-        self.job_config.create_formatter = self.create_formatter_mock
-
-        self.scrubber = deid.Scrubber()
-        self.codebook = self.scrubber.codebook
-
-        # Keeps consistent IDs
-        shutil.copy(os.path.join(self.datadir, "simple/codebook.json"), self.phi_dir)
-
-    def tearDown(self) -> None:
-        super().tearDown()
-        self.tmpdir = None
-
-    def make_json(self, filename, resource_id, **kwargs):
-        common.write_json(
-            os.path.join(self.input_dir, f"{filename}.ndjson"), {"resourceType": "Test", **kwargs, "id": resource_id}
-        )
+from tests.etl import TaskTestCase
 
 
 @ddt.ddt

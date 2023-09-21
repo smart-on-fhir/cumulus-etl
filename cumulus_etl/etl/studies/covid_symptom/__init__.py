@@ -1,3 +1,3 @@
 """The covid_symptom study"""
 
-from .covid_tasks import CovidSymptomNlpResultsTask
+from .covid_tasks import CovidSymptomNlpResultsTask, CovidSymptomNlpResultsTermExistsTask

@@ -1,14 +1,13 @@
 """Define tasks for the covid_symptom study"""
 
-import copy
 import itertools
-import os
 
 import ctakesclient
 import pyarrow
 import rich.progress
+from ctakesclient.transformer import TransformerModel
 
-from cumulus_etl import common, formats, nlp, store
+from cumulus_etl import formats, nlp, store
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
@@ -58,42 +57,38 @@ def is_ed_docref(docref):
     return any(is_ed_coding(x) for x in codings)
 
 
-class CovidSymptomNlpResultsTask(tasks.EtlTask):
-    """Covid Symptom study task, to generate symptom lists from ED notes using NLP"""
+class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
+    """Covid Symptom study task, to generate symptom lists from ED notes using cTAKES + a polarity check"""
 
-    name = "covid_symptom__nlp_results"
-    resource = "DocumentReference"
-    tags = {"covid_symptom", "gpu"}
-    needs_bulk_deid = False
-    outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
+    # Subclasses: set name, tags, and polarity_model yourself
+    polarity_model = None
 
-    # Task Version
-    # The "task_version" field is a simple integer that gets incremented any time an NLP-relevant parameter is changed.
-    # This is a reference to a bundle of metadata (cTAKES version, cNLP version, ICD10 code list).
-    # We could combine all that info into a field we save with the results. But it's more human-friendly to have a
-    # simple version to refer to. So anytime these properties get changed, bump the version and record the old bundle
-    # of metadata too.
-    task_version = 2
-
+    # Use a shared task_version for subclasses, to make sharing the ctakes cache folder easier
+    # (and they use essentially the same services anyway)
+    task_version = 3
     # Task Version History:
+    # ** 3 (2023-09): Updated to cnlpt version 0.6.1 **
+    #   cTAKES: smartonfhir/ctakes-covid:1.1.0
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.6.1
+    #   cNLP: smartonfhir/cnlp-transformers:termexists-0.6.1
+    #   ctakesclient: 5.0
+    #
     # ** 2 (2023-08): Corrected the cache location (version 1 results might be using stale cache) **
-    #   cTAKES: smartonfhir/ctakes-covid:1.1
-    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
+    #   cTAKES: smartonfhir/ctakes-covid:1.1.0
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4.0
     #   ctakesclient: 5.0
     #
     # ** 1 (2023-08): Updated ICD10 codes from ctakesclient **
-    #   cTAKES: smartonfhir/ctakes-covid:1.1
-    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
+    #   cTAKES: smartonfhir/ctakes-covid:1.1.0
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4.0
     #   ctakesclient: 5.0
     #
     # ** null (before we added a task version) **
-    #   cTAKES: smartonfhir/ctakes-covid:1.1
-    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4
+    #   cTAKES: smartonfhir/ctakes-covid:1.1.0
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.4.0
     #   ctakesclient: 3.0
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.seen_docrefs = set()
+    outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
 
     async def prepare_task(self) -> bool:
         bsv_path = ctakesclient.filesystem.covid_symptoms_path()
@@ -103,15 +98,6 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
             self.summaries[0].had_errors = True
         return success
 
-    def add_error(self, docref: dict) -> None:
-        if not self.task_config.dir_errors:
-            return
-
-        error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
-        error_path = error_root.joinpath("nlp-errors.ndjson")
-        with common.NdjsonWriter(error_path, "a") as writer:
-            writer.write(docref)
-
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
@@ -119,29 +105,17 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
         # one client for both NLP services for now -- no parallel requests yet, so no need to be fancy
         http_client = nlp.ctakes_httpx_client()
 
-        for docref in self.read_ndjson(progress=progress):
-            if not nlp.is_docref_valid(docref):
-                continue
-
-            # Check that the note is one of our special allow-listed types (we do this here rather than on the output
-            # side to save needing to run everything through NLP).
-            if not is_ed_docref(docref):
-                continue
-
-            orig_docref = copy.deepcopy(docref)
-            if not self.scrubber.scrub_resource(docref, scrub_attachments=False):
-                continue
-
+        async for orig_docref, docref, clinical_note in self.read_notes(progress=progress, doc_check=is_ed_docref):
             symptoms = await covid_ctakes.covid_symptoms_extract(
-                self.task_config.client,
                 phi_root,
                 docref,
+                clinical_note,
+                polarity_model=self.polarity_model,
                 task_version=self.task_version,
                 ctakes_http_client=http_client,
                 cnlp_http_client=http_client,
             )
             if symptoms is None:
-                self.summaries[0].had_errors = True
                 self.add_error(orig_docref)
                 continue
 
@@ -158,11 +132,6 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.
             # The Format class will replace all existing symptoms from this note at once (because we set group_field).
             yield symptoms
-
-    def pop_current_group_values(self, table_index: int) -> set[str]:
-        values = self.seen_docrefs
-        self.seen_docrefs = set()
-        return values
 
     @classmethod
     def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema:
@@ -201,3 +170,32 @@ class CovidSymptomNlpResultsTask(tasks.EtlTask):
                 ),
             ]
         )
+
+
+class CovidSymptomNlpResultsTask(BaseCovidSymptomNlpResultsTask):
+    """Covid Symptom study task, to generate symptom lists from ED notes using cTAKES and cnlpt negation"""
+
+    name = "covid_symptom__nlp_results"
+    tags = {"covid_symptom", "gpu"}
+    polarity_model = TransformerModel.NEGATION
+
+    @classmethod
+    async def init_check(cls) -> None:
+        nlp.check_ctakes()
+        nlp.check_negation_cnlpt()
+
+
+class CovidSymptomNlpResultsTermExistsTask(BaseCovidSymptomNlpResultsTask):
+    """Covid Symptom study task, to generate symptom lists from ED notes using cTAKES and cnlpt termexists"""
+
+    name = "covid_symptom__nlp_results_term_exists"
+    polarity_model = TransformerModel.TERM_EXISTS
+
+    # Explicitly don't use any tags because this is really a "hidden" task that is mostly for comparing
+    # polarity model performance more than running a study. So we don't want it to be accidentally run.
+    tags = {}
+
+    @classmethod
+    async def init_check(cls) -> None:
+        nlp.check_ctakes()
+        nlp.check_term_exists_cnlpt()

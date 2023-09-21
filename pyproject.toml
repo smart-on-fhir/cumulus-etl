@@ -11,7 +11,7 @@ requires-python = ">= 3.10"
 # open-pinned dependencies so that we're more likely to notice new releases (we'll still have time
 # to fix any breakages since users won't immediately see the problem).
 dependencies = [
-    "ctakesclient >= 5, < 6",
+    "ctakesclient >= 5.1, < 6",
     "delta-spark >= 2.3, < 3",
     "fhirclient < 5",
     "httpx < 1",
@@ -20,7 +20,7 @@ dependencies = [
     "label-studio-sdk < 1",
     "oracledb < 2",
     "philter-lite < 1",
-    "pyarrow < 13",
+    "pyarrow < 14",
     "rich < 14",
     "s3fs",
 ]

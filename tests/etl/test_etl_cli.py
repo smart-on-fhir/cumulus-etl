@@ -4,89 +4,18 @@ import itertools
 import json
 import os
 import shutil
-import tempfile
 from unittest import mock
 
 import ddt
-import pytest
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import cli, common, deid, errors, loaders, store
+from cumulus_etl import common, errors, loaders, store
 from cumulus_etl.etl import context
 
-from tests.ctakesmock import CtakesMixin, fake_ctakes_extract
+from tests.ctakesmock import fake_ctakes_extract
+from tests.etl import BaseEtlSimple
 from tests.s3mock import S3Mixin
-from tests.utils import FROZEN_TIME_UTC, AsyncTestCase, TreeCompareMixin, read_delta_lake
-
-
-@pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
-class BaseEtlSimple(CtakesMixin, TreeCompareMixin, AsyncTestCase):
-    """
-    Base test case for basic runs of etl methods
-
-    Don't put actual tests in here, but rather in subclasses below.
-    """
-
-    def setUp(self):
-        super().setUp()
-
-        self.data_dir = os.path.join(self.datadir, "simple")
-        self.input_path = os.path.join(self.data_dir, "input")
-
-        tmpdir = tempfile.mkdtemp()
-        # Comment out this next line when debugging, to persist directory
-        self.addCleanup(shutil.rmtree, tmpdir)
-
-        self.output_path = os.path.join(tmpdir, "output")
-        self.phi_path = os.path.join(tmpdir, "phi")
-
-        self.enforce_consistent_uuids()
-
-    async def run_etl(
-        self,
-        input_path=None,
-        output_path=None,
-        phi_path=None,
-        output_format: str | None = "ndjson",
-        comment=None,
-        batch_size=None,
-        tasks=None,
-        philter=True,
-        errors_to=None,
-    ) -> None:
-        args = [
-            input_path or self.input_path,
-            output_path or self.output_path,
-            phi_path or self.phi_path,
-            "--skip-init-checks",
-            "--input-format=ndjson",
-            f"--ctakes-overrides={self.ctakes_overrides.name}",
-        ]
-        if output_format:
-            args.append(f"--output-format={output_format}")
-        if comment:
-            args.append(f"--comment={comment}")
-        if batch_size:
-            args.append(f"--batch-size={batch_size}")
-        if tasks:
-            args.append(f'--task={",".join(tasks)}')
-        if philter:
-            args.append("--philter")
-        if errors_to:
-            args.append(f"--errors-to={errors_to}")
-        await cli.main(args)
-
-    def enforce_consistent_uuids(self):
-        """Make sure that UUIDs will be the same from run to run"""
-        # First, copy codebook over. This will help ensure that the order of
-        # calls doesn't matter as much. If *every* UUID were recorded in the
-        # codebook, this is all we'd need to do.
-        os.makedirs(self.phi_path)
-        shutil.copy(os.path.join(self.data_dir, "codebook.json"), self.phi_path)
-
-    def assert_output_equal(self, folder: str):
-        """Compares the etl output with the expected json structure"""
-        self.assert_etl_output_equal(os.path.join(self.data_dir, folder), self.output_path)
+from tests.utils import FROZEN_TIME_UTC, read_delta_lake
 
 
 @ddt.ddt
@@ -274,7 +203,7 @@ class TestEtlFormats(BaseEtlSimple):
 
     async def test_etl_job_ndjson(self):
         await self.run_etl()
-        self.assert_output_equal("output")
+        self.assert_output_equal()
 
     async def test_etl_job_deltalake(self):
         await self.run_etl(output_format=None)  # deltalake should be default output format
@@ -335,8 +264,6 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
                 "mockbucket/root/patient/patient.000.ndjson",
                 "mockbucket/root/procedure/procedure.000.ndjson",
                 "mockbucket/root/servicerequest/servicerequest.000.ndjson",
-                "mockbucket/root/covid_symptom__nlp_results/covid_symptom__nlp_results.000.ndjson",
-                "mockbucket/root/covid_symptom__nlp_results/covid_symptom__nlp_results.000.meta",
             },
             all_files,
         )
@@ -348,6 +275,8 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
 
 class TestEtlNlp(BaseEtlSimple):
     """Test case for the cTAKES/cNLP responses"""
+
+    CACHE_FOLDER = "covid_symptom_v3"
 
     def setUp(self):
         super().setUp()
@@ -379,13 +308,13 @@ class TestEtlNlp(BaseEtlSimple):
 
         for index, checksum in enumerate(self.expected_checksums):
             ner = fake_ctakes_extract(facts[index])
-            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum("covid_symptom_v2", checksum)))
-            self.assertEqual([0, 0], common.read_json(self.path_for_checksum("covid_symptom_v2-cnlp_v2", checksum)))
+            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum(self.CACHE_FOLDER, checksum)))
+            self.assertEqual([0, 0], common.read_json(self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)))
 
     async def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
-            filename = self.path_for_checksum("covid_symptom_v2", checksum)
+            filename = self.path_for_checksum(self.CACHE_FOLDER, checksum)
             os.makedirs(os.path.dirname(filename))
             common.write_json(
                 filename,
@@ -405,7 +334,7 @@ class TestEtlNlp(BaseEtlSimple):
                 },
             )
 
-            cnlp_filename = self.path_for_checksum("covid_symptom_v2-cnlp_v2", checksum)
+            cnlp_filename = self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)
             os.makedirs(os.path.dirname(cnlp_filename))
             common.write_json(cnlp_filename, [0])
 
