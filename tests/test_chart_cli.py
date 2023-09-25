@@ -1,6 +1,7 @@
 """Tests for chart_review/cli.py"""
 
 import base64
+import itertools
 import os
 import shutil
 import tempfile
@@ -120,6 +121,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             "resourceType": "DocumentReference",
             "id": doc_id,
             "content": content,
+            "context": {"encounter": [{"reference": f"Encounter/enc-{doc_id}"}]},
         }
 
     @staticmethod
@@ -161,7 +163,19 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
     def get_pushed_ids(self) -> set[str]:
         notes = self.ls_client.push_tasks.call_args[0][0]
-        return {n.ref_id for n in notes}
+        return set(itertools.chain.from_iterable(n.doc_mappings.keys() for n in notes))
+
+    @staticmethod
+    def wrap_note(title: str, text: str, first: bool = True) -> str:
+        """Format a note in the expected output format, with header"""
+        finalized = ""
+        if not first:
+            finalized += "\n\n\n"
+            finalized += "########################################\n########################################\n"
+        finalized += f"{title}\n"
+        finalized += "########################################\n########################################\n\n\n"
+        finalized += text.strip()
+        return finalized
 
     async def test_real_and_fake_docrefs_conflict(self):
         """Verify that you can't pass in both real and fake docrefs"""
@@ -265,12 +279,32 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
         # Confirm we imported tasks formatted with NLP correctly
         tasks = self.ls_client.push_tasks.call_args[0][0]
-        self.assertEqual(["Notes for fever", "Notes! for fever"], [t.text for t in tasks])
-        self.assertEqual(["43", "44"], [t.ref_id for t in tasks])
+        self.assertEqual(["23", "25"], [t.enc_id for t in tasks])
+        self.assertEqual(
+            [
+                "71b6e68140b2b8dc76a313be69627739573510954ec677d3d503f549673cce97",
+                "44fd65be3e9fee4557a6c12cb40ee0659137b9445a813f87d9950a97534ad353",
+            ],
+            [t.anon_id for t in tasks],
+        )
+        self.assertEqual(
+            [
+                {"43": "ee448bae9c010410080183e7914151097dd6b927dbd8a58efcf0859fc32907a6"},
+                {"44": "7a1f76190039b872a3016843e1712048cef3787931c000f0ea66b15962ccf65d"},
+            ],
+            [t.doc_mappings for t in tasks],
+        )
+        self.assertEqual(
+            [
+                self.wrap_note("Admission MD", "Notes for fever"),
+                self.wrap_note("Admission MD", "Notes! for fever"),
+            ],
+            [t.text for t in tasks],
+        )
         self.assertEqual(
             {
-                "begin": 6,
-                "end": 9,
+                "begin": 103,
+                "end": 106,
                 "text": "for",
                 "polarity": 0,
                 "conceptAttributes": [
@@ -298,7 +332,9 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
     @ddt.data(True, False)
     async def test_philter(self, run_philter):
-        notes = [LabelStudioNote("D1", "John Smith called on 10/13/2010")]
+        notes = [
+            LabelStudioNote("EncID", "EncAnon", {"DocID": "DocAnon"}, "My Title", "John Smith called on 10/13/2010")
+        ]
         with mock.patch("cumulus_etl.chart_review.cli.read_notes_from_ndjson", return_value=notes):
             await self.run_chart_review(philter=run_philter)
 
@@ -313,4 +349,4 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             expected_text = "**** ***** called on 10/13/2010"  # we don't philter dates
         else:
             expected_text = "John Smith called on 10/13/2010"
-        self.assertEqual(expected_text, task.text)
+        self.assertEqual(self.wrap_note("My Title", expected_text), task.text)

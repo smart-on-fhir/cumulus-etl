@@ -29,7 +29,7 @@ def init_checks(args: argparse.Namespace):
 
 
 async def gather_docrefs(
-    client: fhir.FhirClient, root_input: store.Root, root_phi: store.Root, args: argparse.Namespace
+    client: fhir.FhirClient, root_input: store.Root, codebook: deid.Codebook, args: argparse.Namespace
 ) -> common.Directory:
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
@@ -41,26 +41,47 @@ async def gather_docrefs(
 
     if root_input.protocol == "https":  # is this a FHIR server?
         return await downloader.download_docrefs_from_fhir_server(
-            client, root_input, root_phi, docrefs=args.docrefs, anon_docrefs=args.anon_docrefs, export_to=args.export_to
+            client, root_input, codebook, docrefs=args.docrefs, anon_docrefs=args.anon_docrefs, export_to=args.export_to
         )
     else:
         return selector.select_docrefs_from_files(
-            root_input, root_phi, docrefs=args.docrefs, anon_docrefs=args.anon_docrefs, export_to=args.export_to
+            root_input, codebook, docrefs=args.docrefs, anon_docrefs=args.anon_docrefs, export_to=args.export_to
         )
 
 
-async def read_notes_from_ndjson(client: fhir.FhirClient, dirname: str) -> list[LabelStudioNote]:
+async def read_notes_from_ndjson(
+    client: fhir.FhirClient, dirname: str, codebook: deid.Codebook
+) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
-    docref_ids = []
+
+    # Download all the doc notes (and save some metadata about each)
+    encounter_ids = []
+    docrefs = []
     coroutines = []
     for docref in common.read_resource_ndjson(store.Root(dirname), "DocumentReference"):
-        docref_ids.append(docref["id"])
+        encounter_refs = docref.get("context", {}).get("encounter", [])
+        if not encounter_refs:
+            # If a note doesn't have an encounter - we're in big trouble
+            raise SystemExit(f"DocumentReference {docref['id']} is missing encounter information.")
+
+        encounter_ids.append(fhir.unref_resource(encounter_refs[0])[1])  # just use first encounter
+        docrefs.append(docref)
         coroutines.append(fhir.get_docref_note(client, docref))
     note_texts = await asyncio.gather(*coroutines)
 
+    # Now bundle each note together with some metadata and ID mappings
     notes = []
     for i, text in enumerate(note_texts):
-        notes.append(LabelStudioNote(docref_ids[i], text))
+        default_title = "Document"
+        codings = docrefs[i].get("type", {}).get("coding", [])
+        title = codings[0].get("display", default_title) if codings else default_title
+
+        enc_id = encounter_ids[i]
+        anon_enc_id = codebook.fake_id("Encounter", enc_id)
+        doc_id = docrefs[i]["id"]
+        doc_mappings = {doc_id: codebook.fake_id("DocumentReference", doc_id)}
+
+        notes.append(LabelStudioNote(enc_id, anon_enc_id, doc_mappings, title, text))
 
     return notes
 
@@ -92,6 +113,48 @@ def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
     philter = deid.Philter()
     for note in notes:
         note.text = philter.scrub_text(note.text)
+
+
+def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelStudioNote]:
+    """
+    Gather all notes with the same encounter ID together into one note.
+
+    Reviewers seem to prefer that.
+    """
+    grouped_notes = []
+
+    # Group up docs & notes by encounter
+    by_encounter_id = {}
+    for note in notes:
+        by_encounter_id.setdefault(note.enc_id, []).append(note)
+
+    # Group up the text into one big note
+    for enc_id, enc_notes in by_encounter_id.items():
+        grouped_text = ""
+        grouped_matches = []
+        grouped_doc_mappings = {}
+
+        for note in enc_notes:
+            grouped_doc_mappings.update(note.doc_mappings)
+
+            if grouped_text:
+                grouped_text += "\n\n\n"
+                grouped_text += "########################################\n########################################\n"
+            grouped_text += f"{note.title}\n"
+            grouped_text += "########################################\n########################################\n\n\n"
+            offset = len(grouped_text)
+            grouped_text += note.text
+
+            for match in note.matches:
+                match.begin += offset
+                match.end += offset
+                grouped_matches.append(match)
+
+        grouped_note = LabelStudioNote(enc_id, enc_notes[0].anon_id, grouped_doc_mappings, "", grouped_text)
+        grouped_note.matches = grouped_matches
+        grouped_notes.append(grouped_note)
+
+    return grouped_notes
 
 
 def push_to_label_studio(
@@ -161,7 +224,7 @@ async def chart_review_main(args: argparse.Namespace) -> None:
 
     store.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
     root_input = store.Root(args.dir_input)
-    root_phi = store.Root(args.dir_phi, create=True)
+    codebook = deid.Codebook(args.dir_phi)
 
     # Auth & read files early for quick error feedback
     client = fhir.create_fhir_client_for_cli(args, root_input, ["DocumentReference"])
@@ -169,11 +232,12 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 
     async with client:
-        ndjson_folder = await gather_docrefs(client, root_input, root_phi, args)
-        notes = await read_notes_from_ndjson(client, ndjson_folder.name)
+        ndjson_folder = await gather_docrefs(client, root_input, codebook, args)
+        notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
 
     await run_nlp(notes, args)
     philter_notes(notes, args)  # safe to do after NLP because philter does not change character counts
+    notes = group_notes_by_encounter(notes)
     push_to_label_studio(notes, access_token, labels, args)
 
 

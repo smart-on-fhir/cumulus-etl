@@ -18,8 +18,11 @@ from cumulus_etl import errors
 
 
 class LabelStudioNote:
-    def __init__(self, ref_id: str, text: str):
-        self.ref_id = ref_id
+    def __init__(self, enc_id: str, anon_id: str, doc_mappings: dict[str, str], title: str, text: str):
+        self.enc_id = enc_id
+        self.anon_id = anon_id
+        self.doc_mappings = doc_mappings
+        self.title = title
         self.text = text
         self.matches: list[ctakesclient.typesystem.MatchText] = []
 
@@ -36,12 +39,12 @@ class LabelStudioClient:
 
     def push_tasks(self, notes: Collection[LabelStudioNote], *, overwrite: bool = False) -> None:
         # Get any existing tasks that we might be updating
-        ref_ids = [note.ref_id for note in notes]
-        ref_id_filter = lsdm.Filters.create(
+        enc_ids = [note.enc_id for note in notes]
+        enc_id_filter = lsdm.Filters.create(
             lsdm.Filters.AND,
-            [lsdm.Filters.item(lsdm.Column.data("ref_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, ref_ids)],
+            [lsdm.Filters.item(lsdm.Column.data("enc_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, enc_ids)],
         )
-        existing_tasks = self._project.get_tasks(filters=ref_id_filter)
+        existing_tasks = self._project.get_tasks(filters=enc_id_filter)
         new_task_count = len(notes) - len(existing_tasks)
 
         # Should we delete existing entries?
@@ -51,8 +54,8 @@ class LabelStudioClient:
                 self._project.delete_tasks([t["id"] for t in existing_tasks])
             else:
                 print(f"  Skipping {len(existing_tasks)} existing tasks")
-                existing_ref_ids = {t["data"]["ref_id"] for t in existing_tasks}
-                notes = [note for note in notes if note.ref_id not in existing_ref_ids]
+                existing_enc_ids = {t["data"]["enc_id"] for t in existing_tasks}
+                notes = [note for note in notes if note.enc_id not in existing_enc_ids]
 
         # OK, import away!
         if notes:
@@ -78,7 +81,9 @@ class LabelStudioClient:
         task = {
             "data": {
                 "text": note.text,
-                "ref_id": note.ref_id,
+                "enc_id": note.enc_id,
+                "anon_id": note.anon_id,
+                "docref_mappings": note.doc_mappings,
             },
         }
 
@@ -111,7 +116,6 @@ class LabelStudioClient:
             # actually kept in the config, so we have to make some assumptions about how the user set up their project.
             #
             # The rule that Cumulus uses is that the value= variable must equal the name= of the <Labels> element.
-            # TODO: add this quirk to our eventual documentation for this feature.
             task["data"][self._labels_name] = [{"value": x} for x in sorted(used_labels)]
 
         task["predictions"] = [prediction]

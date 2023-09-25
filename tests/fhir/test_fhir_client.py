@@ -227,7 +227,7 @@ class TestFhirClient(AsyncTestCase):
             {},
             (
                 "Client error '400 Bad Request' for url 'https://auth.example.com/token'\n"
-                "For more information check: https://httpstatuses.com/400"
+                "For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
             ),
         ),
     )
