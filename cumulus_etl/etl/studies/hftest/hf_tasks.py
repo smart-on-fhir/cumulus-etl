@@ -1,31 +1,19 @@
 """Define tasks for the hftest study"""
 
-import logging
-
 import httpx
 import pyarrow
 import rich.progress
 
-from cumulus_etl import common, fhir, formats, nlp
+from cumulus_etl import common, errors, formats, nlp
 from cumulus_etl.etl import tasks
 
 
-class HuggingFaceTestTask(tasks.EtlTask):
+class HuggingFaceTestTask(tasks.BaseNlpTask):
     """Hugging Face Test study task, to generate a summary from text"""
 
     name = "hftest__summary"
-    resource = "DocumentReference"
-    needs_bulk_deid = False
-    outputs = [tasks.OutputTable(schema=None)]
 
-    # Task Version
-    # The "task_version" field is a simple integer that gets incremented any time an NLP-relevant parameter is changed.
-    # This is a reference to a bundle of metadata (model revision, container revision, prompt string).
-    # We could combine all that info into a field we save with the results. But it's more human-friendly to have a
-    # simple version to refer to. So anytime these properties get changed, bump the version and record the old bundle
-    # of metadata too. Also update the safety checks in prepare_task()
     task_version = 0
-
     # Task Version History:
     # ** 0 **
     #   This is fluid until we actually promote this to a real task - feel free to update without bumping the version.
@@ -39,15 +27,15 @@ class HuggingFaceTestTask(tasks.EtlTask):
     #     "You will be given a clinical note, and you should reply with a short summary of that note."
     #   user prompt: a clinical note
 
-    async def prepare_task(self) -> bool:
+    @classmethod
+    async def init_check(cls) -> None:
         try:
             raw_info = await nlp.hf_info()
         except httpx.HTTPError:
-            logging.warning(
-                " Skipping task: NLP server is unreachable.\n Try running 'docker compose up llama2 --wait'."
+            errors.fatal(
+                "Llama2 NLP server is unreachable.\n Try running 'docker compose up llama2 --wait'.",
+                errors.SERVICE_MISSING,
             )
-            self.summaries[0].had_errors = True
-            return False
 
         # Sanity check a few of the properties, to make sure we don't accidentally get pointed at an unexpected model.
         expected_info_present = (
@@ -56,28 +44,16 @@ class HuggingFaceTestTask(tasks.EtlTask):
             and raw_info.get("sha") == "09eca6422788b1710c54ee0d05dd6746f16bb681"
         )
         if not expected_info_present:
-            logging.warning(" Skipping task: NLP server is using an unexpected model setup.")
-            self.summaries[0].had_errors = True
-            return False
-
-        return True
+            errors.fatal(
+                "LLama2 NLP server is using an unexpected model setup.",
+                errors.SERVICE_MISSING,
+            )
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through HF and returns any symptoms found"""
         http_client = httpx.AsyncClient(timeout=300)
 
-        for docref in self.read_ndjson(progress=progress):
-            can_process = nlp.is_docref_valid(docref) and self.scrubber.scrub_resource(docref, scrub_attachments=False)
-            if not can_process:
-                continue
-
-            try:
-                clinical_note = await fhir.get_docref_note(self.task_config.client, docref)
-            except Exception as exc:  # pylint: disable=broad-except
-                logging.warning("Error getting text for docref %s: %s", docref["id"], exc)
-                self.summaries[0].had_errors = True
-                continue
-
+        async for _, docref, clinical_note in self.read_notes(progress=progress):
             timestamp = common.datetime_now().isoformat()
 
             # If you change this prompt, consider updating task_version.

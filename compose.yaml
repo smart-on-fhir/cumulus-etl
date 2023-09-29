@@ -13,7 +13,8 @@ services:
       - AWS_DEFAULT_PROFILE
       - CUMULUS_HUGGING_FACE_URL=http://llama2:8086/
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
-      - URL_CNLP_NEGATION=http://cnlp-transformers:8000/negation/process
+      - URL_CNLP_NEGATION=http://cnlpt-negation:8000/negation/process
+      - URL_CNLP_TERM_EXISTS=http://cnlpt-term-exists:8000/termexists/process
     volumes:
       - $HOME/.aws/:/root/.aws/:ro
       - ctakes-overrides:/ctakes-overrides
@@ -30,12 +31,13 @@ services:
   cumulus-etl-gpu:
     extends: cumulus-etl-base
     environment:
-      - URL_CNLP_NEGATION=http://cnlp-transformers-gpu:8000/negation/process
+      - URL_CNLP_NEGATION=http://cnlpt-negation-gpu:8000/negation/process
+      - URL_CNLP_TERM_EXISTS=http://cnlpt-term-exists-gpu:8000/termexists/process
     profiles:
       - etl-gpu
 
   ctakes-covid-base:
-    image: smartonfhir/ctakes-covid:1.1
+    image: smartonfhir/ctakes-covid:1.1.0
     environment:
       - ctakes_umlsuser=umls_api_key 
       - ctakes_umlspw=$UMLS_API_KEY
@@ -49,20 +51,39 @@ services:
   ctakes-covid:
     extends: ctakes-covid-base
     profiles:
-      - etl-support
-      - etl-support-gpu
+      - covid-symptom
+      - covid-symptom-gpu
 
-  cnlp-transformers:
-    image: smartonfhir/cnlp-transformers:negation-0.4-cpu
+  cnlpt-negation:
+    image: smartonfhir/cnlp-transformers:negation-0.6.1-cpu
     profiles:
-      - etl-support
+      - covid-symptom
     networks:
       - cumulus-etl
 
-  cnlp-transformers-gpu:
-    image: smartonfhir/cnlp-transformers:negation-0.4-gpu
+  cnlpt-negation-gpu:
+    image: smartonfhir/cnlp-transformers:negation-0.6.1-gpu
     profiles:
-      - etl-support-gpu
+      - covid-symptom-gpu
+    networks:
+      - cumulus-etl
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+  cnlpt-term-exists:
+    image: smartonfhir/cnlp-transformers:termexists-0.6.1-cpu
+    profiles:
+      - covid-symptom
+    networks:
+      - cumulus-etl
+
+  cnlpt-term-exists-gpu:
+    image: smartonfhir/cnlp-transformers:termexists-0.6.1-gpu
+    profiles:
+      - covid-symptom-gpu
     networks:
       - cumulus-etl
     deploy:
@@ -111,7 +132,7 @@ services:
     volumes: 
       - ./:/cumulus-etl/
     working_dir: /cumulus-etl
-    command: 
+    command:
       - /cumulus-etl/tests/data/simple/ndjson-input 
       - /cumulus-etl/example-output 
       - /cumulus-etl/example-phi-build 

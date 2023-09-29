@@ -12,6 +12,7 @@ from functools import partial
 from unittest import mock
 
 from ctakesclient import typesystem
+from ctakesclient.transformer import TransformerModel
 
 
 class CtakesMixin(unittest.TestCase):
@@ -233,7 +234,15 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
     return typesystem.CtakesJSON(response)
 
 
-async def fake_transformer_list_polarity(sentence: str, spans: list[tuple], client=None) -> list[typesystem.Polarity]:
+async def fake_transformer_list_polarity(
+    sentence: str, spans: list[tuple], client=None, model=TransformerModel.NEGATION
+) -> list[typesystem.Polarity]:
     """Simple always-positive fake response from cNLP."""
     del sentence, client
-    return [typesystem.Polarity.pos] * len(spans)
+
+    # To better detect which model is in use, ensure a small difference between them
+    if model == TransformerModel.TERM_EXISTS:
+        # First span is negative
+        return [typesystem.Polarity.neg] + [typesystem.Polarity.pos] * (len(spans) - 1)
+    else:
+        return [typesystem.Polarity.pos] * len(spans)

@@ -5,6 +5,7 @@ import os
 
 import ctakesclient
 import httpx
+from ctakesclient.transformer import TransformerModel
 
 from cumulus_etl import common, store
 
@@ -42,6 +43,7 @@ async def list_polarity(
     sentence: str,
     spans: list[tuple],
     client: httpx.AsyncClient = None,
+    model: TransformerModel = TransformerModel.NEGATION,
 ) -> list[ctakesclient.typesystem.Polarity]:
     """
     This is a version of ctakesclient.transformer.list_polarity() that also uses a cache
@@ -57,7 +59,7 @@ async def list_polarity(
     try:
         result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
     except Exception:  # pylint: disable=broad-except
-        result = await ctakesclient.transformer.list_polarity(sentence, spans, client=client)
+        result = await ctakesclient.transformer.list_polarity(sentence, spans, client=client, model=model)
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, [x.value for x in result])
 

@@ -29,6 +29,8 @@ def get_all_tasks() -> list[type[AnyTask]]:
     # Right now, just hard-code these. One day we might allow plugins or something similarly dynamic.
     # Note: tasks will be run in the order listed here.
     return get_default_tasks() + [
+        covid_symptom.CovidSymptomNlpResultsTask,
+        covid_symptom.CovidSymptomNlpResultsTermExistsTask,
         hftest.HuggingFaceTestTask,
     ]
 
@@ -52,7 +54,6 @@ def get_default_tasks() -> list[type[AnyTask]]:
         ObservationTask,
         ProcedureTask,
         ServiceRequestTask,
-        covid_symptom.CovidSymptomNlpResultsTask,  # TODO: remove from default list at some point
     ]
 
 

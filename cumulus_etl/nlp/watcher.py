@@ -31,16 +31,28 @@ def check_ctakes() -> None:
         )
 
 
-def check_cnlpt() -> None:
+def check_negation_cnlpt() -> None:
     """
-    Verifies that the cNLP transformer server is running.
+    Verifies that the cNLP transformer servers are running.
     """
     cnlpt_url = ctakesclient.transformer.get_url_cnlp_negation()
-
     if not cli_utils.is_url_available(cnlpt_url):
         errors.fatal(
-            f"A running cNLP transformers server was not found at:\n    {cnlpt_url}\n\n"
+            f"A running cNLPT negation server was not found at:\n    {cnlpt_url}\n\n"
             "Please set the URL_CNLP_NEGATION environment variable or start the docker support services.",
+            errors.CNLPT_MISSING,
+        )
+
+
+def check_term_exists_cnlpt() -> None:
+    """
+    Verifies that the cNLP transformer servers are running.
+    """
+    cnlpt_url = ctakesclient.transformer.get_url_cnlp_term_exists()
+    if not cli_utils.is_url_available(cnlpt_url):
+        errors.fatal(
+            f"A running cNLPT termexists server was not found at:\n    {cnlpt_url}\n\n"
+            "Please set the URL_CNLP_TERM_EXISTS environment variable or start the docker support services.",
             errors.CNLPT_MISSING,
         )
 

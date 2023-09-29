@@ -10,7 +10,7 @@ from cumulus_etl.etl.studies import covid_symptom
 
 from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
-from tests.etl.test_tasks import TaskTestCase
+from tests.etl import BaseEtlSimple, TaskTestCase
 
 
 @ddt.ddt
@@ -186,3 +186,18 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
             self.codebook.db.resource_hash("zero-symptoms"),  # even without rows, it shows up in group list
         }
         self.assertEqual(expected_groups, second_batch.groups)
+
+
+class TestCovidSymptomEtl(BaseEtlSimple):
+    """Tests the end-to-end ETL of covid symptom tasks."""
+
+    DATA_ROOT = "covid"
+
+    async def test_basic_run(self):
+        await self.run_etl(tags=["covid_symptom"])
+        self.assert_output_equal()
+
+    async def test_term_exists_task(self):
+        # This one isn't even tagged for the study - we only want this upon request
+        await self.run_etl(tasks=["covid_symptom__nlp_results_term_exists"])
+        self.assert_output_equal("term-exists")

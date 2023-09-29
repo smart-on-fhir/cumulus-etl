@@ -91,14 +91,14 @@ Cumulus ETL is deployed with Docker images.
 And because of the way Docker interacts with the GPU, we define a whole second set of profiles for GPU usage.
 
 Normally, you specify profile & image names in a couple places:
-1. When starting the support tools (cTAKES etc):<br>
-`docker compose --profile etl-support up`
+1. When starting a study's support tools (cTAKES etc):<br>
+`docker compose --profile covid-symptom up`
 1. When running the ETL tool:<br>
 `docker compose run cumulus-etl`
 
 To work with the GPU version of Cumulus ETL, just add `-gpu` to each of those names
 wherever they appear in [instructions](sample-runs.md):
-1. <code>docker compose --profile etl-support<b>-gpu</b> up</code>
+1. <code>docker compose --profile covid-symptom<b>-gpu</b> up</code>
 1. <code>docker compose run cumulus-etl<b>-gpu</b></code>
 
 ### Cloud Access to a GPU

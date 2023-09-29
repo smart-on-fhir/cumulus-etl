@@ -29,8 +29,9 @@ class TestConvert(utils.AsyncTestCase):
 
     def prepare_original_dir(self) -> str:
         """Returns the job timestamp used, for easier inspection"""
-        # Fill in original dir
+        # Fill in original dir, including a non-default output folder
         shutil.copytree(f"{self.datadir}/simple/output", self.original_path)
+        shutil.copytree(f"{self.datadir}/covid/term-exists", self.original_path, dirs_exist_ok=True)
         os.makedirs(f"{self.original_path}/ignored")  # just to confirm we only copy what we understand
 
         job_timestamp = "2023-02-28__19.53.08"
@@ -73,6 +74,7 @@ class TestConvert(utils.AsyncTestCase):
 
         # Test first conversion results
         expected_tables = {output.get_name(t) for t in tasks.get_default_tasks() for output in t.outputs}
+        expected_tables.add("covid_symptom__nlp_results_term_exists")  # this was our non-default added table
         self.assertEqual(expected_tables | {"JobConfig"}, set(os.listdir(self.target_path)))
         self.assertEqual(
             {"test": True}, common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json")
@@ -85,8 +87,8 @@ class TestConvert(utils.AsyncTestCase):
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
-        symptoms = utils.read_delta_lake(f"{self.target_path}/covid_symptom__nlp_results")  # and covid symptoms
-        self.assertEqual(4, len(symptoms))
+        symptoms = utils.read_delta_lake(f"{self.target_path}/covid_symptom__nlp_results_term_exists")  # and covid
+        self.assertEqual(2, len(symptoms))
         self.assertEqual("for", symptoms[0]["match"]["text"])
 
         # Now make a second small, partial output folder to layer into the existing Delta Lake
@@ -123,13 +125,20 @@ class TestConvert(utils.AsyncTestCase):
             f"{self.datadir}/simple/output/patient",
             f"{self.original_path}/patient",
         )
-        shutil.copytree(  # Then, one that does (from batched-output, to confirm we read each batch in turn)
-            f"{self.datadir}/simple/batched-output/covid_symptom__nlp_results",
+        shutil.copytree(  # Then, one that does
+            f"{self.datadir}/covid/output/covid_symptom__nlp_results",
             f"{self.original_path}/covid_symptom__nlp_results",
         )
-        common.write_json(  # change metadata to reference nonexistent group, to confirm we do read from this file
+        # And make a second batch, to confirm we read each meta file
+        common.write_json(
             f"{self.original_path}/covid_symptom__nlp_results/covid_symptom__nlp_results.001.meta",
+            # Reference a group that doesn't exist to prove we are reading this file and not just pooling group_fields
+            # that we see in the data.
             {"groups": ["nonexistent"]},
+        )
+        common.write_json(
+            f"{self.original_path}/covid_symptom__nlp_results/covid_symptom__nlp_results.001.ndjson",
+            {"id": "D1.0", "docref_id": "D1"},
         )
         os.makedirs(f"{self.original_path}/JobConfig")
 
@@ -138,11 +147,12 @@ class TestConvert(utils.AsyncTestCase):
 
         # Test results
         self.assertEqual(3, mock_write.call_count)
-        self.assertEqual(set(), mock_write.call_args_list[0][0][0].groups)
+        self.assertEqual(set(), mock_write.call_args_list[0][0][0].groups)  # patients
         self.assertEqual(
             {
-                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd",
+                "c31a3dbf188ed241b2c06b2475cd56159017fa1df1ea882d3fc4beab860fc24d",
+                "eb30741bbb9395fc3da72d02fd29b96e2e4c0c2592c3ae997d80bf522c80070e",
             },
-            mock_write.call_args_list[1][0][0].groups,
+            mock_write.call_args_list[1][0][0].groups,  # first (actual) covid batch
         )
-        self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)
+        self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)  # second (faked) covid batch
