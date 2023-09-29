@@ -109,6 +109,8 @@ services:
       start_period: 20m  # give plenty of time for startup, since we may be downloading a model
     volumes:
       - hf-data:/data
+    profiles:
+      - hf-test
     networks:
       - cumulus-etl
     ports:
