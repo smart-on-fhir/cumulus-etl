@@ -44,10 +44,15 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         # Invalid codes
         ([], False),
         ([{"system": "http://cumulus.smarthealthit.org/i2b2", "code": "NOTE:0"}], False),
+        ([{"system": "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72", "code": "0"}], False),
         ([{"system": "http://loinc.org", "code": "00000-0"}], False),
         ([{"system": "http://example.org", "code": "nope"}], False),
         # Valid codes
         ([{"system": "http://cumulus.smarthealthit.org/i2b2", "code": "NOTE:3710480"}], True),
+        (
+            [{"system": "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72", "code": "3710480"}],
+            True,
+        ),
         ([{"system": "http://loinc.org", "code": "57053-1"}], True),
         ([{"system": "nope", "code": "nope"}, {"system": "http://loinc.org", "code": "57053-1"}], True),
     )
