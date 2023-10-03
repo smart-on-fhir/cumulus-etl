@@ -14,18 +14,6 @@ from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
 # List of recognized emergency department note types. We'll add more as we discover them in use.
 ED_CODES = {
-    "http://cumulus.smarthealthit.org/i2b2": {
-        "NOTE:3710480",
-        "NOTE:3807712",
-        "NOTE:149798455",
-        "NOTE:159552404",
-        "NOTE:189094576",
-        "NOTE:189094619",
-        "NOTE:189094644",
-        "NOTE:318198107",
-        "NOTE:318198110",
-        "NOTE:318198113",
-    },
     "http://loinc.org": {
         "18842-5",  # Discharge Summary
         "28568-4",  # Physician Emergency department Note
@@ -40,6 +28,33 @@ ED_CODES = {
         "68552-9",  # Emergency medicine Emergency department Admission evaluation note
         "74187-6",  # InterRAI Emergency Screener for Psychiatry (ESP) Document
         "74211-4",  # Summary of episode note Emergency department+Hospital
+    },
+    # The above _should_ be enough if everything is coded well.
+    # But sometimes not every document has a LOINC coding included.
+    # Below are some site-specific coding systems and their ED codes, to help fill in those gaps.
+    "http://cumulus.smarthealthit.org/i2b2": {  # BCH i2b2
+        "NOTE:3710480",  # ED Consultation
+        "NOTE:3807712",  # ED Note
+        "NOTE:149798455",  # Emergency MD
+        "NOTE:159552404",  # ED Note Scanned
+        "NOTE:189094576",  # ED Scanned
+        "NOTE:189094619",  # SANE Report
+        "NOTE:189094644",  # Emergency Dept Scanned Forms
+        "NOTE:318198107",  # ED Social Work Assessment
+        "NOTE:318198110",  # ED Social Work Brief Screening
+        "NOTE:318198113",  # ED Social Work
+    },
+    "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72": {  # BCH Cerner
+        "3710480",  # ED Consultation
+        "3807712",  # ED Note
+        "149798455",  # Emergency MD
+        "159552404",  # ED Note Scanned
+        "189094576",  # ED Scanned
+        "189094619",  # SANE Report
+        "189094644",  # Emergency Dept Scanned Forms
+        "318198107",  # ED Social Work Assessment
+        "318198110",  # ED Social Work Brief Screening
+        "318198113",  # ED Social Work
     },
 }
 
