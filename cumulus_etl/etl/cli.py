@@ -14,6 +14,7 @@ import rich.table
 from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
+from cumulus_etl.etl.tasks import task_factory
 
 
 ###############################################################################
@@ -192,7 +193,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
     task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
-    selected_tasks = tasks.get_selected_tasks(task_names, task_filters)
+    selected_tasks = task_factory.get_selected_tasks(task_names, task_filters)
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)

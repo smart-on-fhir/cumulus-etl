@@ -12,6 +12,7 @@ import rich.progress
 
 from cumulus_etl import cli_utils, common, errors, formats, store
 from cumulus_etl.etl import tasks
+from cumulus_etl.etl.tasks import task_factory
 
 
 def make_batch(task: type[tasks.EtlTask], formatter: formats.Format, index: int, path: str) -> formats.Batch:
@@ -82,7 +83,7 @@ def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
 
 
 def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]) -> None:
-    all_tasks = tasks.get_all_tasks()
+    all_tasks = task_factory.get_all_tasks()
 
     with cli_utils.make_progress_bar() as progress:
         for task in all_tasks:
