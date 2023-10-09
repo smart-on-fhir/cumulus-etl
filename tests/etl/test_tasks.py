@@ -7,8 +7,7 @@ import ddt
 import pyarrow
 
 from cumulus_etl import common, errors
-from cumulus_etl.etl import tasks
-from cumulus_etl.etl.tasks import basic_tasks
+from cumulus_etl.etl.tasks import basic_tasks, task_factory
 from tests.etl import TaskTestCase
 
 
@@ -46,18 +45,18 @@ class TestTasks(TaskTestCase):
 
     def test_unknown_task(self):
         with self.assertRaises(SystemExit) as cm:
-            tasks.get_selected_tasks(names=["blarg"])
+            task_factory.get_selected_tasks(names=["blarg"])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
     def test_over_filtered(self):
         """Verify that we catch when the user filters out all tasks for themselves"""
         with self.assertRaises(SystemExit) as cm:
-            tasks.get_selected_tasks(filter_tags=["cpu", "gpu"])
+            task_factory.get_selected_tasks(filter_tags=["cpu", "gpu"])
         self.assertEqual(errors.TASK_SET_EMPTY, cm.exception.code)
 
     def test_filtered_but_named_task(self):
         with self.assertRaises(SystemExit) as cm:
-            tasks.get_selected_tasks(names=["condition"], filter_tags=["gpu"])
+            task_factory.get_selected_tasks(names=["condition"], filter_tags=["gpu"])
         self.assertEqual(errors.TASK_FILTERED_OUT, cm.exception.code)
 
     @ddt.data(
@@ -70,9 +69,9 @@ class TestTasks(TaskTestCase):
     @ddt.unpack
     def test_task_selection_ordering(self, user_tasks, expected_tasks):
         """Verify we define the order, not the user, and that encounter & patient are early"""
-        names = [t.name for t in tasks.get_selected_tasks(names=user_tasks)]
+        names = [t.name for t in task_factory.get_selected_tasks(names=user_tasks)]
         if expected_tasks == "default":
-            expected_tasks = [t.name for t in tasks.get_default_tasks()]
+            expected_tasks = [t.name for t in task_factory.get_default_tasks()]
         self.assertEqual(expected_tasks, names)
 
     async def test_drop_duplicates(self):

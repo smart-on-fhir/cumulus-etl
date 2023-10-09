@@ -6,7 +6,8 @@ import re
 
 import inscriptis
 
-from cumulus_etl import common, fhir
+from cumulus_etl import common
+from cumulus_etl.fhir.fhir_client import FhirClient
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -77,7 +78,7 @@ def unref_resource(ref: dict | None) -> (str | None, str):
 ######################################################################################################################
 
 
-async def download_reference(client: fhir.FhirClient, reference: str) -> dict | None:
+async def download_reference(client: FhirClient, reference: str) -> dict | None:
     """
     Downloads a resource, given a FHIR reference.
 
@@ -124,7 +125,7 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
-async def _get_docref_note_from_attachment(client: fhir.FhirClient, attachment: dict) -> str:
+async def _get_docref_note_from_attachment(client: FhirClient, attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -169,7 +170,7 @@ def _save_cached_docref_note(docref: dict, note: str) -> None:
     common.write_text(note_path, note)
 
 
-async def get_docref_note(client: fhir.FhirClient, docref: dict) -> str:
+async def get_docref_note(client: FhirClient, docref: dict) -> str:
     """
     Returns the clinical note contained in or referenced by the given docref.
 

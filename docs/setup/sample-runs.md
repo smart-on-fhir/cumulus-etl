@@ -87,13 +87,9 @@ systemctl enable containerd.service
 and allows you to deploy a self-contained network.
 We're using it to simplify deploying the Cumulus ETL project in your ecosystem.
 
-The `compose.yaml` file, which defines the network, adds the following containers:
+This simplifies starting study-specific services like cTAKES.
 
-- The Cumulus ETL process itself
-- A [cTAKES](https://ctakes.apache.org/) server, to handle natural language 
-  processing of clinical notes.
-- A [cNLP transformer](https://github.com/Machine-Learning-for-Medical-Language/cnlp_transformers)
-  server, to run a second-pass negation of cTAKES results.
+As a result, some of the commands below will start with `docker compose` instead of just `docker`.
 
 ## Cumulus ETL
 
