@@ -25,11 +25,11 @@ class TestBulkExporter(AsyncTestCase):
 
     def setUp(self):
         super().setUp()
-        self.tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        self.tmpdir = self.make_tempdir()
         self.server = mock.AsyncMock()
 
     def make_exporter(self, **kwargs) -> BulkExporter:
-        return BulkExporter(self.server, ["Condition", "Patient"], "https://localhost/", self.tmpdir.name, **kwargs)
+        return BulkExporter(self.server, ["Condition", "Patient"], "https://localhost/", self.tmpdir, **kwargs)
 
     async def export(self, **kwargs) -> BulkExporter:
         exporter = self.make_exporter(**kwargs)
@@ -79,9 +79,9 @@ class TestBulkExporter(AsyncTestCase):
             self.server.request.call_args_list,
         )
 
-        self.assertEqual({"type": "Condition1"}, common.read_json(f"{self.tmpdir.name}/Condition.000.ndjson"))
-        self.assertEqual({"type": "Condition2"}, common.read_json(f"{self.tmpdir.name}/Condition.001.ndjson"))
-        self.assertEqual({"type": "Patient1"}, common.read_json(f"{self.tmpdir.name}/Patient.000.ndjson"))
+        self.assertEqual({"type": "Condition1"}, common.read_json(f"{self.tmpdir}/Condition.000.ndjson"))
+        self.assertEqual({"type": "Condition2"}, common.read_json(f"{self.tmpdir}/Condition.001.ndjson"))
+        self.assertEqual({"type": "Patient1"}, common.read_json(f"{self.tmpdir}/Patient.000.ndjson"))
 
     async def test_since_until(self):
         """Verify that we send since & until parameters correctly to the server"""

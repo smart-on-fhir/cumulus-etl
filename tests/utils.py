@@ -7,6 +7,7 @@ import functools
 import inspect
 import json
 import os
+import tempfile
 import time
 import tracemalloc
 import unittest
@@ -45,6 +46,12 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make it easy to grab test data, regardless of where the test is
         self.datadir = os.path.join(os.path.dirname(__file__), "data")
+
+    def make_tempdir(self) -> str:
+        """Creates a temporary dir that will be automatically cleaned up"""
+        tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        self.addCleanup(tempdir.cleanup)
+        return tempdir.name
 
     def patch(self, *args, **kwargs) -> mock.Mock:
         """Syntactic sugar to ease making a mock over a test's lifecycle, without decorators"""
