@@ -1,0 +1,30 @@
+{
+  "resourceType" : "AllergyIntolerance",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+  "clinicalStatus" : { "text": "kept" },
+  "verificationStatus" : { "text": "kept" },
+  "type" : "allergy",
+  "category" : ["food"],
+  "criticality" : "low",
+  "code" : { "text": "kept" },
+  "patient" : { "reference": "Patient/x" },
+  "encounter" : { "reference": "Encounter/x" },
+  "onsetDateTime" : "2023",
+  "recordedDate" : "2023",
+  "recorder" : { "reference": "Practitioner/x" },
+  "asserter" : { "reference": "Patient/x" },
+  "lastOccurrence" : "2023",
+  "reaction" : [{
+    "substance" : { "text": "kept" },
+    "manifestation" : [{ "text": "kept" }],
+    "onset" : "2023",
+    "severity" : "mild",
+    "exposureRoute" : { "text": "kept" }
+  }]
+}

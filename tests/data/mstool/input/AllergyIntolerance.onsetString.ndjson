@@ -1,0 +1,5 @@
+{
+  "resourceType" : "AllergyIntolerance",
+  "patient" : { "reference": "Patient/x" },
+  "onsetString" : "dropped"
+}

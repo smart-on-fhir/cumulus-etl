@@ -10,9 +10,27 @@ from cumulus_etl import common, fhir, store
 from cumulus_etl.etl import tasks
 
 
+class AllergyIntoleranceTask(tasks.EtlTask):
+    name = "allergyintolerance"
+    resource = "AllergyIntolerance"
+    tags = {"cpu"}
+
+
 class ConditionTask(tasks.EtlTask):
     name = "condition"
     resource = "Condition"
+    tags = {"cpu"}
+
+
+class DeviceTask(tasks.EtlTask):
+    name = "device"
+    resource = "Device"
+    tags = {"cpu"}
+
+
+class DiagnosticReportTask(tasks.EtlTask):
+    name = "diagnosticreport"
+    resource = "DiagnosticReport"
     tags = {"cpu"}
 
 
@@ -25,6 +43,12 @@ class DocumentReferenceTask(tasks.EtlTask):
 class EncounterTask(tasks.EtlTask):
     name = "encounter"
     resource = "Encounter"
+    tags = {"cpu"}
+
+
+class ImmunizationTask(tasks.EtlTask):
+    name = "immunization"
+    resource = "Immunization"
     tags = {"cpu"}
 
 

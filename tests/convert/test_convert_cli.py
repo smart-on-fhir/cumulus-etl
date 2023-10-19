@@ -8,8 +8,6 @@ from unittest import mock
 import ddt
 
 from cumulus_etl import cli, common, errors
-from cumulus_etl.etl.tasks import task_factory
-
 from tests import utils
 
 
@@ -73,9 +71,8 @@ class TestConvert(utils.AsyncTestCase):
         await self.run_convert()
 
         # Test first conversion results
-        expected_tables = {output.get_name(t) for t in task_factory.get_default_tasks() for output in t.outputs}
-        expected_tables.add("covid_symptom__nlp_results_term_exists")  # this was our non-default added table
-        self.assertEqual(expected_tables | {"JobConfig"}, set(os.listdir(self.target_path)))
+        expected_tables = set(os.listdir(self.original_path)) - {"ignored"}
+        self.assertEqual(expected_tables, set(os.listdir(self.target_path)))
         self.assertEqual(
             {"test": True}, common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json")
         )

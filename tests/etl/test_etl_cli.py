@@ -23,7 +23,20 @@ class TestEtlJobFlow(BaseEtlSimple):
     """Test case for the sequence of data through the system"""
 
     async def test_batched_output(self):
-        await self.run_etl(batch_size=1)
+        await self.run_etl(
+            batch_size=1,
+            tasks=[
+                # Batching is not task-specific, so just test a smattering of tasks
+                "condition",
+                "documentreference",
+                "encounter",
+                "medicationrequest",
+                "observation",
+                "patient",
+                "procedure",
+                "servicerequest",
+            ],
+        )
         self.assert_output_equal("batched-output")
 
     @ddt.data(
@@ -250,20 +263,23 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
     """Test case for our support of writing to S3"""
 
     async def test_etl_job_s3(self):
-        await self.run_etl(output_path="s3://mockbucket/root")
+        await self.run_etl(
+            output_path="s3://mockbucket/root",
+            tasks=[
+                # Just a few to get a taste of how this behaves
+                "condition",
+                "medicationrequest",
+                "patient",
+            ],
+        )
 
         all_files = {x for x in self.s3fs.find("mockbucket/root") if "/JobConfig/" not in x}
         self.assertEqual(
             {
                 "mockbucket/root/condition/condition.000.ndjson",
-                "mockbucket/root/documentreference/documentreference.000.ndjson",
-                "mockbucket/root/encounter/encounter.000.ndjson",
                 "mockbucket/root/medication/medication.000.ndjson",
                 "mockbucket/root/medicationrequest/medicationrequest.000.ndjson",
-                "mockbucket/root/observation/observation.000.ndjson",
                 "mockbucket/root/patient/patient.000.ndjson",
-                "mockbucket/root/procedure/procedure.000.ndjson",
-                "mockbucket/root/servicerequest/servicerequest.000.ndjson",
             },
             all_files,
         )
