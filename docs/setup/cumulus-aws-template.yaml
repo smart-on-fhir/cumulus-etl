@@ -176,18 +176,28 @@ Resources:
         ScheduleExpression: "cron(0 8 1 * ? *)"  # 8am on the 1st of the month
       Targets:
         DeltaTargets:
+          # Unfortunately, we can't seem to use wildcards to define tables.
+          # And each DeltaTables entry can only hold ten tables (AWS-side limitation).
+          # But we can just have multiple groupings of ten!
           - DeltaTables:
-              # Unfortunately, we can't seem to use wildcards to define tables
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/allergyintolerance"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/condition"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/device"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/diagnosticreport"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/documentreference"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/encounter"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/immunization"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/medication"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/medicationrequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/procedure"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/servicerequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_term_exists"
             CreateNativeDeltaTable: True
             WriteManifest: False
 

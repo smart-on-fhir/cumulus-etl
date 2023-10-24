@@ -6,16 +6,7 @@ from typing import TypeVar
 
 from cumulus_etl import errors
 from cumulus_etl.etl.studies import covid_symptom, hftest
-from cumulus_etl.etl.tasks.basic_tasks import (
-    ConditionTask,
-    DocumentReferenceTask,
-    EncounterTask,
-    MedicationRequestTask,
-    ObservationTask,
-    PatientTask,
-    ProcedureTask,
-    ServiceRequestTask,
-)
+from cumulus_etl.etl.tasks import basic_tasks
 
 AnyTask = TypeVar("AnyTask", bound="EtlTask")
 
@@ -43,17 +34,22 @@ def get_default_tasks() -> list[type[AnyTask]]:
     """
     # Note: tasks will be run in the order listed here.
     return [
-        # Run encounter & patient first, to reduce churn on the codebook (the cached mappings would mostly be written
-        # out during the encounter task and wouldn't need to be re-written later, one would hope)
-        EncounterTask,
-        PatientTask,
+        # Run encounter & patient first, to reduce churn on the codebook (we keep cached ID mappings for those two
+        # resource and write out those mappings every time a batch has a new encounter/patient - so doing them all
+        # upfront reduces the number of times we re-write those mappings later)
+        basic_tasks.EncounterTask,
+        basic_tasks.PatientTask,
         # The rest of the tasks in alphabetical order, why not:
-        ConditionTask,
-        DocumentReferenceTask,
-        MedicationRequestTask,
-        ObservationTask,
-        ProcedureTask,
-        ServiceRequestTask,
+        basic_tasks.AllergyIntoleranceTask,
+        basic_tasks.ConditionTask,
+        basic_tasks.DeviceTask,
+        basic_tasks.DiagnosticReportTask,
+        basic_tasks.DocumentReferenceTask,
+        basic_tasks.ImmunizationTask,
+        basic_tasks.MedicationRequestTask,
+        basic_tasks.ObservationTask,
+        basic_tasks.ProcedureTask,
+        basic_tasks.ServiceRequestTask,
     ]
 
 

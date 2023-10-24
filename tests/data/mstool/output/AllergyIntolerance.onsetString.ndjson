@@ -1,0 +1,11 @@
+{
+  "resourceType" : "AllergyIntolerance",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+  "patient" : { "reference": "Patient/x" }
+}

@@ -1,0 +1,53 @@
+{
+  "resourceType" : "Immunization",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+  "status" : "not-done",
+  "statusReason" : { "text": "kept" },
+  "vaccineCode" : { "text": "kept" },
+  "patient" : { "reference": "Patient/x" },
+  "encounter" : { "reference": "Encounter/x" },
+  "occurrenceDateTime" : "2023",
+  "recorded" : "2023",
+  "primarySource" : true,
+  "reportOrigin" : { "text": "kept" },
+  "location" : { "reference": "Location/x" },
+  "manufacturer" : { "reference": "Organization/x" },
+  "lotNumber" : "kept",
+  "expirationDate" : "2023",
+  "site" : { "text": "kept" },
+  "route" : { "text": "kept" },
+  "doseQuantity" : { "unit": "kept" },
+  "performer" : [{
+    "function" : { "text": "kept" },
+    "actor" : { "reference": "Practitioner/x" }
+  }],
+  "reasonCode" : [{ "text": "kept" }],
+  "reasonReference" : [{ "reference": "Condition/x" }],
+  "isSubpotent" : true,
+  "subpotentReason" : [{ "text": "kept" }],
+  "education" : [{
+    "documentType" : "kept",
+    "publicationDate" : "2023",
+    "presentationDate" : "2023"
+  }],
+  "programEligibility" : [{ "text": "kept" }],
+  "fundingSource" : { "text": "kept" },
+  "reaction" : [{
+    "date" : "2023",
+    "detail" : { "reference": "Observation/x" },
+    "reported" : true
+  }],
+  "protocolApplied" : [{
+    "series" : "kept",
+    "authority" : { "reference": "Organization/x" },
+    "targetDisease" : [{ "text": "kept" }],
+    "doseNumberString" : "kept",
+    "seriesDosesString" : "kept"
+  }]
+}

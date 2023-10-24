@@ -1,0 +1,27 @@
+{
+  "resourceType" : "DiagnosticReport",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+  "basedOn" : [{ "reference": "CarePlan/x" }],
+  "status" : "final",
+  "category" : [{ "text": "kept" }],
+  "code" : { "text": "kept" },
+  "subject" : { "reference": "Patient/x" },
+  "encounter" : { "reference": "Encounter/x" },
+  "effectiveDateTime" : "2023",
+  "issued" : "2023",
+  "performer" : [{ "reference": "Practitioner/x" }],
+  "resultsInterpreter" : [{ "reference": "Practitioner/x" }],
+  "specimen" : [{ "reference": "Specimen/x" }],
+  "result" : [{ "reference": "Observation/x" }],
+  "imagingStudy" : [{ "reference": "ImagingStudy/x" }],
+  "media" : [{
+    "link" : { "reference": "Media/x" }
+  }],
+  "conclusionCode" : [{ "text": "kept" }]
+}

@@ -1,0 +1,53 @@
+{
+  "resourceType" : "Device",
+  "meta": {
+    "security": [{
+      "code": "REDACTED",
+      "display": "redacted",
+      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+    }]
+  },
+  "definition" : { "reference": "DeviceDefinition/x" },
+  "udiCarrier" : [{
+    "deviceIdentifier" : "kept",
+    "issuer" : "urn:kept",
+    "jurisdiction" : "urn:kept",
+    "carrierAIDC" : "kept",
+    "carrierHRF" : "kept",
+    "entryType" : "barcode"
+  }],
+  "status" : "active",
+  "statusReason" : [{ "text": "online" }],
+  "distinctIdentifier" : "kept",
+  "manufacturer" : "kept",
+  "manufactureDate" : "2023",
+  "expirationDate" : "2023",
+  "lotNumber" : "kept",
+  "serialNumber" : "kept",
+  "deviceName" : [{
+    "name" : "kept",
+    "type" : "other"
+  }],
+  "modelNumber" : "kept",
+  "partNumber" : "kept",
+  "type" : { "text": "kept" },
+  "specialization" : [{
+    "systemType" : { "text": "kept" },
+    "version" : "kept"
+  }],
+  "version" : [{
+    "type" : { "text": "kept" },
+    "component" : { "value": "kept" },
+    "value" : "kept"
+  }],
+  "property" : [{
+    "type" : { "text": "kept" },
+    "valueQuantity" : [{ "unit": "kept" }],
+    "valueCode" : [{ "text": "kept" }]
+  }],
+  "patient" : { "reference": "Patient/x" },
+  "owner" : { "reference": "Organization/x" },
+  "location" : { "reference": "Location/x" },
+  "safety" : [{ "text": "kept" }],
+  "parent" : { "reference": "Device/x" }
+}

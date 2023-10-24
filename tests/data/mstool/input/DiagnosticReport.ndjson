@@ -1,0 +1,24 @@
+{
+  "resourceType" : "DiagnosticReport",
+  "identifier" : [{ "value": "dropped" }],
+  "basedOn" : [{ "reference": "CarePlan/x" }],
+  "status" : "final",
+  "category" : [{ "text": "kept" }],
+  "code" : { "text": "kept" },
+  "subject" : { "reference": "Patient/x" },
+  "encounter" : { "reference": "Encounter/x" },
+  "effectiveDateTime" : "2023",
+  "issued" : "2023",
+  "performer" : [{ "reference": "Practitioner/x" }],
+  "resultsInterpreter" : [{ "reference": "Practitioner/x" }],
+  "specimen" : [{ "reference": "Specimen/x" }],
+  "result" : [{ "reference": "Observation/x" }],
+  "imagingStudy" : [{ "reference": "ImagingStudy/x" }],
+  "media" : [{
+    "comment" : "dropped",
+    "link" : { "reference": "Media/x" }
+  }],
+  "conclusion" : "dropped",
+  "conclusionCode" : [{ "text": "kept" }],
+  "presentedForm" : [{ "title": "dropped" }]
+}
