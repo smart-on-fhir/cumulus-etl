@@ -12,7 +12,7 @@ requires-python = ">= 3.10"
 # to fix any breakages since users won't immediately see the problem).
 dependencies = [
     "ctakesclient >= 5.1, < 6",
-    "delta-spark >= 2.3, < 3",
+    "delta-spark >= 3, < 4",
     "fhirclient < 5",
     "httpx < 1",
     "inscriptis < 3",

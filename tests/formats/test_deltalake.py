@@ -189,16 +189,12 @@ class TestDeltaLake(utils.AsyncTestCase):
             ]
         )
         self.assertTrue(self.store(self.df(a=1), schema=schema))
-        self.assertFalse(self.store(self.df(b="string"), schema=schema))
-        self.assert_lake_equal(self.df(a=1))
 
-        # And just confirm the mildly buggy behavior that Delta Lake will silently ignore
-        # altered types when we don't force a schema. This is one reason we like to force a schema!
-        # We don't desire or care about this behavior, but just testing it here as a sort of documentation,
-        # in case they ever fix that, and then we get to know about it.
-        # Upstream issue: https://github.com/delta-io/delta/issues/1551
-        self.assertTrue(self.store(self.df(b="string")))
-        self.assert_lake_equal([{"id": "a", "value": 1}, {"id": "b"}])
+        # Confirm that Delta Lake will error out when presented with an altered type, with or without a schema.
+        self.assertFalse(self.store(self.df(b="string"), schema=schema))
+        self.assertFalse(self.store(self.df(b="string")))
+
+        self.assert_lake_equal(self.df(a=1))
 
     def test_schema_has_names(self):
         """Verify that the lake's schemas has valid nested names, which may not always happen with spark"""
@@ -274,15 +270,14 @@ class TestDeltaLake(utils.AsyncTestCase):
 
     @ddt.data(
         # In general, the first type used wins
-        (pyarrow.int64(), 2000, pyarrow.int32(), 2000, "long", 2000),
-        (pyarrow.int32(), 2000, pyarrow.int64(), 2000, "integer", 2000),
-        (pyarrow.int64(), 3000000000, pyarrow.int32(), 2000, "long", 2000),
-        # Interestingly, delta lake will silently down-convert for us.
-        # This is not an expected scenario, but we should beware this gotcha.
-        (pyarrow.int32(), 2000, pyarrow.int64(), 3000000000, "integer", -1294967296),
+        (pyarrow.int64(), 2000, pyarrow.int32(), 2001, True, "long", 2001),
+        (pyarrow.int32(), 2000, pyarrow.int64(), 2001, True, "integer", 2001),
+        (pyarrow.int64(), 3000000000, pyarrow.int32(), 2000, True, "long", 2000),
+        # Delta lake will refuse to store too large a value for the type
+        (pyarrow.int32(), 2000, pyarrow.int64(), 3000000000, False, "integer", 2000),
     )
     @ddt.unpack
-    def test_column_type_merges(self, type1, val1, type2, val2, expected_type, expected_value):
+    def test_column_type_merges(self, type1, val1, type2, val2, expected_success, expected_type, expected_value):
         """Verify that if we write a slightly different, but compatible field to the delta lake, it works"""
         schema1 = pyarrow.schema(
             [
@@ -290,7 +285,7 @@ class TestDeltaLake(utils.AsyncTestCase):
                 pyarrow.field("int", type1),
             ]
         )
-        self.store([{"id": "1", "int": val1}], schema=schema1)
+        self.assertTrue(self.store([{"id": "1", "int": val1}], schema=schema1))
 
         schema2 = pyarrow.schema(
             [
@@ -298,7 +293,7 @@ class TestDeltaLake(utils.AsyncTestCase):
                 pyarrow.field("int", type2),
             ]
         )
-        self.store([{"id": "1", "int": val2}], schema=schema2)
+        self.assertEqual(expected_success, self.store([{"id": "1", "int": val2}], schema=schema2))
 
         table_path = os.path.join(self.output_dir, "patient")
         table_df = DeltaLakeFormat.spark.read.format("delta").load(table_path)
