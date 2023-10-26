@@ -69,8 +69,11 @@ jobs:
           pip install bandit[toml] pycodestyle pylint black==22.12.0
 
       - name: Run pycodestyle
+        # E203: pycodestyle is a little too rigid about slices & whitespace
+        #  See https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html#slices
+        # W503: a default ignore that we are restoring
         run: |
-          pycodestyle --max-line-length=120 .
+          pycodestyle --max-line-length=120 --ignore=E203,W503 .
 
       - name: Run pylint
         if: success() || failure() # still run pylint if above checks fail

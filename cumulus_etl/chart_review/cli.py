@@ -20,7 +20,7 @@ def init_checks(args: argparse.Namespace):
 
     if args.nlp:
         nlp.check_ctakes()
-        nlp.check_cnlpt()
+        nlp.check_negation_cnlpt()
 
     if not cli_utils.is_url_available(args.label_studio_url, retry=False):
         errors.fatal(
@@ -80,8 +80,18 @@ async def read_notes_from_ndjson(
         anon_enc_id = codebook.fake_id("Encounter", enc_id)
         doc_id = docrefs[i]["id"]
         doc_mappings = {doc_id: codebook.fake_id("DocumentReference", doc_id)}
+        doc_spans = {doc_id: (0, len(text))}
 
-        notes.append(LabelStudioNote(enc_id, anon_enc_id, doc_mappings, title, text))
+        notes.append(
+            LabelStudioNote(
+                enc_id,
+                anon_enc_id,
+                doc_mappings=doc_mappings,
+                doc_spans=doc_spans,
+                title=title,
+                text=text,
+            )
+        )
 
     return notes
 
@@ -101,7 +111,12 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
         ctakes_json = await ctakesclient.client.extract(note.text, client=http_client)
         matches = ctakes_json.list_match(polarity=Polarity.pos)
         spans = ctakes_json.list_spans(matches)
-        cnlpt_results = await ctakesclient.transformer.list_polarity(note.text, spans, client=http_client)
+        cnlpt_results = await ctakesclient.transformer.list_polarity(
+            note.text,
+            spans,
+            client=http_client,
+            model=nlp.TransformerModel.NEGATION,
+        )
         note.matches = [match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos]
 
 
@@ -133,6 +148,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
         grouped_text = ""
         grouped_matches = []
         grouped_doc_mappings = {}
+        grouped_doc_spans = {}
 
         for note in enc_notes:
             grouped_doc_mappings.update(note.doc_mappings)
@@ -145,14 +161,24 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
             offset = len(grouped_text)
             grouped_text += note.text
 
+            offset_doc_spans = {k: (v[0] + offset, v[1] + offset) for k, v in note.doc_spans.items()}
+            grouped_doc_spans.update(offset_doc_spans)
+
             for match in note.matches:
                 match.begin += offset
                 match.end += offset
                 grouped_matches.append(match)
 
-        grouped_note = LabelStudioNote(enc_id, enc_notes[0].anon_id, grouped_doc_mappings, "", grouped_text)
-        grouped_note.matches = grouped_matches
-        grouped_notes.append(grouped_note)
+        grouped_notes.append(
+            LabelStudioNote(
+                enc_id,
+                enc_notes[0].anon_id,
+                text=grouped_text,
+                doc_mappings=grouped_doc_mappings,
+                doc_spans=grouped_doc_spans,
+                matches=grouped_matches,
+            )
+        )
 
     return grouped_notes
 
