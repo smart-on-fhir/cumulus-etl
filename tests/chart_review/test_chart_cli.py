@@ -105,7 +105,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         await cli.main(args)
 
     @staticmethod
-    def make_docref(doc_id: str, text: str = None, content: list[dict] = None) -> dict:
+    def make_docref(doc_id: str, text: str = None, content: list[dict] = None, enc_id: str = None) -> dict:
         if content is None:
             text = text or "What's up doc?"
             content = [
@@ -117,11 +117,12 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
                 }
             ]
 
+        enc_id = enc_id or f"enc-{doc_id}"
         return {
             "resourceType": "DocumentReference",
             "id": doc_id,
             "content": content,
-            "context": {"encounter": [{"reference": f"Encounter/enc-{doc_id}"}]},
+            "context": {"encounter": [{"reference": f"Encounter/{enc_id}"}]},
         }
 
     @staticmethod
@@ -332,9 +333,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
     @ddt.data(True, False)
     async def test_philter(self, run_philter):
-        notes = [
-            LabelStudioNote("EncID", "EncAnon", {"DocID": "DocAnon"}, "My Title", "John Smith called on 10/13/2010")
-        ]
+        notes = [LabelStudioNote("EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010")]
         with mock.patch("cumulus_etl.chart_review.cli.read_notes_from_ndjson", return_value=notes):
             await self.run_chart_review(philter=run_philter)
 
@@ -350,3 +349,44 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         else:
             expected_text = "John Smith called on 10/13/2010"
         self.assertEqual(self.wrap_note("My Title", expected_text), task.text)
+
+    @respx.mock(assert_all_mocked=False)
+    async def test_combined_encounter_offsets(self, respx_mock):
+        # use server notes just for ease of making fake ones
+        self.mock_read_url(respx_mock, "D1", enc_id="43")
+        self.mock_read_url(respx_mock, "D2", enc_id="43")
+        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
+
+        with tempfile.NamedTemporaryFile() as file:
+            self.write_real_docrefs(file.name, ["D1", "D2"])
+            await self.run_chart_review(input_path="https://localhost", docrefs=file.name)
+
+        notes = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(1, len(notes))
+        note = notes[0]
+
+        # Did we mark that both IDs occur in one note correctly?
+        self.assertEqual({"D1": ANON_D1, "D2": ANON_D2}, note.doc_mappings)
+
+        # Did we mark the internal docref spans correctly?
+        first_span = (93, 107)
+        second_span = (285, 299)
+        self.assertEqual("What's up doc?", note.text[first_span[0] : first_span[1]])
+        self.assertEqual("What's up doc?", note.text[second_span[0] : second_span[1]])
+        self.assertEqual({"D1": first_span, "D2": second_span}, note.doc_spans)
+
+        # Did we edit cTAKES results correctly?
+        match1a = (93, 99)
+        match1b = (100, 102)
+        match1c = (103, 107)
+        match2a = (285, 291)
+        match2b = (292, 294)
+        match2c = (295, 299)
+        self.assertEqual("What's", note.text[match1a[0] : match1a[1]])
+        self.assertEqual("up", note.text[match1b[0] : match1b[1]])
+        self.assertEqual("doc?", note.text[match1c[0] : match1c[1]])
+        self.assertEqual("What's", note.text[match2a[0] : match2a[1]])
+        self.assertEqual("up", note.text[match2b[0] : match2b[1]])
+        self.assertEqual("doc?", note.text[match2c[0] : match2c[1]])
+        spans = {x.span().key() for x in note.matches}
+        self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)

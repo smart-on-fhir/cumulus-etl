@@ -68,7 +68,7 @@ async def _download_docrefs_from_real_ids(
 
     # Grab identifiers for which specific docrefs we need
     with common.read_csv(docref_csv) as reader:
-        docref_ids = {row["docref_id"] for row in reader}
+        docref_ids = sorted({row["docref_id"] for row in reader})
 
     # Kick off a bunch of requests to the FHIR server for these documents
     coroutines = [_request_docref(client, docref_id) for docref_id in docref_ids]

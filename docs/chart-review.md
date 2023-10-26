@@ -17,7 +17,9 @@ Along the way, it can mark the note with NLP results and/or anonymize the note w
 This is useful for not just actual chart reviews, but also for developing a custom NLP dictionary.
 You can feed Cumulus ETL a custom NLP dictionary, review how it performs, and iterate upon it.
 
-## Preliminary Label Studio Setup
+## Preliminaries
+
+### Label Studio Setup
 
 This guide assumes you already have a local instance of Label Studio running.
 They offer Docker images and reasonable
@@ -26,6 +28,19 @@ If you haven't set that up yet, go do that and come back.
 
 The Cumulus team can help you with setting it up if you come talk to us,
 but the rest of this guide will mostly deal with chart review mode itself.
+
+### Dependent Services
+
+Some features of chart review mode need external services (like cTAKES to run NLP).
+Launch those before you begin using chart review:
+
+```shell
+export UMLS_API_KEY=your-umls-api-key
+docker compose --profile chart-review up -d
+```
+
+Or if you have access to a GPU,
+you can speed up the NLP by launching the GPU profile instead with `--profile chart-review-gpu`.
 
 ## Basic Operation
 

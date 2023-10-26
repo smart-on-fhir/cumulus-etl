@@ -51,12 +51,15 @@ services:
   ctakes-covid:
     extends: ctakes-covid-base
     profiles:
+      - chart-review
+      - chart-review-gpu
       - covid-symptom
       - covid-symptom-gpu
 
   cnlpt-negation:
     image: smartonfhir/cnlp-transformers:negation-0.6.1-cpu
     profiles:
+      - chart-review
       - covid-symptom
     networks:
       - cumulus-etl
@@ -64,6 +67,7 @@ services:
   cnlpt-negation-gpu:
     image: smartonfhir/cnlp-transformers:negation-0.6.1-gpu
     profiles:
+      - chart-review-gpu
       - covid-symptom-gpu
     networks:
       - cumulus-etl

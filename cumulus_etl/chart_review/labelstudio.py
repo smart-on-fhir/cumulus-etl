@@ -1,5 +1,6 @@
 """LabelStudio document annotation"""
 
+import dataclasses
 from collections.abc import Collection, Iterable
 
 import ctakesclient.typesystem
@@ -17,14 +18,26 @@ from cumulus_etl import errors
 ###############################################################################
 
 
+@dataclasses.dataclass
 class LabelStudioNote:
-    def __init__(self, enc_id: str, anon_id: str, doc_mappings: dict[str, str], title: str, text: str):
-        self.enc_id = enc_id
-        self.anon_id = anon_id
-        self.doc_mappings = doc_mappings
-        self.title = title
-        self.text = text
-        self.matches: list[ctakesclient.typesystem.MatchText] = []
+    """Holds all the data that Label Studio will need for a single note (or a single grouped encounter note)"""
+
+    enc_id: str  # real Encounter ID
+    anon_id: str  # anonymized Encounter ID
+    text: str = ""  # text of the note, sent to Label Studio
+
+    # A title is only used when combining notes into one big encounter note. It's not sent to Label Studio.
+    title: str = ""
+
+    # Doc mappings is a dict of real DocRef ID -> anonymized DocRef ID of all contained notes, in order
+    doc_mappings: dict[str, str] = dataclasses.field(default_factory=dict)
+
+    # Doc spans indicate which bits of the text come from which DocRef - it will map real DocRef ID to a pair of
+    # "first character" (0-based) and "last character" (0-based, exclusive) - just like cTAKES match text spans.
+    doc_spans: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
+
+    # Matches found by cTAKES
+    matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(default_factory=list)
 
 
 class LabelStudioClient:
@@ -84,6 +97,7 @@ class LabelStudioClient:
                 "enc_id": note.enc_id,
                 "anon_id": note.anon_id,
                 "docref_mappings": note.doc_mappings,
+                "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},  # json doesn't natively have tuples
             },
         }
 

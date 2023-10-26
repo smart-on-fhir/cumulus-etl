@@ -26,7 +26,14 @@ class TestChartLabelStudio(AsyncTestCase):
 
     @staticmethod
     def make_note(*, enc_id: str = "enc", matches: bool = True) -> LabelStudioNote:
-        note = LabelStudioNote(enc_id, "enc-anon", {"doc": "doc-anon"}, "Ignored Title", "Normal note text")
+        text = "Normal note text"
+        note = LabelStudioNote(
+            enc_id,
+            "enc-anon",
+            doc_mappings={"doc": "doc-anon"},
+            doc_spans={"doc": (0, len(text))},
+            text=text,
+        )
         if matches:
             note.matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
         return note
@@ -61,6 +68,7 @@ class TestChartLabelStudio(AsyncTestCase):
                     "enc_id": "enc",
                     "anon_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
+                    "docref_spans": {"doc": [0, 16]},
                 },
                 "predictions": [
                     {
@@ -109,6 +117,7 @@ class TestChartLabelStudio(AsyncTestCase):
                     "enc_id": "enc",
                     "anon_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
+                    "docref_spans": {"doc": [0, 16]},
                 },
                 "predictions": [
                     {
@@ -132,6 +141,7 @@ class TestChartLabelStudio(AsyncTestCase):
                 "enc_id": "enc",
                 "anon_id": "enc-anon",
                 "docref_mappings": {"doc": "doc-anon"},
+                "docref_spans": {"doc": [0, 16]},
                 "mylabel": [
                     {"value": "Itch"},
                     {"value": "Nausea"},
@@ -151,6 +161,7 @@ class TestChartLabelStudio(AsyncTestCase):
                 "enc_id": "enc",
                 "anon_id": "enc-anon",
                 "docref_mappings": {"doc": "doc-anon"},
+                "docref_spans": {"doc": [0, 16]},
                 "mylabel": [],  # this needs to be sent, or the server will complain
             },
             self.get_pushed_task()["data"],
