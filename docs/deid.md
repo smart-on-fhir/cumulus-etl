@@ -74,7 +74,7 @@ But the devil is in the details, because it can be configured to do nothing at a
 or redact everything.
 
 Cumulus ETL uses a
-[custom configuration](https://github.com/smart-on-fhir/cumulus-etl/blob/main/cumulus/deid/ms-config.json),
+[custom configuration](https://github.com/smart-on-fhir/cumulus-etl/blob/main/cumulus_etl/deid/ms-config.json),
 designed to remove everything by default, and only allow specifically mentioned fields
 (i.e. an allow-list or whitelist).
 
