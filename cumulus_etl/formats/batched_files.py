@@ -61,7 +61,7 @@ class BatchedFileFormat(Format):
         except FileNotFoundError:
             return  # folder doesn't exist, we're good!
 
-        allowed_pattern = re.compile(rf"{self.dbname}\.[0-9]+\.{self.suffix}")
+        allowed_pattern = re.compile(rf"{self.dbname}\.[0-9]+\.({self.suffix}|meta)")
         if not all(map(allowed_pattern.fullmatch, filenames)):
             errors.fatal(
                 f"There are unexpected files in the output folder '{folder}'.\n"
