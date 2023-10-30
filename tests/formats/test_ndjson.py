@@ -49,6 +49,7 @@ class TestNdjsonFormat(utils.AsyncTestCase):
         (None, True),
         ([], True),
         (["condition.1234.ndjson", "condition.22.ndjson"], True),
+        (["condition.000.meta"], True),
         (["condition.ndjson"], False),
         (["condition.000.parquet"], False),
         (["patient.000.ndjson"], False),
