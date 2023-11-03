@@ -170,36 +170,14 @@ class TestTasks(TaskTestCase):
     async def test_batch_schema_includes_inferred_fields(self):
         """Verify that deep (inferred) fields are also included in the final schema"""
         # Make sure that we include different deep fields for each - final schema should be a union
-        self.make_json("ServiceRequest.1", "A", category=[{"coding": [{"version": "1.0"}]}])
-        self.make_json("ServiceRequest.2", "B", asNeededCodeableConcept={"coding": [{"userSelected": True}]})
+        self.make_json("Condition.1", "A", stage=[{"type": {"coding": [{"version": "1.0"}]}}])
+        self.make_json("Condition.2", "B", onsetRange={"low": {"value": 1.0}})
 
-        await basic_tasks.ServiceRequestTask(self.job_config, self.scrubber).run()
+        await basic_tasks.ConditionTask(self.job_config, self.scrubber).run()
 
         schema = self.format.write_records.call_args[0][0].schema
 
-        # Start with simple, non-inferred CodeableConcept -- this should be bare-bones
-        self.assertEqual(
-            pyarrow.struct({"id": pyarrow.string(), "text": pyarrow.string()}), schema.field("performerType").type
-        )
-        # Now the two custom/inferred/deep fields
-        self.assertEqual(
-            pyarrow.list_(
-                pyarrow.struct(
-                    {
-                        "id": pyarrow.string(),
-                        "coding": pyarrow.list_(
-                            pyarrow.struct(
-                                {
-                                    "version": pyarrow.string(),
-                                }
-                            )
-                        ),
-                        "text": pyarrow.string(),
-                    }
-                )
-            ),
-            schema.field("category").type,
-        )
+        # Start with simple, non-present CodeableConcept at level zero -- this should be fully described
         self.assertEqual(
             pyarrow.struct(
                 {
@@ -207,14 +185,80 @@ class TestTasks(TaskTestCase):
                     "coding": pyarrow.list_(
                         pyarrow.struct(
                             {
+                                "id": pyarrow.string(),
+                                "code": pyarrow.string(),
+                                "display": pyarrow.string(),
+                                "system": pyarrow.string(),
                                 "userSelected": pyarrow.bool_(),
+                                "version": pyarrow.string(),
                             }
                         )
                     ),
                     "text": pyarrow.string(),
                 }
             ),
-            schema.field("asNeededCodeableConcept").type,
+            schema.field("code").type,  # CodeableConcept type
+        )
+        # While a deeper non-present CodeableConcept should be ignored
+        self.assertEqual(
+            pyarrow.list_(
+                pyarrow.struct(
+                    {
+                        "id": pyarrow.string(),
+                        # "code" field is missing (CodeableConcept type)
+                        # "detail" field is missing (Reference type)
+                    }
+                )
+            ),
+            schema.field("evidence").type,  # BackboneElement type
+        )
+        # But if any piece of a deep CodeableConcept is present, it gets fully expanded.
+        self.assertEqual(
+            pyarrow.list_(
+                pyarrow.struct(
+                    {
+                        "id": pyarrow.string(),
+                        # "assessment" field is missing (Reference type)
+                        # "summary" field is missing (CodeableConcept type)
+                        # But the "type" is here in full because a piece of it was in the input
+                        "type": pyarrow.struct(
+                            {
+                                "id": pyarrow.string(),
+                                "coding": pyarrow.list_(
+                                    pyarrow.struct(
+                                        {
+                                            "id": pyarrow.string(),
+                                            "code": pyarrow.string(),
+                                            "display": pyarrow.string(),
+                                            "system": pyarrow.string(),
+                                            "userSelected": pyarrow.bool_(),
+                                            "version": pyarrow.string(),
+                                        }
+                                    )
+                                ),
+                                "text": pyarrow.string(),
+                            }
+                        ),
+                    }
+                )
+            ),
+            schema.field("stage").type,  # BackboneElement type
+        )
+        # Other deep-and-partial elements do not get the same expansion treatment.
+        # Here is a deep Quantity element.
+        # The parts present in the input are also in the schema, but only those parts.
+        self.assertEqual(
+            pyarrow.struct(
+                {
+                    "id": pyarrow.string(),
+                    "low": pyarrow.struct(
+                        {
+                            "value": pyarrow.float64(),
+                        }
+                    ),
+                }
+            ),
+            schema.field("onsetRange").type,
         )
 
     async def test_batch_schema_types_are_coerced(self):
