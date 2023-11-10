@@ -22,3 +22,8 @@ ETL stands for "extract, transform, load."
 
 Read the [First Time Setup](setup) documentation to learn how to install & prepare Cumulus ETL
 at your institution.
+
+## Source Code
+Cumulus ETL is open source.
+If you'd like to browse its code or contribute changes yourself,
+the code is on [GitHub](https://github.com/smart-on-fhir/cumulus-etl).
