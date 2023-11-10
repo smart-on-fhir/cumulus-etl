@@ -283,7 +283,9 @@ class TestFhirClient(AsyncTestCase):
     )
     async def test_get_error_other(self, response_args):
         """Verify that other http errors are FatalErrors."""
-        self.respx_mock.get(f"{self.server_url}/foo",).mock(
+        self.respx_mock.get(
+            f"{self.server_url}/foo",
+        ).mock(
             return_value=make_response(status_code=500, **response_args),
         )
 
@@ -333,11 +335,16 @@ class TestFhirClientEpicQuirks(AsyncTestCase):
     @ddt.unpack
     async def test_client_id_in_header(self, server_type, expected_text):
         # Mock with header
-        self.respx_mock.get(f"{self.server_url}/file", headers={"Epic-Client-ID": "my-id"},).respond(
+        self.respx_mock.get(
+            f"{self.server_url}/file",
+            headers={"Epic-Client-ID": "my-id"},
+        ).respond(
             text="present",
         )
         # And without
-        self.respx_mock.get(f"{self.server_url}/file",).respond(
+        self.respx_mock.get(
+            f"{self.server_url}/file",
+        ).respond(
             text="missing",
         )
 
