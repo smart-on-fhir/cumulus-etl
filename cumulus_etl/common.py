@@ -22,6 +22,7 @@ from cumulus_etl import store
 #
 ###############################################################################
 
+
 # We often want the ability to provide a TemporaryDirectory _or_ an actual real folder that isn't temporary.
 # So for that use case, we define a Directory protocol for typing purposes, which looks like a TemporaryDirectory.
 # And then a RealDirectory class that does not delete its folder.

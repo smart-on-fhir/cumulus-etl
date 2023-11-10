@@ -90,6 +90,7 @@ class TestBatching(AsyncTestCase):
     @ddt.unpack
     async def test_batch_iterate(self, values, batch_size, expected):
         """Check a bunch of edge cases for the batch_iterate helper"""
+
         # Tiny little convenience method to be turn sync lists into async iterators.
         async def async_iter() -> AsyncIterator:
             for x in values:

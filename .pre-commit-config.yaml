@@ -1,7 +1,7 @@
 repos:
   - repo: https://github.com/psf/black
     # this version is synced with the black mentioned in .github/workflows/ci.yml
-    rev: 22.12.0
+    rev: 23.11.0
     hooks:
       - id: black
         entry: bash -c 'black "$@"; git add -u' --

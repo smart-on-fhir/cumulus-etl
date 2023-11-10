@@ -66,7 +66,7 @@ jobs:
         # black is synced with the .pre-commit-hooks version
         run: |
           python -m pip install --upgrade pip
-          pip install bandit[toml] pycodestyle pylint black==22.12.0
+          pip install bandit[toml] pycodestyle pylint black==23.11.0
 
       - name: Run pycodestyle
         # E203: pycodestyle is a little too rigid about slices & whitespace
