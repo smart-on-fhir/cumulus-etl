@@ -86,20 +86,28 @@ async def covid_symptoms_extract(
         logging.warning("Could not check polarity for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
         return None
 
+    # Helper to make a single row (match_value is None if there were no found symptoms at all)
+    def _make_covid_symptom_row(row_id: str, match: dict | None) -> dict:
+        return {
+            "id": row_id,
+            "docref_id": docref_id,
+            "encounter_id": encounter_id,
+            "subject_id": subject_id,
+            "generated_on": timestamp,
+            "task_version": task_version,
+            "match": match,
+        }
+
     # Now filter out any non-positive matches
     positive_matches = []
     for i, match in enumerate(matches):
         if polarities_cnlp[i] == ctakesclient.typesystem.Polarity.pos:
-            positive_matches.append(
-                {
-                    "id": f"{docref_id}.{i}",
-                    "docref_id": docref_id,
-                    "encounter_id": encounter_id,
-                    "subject_id": subject_id,
-                    "generated_on": timestamp,
-                    "task_version": task_version,
-                    "match": match.as_json(),
-                }
-            )
+            positive_matches.append(_make_covid_symptom_row(f"{docref_id}.{i}", match.as_json()))
+
+    if not positive_matches:
+        # In this case, we write out a single row with a null match,
+        # to flag to the downstream SQL that this DocRef was processed,
+        # it just had no symptoms (vs a DocRef that we never handled).
+        positive_matches = [_make_covid_symptom_row(f"{docref_id}.0", None)]
 
     return positive_matches
