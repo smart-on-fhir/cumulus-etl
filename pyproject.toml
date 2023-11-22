@@ -12,15 +12,15 @@ requires-python = ">= 3.10"
 # to fix any breakages since users won't immediately see the problem).
 dependencies = [
     "ctakesclient >= 5.1, < 6",
+    "cumulus-fhir-support >= 1, < 2",
     "delta-spark >= 3, < 4",
-    "fhirclient < 5",
     "httpx < 1",
     "inscriptis < 3",
     "jwcrypto < 2",
     "label-studio-sdk < 1",
     "oracledb < 2",
     "philter-lite < 1",
-    "pyarrow < 14",
+    "pyarrow < 15",
     "rich < 14",
     "s3fs",
 ]

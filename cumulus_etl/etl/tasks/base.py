@@ -5,13 +5,14 @@ import dataclasses
 import os
 from collections.abc import AsyncIterator, Iterator
 
+import cumulus_fhir_support
 import pyarrow
 import rich.live
 import rich.progress
 import rich.table
 import rich.text
 
-from cumulus_etl import cli_utils, common, deid, fhir, formats, store
+from cumulus_etl import cli_utils, common, deid, formats, store
 from cumulus_etl.etl import config
 from cumulus_etl.etl.tasks import batching
 
@@ -357,5 +358,5 @@ class EtlTask:
         Can be overridden as needed for non-FHIR outputs.
         """
         if formatter.resource_type:
-            return fhir.pyarrow_schema_from_resource_batch(formatter.resource_type, rows)
+            return cumulus_fhir_support.pyarrow_schema_from_rows(formatter.resource_type, rows)
         return None

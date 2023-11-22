@@ -4,7 +4,6 @@ import os
 from unittest import mock
 
 import ddt
-import pyarrow
 
 from cumulus_etl import common, errors
 from cumulus_etl.etl.tasks import basic_tasks, task_factory
@@ -113,165 +112,15 @@ class TestTasks(TaskTestCase):
             common.read_json(f"{self.errors_dir}/patient/write-error.002.ndjson"),
         )
 
-    async def test_batch_has_wide_schema(self):
-        self.make_json("Patient.1", "A")  # no interesting fields
-
+    async def test_batch_is_given_schema(self):
+        """Verify that we calculate a schema for a batch"""
+        self.make_json("Patient.1", "A")
         await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
 
+        # Spot check that the schema (from cumulus-fhir-support) exists / looks right
         schema = self.format.write_records.call_args[0][0].schema
-        self.assertListEqual(
-            [
-                "resourceType",
-                "id",
-                "implicitRules",
-                "language",
-                "meta",
-                "contained",
-                "extension",
-                "modifierExtension",
-                "text",
-                "active",
-                "address",
-                "birthDate",
-                "communication",
-                "contact",
-                "deceasedBoolean",
-                "deceasedDateTime",
-                "gender",
-                "generalPractitioner",
-                "identifier",
-                "link",
-                "managingOrganization",
-                "maritalStatus",
-                "multipleBirthBoolean",
-                "multipleBirthInteger",
-                "name",
-                "photo",
-                "telecom",
-            ],
-            schema.names,
-        )
-
-        # Spot check a few of the types
-        self.assertEqual(pyarrow.string(), schema.field("id").type)
-        self.assertEqual(pyarrow.bool_(), schema.field("deceasedBoolean").type)
-        self.assertEqual(pyarrow.int32(), schema.field("multipleBirthInteger").type)
-        # Note how struct types only have basic types inside of them - this is intentional, no recursion of structs
-        # is done by the ETL.
-        self.assertEqual(
-            pyarrow.struct({"id": pyarrow.string(), "div": pyarrow.string(), "status": pyarrow.string()}),
-            schema.field("text").type,
-        )
-        self.assertEqual(
-            pyarrow.list_(pyarrow.struct({"id": pyarrow.string(), "preferred": pyarrow.bool_()})),
-            schema.field("communication").type,
-        )
-
-    async def test_batch_schema_includes_inferred_fields(self):
-        """Verify that deep (inferred) fields are also included in the final schema"""
-        # Make sure that we include different deep fields for each - final schema should be a union
-        self.make_json("Condition.1", "A", stage=[{"type": {"coding": [{"version": "1.0"}]}}])
-        self.make_json("Condition.2", "B", onsetRange={"low": {"value": 1.0}})
-
-        await basic_tasks.ConditionTask(self.job_config, self.scrubber).run()
-
-        schema = self.format.write_records.call_args[0][0].schema
-
-        # Start with simple, non-present CodeableConcept at level zero -- this should be fully described
-        self.assertEqual(
-            pyarrow.struct(
-                {
-                    "id": pyarrow.string(),
-                    "coding": pyarrow.list_(
-                        pyarrow.struct(
-                            {
-                                "id": pyarrow.string(),
-                                "code": pyarrow.string(),
-                                "display": pyarrow.string(),
-                                "system": pyarrow.string(),
-                                "userSelected": pyarrow.bool_(),
-                                "version": pyarrow.string(),
-                            }
-                        )
-                    ),
-                    "text": pyarrow.string(),
-                }
-            ),
-            schema.field("code").type,  # CodeableConcept type
-        )
-        # While a deeper non-present CodeableConcept should be ignored
-        self.assertEqual(
-            pyarrow.list_(
-                pyarrow.struct(
-                    {
-                        "id": pyarrow.string(),
-                        # "code" field is missing (CodeableConcept type)
-                        # "detail" field is missing (Reference type)
-                    }
-                )
-            ),
-            schema.field("evidence").type,  # BackboneElement type
-        )
-        # But if any piece of a deep CodeableConcept is present, it gets fully expanded.
-        self.assertEqual(
-            pyarrow.list_(
-                pyarrow.struct(
-                    {
-                        "id": pyarrow.string(),
-                        # "assessment" field is missing (Reference type)
-                        # "summary" field is missing (CodeableConcept type)
-                        # But the "type" is here in full because a piece of it was in the input
-                        "type": pyarrow.struct(
-                            {
-                                "id": pyarrow.string(),
-                                "coding": pyarrow.list_(
-                                    pyarrow.struct(
-                                        {
-                                            "id": pyarrow.string(),
-                                            "code": pyarrow.string(),
-                                            "display": pyarrow.string(),
-                                            "system": pyarrow.string(),
-                                            "userSelected": pyarrow.bool_(),
-                                            "version": pyarrow.string(),
-                                        }
-                                    )
-                                ),
-                                "text": pyarrow.string(),
-                            }
-                        ),
-                    }
-                )
-            ),
-            schema.field("stage").type,  # BackboneElement type
-        )
-        # Other deep-and-partial elements do not get the same expansion treatment.
-        # Here is a deep Quantity element.
-        # The parts present in the input are also in the schema, but only those parts.
-        self.assertEqual(
-            pyarrow.struct(
-                {
-                    "id": pyarrow.string(),
-                    "low": pyarrow.struct(
-                        {
-                            "value": pyarrow.float64(),
-                        }
-                    ),
-                }
-            ),
-            schema.field("onsetRange").type,
-        )
-
-    async def test_batch_schema_types_are_coerced(self):
-        """Verify that fields with "wrong" input types (like int instead of float) are correct in final schema"""
-        # Make sure that we include both wide and deep fields - we should coerce both into FHIR spec schema
-        self.make_json("ServiceRequest.1", "A", quantityQuantity={"value": 1})  # should be floating type
-        self.make_json("ServiceRequest.2", "B", quantityRange={"low": {"value": 2}})  # should be floating type
-
-        await basic_tasks.ServiceRequestTask(self.job_config, self.scrubber).run()
-
-        schema = self.format.write_records.call_args[0][0].schema
-        self.assertEqual(pyarrow.float64(), schema.field("quantityQuantity").type.field("value").type)
-        self.assertEqual(pyarrow.float64(), schema.field("quantityRange").type.field("low").type.field("value").type)
+        self.assertIn("address", schema.names)
+        self.assertIn("id", schema.names)
 
 
 @ddt.ddt
