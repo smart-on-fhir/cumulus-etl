@@ -80,8 +80,14 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
 
     # Use a shared task_version for subclasses, to make sharing the ctakes cache folder easier
     # (and they use essentially the same services anyway)
-    task_version = 3
+    task_version = 4
     # Task Version History:
+    # ** 4 (2024-01): Fixed bug preventing our cTAKES symptoms file from having any effect **
+    #   cTAKES: smartonfhir/ctakes-covid:1.1.0
+    #   cNLP: smartonfhir/cnlp-transformers:negation-0.6.1
+    #   cNLP: smartonfhir/cnlp-transformers:termexists-0.6.1
+    #   ctakesclient: 5.0
+    #
     # ** 3 (2023-09): Updated to cnlpt version 0.6.1 **
     #   cTAKES: smartonfhir/ctakes-covid:1.1.0
     #   cNLP: smartonfhir/cnlp-transformers:negation-0.6.1

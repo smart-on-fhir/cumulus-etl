@@ -6,12 +6,13 @@ import select
 import shutil
 import socket
 import sys
+import tempfile
 import time
 import urllib.parse
 
 import ctakesclient
 
-from cumulus_etl import cli_utils, errors
+from cumulus_etl import cli_utils, common, errors
 
 
 def check_ctakes() -> None:
@@ -94,6 +95,33 @@ def wait_for_ctakes_restart():
     check_ctakes()
 
 
+def _convert_bsv_file_to_ctakes_format(bsv_path: str, output_path: str) -> None:
+    """
+    Reads the input bsv file and converts it to a cTAKES compatible version.
+
+    cTAKES only expects to see 4 columns: CUI|TUI|STR|PREF
+    But ctakesclient holds a more comprehensive 6-column version: CUI|TUI|CODE|SAB|STR|PREF
+
+    The additional two fields are:
+        CODE = Vocabulary Code
+        SAB = Vocabulary Source Abbreviation (SNOMEDCT_US)
+    """
+    bsv_lines = []
+    for line in common.read_text(bsv_path).splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+
+        columns = line.split("|")
+        if len(columns) > 4:
+            # Keep first two and last two columns
+            bsv_lines.append(f"{columns[0]}|{columns[1]}|{columns[-2]}|{columns[-1]}")
+        elif len(columns) == 4:
+            bsv_lines.append(line)
+
+    final_bsv = "\n".join(bsv_lines)
+    common.write_text(output_path, final_bsv)
+
+
 def restart_ctakes_with_bsv(ctakes_overrides: str, bsv_path: str) -> bool:
     """Hands a new bsv over to cTAKES and waits for it to restart and be ready again with the new bsv file"""
     # This whole setup is slightly janky. But it is designed with these constraints:
@@ -127,6 +155,12 @@ def restart_ctakes_with_bsv(ctakes_overrides: str, bsv_path: str) -> bool:
         )
         return False
 
-    with wait_for_ctakes_restart():
-        shutil.copyfile(bsv_path, os.path.join(ctakes_overrides, "symptoms.bsv"))
+    # First, coerce the bsv contents into a cTAKES compatible format.
+    with tempfile.NamedTemporaryFile() as tmp_bsv:
+        _convert_bsv_file_to_ctakes_format(bsv_path, tmp_bsv.name)
+
+        # Now copy that modified file into its final location inside cTAKES
+        with wait_for_ctakes_restart():
+            shutil.copyfile(tmp_bsv.name, os.path.join(ctakes_overrides, "symptoms.bsv"))
+
     return True
