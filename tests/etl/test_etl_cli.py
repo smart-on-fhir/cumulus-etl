@@ -292,7 +292,7 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
 class TestEtlNlp(BaseEtlSimple):
     """Test case for the cTAKES/cNLP responses"""
 
-    CACHE_FOLDER = "covid_symptom_v3"
+    CACHE_FOLDER = "covid_symptom_v4"
 
     def setUp(self):
         super().setUp()
