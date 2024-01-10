@@ -20,7 +20,7 @@ TASK_FILTERED_OUT = 20
 TASK_SET_EMPTY = 21
 ARGS_CONFLICT = 22
 ARGS_INVALID = 23
-FHIR_URL_MISSING = 24
+# FHIR_URL_MISSING = 24 # Obsolete, it's no longer fatal
 BASIC_CREDENTIALS_MISSING = 25
 FOLDER_NOT_EMPTY = 26
 BULK_EXPORT_FOLDER_NOT_LOCAL = 27
@@ -30,6 +30,24 @@ LABEL_STUDIO_CONFIG_INVALID = 30
 LABEL_STUDIO_MISSING = 31
 FHIR_AUTH_FAILED = 32
 SERVICE_MISSING = 33  # generic init-check service is missing
+
+
+class FhirConnectionError(Exception):
+    """We needed to connect to a FHIR server but failed"""
+
+
+class FhirUrlMissing(FhirConnectionError):
+    """We needed to connect to a FHIR server but no URL was provided"""
+
+    def __init__(self):
+        super().__init__("Could not download some files without a FHIR server URL (use --fhir-url)")
+
+
+class FhirAuthMissing(FhirConnectionError):
+    """We needed to connect to a FHIR server but no authentication config was provided"""
+
+    def __init__(self):
+        super().__init__("Could not download some files without authentication parameters (see --help)")
 
 
 class FatalError(Exception):

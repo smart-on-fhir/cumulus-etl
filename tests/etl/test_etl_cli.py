@@ -4,9 +4,11 @@ import itertools
 import json
 import os
 import shutil
+import tempfile
 from unittest import mock
 
 import ddt
+import respx
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import common, errors, loaders, store
@@ -158,6 +160,17 @@ class TestEtlJobFlow(BaseEtlSimple):
             with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job:
                 await self.run_etl(errors_to=f"{self.output_path}/errors")
         self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.output_path}/errors")
+
+    @respx.mock
+    async def test_bulk_no_auth(self):
+        """Verify that if no auth is provided, we'll error out well."""
+        respx.get("https://localhost:12345/metadata").respond(401)
+        respx.get("https://localhost:12345/$export?_type=Patient").respond(401)
+
+        # Now run the ETL on that new input dir without any server auth config provided
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
+        self.assertEqual(errors.FHIR_AUTH_FAILED, cm.exception.code)
 
 
 class TestEtlJobConfig(BaseEtlSimple):
@@ -368,6 +381,40 @@ class TestEtlNlp(BaseEtlSimple):
             self.assertEqual(
                 {("68235000", "C0027424")}, {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]}
             )
+
+    @respx.mock
+    async def test_gracefully_allows_no_server_config(self):
+        """
+        Verify that if no server is provided, we'll just continue as best we can.
+
+        This is useful in cases where some notes have been inlined, but not everything could be.
+        """
+        # Make new input dir with some docrefs that only have a URL, no data.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+                src = store.Root(self.input_path)
+                docref_iter = common.read_resource_ndjson(src, "DocumentReference")
+
+                # Replace first row's data with a partial URL
+                first = next(docref_iter)
+                del first["content"][0]["attachment"]["data"]
+                first["content"][0]["attachment"]["url"] = "Binary/blarg"
+                writer.write(first)
+
+                # And second row with an absolute (forbidden) URL
+                second = next(docref_iter)
+                del second["content"][0]["attachment"]["data"]
+                second["content"][0]["attachment"]["url"] = "https://localhost:12345/Binary/blarg"
+                writer.write(second)
+
+            respx.get("https://localhost:12345/Binary/blarg").respond(401)
+
+            # Now run the ETL on that new input dir without any server auth config provided
+            with self.assertRaises(SystemExit) as cm:
+                await self.run_etl(tasks=["covid_symptom__nlp_results"], input_path=tmpdir)
+
+            # Should exit because the task will mark itself as failed
+            self.assertEqual(errors.TASK_FAILED, cm.exception.code)
 
     async def test_cnlp_rejects(self):
         """Verify that if the cnlp server negates a match, it does not show up"""

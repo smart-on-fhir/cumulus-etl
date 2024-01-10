@@ -3,11 +3,12 @@
 import copy
 import logging
 import os
+import sys
 from typing import Callable
 
 import rich.progress
 
-from cumulus_etl import common, fhir, nlp, store
+from cumulus_etl import common, errors, fhir, nlp, store
 from cumulus_etl.etl.tasks.base import EtlTask, OutputTable
 
 
@@ -63,6 +64,8 @@ class BaseNlpTask(EtlTask):
 
         :returns: a tuple of original-docref, scrubbed-docref, and clinical note
         """
+        warned_connection_error = False
+
         for docref in self.read_ndjson(progress=progress):
             orig_docref = copy.deepcopy(docref)
             can_process = (
@@ -75,6 +78,15 @@ class BaseNlpTask(EtlTask):
 
             try:
                 clinical_note = await fhir.get_docref_note(self.task_config.client, docref)
+            except errors.FhirConnectionError as exc:
+                if not warned_connection_error:
+                    # Only warn user about a misconfiguration once per task.
+                    # It's not fatal because it might be intentional (partially inlined DocRefs
+                    # and the other DocRefs are known failures - BCH hits this with Cerner data).
+                    print(exc, file=sys.stderr)
+                    warned_connection_error = True
+                self.add_error(orig_docref)
+                continue
             except Exception as exc:  # pylint: disable=broad-except
                 logging.warning("Error getting text for docref %s: %s", docref["id"], exc)
                 self.add_error(orig_docref)

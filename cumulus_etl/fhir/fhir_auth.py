@@ -21,8 +21,7 @@ def urljoin(base: str, path: str) -> str:
         return path
 
     if not base:
-        print("You must provide a base FHIR server URL with --fhir-url", file=sys.stderr)
-        raise SystemExit(errors.FHIR_URL_MISSING)
+        raise errors.FhirUrlMissing()
     return urllib.parse.urljoin(base, path)
 
 
@@ -34,12 +33,8 @@ class Auth:
         del session
 
         if reauthorize:
-            # Abort because we clearly need authentication tokens, but have not been given any parameters for them.
-            print(
-                "You must provide some authentication parameters (like --smart-client-id) to connect to a server.",
-                file=sys.stderr,
-            )
-            raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
+            # We clearly need auth tokens, but have not been given any parameters for them.
+            raise errors.FhirAuthMissing()
 
     def sign_headers(self, headers: dict) -> dict:
         """Add signature token to request headers"""

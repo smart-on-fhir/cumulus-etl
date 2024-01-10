@@ -96,10 +96,12 @@ class TestFhirClient(AsyncTestCase):
         await use_client()
 
         # No SMART args at all will raise though if we do make a call
-        await use_client(code=errors.SMART_CREDENTIALS_MISSING, request=True)
+        with self.assertRaises(errors.FhirAuthMissing):
+            await use_client(request=True)
 
-        # No client ID
-        await use_client(code=errors.FHIR_URL_MISSING, request=True, url=None)
+        # No base URL
+        with self.assertRaises(errors.FhirUrlMissing):
+            await use_client(request=True, url=None)
 
         # No JWKS
         await use_client(code=errors.SMART_CREDENTIALS_MISSING, smart_client_id="foo")
