@@ -39,7 +39,7 @@ services:
   ctakes-covid-base:
     image: smartonfhir/ctakes-covid:1.1.0
     environment:
-      - ctakes_umlsuser=umls_api_key 
+      - ctakes_umlsuser=umls_api_key
       - ctakes_umlspw=$UMLS_API_KEY
     networks:
       - cumulus-etl

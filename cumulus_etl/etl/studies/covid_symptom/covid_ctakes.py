@@ -73,7 +73,12 @@ async def covid_symptoms_extract(
     def is_covid_match(m: ctakesclient.typesystem.MatchText):
         return bool(covid_symptom_cuis.intersection({attr.cui for attr in m.conceptAttributes}))
 
-    matches = list(filter(is_covid_match, matches))
+    matches = filter(is_covid_match, matches)
+
+    # For better reliability when regression/unit testing, sort matches by begin / first code.
+    # (With stable sorting, we want the primary sort to be done last.)
+    matches = sorted(matches, key=lambda x: x.conceptAttributes and x.conceptAttributes[0].code)
+    matches = sorted(matches, key=lambda x: x.begin)
 
     # OK we have cTAKES symptoms. But let's also filter through cNLP transformers to remove any that are negated
     # there too. We have found this to yield better results than cTAKES alone.

@@ -23,7 +23,7 @@ jobs:
         python-version: ["3.10"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -37,7 +37,7 @@ jobs:
           pip install .[tests]
 
       - name: Check out MS tool
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: microsoft/Tools-for-Health-Data-Anonymization
           path: mstool
@@ -57,10 +57,51 @@ jobs:
         run: |
           python -m pytest
 
+  nlp-regression:
+    runs-on: ubuntu-latest
+    env:
+      UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ETL image
+        uses: docker/build-push-action@v5
+        with:
+          load: true  # just build, no push
+          tags: smartonfhir/cumulus-etl:latest
+
+      - name: Download NLP images
+        run: docker compose --profile covid-symptom up -d --quiet-pull
+
+      - name: Run NLP
+        run: |
+          export DATADIR=$(realpath tests/data/nlp-regression)
+
+          # Run the NLP task
+          docker compose run --rm \
+            --volume $DATADIR:/in \
+            cumulus-etl \
+            /in/input \
+            /in/run-output \
+            /in/phi \
+            --output-format=ndjson \
+            --task covid_symptom__nlp_results
+
+          # Compare results
+          export OUTDIR=$DATADIR/run-output/covid_symptom__nlp_results
+          sudo chown -R $(id -u) $OUTDIR
+          sed -i 's/"generated_on": "[^"]*", //g' $OUTDIR/*.ndjson
+          diff -upr $DATADIR/expected-output $OUTDIR
+
+          echo "All Good!"
+
   lint:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install linters
         # black is synced with the .pre-commit-hooks version
