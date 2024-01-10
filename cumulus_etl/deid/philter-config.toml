@@ -5,7 +5,7 @@
 # - Removed all DATE filters.
 #   This is because Cumulus in general finds accurate dates to be useful.
 #   For example, we don't remove dates in the MS anonymizer config, and we also want dates for
-#   non-ETL activities like chart review.
+#   non-ETL activities like upload-notes.
 
 [[filters]]
 title = "ucsf apex safe"

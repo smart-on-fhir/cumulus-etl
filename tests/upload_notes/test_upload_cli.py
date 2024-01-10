@@ -1,4 +1,4 @@
-"""Tests for chart_review/cli.py"""
+"""Tests for upload_notes/cli.py"""
 
 import base64
 import itertools
@@ -12,7 +12,7 @@ import ddt
 import respx
 
 from cumulus_etl import cli, common, errors
-from cumulus_etl.chart_review.labelstudio import LabelStudioNote
+from cumulus_etl.upload_notes.labelstudio import LabelStudioNote
 
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
@@ -28,8 +28,8 @@ ANON_44 = "7a1f76190039b872a3016843e1712048cef3787931c000f0ea66b15962ccf65d"
 
 
 @ddt.ddt
-class TestChartReview(CtakesMixin, AsyncTestCase):
-    """Tests for high-level chart review support."""
+class TestUploadNotes(CtakesMixin, AsyncTestCase):
+    """Tests for high-level upload-notes support."""
 
     def setUp(self):
         super().setUp()
@@ -48,7 +48,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         self.token_path = os.path.join(tmpdir, "ls-token.txt")
         common.write_text(self.token_path, "abc123")
 
-        self.ls_client_mock = self.patch("cumulus_etl.chart_review.cli.LabelStudioClient")
+        self.ls_client_mock = self.patch("cumulus_etl.upload_notes.cli.LabelStudioClient")
         self.ls_client = self.ls_client_mock.return_value
 
         # Write some initial cached patient mappings, so we can reverse-engineer them
@@ -70,7 +70,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             },
         )
 
-    async def run_chart_review(
+    async def run_upload_notes(
         self,
         input_path=None,
         phi_path=None,
@@ -81,7 +81,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         overwrite=False,
     ) -> None:
         args = [
-            "chart-review",
+            "upload-notes",
             input_path or self.input_path,
             "https://localhost/labelstudio",
             phi_path or self.phi_path,
@@ -131,7 +131,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
             "resourceType": "Bundle",
             "entry": [
                 {
-                    "resource": TestChartReview.make_docref(doc_id),
+                    "resource": TestUploadNotes.make_docref(doc_id),
                 }
                 for doc_id in doc_ids
             ],
@@ -141,7 +141,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
     @staticmethod
     def mock_read_url(respx_mock: respx.MockRouter, doc_id: str, code: int = 200, **kwargs) -> None:
-        docref = TestChartReview.make_docref(doc_id, **kwargs)
+        docref = TestUploadNotes.make_docref(doc_id, **kwargs)
         respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
 
     @staticmethod
@@ -181,7 +181,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
     async def test_real_and_fake_docrefs_conflict(self):
         """Verify that you can't pass in both real and fake docrefs"""
         with self.assertRaises(SystemExit) as cm:
-            await self.run_chart_review(anon_docrefs="foo", docrefs="bar")
+            await self.run_upload_notes(anon_docrefs="foo", docrefs="bar")
         self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
 
     @respx.mock(assert_all_mocked=False)
@@ -200,7 +200,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
                     ("unknown-doc", "unknown-patient"),  # gracefully ignored
                 ],
             )
-            await self.run_chart_review(input_path="https://localhost", anon_docrefs=file.name)
+            await self.run_upload_notes(input_path="https://localhost", anon_docrefs=file.name)
 
         self.assertEqual({"D1", "D2", "D3"}, self.get_exported_ids())
         self.assertEqual({"D1", "D2", "D3"}, self.get_pushed_ids())
@@ -215,12 +215,12 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
         with tempfile.NamedTemporaryFile() as file:
             self.write_real_docrefs(file.name, ["D1", "D2", "D3", "unknown-doc"])
-            await self.run_chart_review(input_path="https://localhost", docrefs=file.name)
+            await self.run_upload_notes(input_path="https://localhost", docrefs=file.name)
 
         self.assertEqual({"D1", "D2", "D3"}, self.get_exported_ids())
         self.assertEqual({"D1", "D2", "D3"}, self.get_pushed_ids())
 
-    @mock.patch("cumulus_etl.chart_review.downloader.loaders.FhirNdjsonLoader")
+    @mock.patch("cumulus_etl.upload_notes.downloader.loaders.FhirNdjsonLoader")
     async def test_gather_all_docrefs_from_server(self, mock_loader):
         # Mock out the bulk export loading, as that's well tested elsewhere
         async def load_all(*args):
@@ -230,8 +230,8 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
         load_all_mock = mock_loader.return_value.load_all
         load_all_mock.side_effect = load_all
 
-        # Do the actual chart review push
-        await self.run_chart_review(input_path="https://localhost")
+        # Do the actual upload-notes push
+        await self.run_upload_notes(input_path="https://localhost")
 
         # Make sure we drive the bulk export correctly
         self.assertEqual(1, mock_loader.call_count)
@@ -251,7 +251,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
                     ("unknown-doc", "unknown-patient"),  # gracefully ignored
                 ],
             )
-            await self.run_chart_review(anon_docrefs=file.name)
+            await self.run_upload_notes(anon_docrefs=file.name)
 
         self.assertEqual({"43"}, self.get_exported_ids())
         self.assertEqual({"43"}, self.get_pushed_ids())
@@ -259,18 +259,18 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
     async def test_gather_real_docrefs_from_folder(self):
         with tempfile.NamedTemporaryFile() as file:
             self.write_real_docrefs(file.name, ["44", "unknown-doc"])
-            await self.run_chart_review(docrefs=file.name)
+            await self.run_upload_notes(docrefs=file.name)
 
         self.assertEqual({"44"}, self.get_exported_ids())
         self.assertEqual({"44"}, self.get_pushed_ids())
 
     async def test_gather_all_docrefs_from_folder(self):
-        await self.run_chart_review()
+        await self.run_upload_notes()
         self.assertEqual({"43", "44"}, self.get_exported_ids())
         self.assertEqual({"43", "44"}, self.get_pushed_ids())
 
     async def test_successful_push_to_label_studio(self):
-        await self.run_chart_review()
+        await self.run_upload_notes()
 
         # Confirm we passed LS args down to the Label Studio client
         self.assertEqual(
@@ -320,11 +320,11 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
     @ddt.data(True, False)
     async def test_overwrite(self, overwrite):
         """Verify we pass down --overwrite correctly"""
-        await self.run_chart_review(overwrite=overwrite)
+        await self.run_upload_notes(overwrite=overwrite)
         self.assertEqual(overwrite, self.ls_client.push_tasks.call_args[1]["overwrite"])
 
     async def test_disabled_nlp(self):
-        await self.run_chart_review(nlp=False)
+        await self.run_upload_notes(nlp=False)
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertGreater(len(tasks), 0)
@@ -334,8 +334,8 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
     @ddt.data(True, False)
     async def test_philter(self, run_philter):
         notes = [LabelStudioNote("EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010")]
-        with mock.patch("cumulus_etl.chart_review.cli.read_notes_from_ndjson", return_value=notes):
-            await self.run_chart_review(philter=run_philter)
+        with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
+            await self.run_upload_notes(philter=run_philter)
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(1, len(tasks))
@@ -359,7 +359,7 @@ class TestChartReview(CtakesMixin, AsyncTestCase):
 
         with tempfile.NamedTemporaryFile() as file:
             self.write_real_docrefs(file.name, ["D1", "D2"])
-            await self.run_chart_review(input_path="https://localhost", docrefs=file.name)
+            await self.run_upload_notes(input_path="https://localhost", docrefs=file.name)
 
         notes = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(1, len(notes))

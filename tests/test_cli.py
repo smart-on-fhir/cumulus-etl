@@ -18,8 +18,10 @@ class TestCumulusCLI(AsyncTestCase):
 
     @ddt.data(
         ([], "usage: cumulus-etl [OPTION]..."),
+        (["chart-review"], "usage: cumulus-etl upload-notes [OPTION]..."),
+        (["convert"], "usage: cumulus-etl convert [OPTION]..."),
         (["etl"], "usage: cumulus-etl etl [OPTION]..."),
-        (["chart-review"], "usage: cumulus-etl chart-review [OPTION]..."),
+        (["upload-notes"], "usage: cumulus-etl upload-notes [OPTION]..."),
     )
     @ddt.unpack
     async def test_usage(self, argv, expected_usage):
@@ -33,9 +35,10 @@ class TestCumulusCLI(AsyncTestCase):
 
     @ddt.data(
         ([], "cumulus_etl.etl.run_etl"),
-        (["etl"], "cumulus_etl.etl.run_etl"),
-        (["chart-review"], "cumulus_etl.chart_review.run_chart_review"),
+        (["chart-review"], "cumulus_etl.upload_notes.run_upload_notes"),
         (["convert"], "cumulus_etl.etl.convert.run_convert"),
+        (["etl"], "cumulus_etl.etl.run_etl"),
+        (["upload-notes"], "cumulus_etl.upload_notes.run_upload_notes"),
     )
     @ddt.unpack
     async def test_routing(self, argv, main_method):

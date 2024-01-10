@@ -8,7 +8,9 @@ nav_order: 20
 
 # Chart Review
 
-Cumulus ETL also offers a chart review mode,
+Chart review is a critical part of study validation.
+
+Cumulus ETL offers an upload mode,
 where it sends clinical notes to your own [Label Studio](https://labelstud.io/)
 instance for expert review.
 Along the way, it can mark the note with NLP results and/or anonymize the note with
@@ -27,31 +29,31 @@ They offer Docker images and reasonable
 If you haven't set that up yet, go do that and come back.
 
 The Cumulus team can help you with setting it up if you come talk to us,
-but the rest of this guide will mostly deal with chart review mode itself.
+but the rest of this guide will mostly deal with the `upload-notes` mode itself.
 
 ### Dependent Services
 
-Some features of chart review mode need external services (like cTAKES to run NLP).
-Launch those before you begin using chart review:
+Some features of upload mode need external services (like cTAKES to run NLP).
+Launch those before you begin:
 
 ```shell
 export UMLS_API_KEY=your-umls-api-key
-docker compose --profile chart-review up -d
+docker compose --profile upload-notes up -d
 ```
 
 Or if you have access to a GPU,
-you can speed up the NLP by launching the GPU profile instead with `--profile chart-review-gpu`.
+you can speed up the NLP by launching the GPU profile instead with `--profile upload-notes-gpu`.
 
 ## Basic Operation
 
-At its core, chart review mode is just another ETL (extract, transform, load) operation.
+At its core, upload mode is just another ETL (extract, transform, load) operation.
 1. It extracts DocumentReference resources from your EHR.
 2. It transforms the contained notes via NLP & `philter`.
 3. It loads the results into Label Studio.
 
 ### Minimal Command Line
 
-Chart review mode takes three main arguments:
+Upload mode takes three main arguments:
 1. Input path (local dir of ndjson or a FHIR server to perform a bulk export on)
 2. URL for Label Studio
 3. PHI/build path (the same PHI/build path you normally provide to Cumulus ETL)
@@ -60,12 +62,12 @@ Additionally, there are two required Label Studio parameters:
 1. `--ls-token PATH` (a file holding your Label Studio authentication token)
 2. `--ls-project ID` (the number of the Label Studio project you want to push notes to)
 
-Taken altogether, here is an example minimal chart review command:
+Taken altogether, here is an example minimal `upload-notes` command:
 ```sh
 docker compose run \
  --volume /local/path:/in \
  cumulus-etl \
- chart-review \
+ upload-notes \
   --ls-token /in/label-studio-token.txt \
   --ls-project 3 \
   https://my-ehr-server/R4/12345/Group/67890 \
@@ -80,7 +82,7 @@ and then push the results to your Label Studio project number `3`.
 
 ### Grouping by Encounter
 
-Chart review mode will group all notes by encounter and present them together as a single
+Upload mode will group all notes by encounter and present them together as a single
 Label Studio artifact.
 
 Each clinical note will have a little header describing what type of note it is ("Admission MD"),
@@ -89,20 +91,20 @@ to make it easier to reference back to your EHR or Athena data.
 
 ## Bulk Export Options
 
-You can point chart review mode at either a folder with DocumentReference ndjson files
+You can point upload mode at either a folder with DocumentReference ndjson files
 or your EHR server (in which case it will do a bulk export from the target Group).
 
-Chart review mode takes all the same [bulk export options](bulk-exports.md) that the normal
+Upload mode takes all the same [bulk export options](bulk-exports.md) that the normal
 ETL mode supports.
 
 Note that even if you provide a folder of DocumentReference ndjson resources,
 you will still likely need to pass `--fhir-url` and FHIR authentication options,
-so that chart review mode can download the referenced clinical notes _inside_ the DocumentReference,
+so that upload mode can download the referenced clinical notes _inside_ the DocumentReference,
 which usually hold an external URL rather than inline note data.
 
 ## Document Selection Options
 
-By default, chart review mode will grab _all documents_ in the target Group or folder.
+By default, upload mode will grab _all documents_ in the target Group or folder.
 But usually you will probably want to only select a few documents for testing purposes.
 More in the realm of 10-100 specific documents.
 
@@ -123,14 +125,14 @@ docref_id
 
 Then pass in an argument like `--docrefs /in/docrefs.csv`.
 
-Chart review mode will only export & process the specified documents, saving a lot of time.
+Upload mode will only export & process the specified documents, saving a lot of time.
 
 ### By Anonymized ID
 If you are working with your existing de-identified limited data set in Athena,
 you will only have references to the anonymized document IDs and no direct clinical notes.
 
 But that's fine!
-Chart review mode can use the PHI folder to grab the cached mappings of patient IDs
+Upload mode can use the PHI folder to grab the cached mappings of patient IDs
 and then work to reverse-engineer the correct document IDs (to then download from the EHR).
 
 For this to work, you will need to provide both the anonymized docref ID **and**
@@ -151,7 +153,7 @@ limit 10;
 You'll notice we are defining two columns: patient_id and docref_id (those must be the names).
 
 Then, pass in an argument like `--anon-docrefs /in/docrefs.csv`.
-Chart review mode will reverse-engineer the original document IDs and export them from your EHR.
+Upload mode will reverse-engineer the original document IDs and export them from your EHR.
 
 #### I Thought the Anonymized IDs Could Not Be Reversed?
 
@@ -160,10 +162,10 @@ But Cumulus ETL saves a cache of all the IDs it makes for your patients (and enc
 You can see this cache in your PHI folder, named `codebook-cached-mappings.json`.
 
 (It's worth emphasizing that the contents of this file are never moved outside the PHI folder,
-and are only used for chart review mode.)
+and are only used for upload mode.)
 
 By using this mapping file,
-chart review mode can find all the original patient IDs using the `patient_id` column you gave it.
+Upload mode can find all the original patient IDs using the `patient_id` column you gave it.
 
 Once it has the original patients, it will ask the EHR for all of those patients' documents.
 And it will anonymize each document ID it sees.
@@ -177,7 +179,7 @@ When it sees a match for one of the anonymous docref IDs you gave in the `docref
 
 It might be useful to save the exported documents from the EHR
 (or even the smaller selection from a giant ndjson folder),
-for faster iterations of the chart review mode or
+for faster iterations of the upload mode or
 just confirming the correct documents were chosen.
 
 Pass in an argument like `--export-to /in/export` to save the ndjson for the selected documents
@@ -191,36 +193,34 @@ simply pass in a new dictionary like so: `--symptoms-bsv /in/my-symptoms.bsv`.
 
 This file should look like (this is a portion of the default Covid dictionary):
 ```
-##  Columns = CUI|TUI|CODE|SAB|STR|PREF
+##  Columns = CUI|TUI||STR|PREF
 ##      CUI = Concept Unique Identifier
 ##      TUI = Type Unique Identifier
-##     CODE = Vocabulary Code
-##      SAB = Vocabulary Source Abbreviation (SNOMEDCT_US)
 ##      STR = String text in clinical note (case insensitive)
 ##     PREF = Preferred output concept label
 
 ##  Congestion or runny nose
-C0027424|T184|68235000|SNOMEDCT_US|nasal congestion|Congestion or runny nose
-C0027424|T184|68235000|SNOMEDCT_US|stuffed-up nose|Congestion or runny nose
-C0027424|T184|68235000|SNOMEDCT_US|stuffy nose|Congestion or runny nose
-C0027424|T184|68235000|SNOMEDCT_US|congested nose|Congestion or runny nose
-C1260880|T184|64531003|SNOMEDCT_US|rhinorrhea|Congestion or runny nose
-C1260880|T184|64531003|SNOMEDCT_US|Nasal discharge|Congestion or runny nose
-C1260880|T184|64531003|SNOMEDCT_US|discharge from nose|Congestion or runny nose
-C1260880|T184|267101005|SNOMEDCT_US|nose dripping|Congestion or runny nose
-C1260880|T184|267101005|SNOMEDCT_US|nose running|Congestion or runny nose
-C1260880|T184|267101005|SNOMEDCT_US|running nose|Congestion or runny nose
-C1260880|T184|HP:0031417|HPO|runny nose|Congestion or runny nose
-C0027424|T184|R09.81|ICD10CM|R09.81|Congestion or runny nose
+C0027424|T184|nasal congestion|Congestion or runny nose
+C0027424|T184|stuffed-up nose|Congestion or runny nose
+C0027424|T184|stuffy nose|Congestion or runny nose
+C0027424|T184|congested nose|Congestion or runny nose
+C1260880|T184|rhinorrhea|Congestion or runny nose
+C1260880|T184|Nasal discharge|Congestion or runny nose
+C1260880|T184|discharge from nose|Congestion or runny nose
+C1260880|T184|nose dripping|Congestion or runny nose
+C1260880|T184|nose running|Congestion or runny nose
+C1260880|T184|running nose|Congestion or runny nose
+C1260880|T184|runny nose|Congestion or runny nose
+C0027424|T184|R09.81|Congestion or runny nose
 
 ##  Diarrhea
-C0011991|T184|62315008|SNOMEDCT_US|diarrhea|Diarrhea
-C0011991|T184|R19.7|ICD10CM|R19.7|Diarrhea
-C0011991|T184|HP:0002014|HPO|Watery stool|Diarrhea
-C0011991|T184|HP:0002014|HPO|Watery stools|Diarrhea
+C0011991|T184|diarrhea|Diarrhea
+C0011991|T184|R19.7|Diarrhea
+C0011991|T184|Watery stool|Diarrhea
+C0011991|T184|Watery stools|Diarrhea
 ```
 
-Chart review mode will only label phrases whose CUI appears in this symptom file.
+Upload mode will only label phrases whose CUI appears in this symptom file.
 And the label used will be the last part of each line (the `PREF` part).
 
 That is, with the above symptoms file, the word `headache` would not be labelled at all
@@ -239,17 +239,17 @@ Simply pass `--no-nlp` or `--no-philter` and those steps will be skipped.
 
 ### Overwriting
 
-By default, chart review mode will never overwrite any data in Label Studio.
+By default, upload mode will never overwrite any data in Label Studio.
 It will push new notes and skip any that were already uploaded to Label Studio.
 
 But obviously, that becomes annoying if you are iterating on a dictionary or
-otherwise re-running chart review mode.
+otherwise re-running upload mode.
 
 So to overwrite existing notes, simply pass `--overwrite`.
 
 ### Label Config
 
-Before using chart review mode, you should have already set up your Label Studio instance.
+Before using upload mode, you should have already set up your Label Studio instance.
 Read [their docs](https://labelstud.io/guide/) to get started with that.
 
 Those docs can guide you through how to define your labels.
@@ -264,7 +264,7 @@ But just briefly, a setup like this with hard-coded labels will work:
 </View>
 ```
 
-Or you can use dynamic labels, and chart review mode will define them from your symptoms file.
+Or you can use dynamic labels, and upload mode will define them from your symptoms file.
 Note that the `value` argument must match the `name` argument in your config, like so:
 ```
 <View>
