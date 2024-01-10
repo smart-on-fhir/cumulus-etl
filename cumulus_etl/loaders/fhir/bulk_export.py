@@ -81,11 +81,14 @@ class BulkExporter:
             # But some servers do support it, and it is a possible future addition to the spec.
             params["_until"] = self._until
 
-        response = await self._request_with_delay(
-            urllib.parse.urljoin(self._url, f"$export?{urllib.parse.urlencode(params)}"),
-            headers={"Prefer": "respond-async"},
-            target_status_code=202,
-        )
+        try:
+            response = await self._request_with_delay(
+                urllib.parse.urljoin(self._url, f"$export?{urllib.parse.urlencode(params)}"),
+                headers={"Prefer": "respond-async"},
+                target_status_code=202,
+            )
+        except errors.FhirConnectionError as exc:
+            errors.fatal(str(exc), errors.FHIR_AUTH_FAILED)
 
         # Grab the poll location URL for status updates
         poll_location = response.headers["Content-Location"]
