@@ -9,8 +9,8 @@ import ctakesclient
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
-from cumulus_etl.chart_review import downloader, selector
-from cumulus_etl.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
+from cumulus_etl.upload_notes import downloader, selector
+from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
 
 def init_checks(args: argparse.Namespace):
@@ -198,8 +198,8 @@ def push_to_label_studio(
 #####################################################################################################################
 
 
-def define_chart_review_parser(parser: argparse.ArgumentParser) -> None:
-    parser.usage = "%(prog)s [OPTION]... INPUT LS_URL PHI"
+def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
+    parser.usage = "cumulus-etl upload-notes [OPTION]... INPUT LS_URL PHI"
 
     parser.add_argument("dir_input", metavar="/path/to/input")
     parser.add_argument("label_studio_url", metavar="https://example.com/labelstudio")
@@ -236,7 +236,7 @@ def define_chart_review_parser(parser: argparse.ArgumentParser) -> None:
     cli_utils.add_debugging(parser)
 
 
-async def chart_review_main(args: argparse.Namespace) -> None:
+async def upload_notes_main(args: argparse.Namespace) -> None:
     """
     Prepare for chart review by uploading some documents to Label Studio.
 
@@ -267,8 +267,8 @@ async def chart_review_main(args: argparse.Namespace) -> None:
     push_to_label_studio(notes, access_token, labels, args)
 
 
-async def run_chart_review(parser: argparse.ArgumentParser, argv: list[str]) -> None:
-    """Parses a chart review CLI"""
-    define_chart_review_parser(parser)
+async def run_upload_notes(parser: argparse.ArgumentParser, argv: list[str]) -> None:
+    """Parses an upload-notes CLI"""
+    define_upload_notes_parser(parser)
     args = parser.parse_args(argv)
-    await chart_review_main(args)
+    await upload_notes_main(args)

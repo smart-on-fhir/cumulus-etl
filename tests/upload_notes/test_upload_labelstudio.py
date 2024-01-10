@@ -1,24 +1,24 @@
-"""Tests for cumulus.chart_review.labelstudio.py"""
+"""Tests for cumulus.upload_notes.labelstudio.py"""
 
 from unittest import mock
 
 import ddt
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl.chart_review.labelstudio import LabelStudioClient, LabelStudioNote
+from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
 from tests import ctakesmock
 from tests.utils import AsyncTestCase
 
 
 @ddt.ddt
-class TestChartLabelStudio(AsyncTestCase):
+class TestUploadLabelStudio(AsyncTestCase):
     """Test case for label studio support"""
 
     def setUp(self):
         super().setUp()
 
-        self.ls_mock = self.patch("cumulus_etl.chart_review.labelstudio.label_studio_sdk.Client")
+        self.ls_mock = self.patch("cumulus_etl.upload_notes.labelstudio.label_studio_sdk.Client")
         self.ls_client = self.ls_mock.return_value
         self.ls_project = self.ls_client.get_project.return_value
         self.ls_project.get_tasks.return_value = []

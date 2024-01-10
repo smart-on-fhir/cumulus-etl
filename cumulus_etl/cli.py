@@ -9,14 +9,20 @@ import tempfile
 
 import rich.logging
 
-from cumulus_etl import chart_review, common, etl
+from cumulus_etl import common, etl, upload_notes
 from cumulus_etl.etl import convert
 
 
 class Command(enum.Enum):
+    """Subcommand strings"""
+
+    # chart-review is a deprecated alias of upload-notes since Jan 2024.
+    # Keep as long as you like.
+    # It's a low-usage feature, but it's not a maintenance burden to keep this around.
     CHART_REVIEW = "chart-review"
     CONVERT = "convert"
     ETL = "etl"
+    UPLOAD_NOTES = "upload-notes"
 
     # Why isn't this part of Enum directly...?
     @classmethod
@@ -56,8 +62,8 @@ async def main(argv: list[str]) -> None:
         prog += f" {subcommand}"  # to make --help look nicer
     parser = argparse.ArgumentParser(prog=prog)
 
-    if subcommand == Command.CHART_REVIEW.value:
-        run_method = chart_review.run_chart_review
+    if subcommand in {Command.CHART_REVIEW.value, Command.UPLOAD_NOTES.value}:
+        run_method = upload_notes.run_upload_notes
     elif subcommand == Command.CONVERT.value:
         run_method = convert.run_convert
     else:
@@ -65,7 +71,7 @@ async def main(argv: list[str]) -> None:
         if not subcommand:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
-            parser.description += "\n\n" "other commands available:\n" "  chart-review\n" "  convert"
+            parser.description += "\n\n" "other commands available:\n" "  convert\n" "  upload-notes"
         run_method = etl.run_etl
 
     with tempfile.TemporaryDirectory() as tempdir:

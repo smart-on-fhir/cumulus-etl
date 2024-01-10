@@ -211,10 +211,10 @@ async def get_docref_note(client: FhirClient, docref: dict) -> str:
     if best_attachment_mimetype in ("text/html", "application/xhtml+xml"):
         # An HTML note can confuse/stall cTAKES and also makes philtering difficult.
         # It may include mountains of spans/styling or inline base64 images that aren't relevant to our interests.
-        # Chart Review and ETL modes thus both prefer to work with plain text.
+        # Upload Notes and ETL modes thus both prefer to work with plain text.
         #
         # Inscriptis makes a very readable version of the note, with a focus on maintaining the HTML layout,
-        # which is especially helpful for chart-review (and maybe also helps NLP by avoiding odd line breaks).
+        # which is especially helpful for upload-notes (and maybe also helps NLP by avoiding odd line breaks).
         note = inscriptis.get_text(note)
 
     # Strip this "line feed" character that often shows up in notes and is confusing for NLP.
