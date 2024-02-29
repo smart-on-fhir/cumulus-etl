@@ -12,6 +12,10 @@ from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
 from cumulus_etl.upload_notes import downloader, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
+PHILTER_DISABLE = "disable"
+PHILTER_REDACT = "redact"
+PHILTER_LABEL = "label"
+
 
 def init_checks(args: argparse.Namespace):
     """Do any external service checks necessary at the start"""
@@ -61,8 +65,9 @@ async def read_notes_from_ndjson(
     for docref in common.read_resource_ndjson(store.Root(dirname), "DocumentReference"):
         encounter_refs = docref.get("context", {}).get("encounter", [])
         if not encounter_refs:
-            # If a note doesn't have an encounter - we're in big trouble
-            raise SystemExit(f"DocumentReference {docref['id']} is missing encounter information.")
+            # If a note doesn't have an encounter - we can't group it with other docs
+            print(f"Skipping DocumentReference {docref['id']} as it lacks a linked encounter.")
+            continue
 
         encounter_ids.append(fhir.unref_resource(encounter_refs[0])[1])  # just use first encounter
         docrefs.append(docref)
@@ -117,17 +122,20 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
             client=http_client,
             model=nlp.TransformerModel.NEGATION,
         )
-        note.matches = [match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos]
+        note.ctakes_matches = [match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos]
 
 
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
-    if not args.philter:
+    if args.philter == PHILTER_DISABLE:
         return
 
     common.print_header("Running philter...")
     philter = deid.Philter()
     for note in notes:
-        note.text = philter.scrub_text(note.text)
+        if args.philter == PHILTER_LABEL:
+            note.philter_map = philter.detect_phi(note.text).get_complement(note.text)
+        else:
+            note.text = philter.scrub_text(note.text)
 
 
 def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelStudioNote]:
@@ -146,7 +154,8 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
     # Group up the text into one big note
     for enc_id, enc_notes in by_encounter_id.items():
         grouped_text = ""
-        grouped_matches = []
+        grouped_ctakes_matches = []
+        grouped_philter_map = {}
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
 
@@ -164,10 +173,13 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
             offset_doc_spans = {k: (v[0] + offset, v[1] + offset) for k, v in note.doc_spans.items()}
             grouped_doc_spans.update(offset_doc_spans)
 
-            for match in note.matches:
+            for match in note.ctakes_matches:
                 match.begin += offset
                 match.end += offset
-                grouped_matches.append(match)
+                grouped_ctakes_matches.append(match)
+
+            for start, stop in note.philter_map.items():
+                grouped_philter_map[start + offset] = stop + offset
 
         grouped_notes.append(
             LabelStudioNote(
@@ -176,7 +188,8 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 text=grouped_text,
                 doc_mappings=grouped_doc_mappings,
                 doc_spans=grouped_doc_spans,
-                matches=grouped_matches,
+                ctakes_matches=grouped_ctakes_matches,
+                philter_map=grouped_philter_map,
             )
         )
 
@@ -208,8 +221,16 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--export-to", metavar="PATH", help="Where to put exported documents (default is to delete after use)"
     )
+
     parser.add_argument(
-        "--no-philter", action="store_false", dest="philter", default=True, help="Don’t run philter on notes"
+        "--philter",
+        choices=[PHILTER_DISABLE, PHILTER_REDACT, PHILTER_LABEL],
+        default=PHILTER_REDACT,
+        help="Whether to use philter to redact/tag PHI",
+    )
+    # Old, simpler version of the above (feel free to remove after May 2024)
+    parser.add_argument(
+        "--no-philter", action="store_const", const=PHILTER_DISABLE, dest="philter", help=argparse.SUPPRESS
     )
 
     cli_utils.add_aws(parser)

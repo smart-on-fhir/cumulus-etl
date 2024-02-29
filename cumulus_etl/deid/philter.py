@@ -22,6 +22,16 @@ class Philter:
         filter_config = os.path.join(os.path.dirname(__file__), "philter-config.toml")
         self.filters = philter_lite.load_filters(filter_config)
 
+    def detect_phi(self, text: str) -> philter_lite.CoordinateMap:
+        """
+        Find PHI spans using Philter.
+
+        :param text: the text to scrub
+        :returns: a map of where the spans to scrub are
+        """
+        include_map, _, _ = philter_lite.detect_phi(text, self.filters)
+        return include_map
+
     def scrub_text(self, text: str) -> str:
         """
         Scrub text of PHI using Philter.
@@ -29,5 +39,5 @@ class Philter:
         :param text: the text to scrub
         :returns: the scrubbed text, with PHI replaced by asterisks ("*")
         """
-        include_map, _, _ = philter_lite.detect_phi(text, self.filters)
+        include_map = self.detect_phi(text)
         return philter_lite.transform_text_asterisk(text, include_map)

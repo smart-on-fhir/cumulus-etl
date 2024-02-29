@@ -37,7 +37,10 @@ class LabelStudioNote:
     doc_spans: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
 
     # Matches found by cTAKES
-    matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(default_factory=list)
+    ctakes_matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(default_factory=list)
+
+    # Matches found by Philter
+    philter_map: dict[int, int] = dataclasses.field(default_factory=dict)
 
 
 class LabelStudioClient:
@@ -99,29 +102,88 @@ class LabelStudioClient:
                 "docref_mappings": note.doc_mappings,
                 "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},  # json doesn't natively have tuples
             },
+            "predictions": [],
         }
 
-        self._format_prediction(task, note)
+        # Initialize any used labels in case we have a dynamic label config.
+        # Label Studio needs to see *something* here
+        self._update_used_labels(task, [])
+
+        self._format_ctakes_predictions(task, note)
+        self._format_philter_predictions(task, note)
 
         return task
 
-    def _format_prediction(self, task: dict, note: LabelStudioNote) -> None:
+    def _format_ctakes_predictions(self, task: dict, note: LabelStudioNote) -> None:
+        if not note.ctakes_matches:
+            return
+
         prediction = {
-            "model_version": "Cumulus",  # TODO: do we want more specificity here?
+            "model_version": "Cumulus cTAKES",
         }
 
         used_labels = set()
         results = []
         count = 0
-        for match in note.matches:
+        for match in note.ctakes_matches:
             matched_labels = {self._cui_labels.get(concept.cui) for concept in match.conceptAttributes}
             matched_labels.discard(None)  # drop the result of a concept not being in our bsv label set
             if matched_labels:
-                results.append(self._format_match(count, match, matched_labels))
+                results.append(self._format_ctakes_match(count, match, matched_labels))
                 used_labels.update(matched_labels)
                 count += 1
         prediction["result"] = results
+        task["predictions"].append(prediction)
 
+        self._update_used_labels(task, used_labels)
+
+    def _format_ctakes_match(self, count: int, match: MatchText, labels: Iterable[str]) -> dict:
+        return {
+            "id": f"ctakes{count}",
+            "from_name": self._labels_name,
+            "to_name": self._labels_config["to_name"][0],
+            "type": "labels",
+            "value": {"start": match.begin, "end": match.end, "score": 1.0, "text": match.text, "labels": list(labels)},
+        }
+
+    def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
+        """
+        Adds a predication layer with philter spans.
+
+        Note that this does *not* update the running list of used labels.
+        This sets a "secret" / non-human-oriented label of "_philter".
+        Label Studio will still highlight the spans, and this way we won't
+        conflict with any existing labels.
+        """
+        if not note.philter_map:
+            return
+
+        prediction = {
+            "model_version": "Cumulus Philter",
+        }
+
+        results = []
+        count = 0
+        for start, stop in sorted(note.philter_map.items()):
+            results.append(self._format_philter_span(count, start, stop, note))
+            count += 1
+        prediction["result"] = results
+
+        task["predictions"].append(prediction)
+
+    def _format_philter_span(self, count: int, start: int, end: int, note: LabelStudioNote) -> dict:
+        text = note.text[start:end]
+        return {
+            "id": f"philter{count}",
+            "from_name": self._labels_name,
+            "to_name": self._labels_config["to_name"][0],
+            "type": "labels",
+            # We hardcode the label "_philter" - Label Studio will still highlight unknown labels,
+            # and this is unlikely to collide with existing labels.
+            "value": {"start": start, "end": end, "score": 1.0, "text": text, "labels": ["_philter"]},
+        }
+
+    def _update_used_labels(self, task: dict, used_labels: Iterable[str]) -> None:
         if self._labels_config.get("dynamic_labels"):
             # This path supports configs like <Labels name="label" toName="text" value="$label"/> where the labels
             # can be dynamically set by us.
@@ -130,15 +192,7 @@ class LabelStudioClient:
             # actually kept in the config, so we have to make some assumptions about how the user set up their project.
             #
             # The rule that Cumulus uses is that the value= variable must equal the name= of the <Labels> element.
-            task["data"][self._labels_name] = [{"value": x} for x in sorted(used_labels)]
-
-        task["predictions"] = [prediction]
-
-    def _format_match(self, count: int, match: MatchText, labels: Iterable[str]) -> dict:
-        return {
-            "id": f"match{count}",
-            "from_name": self._labels_name,
-            "to_name": self._labels_config["to_name"][0],
-            "type": "labels",
-            "value": {"start": match.begin, "end": match.end, "score": 1.0, "text": match.text, "labels": list(labels)},
-        }
+            existing_labels = task["data"].get(self._labels_name, [])
+            existing_labels = {d["value"] for d in existing_labels}
+            existing_labels.update(used_labels)
+            task["data"][self._labels_name] = [{"value": x} for x in sorted(existing_labels)]
