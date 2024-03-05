@@ -77,7 +77,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         anon_docrefs=None,
         docrefs=None,
         nlp=True,
-        philter=True,
+        philter=None,
+        no_philter=None,
         overwrite=False,
     ) -> None:
         args = [
@@ -98,7 +99,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             args += ["--docrefs", docrefs]
         if not nlp:
             args += ["--no-nlp"]
-        if not philter:
+        if philter:
+            args += ["--philter", philter]
+        if no_philter:
             args += ["--no-philter"]
         if overwrite:
             args += ["--overwrite"]
@@ -314,7 +317,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 ],
                 "type": "SignSymptomMention",
             },
-            tasks[0].matches[0].as_json(),
+            tasks[0].ctakes_matches[0].as_json(),
         )
 
     @ddt.data(True, False)
@@ -329,26 +332,44 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertGreater(len(tasks), 0)
         for task in tasks:
-            self.assertEqual([], task.matches)
+            self.assertEqual([], task.ctakes_matches)
 
-    @ddt.data(True, False)
-    async def test_philter(self, run_philter):
+    @ddt.data(
+        ({}, True),  # default args
+        ({"philter": "redact"}, True),
+        ({"philter": "disable"}, False),
+        ({"no_philter": True}, False),
+    )
+    @ddt.unpack
+    async def test_philter_redact(self, upload_args, expect_redacted):
         notes = [LabelStudioNote("EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010")]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
-            await self.run_upload_notes(philter=run_philter)
+            await self.run_upload_notes(**upload_args)
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(1, len(tasks))
         task = tasks[0]
 
         # Regardless of philter, we keep the original cTAKES match text
-        self.assertEqual({"John", "Smith", "called"}, {m.text for m in task.matches})
+        self.assertEqual({"John", "Smith", "called"}, {m.text for m in task.ctakes_matches})
 
-        if run_philter:
+        if expect_redacted:
             expected_text = "**** ***** called on 10/13/2010"  # we don't philter dates
         else:
             expected_text = "John Smith called on 10/13/2010"
         self.assertEqual(self.wrap_note("My Title", expected_text), task.text)
+
+    async def test_philter_label(self):
+        notes = [LabelStudioNote("EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010")]
+        with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
+            await self.run_upload_notes(philter="label")
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(1, len(tasks))
+        task = tasks[0]
+
+        # High span numbers because we insert some header text
+        self.assertEqual({93: 97, 98: 103}, task.philter_map)
 
     @respx.mock(assert_all_mocked=False)
     async def test_combined_encounter_offsets(self, respx_mock):
@@ -388,5 +409,5 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual("What's", note.text[match2a[0] : match2a[1]])
         self.assertEqual("up", note.text[match2b[0] : match2b[1]])
         self.assertEqual("doc?", note.text[match2c[0] : match2c[1]])
-        spans = {x.span().key() for x in note.matches}
+        spans = {x.span().key() for x in note.ctakes_matches}
         self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)

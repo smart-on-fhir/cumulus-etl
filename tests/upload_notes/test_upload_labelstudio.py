@@ -25,7 +25,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.ls_project.parsed_label_config = {"mylabel": {"type": "Labels", "to_name": ["mytext"]}}
 
     @staticmethod
-    def make_note(*, enc_id: str = "enc", matches: bool = True) -> LabelStudioNote:
+    def make_note(*, enc_id: str = "enc", ctakes: bool = True, philter_label: bool = True) -> LabelStudioNote:
         text = "Normal note text"
         note = LabelStudioNote(
             enc_id,
@@ -34,8 +34,11 @@ class TestUploadLabelStudio(AsyncTestCase):
             doc_spans={"doc": (0, len(text))},
             text=text,
         )
-        if matches:
-            note.matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
+        if ctakes:
+            note.ctakes_matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
+        if philter_label:
+            matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
+            note.philter_map = {m.begin: m.end for m in matches}
         return note
 
     @staticmethod
@@ -72,12 +75,12 @@ class TestUploadLabelStudio(AsyncTestCase):
                 },
                 "predictions": [
                     {
-                        "model_version": "Cumulus",
+                        "model_version": "Cumulus cTAKES",
                         "result": [
                             # Note that fever does not show up, as it was not in our initial CUI mapping (in push_tasks)
                             {
                                 "from_name": "mylabel",
-                                "id": "match0",
+                                "id": "ctakes0",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -90,7 +93,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                             },
                             {
                                 "from_name": "mylabel",
-                                "id": "match1",
+                                "id": "ctakes1",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -102,14 +105,58 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 },
                             },
                         ],
-                    }
+                    },
+                    {
+                        "model_version": "Cumulus Philter",
+                        "result": [
+                            {
+                                "from_name": "mylabel",
+                                "id": "philter0",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 6,
+                                    "labels": ["_philter"],
+                                    "score": 1.0,
+                                    "start": 0,
+                                    "text": "Normal",
+                                },
+                            },
+                            {
+                                "from_name": "mylabel",
+                                "id": "philter1",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 11,
+                                    "labels": ["_philter"],
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                            {
+                                "from_name": "mylabel",
+                                "id": "philter2",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 16,
+                                    "labels": ["_philter"],
+                                    "score": 1.0,
+                                    "start": 12,
+                                    "text": "text",
+                                },
+                            },
+                        ],
+                    },
                 ],
             },
             self.get_pushed_task(),
         )
 
-    def test_no_matches(self):
-        self.push_tasks(self.make_note(matches=False))
+    def test_no_predictions(self):
+        self.push_tasks(self.make_note(ctakes=False, philter_label=False))
         self.assertEqual(
             {
                 "data": {
@@ -119,12 +166,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                 },
-                "predictions": [
-                    {
-                        "model_version": "Cumulus",
-                        "result": [],
-                    }
-                ],
+                "predictions": [],
             },
             self.get_pushed_task(),
         )
@@ -150,11 +192,11 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task()["data"],
         )
 
-    def test_dynamic_labels_no_matches(self):
+    def test_dynamic_labels_no_predictions(self):
         self.ls_project.parsed_label_config = {
             "mylabel": {"type": "Labels", "to_name": ["mytext"], "dynamic_labels": True},
         }
-        self.push_tasks(self.make_note(matches=False))
+        self.push_tasks(self.make_note(ctakes=False, philter_label=False))
         self.assertEqual(
             {
                 "text": "Normal note text",

@@ -70,7 +70,7 @@ tests = [
     "coverage",
     "ddt",
     "freezegun",
-    "moto[server,s3]",
+    "moto[server,s3] >= 5.0",
     "pytest",
     "respx",
 ]

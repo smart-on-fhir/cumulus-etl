@@ -233,7 +233,7 @@ But you may get better results by adding extra terms and variations in your symp
 ## Disabling Features
 
 You may not need NLP or `philter` processing.
-Simply pass `--no-nlp` or `--no-philter` and those steps will be skipped.
+Simply pass `--no-nlp` or `--philter=disable` and those steps will be skipped.
 
 ## Label Studio
 

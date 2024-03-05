@@ -39,7 +39,7 @@ class S3Mixin(utils.AsyncTestCase):
         self.server = ThreadedMotoServer()
         self.server.start()
 
-        s3mock = moto.mock_s3()
+        s3mock = moto.mock_aws()
         self.addCleanup(s3mock.stop)
         s3mock.start()
 
