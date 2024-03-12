@@ -48,28 +48,42 @@ def _create_docref_filter(
 
 def _filter_real_docrefs(docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
     """Keeps any docrefs that match the csv list"""
-    with common.read_csv(docrefs_csv) as reader:
-        real_docref_ids = {row["docref_id"] for row in reader}
+    transient = common.get_transient_progress()
+    found = 0
+    scanned = 0
+    with transient as progress:
+        task = progress.add_task(description = 'Getting docref ids', total=None)
+        with common.read_csv(docrefs_csv) as reader:
+            real_docref_ids = {row["docref_id"] for row in reader}
 
-    for docref in docrefs:
-        if docref["id"] in real_docref_ids:
-            yield docref
+        for docref in docrefs:
+            if docref["id"] in real_docref_ids:
+                found += 1
+                yield docref
 
-            real_docref_ids.remove(docref["id"])
-            if not real_docref_ids:
-                break
-
+                real_docref_ids.remove(docref["id"])
+                if not real_docref_ids:
+                    break
+            scanned += 1
+            progress.update(task, description = f"Unmatched IDs: {len(real_docref_ids)}, found: {found}, scanned: {scanned}")
 
 def _filter_fake_docrefs(codebook: deid.Codebook, anon_docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
     """Calculates the fake ID for all docrefs found, and keeps any that match the csv list"""
-    with common.read_csv(anon_docrefs_csv) as reader:
-        fake_docref_ids = {row["docref_id"] for row in reader}  # ignore the patient_id column, not needed
+    transient = common.get_transient_progress()
+    found = 0
+    scanned = 0
+    with transient as progress:
+        task = progress.add_task(description = 'Getting docref ids', total=None)
+        with common.read_csv(anon_docrefs_csv) as reader:
+            fake_docref_ids = {row["docref_id"] for row in reader}  # ignore the patient_id column, not needed
+        for docref in docrefs:
+            fake_id = codebook.fake_id("DocumentReference", docref["id"], caching_allowed=False)
+            if fake_id in fake_docref_ids:
+                found +=1
+                yield docref
 
-    for docref in docrefs:
-        fake_id = codebook.fake_id("DocumentReference", docref["id"], caching_allowed=False)
-        if fake_id in fake_docref_ids:
-            yield docref
-
-            fake_docref_ids.remove(fake_id)
-            if not fake_docref_ids:
-                break
+                fake_docref_ids.remove(fake_id)
+                if not fake_docref_ids:
+                    break
+            scanned +=1
+            progress.update(task, description = f"Unmatched IDs: {len(fake_docref_ids)}, found: {found}, scanned: {scanned}")
