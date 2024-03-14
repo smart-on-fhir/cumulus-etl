@@ -43,7 +43,7 @@ class TestFhirClient(AsyncTestCase):
                 "iss": self.client_id,
                 "sub": self.client_id,
                 "aud": self.token_url,
-                "exp": int(time.time()) + 299,  # aided by freezegun not changing time under us
+                "exp": int(time.time()) + 299,  # aided by time-machine not changing time under us
                 "jti": "1234",
             },
         )

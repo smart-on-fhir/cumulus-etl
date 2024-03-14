@@ -1,6 +1,7 @@
 """LabelStudio document annotation"""
 
 import dataclasses
+import datetime
 from collections.abc import Collection, Iterable
 
 import ctakesclient.typesystem
@@ -25,6 +26,7 @@ class LabelStudioNote:
     enc_id: str  # real Encounter ID
     anon_id: str  # anonymized Encounter ID
     text: str = ""  # text of the note, sent to Label Studio
+    date: datetime.datetime | None = None  # date of the note
 
     # A title is only used when combining notes into one big encounter note. It's not sent to Label Studio.
     title: str = ""
