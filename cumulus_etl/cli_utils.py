@@ -87,7 +87,9 @@ def is_url_available(url: str, retry: bool = True) -> bool:
         try:
             socket.create_connection((url_parsed.hostname, url_parsed.port))
             return True
-        except ConnectionRefusedError:
+        except socket.gaierror:  # hostname didn't resolve
+            return False
+        except ConnectionRefusedError:  # service is not ready yet
             if i < num_tries - 1:
                 time.sleep(3)
 
