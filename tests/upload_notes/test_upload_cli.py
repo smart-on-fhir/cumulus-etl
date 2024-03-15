@@ -108,7 +108,19 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         await cli.main(args)
 
     @staticmethod
-    def make_docref(doc_id: str, text: str = None, content: list[dict] = None, enc_id: str = None) -> dict:
+    def make_docref(
+        doc_id: str,
+        text: str = None,
+        content: list[dict] = None,
+        enc_id: str = None,
+        date: str = None,
+        period_start: str = None,
+    ) -> dict:
+        docref = {
+            "resourceType": "DocumentReference",
+            "id": doc_id,
+        }
+
         if content is None:
             text = text or "What's up doc?"
             content = [
@@ -119,14 +131,18 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                     },
                 }
             ]
+        docref["content"] = content
 
         enc_id = enc_id or f"enc-{doc_id}"
-        return {
-            "resourceType": "DocumentReference",
-            "id": doc_id,
-            "content": content,
-            "context": {"encounter": [{"reference": f"Encounter/{enc_id}"}]},
-        }
+        docref["context"] = {"encounter": [{"reference": f"Encounter/{enc_id}"}]}
+
+        if date:
+            docref["date"] = date
+
+        if period_start:
+            docref["context"]["period"] = {"start": period_start}
+
+        return docref
 
     @staticmethod
     def mock_search_url(respx_mock: respx.MockRouter, patient: str, doc_ids: Iterable[str]) -> None:
@@ -170,13 +186,14 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         return set(itertools.chain.from_iterable(n.doc_mappings.keys() for n in notes))
 
     @staticmethod
-    def wrap_note(title: str, text: str, first: bool = True) -> str:
+    def wrap_note(title: str, text: str, first: bool = True, date: str | None = None) -> str:
         """Format a note in the expected output format, with header"""
         finalized = ""
         if not first:
             finalized += "\n\n\n"
             finalized += "########################################\n########################################\n"
         finalized += f"{title}\n"
+        finalized += f"{date or 'Unknown time'}\n"
         finalized += "########################################\n########################################\n\n\n"
         finalized += text.strip()
         return finalized
@@ -300,15 +317,15 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         )
         self.assertEqual(
             [
-                self.wrap_note("Admission MD", "Notes for fever"),
-                self.wrap_note("Admission MD", "Notes! for fever"),
+                self.wrap_note("Admission MD", "Notes for fever", date="06/23/21"),
+                self.wrap_note("Admission MD", "Notes! for fever", date="06/24/21"),
             ],
             [t.text for t in tasks],
         )
         self.assertEqual(
             {
-                "begin": 103,
-                "end": 106,
+                "begin": 112,
+                "end": 115,
                 "text": "for",
                 "polarity": 0,
                 "conceptAttributes": [
@@ -369,18 +386,40 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         task = tasks[0]
 
         # High span numbers because we insert some header text
-        self.assertEqual({93: 97, 98: 103}, task.philter_map)
+        self.assertEqual({106: 110, 111: 116}, task.philter_map)
 
-    @respx.mock(assert_all_mocked=False)
-    async def test_combined_encounter_offsets(self, respx_mock):
-        # use server notes just for ease of making fake ones
-        self.mock_read_url(respx_mock, "D1", enc_id="43")
-        self.mock_read_url(respx_mock, "D2", enc_id="43")
-        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
+    async def test_grouped_datetime(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="DocRef 1"))
+                writer.write(
+                    TestUploadNotes.make_docref("D2", enc_id="E1", text="DocRef 2", date="2018-01-03T13:10:10+01:00")
+                )
+                writer.write(
+                    TestUploadNotes.make_docref(
+                        "D3", enc_id="E1", text="DocRef 3", date="2018-01-03T13:10:20Z", period_start="2018"
+                    )
+                )
+            await self.run_upload_notes(input_path=tmpdir, philter="disable")
 
-        with tempfile.NamedTemporaryFile() as file:
-            self.write_real_docrefs(file.name, ["D1", "D2"])
-            await self.run_upload_notes(input_path="https://localhost", docrefs=file.name)
+        notes = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(1, len(notes))
+        note = notes[0]
+
+        # The order will be oldest->newest (None placed last)
+        self.assertEqual(
+            self.wrap_note("Document", "DocRef 3", date="01/01/18")
+            + self.wrap_note("Document", "DocRef 2", date="01/03/18 13:10:10", first=False)
+            + self.wrap_note("Document", "DocRef 1", first=False),
+            note.text,
+        )
+
+    async def test_grouped_encounter_offsets(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="43"))
+                writer.write(TestUploadNotes.make_docref("D2", enc_id="43"))
+            await self.run_upload_notes(input_path=tmpdir)
 
         notes = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(1, len(notes))
@@ -390,19 +429,19 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual({"D1": ANON_D1, "D2": ANON_D2}, note.doc_mappings)
 
         # Did we mark the internal docref spans correctly?
-        first_span = (93, 107)
-        second_span = (285, 299)
+        first_span = (106, 120)
+        second_span = (311, 325)
         self.assertEqual("What's up doc?", note.text[first_span[0] : first_span[1]])
         self.assertEqual("What's up doc?", note.text[second_span[0] : second_span[1]])
         self.assertEqual({"D1": first_span, "D2": second_span}, note.doc_spans)
 
         # Did we edit cTAKES results correctly?
-        match1a = (93, 99)
-        match1b = (100, 102)
-        match1c = (103, 107)
-        match2a = (285, 291)
-        match2b = (292, 294)
-        match2c = (295, 299)
+        match1a = (106, 112)
+        match1b = (113, 115)
+        match1c = (116, 120)
+        match2a = (311, 317)
+        match2b = (318, 320)
+        match2c = (321, 325)
         self.assertEqual("What's", note.text[match1a[0] : match1a[1]])
         self.assertEqual("up", note.text[match1b[0] : match1b[1]])
         self.assertEqual("doc?", note.text[match1c[0] : match1c[1]])

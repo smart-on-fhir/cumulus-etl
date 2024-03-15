@@ -1,7 +1,8 @@
 """FHIR utility methods"""
 
 import base64
-import cgi
+import datetime
+import email.message
 import re
 
 import inscriptis
@@ -73,6 +74,43 @@ def unref_resource(ref: dict | None) -> (str | None, str):
 
 ######################################################################################################################
 #
+# Field parsing
+#
+######################################################################################################################
+
+
+def parse_datetime(value: str | None) -> datetime.datetime | None:
+    """
+    Converts FHIR instant/dateTime/date types into a Python format.
+
+    - This tries to be very graceful - any errors will result in a None return.
+    - Missing month/day fields are treated as the earliest possible date (i.e. '1')
+
+    CAUTION: Returned datetime might be naive - which makes more sense for dates without a time.
+             The spec says any field with hours/minutes SHALL have a timezone.
+             But fields that are just dates SHALL NOT have a timezone.
+    """
+    if not value:
+        return None
+
+    try:
+        # Handle partial dates like "1980-12" (which spec allows, but fromisoformat can't handle)
+        pieces = value.split("-")
+        if len(pieces) == 1:
+            return datetime.datetime(int(pieces[0]), 1, 1)  # note: naive datetime
+        elif len(pieces) == 2:
+            return datetime.datetime(int(pieces[0]), int(pieces[1]), 1)  # note: naive datetime
+
+        # Until we depend on Python 3.11+, manually handle Z
+        value = value.replace("Z", "+00:00")
+
+        return datetime.datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+######################################################################################################################
+#
 # Resource downloading
 #
 ######################################################################################################################
@@ -104,9 +142,9 @@ async def download_reference(client: FhirClient, reference: str) -> dict | None:
 
 def _parse_content_type(content_type: str) -> (str, str):
     """Returns (mimetype, encoding)"""
-    # TODO: switch to message.Message parsing, since cgi is deprecated
-    mimetype, params = cgi.parse_header(content_type)
-    return mimetype, params.get("charset", "utf8")
+    msg = email.message.EmailMessage()
+    msg["content-type"] = content_type
+    return msg.get_content_type(), msg.get_content_charset("utf8")
 
 
 def _mimetype_priority(mimetype: str) -> int:

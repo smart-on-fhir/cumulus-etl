@@ -1,5 +1,7 @@
 """Tests for fhir_utils.py"""
+
 import base64
+import datetime
 import shutil
 from unittest import mock
 
@@ -43,6 +45,31 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     @ddt.unpack
     def test_ref_resource(self, resource_type, resource_id, expected):
         self.assertEqual({"reference": expected}, fhir.ref_resource(resource_type, resource_id))
+
+
+@ddt.ddt
+class TestDateParsing(utils.AsyncTestCase):
+    """Tests for the parse_datetime method"""
+
+    @ddt.data(
+        (None, None),
+        ("", None),
+        ("abc", None),
+        ("abc-de", None),
+        ("abc-de-fg", None),
+        ("2018", datetime.datetime(2018, 1, 1)),  # naive
+        ("2021-07", datetime.datetime(2021, 7, 1)),  # naive
+        ("1992-11-06", datetime.datetime(1992, 11, 6)),  # naive
+        (
+            "1992-11-06T13:28:17.239+02:00",
+            datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.timezone(datetime.timedelta(hours=2))),
+        ),
+        ("1992-11-06T13:28:17.239Z", datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.timezone.utc)),
+    )
+    @ddt.unpack
+    def test_parse_datetime(self, input_value, expected_value):
+        parsed = fhir.parse_datetime(input_value)
+        self.assertEqual(expected_value, parsed)
 
 
 @ddt.ddt

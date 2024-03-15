@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import datetime
 import sys
 from collections.abc import Collection
 
@@ -53,6 +54,15 @@ async def gather_docrefs(
         )
 
 
+def datetime_from_docref(docref: dict) -> datetime.datetime | None:
+    """Returns the date of a docref - preferring `context.period.start`, then `date`"""
+    if start := fhir.parse_datetime(docref.get("context", {}).get("period", {}).get("start")):
+        return start
+    if date := fhir.parse_datetime(docref.get("date")):
+        return date
+    return None
+
+
 async def read_notes_from_ndjson(
     client: fhir.FhirClient, dirname: str, codebook: deid.Codebook
 ) -> list[LabelStudioNote]:
@@ -95,6 +105,7 @@ async def read_notes_from_ndjson(
                 doc_spans=doc_spans,
                 title=title,
                 text=text,
+                date=datetime_from_docref(docrefs[i]),
             )
         )
 
@@ -159,13 +170,26 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
 
+        # Sort notes by date (putting Nones last)
+        enc_notes = sorted(enc_notes, key=lambda x: (x.date or datetime.datetime.max).timestamp())
+
         for note in enc_notes:
             grouped_doc_mappings.update(note.doc_mappings)
+
+            if not note.date:
+                date_string = "Unknown time"
+            elif note.date.tzinfo:
+                # aware datetime, with hours/minutes (using original timezone, not local)
+                date_string = f"{note.date:%x %X}"  # locale-based date + time
+            else:
+                # non-aware datetime, only show the date (fhir spec says times must have timezones)
+                date_string = f"{note.date:%x}"  # locale-based date
 
             if grouped_text:
                 grouped_text += "\n\n\n"
                 grouped_text += "########################################\n########################################\n"
             grouped_text += f"{note.title}\n"
+            grouped_text += f"{date_string}\n"
             grouped_text += "########################################\n########################################\n\n\n"
             offset = len(grouped_text)
             grouped_text += note.text
