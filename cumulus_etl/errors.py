@@ -3,6 +3,8 @@
 import sys
 from typing import NoReturn
 
+import rich.console
+
 
 # Error return codes, mostly just distinguished for the benefit of tests.
 # These start at 10 just to leave some room for future use.
@@ -56,5 +58,5 @@ class FatalError(Exception):
 
 def fatal(message: str, status: int) -> NoReturn:
     """Convenience method to exit the program with a user-friendly error message a test-friendly status code"""
-    print(message, file=sys.stderr)
+    rich.console.Console(stderr=True).print(message, style="bold red", highlight=False)
     sys.exit(status)  # raises a SystemExit exception
