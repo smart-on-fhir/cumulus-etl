@@ -75,6 +75,6 @@ tests = [
     "time-machine",
 ]
 dev = [
-    "black == 23.11.0",
+    "black >= 24, < 25",
     "pre-commit"
 ]
