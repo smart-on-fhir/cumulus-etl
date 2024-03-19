@@ -92,7 +92,14 @@ class LabelStudioClient:
                 return k, v
 
         errors.fatal(
-            "Could not find a Labels or Choices config in the Label Studio project.", errors.LABEL_STUDIO_CONFIG_INVALID
+            "Could not find a Labels or Choices config in the Label Studio project.\n"
+            "Add one in your project’s Settings → Labeling Interface page.\n"
+            "If you want a basic dynamic config, use this:\n"
+            "<View>\n"
+            '  <Labels name="label" toName="text" value="$label"/>\n'
+            '  <Text name="text" value="$text"/>\n'
+            "</View>",
+            errors.LABEL_STUDIO_CONFIG_INVALID,
         )
 
     def _format_task_for_note(self, note: LabelStudioNote) -> dict:

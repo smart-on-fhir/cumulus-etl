@@ -1,4 +1,5 @@
 """Tests for oracle extraction"""
+
 import os
 from unittest import mock
 

@@ -1,4 +1,5 @@
 """Tests for common.py"""
+
 import contextlib
 import itertools
 import tempfile

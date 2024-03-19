@@ -1,6 +1,5 @@
 """Mappings of various external coding systems to the concepts they represent"""
 
-
 # PHIN VADS 1000-9, Race & Ethnicity - CDC
 # https://phinvads.cdc.gov/vads/ViewCodeSystemConcept.action?oid=2.16.840.1.113883.6.238&code=1000-9
 # https://hl7.org/fhir/us/core/StructureDefinition-us-core-race.html
