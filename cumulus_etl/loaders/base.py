@@ -21,6 +21,10 @@ class Loader(abc.ABC):
         """
         self.root = root
 
+        # Public properties (potentially set when loading) for reporting back to caller
+        self.group_name = None
+        self.export_datetime = None
+
     @abc.abstractmethod
     async def load_all(self, resources: list[str]) -> common.Directory:
         """

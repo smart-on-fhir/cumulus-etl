@@ -5,17 +5,24 @@ Usually used for ndjson -> deltalake conversions, after the ndjson has been manu
 """
 
 import argparse
+import datetime
 import os
 import tempfile
+from functools import partial
+from typing import Callable
 
+import pyarrow
 import rich.progress
 
 from cumulus_etl import cli_utils, common, errors, formats, store
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.tasks import task_factory
+from cumulus_etl.etl.tasks import basic_tasks, task_factory
 
 
-def make_batch(task: type[tasks.EtlTask], formatter: formats.Format, index: int, path: str) -> formats.Batch:
+def make_batch(
+    path: str,
+    schema_func: Callable[[list[dict]], pyarrow.Schema],
+) -> formats.Batch:
     metadata_path = path.removesuffix(".ndjson") + ".meta"
     try:
         metadata = common.read_json(metadata_path)
@@ -24,7 +31,53 @@ def make_batch(task: type[tasks.EtlTask], formatter: formats.Format, index: int,
 
     rows = list(common.read_ndjson(path))
     groups = set(metadata.get("groups", []))
-    return task.make_batch_from_rows(formatter, rows, groups=groups, index=index)
+    schema = schema_func(rows)
+
+    # Convert any timestamp fields from the JSON string to a real datetime.
+    for field_name in schema.names:
+        # Only bother looking one level deep right now.
+        # The only table for which it matters is one we control - etl__completion
+        field = schema.field(field_name)
+        if pyarrow.types.is_timestamp(field.type):
+            for row in rows:
+                # We assume that the ETL ensured proper formatting when it wrote this field out.
+                row[field_name] = datetime.datetime.fromisoformat(row[field_name])
+
+    return formats.Batch(rows, groups=groups, schema=schema)
+
+
+def convert_folder(
+    input_root: store.Root,
+    *,
+    table_name: str,
+    schema_func: Callable[[list[dict]], pyarrow.Schema],
+    formatter: formats.Format,
+    progress: rich.progress.Progress,
+) -> None:
+    table_input_dir = input_root.joinpath(table_name)
+    if not input_root.exists(table_input_dir):
+        # Don't error out in this case -- it's not the user's fault if the folder doesn't exist.
+        # We're just checking all task folders.
+        return
+
+    # Grab all the files in the task dir
+    all_paths = store.Root(table_input_dir).ls()
+    ndjson_paths = sorted(filter(lambda x: x.endswith(".ndjson"), all_paths))
+    if not ndjson_paths:
+        # Again, don't error out in this case -- if the ETL made an empty dir, it's not a user-visible error
+        return
+
+    # Let's convert! Start chewing through the files
+    count = len(ndjson_paths) + 1  # add one for finalize step
+    progress_task = progress.add_task(table_name, total=count)
+
+    for ndjson_path in ndjson_paths:
+        batch = make_batch(ndjson_path, schema_func)
+        formatter.write_records(batch)
+        progress.update(progress_task, advance=1)
+
+    formatter.finalize()
+    progress.update(progress_task, advance=1)
 
 
 def convert_task_table(
@@ -36,38 +89,46 @@ def convert_task_table(
     progress: rich.progress.Progress,
 ) -> None:
     """Converts a task's output folder (like output/observation/ or output/covid_symptom__nlp_results/)"""
-    # Does the task dir even exist?
-    task_input_dir = input_root.joinpath(table.get_name(task))
-    if not input_root.exists(task_input_dir):
-        # Don't error out in this case -- it's not the user's fault if the folder doesn't exist.
-        # We're just checking all task folders.
-        return
 
-    # Grab all the files in the task dir
-    all_paths = store.Root(task_input_dir).ls()
-    ndjson_paths = sorted(filter(lambda x: x.endswith(".ndjson"), all_paths))
-    if not ndjson_paths:
-        # Again, don't error out in this case -- if the ETL made an empty dir, it's not a user-visible error
-        return
-
-    # Let's convert! Make the formatter and chew through the files
+    # Start with a formatter
     formatter = formatter_class(
         output_root,
         table.get_name(task),
         group_field=table.group_field,
-        resource_type=table.get_schema(task),
+        resource_type=table.get_resource_type(task),
     )
 
-    count = len(ndjson_paths) + 1  # add one for finalize step
-    progress_task = progress.add_task(table.get_name(task), total=count)
+    # And then run the conversion
+    convert_folder(
+        input_root,
+        table_name=table.get_name(task),
+        schema_func=partial(task.get_schema, formatter.resource_type),
+        formatter=formatter,
+        progress=progress,
+    )
 
-    for index, ndjson_path in enumerate(ndjson_paths):
-        batch = make_batch(task, formatter, index, ndjson_path)
-        formatter.write_records(batch)
-        progress.update(progress_task, advance=1)
 
-    formatter.finalize()
-    progress.update(progress_task, advance=1)
+def convert_completion_tables(
+    input_root: store.Root,
+    output_root: store.Root,
+    formatter_class: type[formats.Format],
+    progress: rich.progress.Progress,
+) -> None:
+    """Converts the etl__completion* metadata tables"""
+    convert_folder(
+        input_root,
+        table_name="etl__completion",
+        schema_func=tasks.EtlTask.get_completion_schema,
+        formatter=formatter_class(output_root, "etl__completion"),
+        progress=progress,
+    )
+    convert_folder(
+        input_root,
+        table_name="etl__completion_encounters",
+        schema_func=basic_tasks.EncounterTask.get_completion_encounters_schema,
+        formatter=formatter_class(output_root, "etl__completion_encounters"),
+        progress=progress,
+    )
 
 
 def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
@@ -89,6 +150,9 @@ def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: 
         for task in all_tasks:
             for table in task.outputs:
                 convert_task_table(task, table, input_root, output_root, formatter_class, progress)
+
+        # And also metadata tables
+        convert_completion_tables(input_root, output_root, formatter_class, progress)
 
         # Copy JobConfig files over too.
         # To consider: Marking the job_config.json file in these JobConfig directories as "converted" in some way.

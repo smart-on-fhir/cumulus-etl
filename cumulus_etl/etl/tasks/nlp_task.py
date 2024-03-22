@@ -19,7 +19,7 @@ class BaseNlpTask(EtlTask):
     needs_bulk_deid = False
 
     # You may want to override these in your subclass
-    outputs = [OutputTable(schema=None)]  # maybe a group_field? (remember to call self.seen_docrefs.add() if so)
+    outputs = [OutputTable(resource_type=None)]  # maybe a group_field? (remember to call self.seen_docrefs.add() if so)
     tags = {"gpu"}  # maybe a study identifier?
 
     # Task Version

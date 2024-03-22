@@ -99,10 +99,14 @@ class DeltaLakeFormat(Format):
             # Load table -- this will trigger an AnalysisException if the table doesn't exist yet
             table = delta.DeltaTable.forPath(self.spark, full_path)
 
+            # Determine merge condition
+            conditions = [f"table.{field} = updates.{field}" for field in self.uniqueness_fields]
+            condition = " and ".join(conditions)
+
             # Merge in new data
             merge = (
                 table.alias("table")
-                .merge(source=updates.alias("updates"), condition="table.id = updates.id")
+                .merge(source=updates.alias("updates"), condition=condition)
                 .whenMatchedUpdateAll(condition=self._get_match_condition(updates.schema))
                 .whenNotMatchedInsertAll()
             )

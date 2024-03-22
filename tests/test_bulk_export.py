@@ -42,11 +42,12 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
             make_response(
                 json_payload={
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
                     "output": [
                         {"type": "Condition", "url": "https://example.com/con1"},
                         {"type": "Condition", "url": "https://example.com/con2"},
                         {"type": "Patient", "url": "https://example.com/pat1"},
-                    ]
+                    ],
                 }
             ),  # status
             make_response(json_payload={"type": "Condition1"}, stream=True),  # download
@@ -108,6 +109,7 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
             make_response(
                 json_payload={
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
                     "error": [
                         {"type": "OperationOutcome", "url": "https://example.com/err1"},
                         {"type": "OperationOutcome", "url": "https://example.com/err2"},
@@ -156,6 +158,7 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
             make_response(
                 json_payload={
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
                     "error": [
                         {"type": "OperationOutcome", "url": "https://example.com/warning1"},
                     ],
@@ -309,6 +312,7 @@ class TestBulkExportEndToEnd(AsyncTestCase):
             },
         ).respond(
             json={
+                "transactionTime": "2015-02-07T13:28:17.239+02:00",
                 "output": [{"type": "Patient", "url": f"{self.root.path}/download/patient1"}],
             },
         )

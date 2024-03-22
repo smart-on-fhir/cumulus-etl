@@ -1,5 +1,6 @@
 """Base classes for ETL-oriented tests"""
 
+import datetime
 import os
 import shutil
 import tempfile
@@ -31,12 +32,12 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         self.root_path = os.path.join(self.datadir, self.DATA_ROOT)
         self.input_path = os.path.join(self.root_path, "input")
 
-        tmpdir = tempfile.mkdtemp()
+        self.tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        self.addCleanup(shutil.rmtree, tmpdir)
+        # self.addCleanup(shutil.rmtree, self.tmpdir)
 
-        self.output_path = os.path.join(tmpdir, "output")
-        self.phi_path = os.path.join(tmpdir, "phi")
+        self.output_path = os.path.join(self.tmpdir, "output")
+        self.phi_path = os.path.join(self.tmpdir, "phi")
 
         self.enforce_consistent_uuids()
 
@@ -62,6 +63,8 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             "--skip-init-checks",
             f"--input-format={input_format}",
             f"--ctakes-overrides={self.ctakes_overrides.name}",
+            "--export-group=test-group",
+            "--export-timestamp=2020-10-13T12:00:20-05:00",
         ]
         if output_format:
             args.append(f"--output-format={output_format}")
@@ -103,6 +106,7 @@ class TaskTestCase(utils.AsyncTestCase):
         client = fhir.FhirClient("http://localhost/", [])
         self.tmpdir = self.make_tempdir()
         self.input_dir = os.path.join(self.tmpdir, "input")
+        self.output_dir = os.path.join(self.tmpdir, "output")
         self.phi_dir = os.path.join(self.tmpdir, "phi")
         self.errors_dir = os.path.join(self.tmpdir, "errors")
         os.makedirs(self.input_dir)
@@ -111,17 +115,19 @@ class TaskTestCase(utils.AsyncTestCase):
         self.job_config = JobConfig(
             self.input_dir,
             self.input_dir,
-            self.tmpdir,
+            self.output_dir,
             self.phi_dir,
             "ndjson",
             "ndjson",
             client,
             batch_size=5,
             dir_errors=self.errors_dir,
+            export_group_name="test-group",
+            export_datetime=datetime.datetime(2012, 10, 10, 5, 30, 12, tzinfo=datetime.timezone.utc),
         )
 
-        def make_formatter(dbname: str, group_field: str = None, resource_type: str = None):
-            formatter = mock.MagicMock(dbname=dbname, group_field=group_field, resource_type=resource_type)
+        def make_formatter(dbname: str, **kwargs):
+            formatter = mock.MagicMock(dbname=dbname, **kwargs)
             self.format_count += 1
             if self.format_count == 1:
                 self.format = self.format or formatter

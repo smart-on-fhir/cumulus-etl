@@ -74,6 +74,11 @@ class FhirNdjsonLoader(base.Loader):
                 self.client, resources, self.root.path, target_dir.name, self.since, self.until
             )
             await bulk_exporter.export()
+
+            # Copy back these settings from the export
+            self.group_name = bulk_exporter.group_name
+            self.export_datetime = bulk_exporter.export_datetime
+
         except errors.FatalError as exc:
             errors.fatal(str(exc), errors.BULK_EXPORT_FAILED)
 

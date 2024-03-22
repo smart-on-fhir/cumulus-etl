@@ -4,7 +4,7 @@ import httpx
 import pyarrow
 import rich.progress
 
-from cumulus_etl import common, errors, formats, nlp
+from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl import tasks
 
 
@@ -86,7 +86,7 @@ class HuggingFaceTestTask(tasks.BaseNlpTask):
             }
 
     @classmethod
-    def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema:
+    def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema:
         return pyarrow.schema(
             [
                 pyarrow.field("id", pyarrow.string()),
