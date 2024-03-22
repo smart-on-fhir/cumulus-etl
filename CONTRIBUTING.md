@@ -27,6 +27,26 @@ pre-commit install
 
 This will install the pre-commit hooks for the repo (which automatically enforce styling for you).
 
+### Running unit tests
+
+1. First, you'll want to install the
+[Microsoft Anonymizer tool](https://github.com/microsoft/Tools-for-Health-Data-Anonymization/).
+Here's an example install command for a Debian-based Linux system,
+once you've checked out the repo:
+
+```shell
+sudo apt-get install dotnet6
+dotnet publish \
+  --runtime=linux-x64 \
+  --configuration=Release \
+  -p:PublishSingleFile=true \
+  --output=$HOME/.local/bin \
+  mstool/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
+```
+
+2. Then just run `pytest`.
+All dependencies should have been installed by the `pip install .[dev]` above.
+
 ### How to show us the patch
 
 Open a new GitHub PR and one of the maintainers will notice it and comment.

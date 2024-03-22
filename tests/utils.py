@@ -202,12 +202,16 @@ def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
     if version is not None:
         reader = reader.option("versionAsOf", version)
 
-    table_spark = reader.format("delta").load(lake_path).sort("id")
+    table_spark = reader.format("delta").load(lake_path)
 
     # Convert the spark table to Python primitives.
     # Going to rdd or pandas and then to Python keeps inserting spark-specific constructs like Row().
     # So instead, convert to a JSON string and then back to Python.
-    return [json.loads(row) for row in table_spark.toJSON().collect()]
+    rows = [json.loads(row) for row in table_spark.toJSON().collect()]
+
+    # Try to sort by id, but if that doesn't exist (which happens for some completion tables),
+    # just use all dict values as a sort key.
+    return sorted(rows, key=lambda x: x.get("id", sorted(x.items())))
 
 
 @contextlib.contextmanager

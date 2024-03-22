@@ -12,7 +12,7 @@ import rich.progress
 import rich.table
 import rich.text
 
-from cumulus_etl import cli_utils, common, deid, formats, store
+from cumulus_etl import cli_utils, common, completion, deid, formats, store
 from cumulus_etl.etl import config
 from cumulus_etl.etl.tasks import batching
 
@@ -33,16 +33,16 @@ class OutputTable:
     def get_name(self, task):
         return self.name or task.name
 
-    # *** schema ***
+    # *** resource_type ***
     # This field determines the schema of the output table.
     # Put a FHIR resource name (like "Observation") here, to fill the output table with an appropriate schema.
     # - None disables using a schema
     # - "__same__" means to use the same resource name as our input
     # - Or use any FHIR resource name
-    schema: str | None = "__same__"
+    resource_type: str | None = "__same__"
 
-    def get_schema(self, task):
-        return task.resource if self.schema == "__same__" else self.schema
+    def get_resource_type(self, task):
+        return task.resource if self.resource_type == "__same__" else self.resource_type
 
     # *** group_field ***
     # Set group_field if your task generates a group of interdependent records (like NLP results from a document).
@@ -63,6 +63,19 @@ class OutputTable:
     # This will tell the code that creates batches to not break up your group, so that the formatter gets a whole
     # group at one time, and not split across batches.
     group_field: str | None = None
+
+    # *** uniqueness_fields ***
+    # The set of fields which together, determine a unique row. There should be no duplicates that
+    # share the same value for all these fields. Default is ["id"]
+    uniqueness_fields: set[str] | None = None
+
+    # *** update_existing ***
+    # Whether to update existing rows or (if False) to ignore them and leave them in place.
+    update_existing: bool = True
+
+    # *** visible ***
+    # Whether this table should be user-visible in the progress output.
+    visible: bool = True
 
 
 class EtlTask:
@@ -93,6 +106,9 @@ class EtlTask:
         self.scrubber = scrubber
         self.formatters: list[formats.Format | None] = [None] * len(self.outputs)  # create format placeholders
         self.summaries: list[config.JobSummary] = [config.JobSummary(output.get_name(self)) for output in self.outputs]
+        self.completion_tracking_enabled = (
+            self.task_config.export_group_name is not None and self.task_config.export_datetime
+        )
 
     async def run(self) -> list[config.JobSummary]:
         """
@@ -126,6 +142,9 @@ class EtlTask:
                 # changes. (The reason it's nice if the table & schema exist is so that downstream SQL can be dumber.)
                 self._touch_remaining_tables()
 
+                # Mark this group & resource combo as complete
+                self._update_completion_table()
+
                 # All data is written, now do any final cleanup the formatters want
                 for formatter in self.formatters:
                     formatter.finalize()
@@ -133,9 +152,9 @@ class EtlTask:
         return self.summaries
 
     @classmethod
-    def make_batch_from_rows(cls, formatter: formats.Format, rows: list[dict], groups: set[str] = None, index: int = 0):
-        schema = cls.get_schema(formatter, rows)
-        return formats.Batch(rows, groups=groups, schema=schema, index=index)
+    def make_batch_from_rows(cls, resource_type: str | None, rows: list[dict], groups: set[str] = None):
+        schema = cls.get_schema(resource_type, rows)
+        return formats.Batch(rows, groups=groups, schema=schema)
 
     ##########################################################################################
     #
@@ -155,7 +174,9 @@ class EtlTask:
         """Writes all entries to each output tables in batches"""
 
         def update_status():
-            status.plain = "\n".join(f"{x.success:,} written to {x.label}" for x in self.summaries)
+            status.plain = "\n".join(
+                f"{x.success:,} written to {x.label}" for i, x in enumerate(self.summaries) if self.outputs[i].visible
+            )
 
         batch_index = 0
         format_progress_task = None
@@ -193,6 +214,32 @@ class EtlTask:
             if formatter is None:  # No data got written yet
                 self._write_one_table_batch([], table_index, 0)  # just write an empty dataframe (should be fast)
 
+    def _update_completion_table(self) -> None:
+        # TODO: what about empty sets - do we assume the export gave 0 results or skip it?
+        #  Is there a difference we could notice? (like empty input file vs no file at all)
+
+        if not self.completion_tracking_enabled:
+            return
+
+        # Create completion rows
+        batch = formats.Batch(
+            rows=[
+                {
+                    "table_name": output.get_name(self),
+                    "group_name": self.task_config.export_group_name,
+                    "export_time": self.task_config.export_datetime.isoformat(),
+                }
+                for output in self.outputs
+                if not output.get_name(self).startswith("etl__")
+            ],
+            schema=completion.completion_schema(),
+        )
+
+        # Write it out
+        formatter = self.task_config.create_formatter(**completion.completion_format_args())
+        formatter.write_records(batch)
+        formatter.finalize()
+
     def _get_formatter(self, table_index: int) -> formats.Format:
         """
         Lazily create output table formatters.
@@ -206,14 +253,16 @@ class EtlTask:
             self.formatters[table_index] = self.task_config.create_formatter(
                 table_info.get_name(self),
                 group_field=table_info.group_field,
-                resource_type=table_info.get_schema(self),
+                uniqueness_fields=table_info.uniqueness_fields,
+                update_existing=table_info.update_existing,
             )
 
         return self.formatters[table_index]
 
-    def _uniquify_rows(self, rows: list[dict]) -> list[dict]:
+    @staticmethod
+    def _uniquify_rows(rows: list[dict], uniqueness_fields: set[str]) -> list[dict]:
         """
-        Drop duplicates inside the batch to guarantee to the formatter that the "id" column is unique.
+        Drop duplicates inside the batch to guarantee to the formatter that each row is unique.
 
         This does not fix uniqueness across batches, but formatters that care about that can control for it.
 
@@ -226,12 +275,14 @@ class EtlTask:
         - Other backends like ndjson can currently just live with duplicates across batches, that's fine.
         """
         id_set = set()
+        uniqueness_fields = sorted(uniqueness_fields) if uniqueness_fields else ["id"]
 
         def is_unique(row):
             nonlocal id_set
-            if row["id"] in id_set:
+            row_id = tuple(row[field] for field in uniqueness_fields)
+            if row_id in id_set:
                 return False
-            id_set.add(row["id"])
+            id_set.add(row_id)
             return True
 
         return [row for row in rows if is_unique(row)]
@@ -241,26 +292,27 @@ class EtlTask:
         # updated codebook with no data than data with an inaccurate codebook.
         self.scrubber.save()
 
+        output = self.outputs[table_index]
         formatter = self._get_formatter(table_index)
-        rows = self._uniquify_rows(rows)
+        rows = self._uniquify_rows(rows, formatter.uniqueness_fields)
         groups = self.pop_current_group_values(table_index)
-        batch = self.make_batch_from_rows(formatter, rows, groups=groups, index=batch_index)
+        batch = self.make_batch_from_rows(output.get_resource_type(self), rows, groups=groups)
 
         # Now we write that batch to the target folder, in the requested format (e.g. ndjson).
         success = formatter.write_records(batch)
         if not success:
             # We should write the "bad" batch to the error dir, for later review
-            self._write_errors(batch)
+            self._write_errors(batch, batch_index)
 
         return success
 
-    def _write_errors(self, batch: formats.Batch) -> None:
+    def _write_errors(self, batch: formats.Batch, batch_index: int) -> None:
         """Takes the dataframe and writes it to the error dir, if one was provided"""
         if not self.task_config.dir_errors:
             return
 
         error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
-        error_path = error_root.joinpath(f"write-error.{batch.index:03}.ndjson")
+        error_path = error_root.joinpath(f"write-error.{batch_index:03}.ndjson")
         common.write_rows_to_ndjson(error_path, batch.rows)
 
     ##########################################################################################
@@ -351,12 +403,12 @@ class EtlTask:
         return set()
 
     @classmethod
-    def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema | None:
+    def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema | None:
         """
         Creates a properly-schema'd Table from the provided batch.
 
         Can be overridden as needed for non-FHIR outputs.
         """
-        if formatter.resource_type:
-            return cumulus_fhir_support.pyarrow_schema_from_rows(formatter.resource_type, rows)
+        if resource_type:
+            return cumulus_fhir_support.pyarrow_schema_from_rows(resource_type, rows)
         return None

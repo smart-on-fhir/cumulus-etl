@@ -4,9 +4,10 @@ import copy
 import logging
 import os
 
+import pyarrow
 import rich.progress
 
-from cumulus_etl import common, fhir, store
+from cumulus_etl import common, completion, fhir, store
 from cumulus_etl.etl import tasks
 
 
@@ -41,9 +42,42 @@ class DocumentReferenceTask(tasks.EtlTask):
 
 
 class EncounterTask(tasks.EtlTask):
+    """Processes Encounter FHIR resources"""
+
     name = "encounter"
     resource = "Encounter"
     tags = {"cpu"}
+
+    # Encounters are a little more complicated than normal FHIR resources.
+    # We also write out a table tying Encounters to a group name, for completion tracking.
+
+    outputs = [
+        # Write completion data out first, so that if an encounter is being completion-tracked,
+        # there's never a gap where it doesn't have an entry. This will help downstream users
+        # know if an Encounter is tracked or not - by simply looking at this table.
+        tasks.OutputTable(**completion.completion_encounters_output_args()),
+        tasks.OutputTable(),
+    ]
+
+    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+        async for encounter in super().read_entries(progress=progress):
+            if self.completion_tracking_enabled:
+                completion_info = {
+                    "encounter_id": encounter["id"],
+                    "group_name": self.task_config.export_group_name,
+                    "export_time": self.task_config.export_datetime.isoformat(),
+                }
+            else:
+                completion_info = None
+
+            yield completion_info, encounter
+
+    @classmethod
+    def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema | None:
+        if resource_type:
+            return super().get_schema(resource_type, rows)
+        else:
+            return completion.completion_encounters_schema()
 
 
 class ImmunizationTask(tasks.EtlTask):
@@ -66,8 +100,9 @@ class MedicationRequestTask(tasks.EtlTask):
     # and many EHRs don't let you simply bulk export them.
 
     outputs = [
+        # Write medication out first, to avoid a moment where links are broken
+        tasks.OutputTable(name="medication", resource_type="Medication"),
         tasks.OutputTable(),
-        tasks.OutputTable(name="medication", schema="Medication"),
     ]
 
     def __init__(self, *args, **kwargs):
@@ -132,7 +167,7 @@ class MedicationRequestTask(tasks.EtlTask):
                 continue
 
             medication = await self.fetch_medication(orig_resource)
-            yield resource, medication
+            yield medication, resource
 
 
 class ObservationTask(tasks.EtlTask):

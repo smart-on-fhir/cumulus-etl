@@ -1,5 +1,6 @@
 """Tests for etl/cli.py"""
 
+import datetime
 import itertools
 import json
 import os
@@ -105,7 +106,7 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["observation"])
 
         # Confirm we only wrote the one resource
-        self.assertEqual({"observation", "JobConfig"}, set(os.listdir(self.output_path)))
+        self.assertEqual({"etl__completion", "observation", "JobConfig"}, set(os.listdir(self.output_path)))
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
 
     async def test_multiple_tasks(self):
@@ -121,8 +122,8 @@ class TestEtlJobFlow(BaseEtlSimple):
         with mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all):
             await self.run_etl(tasks=["observation", "patient"])
 
-        # Confirm we only wrote the one resource
-        self.assertEqual({"observation", "patient", "JobConfig"}, set(os.listdir(self.output_path)))
+        # Confirm we only wrote the two resources
+        self.assertEqual({"etl__completion", "observation", "patient", "JobConfig"}, set(os.listdir(self.output_path)))
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
         self.assertEqual(["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient")))
 
@@ -158,8 +159,8 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_errors_to_passed_to_tasks(self):
         with self.assertRaises(SystemExit):
             with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job:
-                await self.run_etl(errors_to=f"{self.output_path}/errors")
-        self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.output_path}/errors")
+                await self.run_etl(errors_to=f"{self.tmpdir}/errors")
+        self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.tmpdir}/errors")
 
     @respx.mock
     async def test_bulk_no_auth(self):
@@ -171,6 +172,62 @@ class TestEtlJobFlow(BaseEtlSimple):
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
         self.assertEqual(errors.FHIR_AUTH_FAILED, cm.exception.code)
+
+    @ddt.data(
+        # First line is CLI args
+        # Second line is what loader will represent as the group/time
+        # Third line is what we expect to use as the group/time
+        (
+            {"export_group": "CLI", "export_timestamp": "2020-01-02", "write_completion": True},
+            ("Loader", datetime.datetime(2010, 12, 12)),
+            ("CLI", datetime.datetime(2020, 1, 2)),
+        ),
+        (
+            {"export_group": "CLI", "export_timestamp": "2020-01-02", "write_completion": False},
+            ("Loader", datetime.datetime(2010, 12, 12)),
+            (None, None),
+        ),
+        (
+            {"export_group": None, "export_timestamp": None, "write_completion": True},
+            ("Loader", datetime.datetime(2010, 12, 12)),
+            ("Loader", datetime.datetime(2010, 12, 12)),
+        ),
+        (
+            {"export_group": "CLI", "export_timestamp": None, "write_completion": True},
+            (None, None),
+            None,  # errors out
+        ),
+        (
+            {"export_group": None, "export_timestamp": "2020-01-02", "write_completion": True},
+            (None, None),
+            None,  # errors out
+        ),
+    )
+    @ddt.unpack
+    async def test_completion_args(self, etl_args, loader_vals, expected_vals):
+        """Verify that we parse completion args with the correct fallbacks and checks."""
+        # Grab all observations before we mock anything
+        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(["Observation"])
+
+        def fake_load_all(internal_self, resources):
+            del resources
+            internal_self.group_name = loader_vals[0]
+            internal_self.export_datetime = loader_vals[1]
+            return observations
+
+        with (
+            self.assertRaises(SystemExit) as cm,
+            mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
+            mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all),
+        ):
+            await self.run_etl(tasks=["observation"], **etl_args)
+
+        if expected_vals is None:
+            self.assertEqual(errors.COMPLETION_ARG_MISSING, cm.exception.code)
+        else:
+            config = mock_etl_job.call_args[0][0]
+            self.assertEqual(expected_vals[0], config.export_group_name)
+            self.assertEqual(expected_vals[1], config.export_datetime)
 
 
 class TestEtlJobConfig(BaseEtlSimple):
@@ -185,11 +242,30 @@ class TestEtlJobConfig(BaseEtlSimple):
         with open(full_path, "r", encoding="utf8") as f:
             return json.load(f)
 
-    async def test_comment(self):
-        """Verify that a comment makes it from command line to the log file"""
-        await self.run_etl(comment="Run by foo on machine bar")
+    async def test_serialization(self):
+        """Verify that everything makes it from command line to the log file"""
+        await self.run_etl(
+            batch_size=100,
+            comment="Run by foo on machine bar",
+            tasks=["condition", "patient"],
+        )
         config_file = self.read_config_file("job_config.json")
-        self.assertEqual(config_file["comment"], "Run by foo on machine bar")
+        self.assertEqual(
+            {
+                "dir_input": self.input_path,
+                "dir_output": self.output_path,
+                "dir_phi": self.phi_path,
+                "path": f"{self.job_config_path}/job_config.json",
+                "input_format": "ndjson",
+                "output_format": "ndjson",
+                "comment": "Run by foo on machine bar",
+                "batch_size": 100,
+                "tasks": "patient,condition",
+                "export_group_name": "test-group",
+                "export_timestamp": "2020-10-13T12:00:20-05:00",
+            },
+            config_file,
+        )
 
 
 class TestEtlJobContext(BaseEtlSimple):
@@ -290,6 +366,9 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
         self.assertEqual(
             {
                 "mockbucket/root/condition/condition.000.ndjson",
+                "mockbucket/root/etl__completion/etl__completion.000.ndjson",
+                "mockbucket/root/etl__completion/etl__completion.001.ndjson",
+                "mockbucket/root/etl__completion/etl__completion.002.ndjson",
                 "mockbucket/root/medication/medication.000.ndjson",
                 "mockbucket/root/medicationrequest/medicationrequest.000.ndjson",
                 "mockbucket/root/patient/patient.000.ndjson",

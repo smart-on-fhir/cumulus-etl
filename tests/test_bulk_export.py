@@ -42,11 +42,12 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
             make_response(
                 json_payload={
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
                     "output": [
                         {"type": "Condition", "url": "https://example.com/con1"},
                         {"type": "Condition", "url": "https://example.com/con2"},
                         {"type": "Patient", "url": "https://example.com/pat1"},
-                    ]
+                    ],
                 }
             ),  # status
             make_response(json_payload={"type": "Condition1"}, stream=True),  # download
@@ -55,7 +56,7 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202),  # delete request
         ]
 
-        await self.export()
+        exporter = await self.export()
 
         self.assertListEqual(
             [
@@ -78,6 +79,9 @@ class TestBulkExporter(AsyncTestCase):
             ],
             self.server.request.call_args_list,
         )
+
+        self.assertEqual("", exporter.group_name)  # global group name is empty string
+        self.assertEqual("2015-02-07T13:28:17.239000+02:00", exporter.export_datetime.isoformat())
 
         self.assertEqual({"type": "Condition1"}, common.read_json(f"{self.tmpdir}/Condition.000.ndjson"))
         self.assertEqual({"type": "Condition2"}, common.read_json(f"{self.tmpdir}/Condition.001.ndjson"))
@@ -108,6 +112,7 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
             make_response(
                 json_payload={
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
                     "error": [
                         {"type": "OperationOutcome", "url": "https://example.com/err1"},
                         {"type": "OperationOutcome", "url": "https://example.com/err2"},
@@ -156,6 +161,7 @@ class TestBulkExporter(AsyncTestCase):
             make_response(status_code=202, headers={"Content-Location": "https://example.com/poll"}),  # kickoff
             make_response(
                 json_payload={
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
                     "error": [
                         {"type": "OperationOutcome", "url": "https://example.com/warning1"},
                     ],
@@ -246,6 +252,7 @@ class TestBulkExportEndToEnd(AsyncTestCase):
         super().setUp()
 
         self.root = store.Root("http://localhost:9999/fhir")
+        self.input_url = self.root.joinpath("Group/MyGroup")
         self.client_id = "test-client-id"
 
         self.jwks_file = tempfile.NamedTemporaryFile()  # pylint: disable=consider-using-with
@@ -286,7 +293,7 @@ class TestBulkExportEndToEnd(AsyncTestCase):
 
         # /$export
         respx_mock.get(
-            f"{self.root.path}/$export",
+            f"{self.input_url}/$export",
             headers={
                 "Accept": "application/fhir+json",
                 "Authorization": "Bearer 1234567890",
@@ -309,6 +316,7 @@ class TestBulkExportEndToEnd(AsyncTestCase):
             },
         ).respond(
             json={
+                "transactionTime": "2015-02-07T13:28:17+02:00",
                 "output": [{"type": "Patient", "url": f"{self.root.path}/download/patient1"}],
             },
         )
@@ -346,7 +354,7 @@ class TestBulkExportEndToEnd(AsyncTestCase):
 
                 await cli.main(
                     [
-                        self.root.path,
+                        self.input_url,
                         f"{tmpdir}/output",
                         f"{tmpdir}/phi",
                         "--skip-init-checks",
@@ -354,10 +362,20 @@ class TestBulkExportEndToEnd(AsyncTestCase):
                         "--task=patient",
                         f"--smart-client-id={self.client_id}",
                         f"--smart-jwks={self.jwks_path}",
+                        "--write-completion",
                     ]
                 )
 
             self.assertEqual(
                 {"id": "4342abf315cf6f243e11f4d460303e36c6c3663a25c91cc6b1a8002476c850dd", "resourceType": "Patient"},
                 common.read_json(f"{tmpdir}/output/patient/patient.000.ndjson"),
+            )
+
+            self.assertEqual(
+                {
+                    "table_name": "patient",
+                    "group_name": "MyGroup",
+                    "export_time": "2015-02-07T13:28:17+02:00",
+                },
+                common.read_json(f"{tmpdir}/output/etl__completion/etl__completion.000.ndjson"),
             )

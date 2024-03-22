@@ -32,6 +32,7 @@ LABEL_STUDIO_CONFIG_INVALID = 30
 LABEL_STUDIO_MISSING = 31
 FHIR_AUTH_FAILED = 32
 SERVICE_MISSING = 33  # generic init-check service is missing
+COMPLETION_ARG_MISSING = 34
 
 
 class FhirConnectionError(Exception):

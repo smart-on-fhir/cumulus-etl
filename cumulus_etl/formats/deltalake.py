@@ -99,13 +99,19 @@ class DeltaLakeFormat(Format):
             # Load table -- this will trigger an AnalysisException if the table doesn't exist yet
             table = delta.DeltaTable.forPath(self.spark, full_path)
 
+            # Determine merge condition
+            conditions = [f"table.{field} = updates.{field}" for field in self.uniqueness_fields]
+            condition = " AND ".join(conditions)
+
             # Merge in new data
             merge = (
                 table.alias("table")
-                .merge(source=updates.alias("updates"), condition="table.id = updates.id")
-                .whenMatchedUpdateAll(condition=self._get_match_condition(updates.schema))
+                .merge(source=updates.alias("updates"), condition=condition)
                 .whenNotMatchedInsertAll()
             )
+            if self.update_existing:
+                update_condition = self._get_update_condition(updates.schema)
+                merge = merge.whenMatchedUpdateAll(condition=update_condition)
 
             if self.group_field and groups:
                 # Delete any entries for groups touched by this update that are no longer present in the group
@@ -145,7 +151,7 @@ class DeltaLakeFormat(Format):
         return self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
 
     @staticmethod
-    def _get_match_condition(schema: pyspark.sql.types.StructType) -> str | None:
+    def _get_update_condition(schema: pyspark.sql.types.StructType) -> str | None:
         """
         Determine what (if any) whenMatchedUpdateAll condition to use for the given update schema.
 

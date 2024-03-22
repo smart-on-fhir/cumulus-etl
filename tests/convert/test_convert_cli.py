@@ -29,7 +29,14 @@ class TestConvert(utils.AsyncTestCase):
         """Returns the job timestamp used, for easier inspection"""
         # Fill in original dir, including a non-default output folder
         shutil.copytree(f"{self.datadir}/simple/output", self.original_path)
-        shutil.copytree(f"{self.datadir}/covid/term-exists", self.original_path, dirs_exist_ok=True)
+        shutil.copytree(
+            f"{self.datadir}/covid/term-exists/covid_symptom__nlp_results_term_exists",
+            f"{self.original_path}/covid_symptom__nlp_results_term_exists",
+        )
+        shutil.copyfile(
+            f"{self.datadir}/covid/term-exists/etl__completion/etl__completion.000.ndjson",
+            f"{self.original_path}/etl__completion/etl__completion.covid.ndjson",
+        )
         os.makedirs(f"{self.original_path}/ignored")  # just to confirm we only copy what we understand
 
         job_timestamp = "2023-02-28__19.53.08"
@@ -87,6 +94,13 @@ class TestConvert(utils.AsyncTestCase):
         symptoms = utils.read_delta_lake(f"{self.target_path}/covid_symptom__nlp_results_term_exists")  # and covid
         self.assertEqual(2, len(symptoms))
         self.assertEqual("for", symptoms[0]["match"]["text"])
+        completion = utils.read_delta_lake(f"{self.target_path}/etl__completion")  # and completion
+        self.assertEqual(14, len(completion))
+        self.assertEqual("allergyintolerance", completion[0]["table_name"])
+        comp_enc = utils.read_delta_lake(f"{self.target_path}/etl__completion_encounters")
+        self.assertEqual(2, len(comp_enc))
+        self.assertEqual("08f0ebd4-950c-ddd9-ce97-b5bdf073eed1", comp_enc[0]["encounter_id"])
+        self.assertEqual("2020-10-13T12:00:20-05:00", comp_enc[0]["export_time"])
 
         # Now make a second small, partial output folder to layer into the existing Delta Lake
         delta_timestamp = "2023-02-29__19.53.08"
@@ -95,6 +109,18 @@ class TestConvert(utils.AsyncTestCase):
         with common.NdjsonWriter(f"{delta_path}/patient/new.ndjson") as writer:
             writer.write({"resourceType": "Patient", "id": "1de9ea66-70d3-da1f-c735-df5ef7697fb9", "birthDate": "1800"})
             writer.write({"resourceType": "Patient", "id": "z-gen", "birthDate": "2005"})
+        os.makedirs(f"{delta_path}/etl__completion_encounters")
+        with common.NdjsonWriter(f"{delta_path}/etl__completion_encounters/new.ndjson") as writer:
+            # Newer timestamp for the existing row
+            writer.write(
+                {
+                    "encounter_id": "08f0ebd4-950c-ddd9-ce97-b5bdf073eed1",
+                    "group_name": "test-group",
+                    "export_time": "2021-10-13T17:00:20+00:00",
+                }
+            )
+            # Totally new encounter
+            writer.write({"encounter_id": "NEW", "group_name": "NEW", "export_time": "2021-12-12T17:00:20+00:00"})
         delta_config_dir = f"{delta_path}/JobConfig/{delta_timestamp}"
         os.makedirs(delta_config_dir)
         common.write_json(f"{delta_config_dir}/job_config.json", {"delta": "yup"})
@@ -113,6 +139,14 @@ class TestConvert(utils.AsyncTestCase):
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions shouldn't change at all
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
+        comp_enc = utils.read_delta_lake(
+            f"{self.target_path}/etl__completion_encounters"
+        )  # and *some* enc mappings did
+        self.assertEqual(3, len(comp_enc))
+        self.assertEqual("08f0ebd4-950c-ddd9-ce97-b5bdf073eed1", comp_enc[0]["encounter_id"])
+        self.assertEqual("2020-10-13T12:00:20-05:00", comp_enc[0]["export_time"])  # confirm this *didn't* get updated
+        self.assertEqual("NEW", comp_enc[1]["encounter_id"])
+        self.assertEqual("2021-12-12T17:00:20+00:00", comp_enc[1]["export_time"])  # but the new row did get inserted
 
     @mock.patch("cumulus_etl.formats.Format.write_records")
     async def test_batch_metadata(self, mock_write):

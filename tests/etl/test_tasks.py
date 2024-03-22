@@ -124,6 +124,159 @@ class TestTasks(TaskTestCase):
 
 
 @ddt.ddt
+class TestTaskCompletion(TaskTestCase):
+    """Tests for etl__completion* handling"""
+
+    async def test_encounter_completion(self):
+        """Verify that we write out completion data correctly"""
+        self.make_json("Encounter.1", "FirstBatch.A")
+        self.make_json("Encounter.2", "FirstBatch.B")
+        self.make_json("Encounter.3", "SecondBatch.C")
+        self.job_config.batch_size = 4  # two encounters at a time (each encounter makes 2 rows)
+
+        await basic_tasks.EncounterTask(self.job_config, self.scrubber).run()
+
+        comp_enc_format = self.format  # etl__completion_encounters
+        enc_format = self.format2  # encounter
+        comp_format = self.format3  # etl__completion
+
+        self.assertEqual("etl__completion_encounters", comp_enc_format.dbname)
+        self.assertEqual({"encounter_id", "group_name"}, comp_enc_format.uniqueness_fields)
+        self.assertFalse(comp_enc_format.update_existing)
+
+        self.assertEqual("etl__completion", comp_format.dbname)
+        self.assertEqual({"table_name", "group_name"}, comp_format.uniqueness_fields)
+        self.assertTrue(comp_format.update_existing)
+
+        self.assertEqual(2, comp_enc_format.write_records.call_count)
+        self.assertEqual(2, enc_format.write_records.call_count)
+        self.assertEqual(1, comp_format.write_records.call_count)
+
+        comp_enc_batches = [call[0][0] for call in comp_enc_format.write_records.call_args_list]
+        self.assertEqual(
+            [
+                {
+                    "encounter_id": self.codebook.db.encounter("FirstBatch.A"),
+                    "group_name": "test-group",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                },
+                {
+                    "encounter_id": self.codebook.db.encounter("FirstBatch.B"),
+                    "group_name": "test-group",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                },
+            ],
+            comp_enc_batches[0].rows,
+        )
+        self.assertEqual(
+            [
+                {
+                    "encounter_id": self.codebook.db.encounter("SecondBatch.C"),
+                    "group_name": "test-group",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                }
+            ],
+            comp_enc_batches[1].rows,
+        )
+
+        comp_batch = comp_format.write_records.call_args[0][0]
+        self.assertEqual(
+            [
+                {
+                    "table_name": "encounter",
+                    "group_name": "test-group",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                }
+            ],
+            comp_batch.rows,
+        )
+
+    async def test_medication_completion(self):
+        """
+        Verify that we write out Medication completion too.
+
+        We just want to verify that we handle multi-output tasks.
+        """
+        self.make_json("MedicationRequest.1", "A")
+
+        await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
+
+        med_req_format = self.format  # MedicationRequest
+        med_format = self.format2  # Medication (second because no content, touched in finalize)
+        comp_format = self.format3  # etl__completion
+
+        self.assertEqual("medication", med_format.dbname)
+        self.assertEqual("medicationrequest", med_req_format.dbname)
+        self.assertEqual("etl__completion", comp_format.dbname)
+
+        self.assertEqual(1, med_format.write_records.call_count)
+        self.assertEqual(1, med_req_format.write_records.call_count)
+        self.assertEqual(1, comp_format.write_records.call_count)
+
+        comp_batch = comp_format.write_records.call_args[0][0]
+        self.assertEqual(
+            [
+                {
+                    "table_name": "medication",
+                    "group_name": "test-group",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                },
+                {
+                    "table_name": "medicationrequest",
+                    "group_name": "test-group",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                },
+            ],
+            comp_batch.rows,
+        )
+
+    @ddt.data("export_datetime", "export_group_name")
+    async def test_completion_disabled(self, null_field):
+        """Verify that we don't write completion data if we don't have args for it"""
+        self.make_json("Encounter.1", "A")
+        setattr(self.job_config, null_field, None)
+
+        await basic_tasks.EncounterTask(self.job_config, self.scrubber).run()
+
+        # This order is unusual - normally `encounter` is second,
+        # but because there is no content for etl__completion_encounters,
+        # it is only touched during task finalization, so it goes second instead.
+        enc_format = self.format  # encounter
+        comp_enc_format = self.format2  # etl__completion_encounters
+        comp_format = self.format3  # etl__completion
+
+        self.assertEqual("encounter", enc_format.dbname)
+        self.assertEqual("etl__completion_encounters", comp_enc_format.dbname)
+        self.assertIsNone(comp_format)  # tasks don't create this when completion is disabled
+
+        self.assertEqual(1, comp_enc_format.write_records.call_count)
+        self.assertEqual(1, enc_format.write_records.call_count)
+
+        self.assertEqual([], comp_enc_format.write_records.call_args[0][0].rows)
+
+    async def test_allow_empty_group(self):
+        """Empty groups are (rarely) used to mark a server-wide global export"""
+        self.make_json("Device.1", "A")
+        self.job_config.export_group_name = ""
+
+        await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
+
+        comp_format = self.format2  # etl__completion
+
+        self.assertEqual(1, comp_format.write_records.call_count)
+        self.assertEqual(
+            [
+                {
+                    "table_name": "device",
+                    "group_name": "",
+                    "export_time": "2012-10-10T05:30:12+00:00",
+                }
+            ],
+            comp_format.write_records.call_args[0][0].rows,
+        )
+
+
+@ddt.ddt
 class TestMedicationRequestTask(TaskTestCase):
     """Test case for MedicationRequestTask, which has some extra logic than normal FHIR resources"""
 
@@ -134,8 +287,11 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
+        med_req_format = self.format
+        med_format = self.format2  # second because it's empty
+
+        self.assertEqual(1, med_req_format.write_records.call_count)
+        batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual(
             {
                 self.codebook.db.resource_hash("InlineCode"),
@@ -145,8 +301,8 @@ class TestMedicationRequestTask(TaskTestCase):
         )
 
         # Confirm we wrote an empty dataframe to the medication table
-        self.assertEqual(1, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
         self.assertEqual([], batch.rows)
 
     async def test_contained_medications(self):
@@ -155,14 +311,17 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
+        med_req_format = self.format
+        med_format = self.format2  # second because it's empty
+
         # Confirm we wrote the basic MedicationRequest
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(1, med_req_format.write_records.call_count)
+        batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual(f'#{self.codebook.db.resource_hash("123")}', batch.rows[0]["medicationReference"]["reference"])
 
         # Confirm we wrote an empty dataframe to the medication table
-        self.assertEqual(1, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
         self.assertEqual(0, len(batch.rows))
 
     @mock.patch("cumulus_etl.fhir.download_reference")
@@ -173,19 +332,33 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
-        # Confirm we made both formatters correctly
-        self.assertEqual(2, self.create_formatter_mock.call_count)
+        med_format = self.format
+        med_req_format = self.format2
+
+        # Confirm we made all table formatters correctly
+        self.assertEqual(3, self.create_formatter_mock.call_count)
         self.assertEqual(
             [
-                mock.call("medicationrequest", group_field=None, resource_type="MedicationRequest"),
-                mock.call("medication", group_field=None, resource_type="Medication"),
+                mock.call(
+                    "medication",
+                    group_field=None,
+                    uniqueness_fields=None,
+                    update_existing=True,
+                ),
+                mock.call(
+                    "medicationrequest",
+                    group_field=None,
+                    uniqueness_fields=None,
+                    update_existing=True,
+                ),
+                mock.call(dbname="etl__completion", uniqueness_fields={"group_name", "table_name"}),
             ],
             self.create_formatter_mock.call_args_list,
         )
 
         # Confirm we wrote the basic MedicationRequest
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(1, med_req_format.write_records.call_count)
+        batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual([self.codebook.db.resource_hash("A")], [row["id"] for row in batch.rows])
         self.assertEqual(
             f'Medication/{self.codebook.db.resource_hash("123")}',
@@ -193,8 +366,8 @@ class TestMedicationRequestTask(TaskTestCase):
         )
 
         # AND that we wrote the downloaded resource!
-        self.assertEqual(1, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
         self.assertEqual(
             [self.codebook.db.resource_hash("med1")], [row["id"] for row in batch.rows]
         )  # meds should be scrubbed too
@@ -214,9 +387,11 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
+        med_format = self.format
+
         # Check result
-        self.assertEqual(1, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
         self.assertEqual(
             {
                 "resourceType": "Medication",
@@ -240,14 +415,17 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
+        med_format = self.format
+        med_req_format = self.format2
+
         # Confirm we still wrote out all three request resources
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(1, med_req_format.write_records.call_count)
+        batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual(3, len(batch.rows))
 
         # Confirm we still wrote out the medication for B
-        self.assertEqual(1, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args[0][0]
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
         self.assertEqual([self.codebook.db.resource_hash("medB")], [row["id"] for row in batch.rows])
 
         # And we saved the error?
@@ -272,6 +450,8 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
+        med_format = self.format
+
         # Confirm we only called the download method twice
         self.assertEqual(
             [
@@ -282,10 +462,10 @@ class TestMedicationRequestTask(TaskTestCase):
         )
 
         # Confirm we wrote just the downloaded resources, and didn't repeat the dup at all
-        self.assertEqual(2, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args_list[0][0][0]
+        self.assertEqual(2, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args_list[0][0][0]
         self.assertEqual([self.codebook.db.resource_hash("dup")], [row["id"] for row in batch.rows])
-        batch = self.format2.write_records.call_args_list[1][0][0]
+        batch = med_format.write_records.call_args_list[1][0][0]
         self.assertEqual([self.codebook.db.resource_hash("new")], [row["id"] for row in batch.rows])
 
     @mock.patch("cumulus_etl.fhir.download_reference")
@@ -307,6 +487,8 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
-        self.assertEqual(1, self.format2.write_records.call_count)
-        batch = self.format2.write_records.call_args[0][0]
+        med_format = self.format
+
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
         self.assertEqual([self.codebook.db.resource_hash("good")], [row["id"] for row in batch.rows])  # no "odd"

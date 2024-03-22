@@ -1,6 +1,7 @@
 """Support for FHIR bulk exports"""
 
 import asyncio
+import datetime
 import json
 import os
 import urllib.parse
@@ -54,6 +55,20 @@ class BulkExporter:
         self._since = since
         self._until = until
 
+        # Public properties, to be read after the export:
+        self.export_datetime = None
+
+        # Parse the group out of the URL, which will look something like:
+        # - https://hostname/root/Group/my-group$export  <- group name of `my-group`
+        # - https://hostname/root$export <- no group name, global export
+        if "/Group/" in self._url:
+            latter_half = self._url.split("/Group/", 2)[-1]
+            self.group_name = latter_half.split("/")[0]
+        else:
+            # Global exports don't seem realistic, but the user does do them,
+            # we'll use the empty string as the default group name for that...
+            self.group_name = ""
+
     async def export(self) -> None:
         """
         Bulk export resources from a FHIR server into local ndjson files.
@@ -99,6 +114,8 @@ class BulkExporter:
 
             # Finished! We're done waiting and can download all the files
             response_json = response.json()
+
+            self.export_datetime = datetime.datetime.fromisoformat(response_json["transactionTime"])
 
             # Were there any server-side errors during the export?
             # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
