@@ -7,7 +7,7 @@ import pyarrow
 import rich.progress
 from ctakesclient.transformer import TransformerModel
 
-from cumulus_etl import formats, nlp, store
+from cumulus_etl import nlp, store
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
@@ -109,7 +109,7 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
     #   cNLP: smartonfhir/cnlp-transformers:negation-0.4.0
     #   ctakesclient: 3.0
 
-    outputs = [tasks.OutputTable(schema=None, group_field="docref_id")]
+    outputs = [tasks.OutputTable(resource_type=None, group_field="docref_id")]
 
     async def prepare_task(self) -> bool:
         bsv_path = ctakesclient.filesystem.covid_symptoms_path()
@@ -155,7 +155,7 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
             yield symptoms
 
     @classmethod
-    def get_schema(cls, formatter: formats.Format, rows: list[dict]) -> pyarrow.Schema:
+    def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema:
         return pyarrow.schema(
             [
                 pyarrow.field("id", pyarrow.string()),

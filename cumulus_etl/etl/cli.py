@@ -124,6 +124,10 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
 
+    group = parser.add_argument_group("external export identification")
+    group.add_argument("--export-group", help=argparse.SUPPRESS)
+    group.add_argument("--export-timestamp", help=argparse.SUPPRESS)
+
     cli_utils.add_nlp(parser)
 
     task = parser.add_argument_group("task selection")
@@ -200,7 +204,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     common.print_header()  # all "prep" comes in this next section, like connecting to server, bulk export, and de-id
 
     if args.errors_to:
-        cli_utils.confirm_dir_is_empty(args.errors_to)
+        cli_utils.confirm_dir_is_empty(store.Root(args.errors_to, create=True))
 
     # Check that cTAKES is running and any other services or binaries we require
     if not args.skip_init_checks:
@@ -226,6 +230,14 @@ async def etl_main(args: argparse.Namespace) -> None:
         # Pull down resources from any remote location (like s3), convert from i2b2, or do a bulk export
         loaded_dir = await config_loader.load_all(list(required_resources))
 
+        # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
+        export_group_name = args.export_group or config_loader.group_name
+        export_datetime = (
+            datetime.datetime.fromisoformat(args.export_timestamp)
+            if args.export_timestamp
+            else config_loader.export_datetime
+        )
+
         # If *any* of our tasks need bulk MS de-identification, run it
         if any(t.needs_bulk_deid for t in selected_tasks):
             loaded_dir = await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
@@ -248,6 +260,8 @@ async def etl_main(args: argparse.Namespace) -> None:
             ctakes_overrides=args.ctakes_overrides,
             dir_errors=args.errors_to,
             tasks=[t.name for t in selected_tasks],
+            export_group_name=export_group_name,
+            export_datetime=export_datetime,
         )
         common.write_json(config.path_config(), config.as_json(), indent=4)
 

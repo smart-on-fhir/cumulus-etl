@@ -105,7 +105,7 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["observation"])
 
         # Confirm we only wrote the one resource
-        self.assertEqual({"observation", "JobConfig"}, set(os.listdir(self.output_path)))
+        self.assertEqual({"etl__completion", "observation", "JobConfig"}, set(os.listdir(self.output_path)))
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
 
     async def test_multiple_tasks(self):
@@ -121,8 +121,8 @@ class TestEtlJobFlow(BaseEtlSimple):
         with mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all):
             await self.run_etl(tasks=["observation", "patient"])
 
-        # Confirm we only wrote the one resource
-        self.assertEqual({"observation", "patient", "JobConfig"}, set(os.listdir(self.output_path)))
+        # Confirm we only wrote the two resources
+        self.assertEqual({"etl__completion", "observation", "patient", "JobConfig"}, set(os.listdir(self.output_path)))
         self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
         self.assertEqual(["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient")))
 
@@ -158,8 +158,8 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_errors_to_passed_to_tasks(self):
         with self.assertRaises(SystemExit):
             with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job:
-                await self.run_etl(errors_to=f"{self.output_path}/errors")
-        self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.output_path}/errors")
+                await self.run_etl(errors_to=f"{self.tmpdir}/errors")
+        self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.tmpdir}/errors")
 
     @respx.mock
     async def test_bulk_no_auth(self):
@@ -290,6 +290,9 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
         self.assertEqual(
             {
                 "mockbucket/root/condition/condition.000.ndjson",
+                "mockbucket/root/etl__completion/etl__completion.000.ndjson",
+                "mockbucket/root/etl__completion/etl__completion.001.ndjson",
+                "mockbucket/root/etl__completion/etl__completion.002.ndjson",
                 "mockbucket/root/medication/medication.000.ndjson",
                 "mockbucket/root/medicationrequest/medicationrequest.000.ndjson",
                 "mockbucket/root/patient/patient.000.ndjson",

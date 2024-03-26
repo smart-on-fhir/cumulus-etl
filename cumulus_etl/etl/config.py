@@ -31,6 +31,8 @@ class JobConfig:
         ctakes_overrides: str = None,
         dir_errors: str = None,
         tasks: list[str] = None,
+        export_group_name: str = None,
+        export_datetime: datetime.datetime = None,
     ):
         self._dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid
@@ -46,14 +48,16 @@ class JobConfig:
         self.batch_size = batch_size
         self.ctakes_overrides = ctakes_overrides
         self.tasks = tasks or []
+        self.export_group_name = export_group_name
+        self.export_datetime = export_datetime
 
         # initialize format class
         self._output_root = store.Root(self._dir_output, create=True)
         self._format_class = formats.get_format_class(self._output_format)
         self._format_class.initialize_class(self._output_root)
 
-    def create_formatter(self, dbname: str, group_field: str = None, resource_type: str = None) -> formats.Format:
-        return self._format_class(self._output_root, dbname, group_field=group_field, resource_type=resource_type)
+    def create_formatter(self, dbname: str, **kwargs) -> formats.Format:
+        return self._format_class(self._output_root, dbname, **kwargs)
 
     def path_config(self) -> str:
         return os.path.join(self.dir_job_config(), "job_config.json")
@@ -74,6 +78,8 @@ class JobConfig:
             "comment": self.comment,
             "batch_size": self.batch_size,
             "tasks": ",".join(self.tasks),
+            "export_group_name": self.export_group_name,
+            "export_timestamp": self.export_datetime and self.export_datetime.isoformat(),
         }
 
 

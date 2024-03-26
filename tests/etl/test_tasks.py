@@ -173,12 +173,15 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
-        # Confirm we made both formatters correctly
-        self.assertEqual(2, self.create_formatter_mock.call_count)
+        # Confirm we made all table formatters correctly
+        self.assertEqual(3, self.create_formatter_mock.call_count)
         self.assertEqual(
             [
-                mock.call("medicationrequest", group_field=None, resource_type="MedicationRequest"),
-                mock.call("medication", group_field=None, resource_type="Medication"),
+                mock.call(
+                    "medicationrequest", group_field=None, resource_type="MedicationRequest", uniqueness_fields=None
+                ),
+                mock.call("medication", group_field=None, resource_type="Medication", uniqueness_fields=None),
+                mock.call(dbname="etl__completion", uniqueness_fields={"group", "table"}),
             ],
             self.create_formatter_mock.call_args_list,
         )

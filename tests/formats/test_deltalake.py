@@ -57,7 +57,6 @@ class TestDeltaLake(utils.AsyncTestCase):
     def store(
         self,
         rows: list[dict],
-        batch_index: int = 10,
         schema: pyarrow.Schema = None,
         group_field: str = None,
         groups: set[str] = None,
@@ -72,7 +71,7 @@ class TestDeltaLake(utils.AsyncTestCase):
         :param groups: all group values for this batch (ignored if group_field is not set)
         """
         deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field)
-        batch = formats.Batch(rows, groups=groups, index=batch_index, schema=schema)
+        batch = formats.Batch(rows, groups=groups, schema=schema)
         return deltalake.write_records(batch)
 
     def assert_lake_equal(self, rows: list[dict]) -> None:

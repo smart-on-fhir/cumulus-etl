@@ -4,6 +4,7 @@ import copy
 import logging
 import os
 
+import pyarrow
 import rich.progress
 
 from cumulus_etl import common, fhir, store
@@ -41,9 +42,51 @@ class DocumentReferenceTask(tasks.EtlTask):
 
 
 class EncounterTask(tasks.EtlTask):
+    """Processes Encounter FHIR resources"""
+
     name = "encounter"
     resource = "Encounter"
     tags = {"cpu"}
+
+    # Encounters are a little more complicated than normal FHIR resources.
+    # We also write out a table tying Encounters to a group name, for completion tracking.
+
+    outputs = [
+        tasks.OutputTable(),
+        tasks.OutputTable(
+            name="etl__completion_encounters",
+            uniqueness_fields={"encounter_id", "group"},
+            resource_type=None,
+            visible=False,
+        ),
+    ]
+
+    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+        async for encounter in super().read_entries(progress=progress):
+            if self.completion_tracking_enabled:
+                completion_info = {"encounter_id": encounter["id"], "group": self.task_config.export_group_name}
+            else:
+                completion_info = None
+
+            yield encounter, completion_info
+
+    @classmethod
+    def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema | None:
+        if resource_type:
+            return super().get_schema(resource_type, rows)
+        else:
+            return cls.get_completion_encounters_schema()
+
+    @staticmethod
+    def get_completion_encounters_schema(*args, **kwargs) -> pyarrow.Schema | None:
+        """Returns a schema for the etl__completion_encounters table"""
+        del args, kwargs
+        return pyarrow.schema(
+            [
+                pyarrow.field("encounter_id", pyarrow.string()),
+                pyarrow.field("group", pyarrow.string()),
+            ]
+        )
 
 
 class ImmunizationTask(tasks.EtlTask):
@@ -67,7 +110,7 @@ class MedicationRequestTask(tasks.EtlTask):
 
     outputs = [
         tasks.OutputTable(),
-        tasks.OutputTable(name="medication", schema="Medication"),
+        tasks.OutputTable(name="medication", resource_type="Medication"),
     ]
 
     def __init__(self, *args, **kwargs):
