@@ -1,7 +1,6 @@
 """Helper methods for CLI parsing."""
 
 import argparse
-import os
 import socket
 import tempfile
 import time
@@ -9,7 +8,7 @@ import urllib.parse
 
 import rich.progress
 
-from cumulus_etl import common, errors
+from cumulus_etl import common, errors, store
 
 
 def add_auth(parser: argparse.ArgumentParser) -> None:
@@ -60,22 +59,21 @@ def make_export_dir(export_to: str = None) -> common.Directory:
         # If we were to relax this requirement, we'd want to copy the exported files over to a local dir.
         errors.fatal(f"The target export folder '{export_to}' must be local. ", errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
 
-    confirm_dir_is_empty(export_to)
+    confirm_dir_is_empty(store.Root(export_to, create=True))
 
     return common.RealDirectory(export_to)
 
 
-def confirm_dir_is_empty(path: str) -> None:
-    """Errors out if the dir exists with contents, but creates empty dir if not present yet"""
+def confirm_dir_is_empty(root: store.Root) -> None:
+    """Errors out if the dir exists with contents"""
     try:
-        if os.listdir(path):
+        if root.ls():
             errors.fatal(
-                f"The target folder '{path}' already has contents. Please provide an empty folder.",
+                f"The target folder '{root.path}' already has contents. Please provide an empty folder.",
                 errors.FOLDER_NOT_EMPTY,
             )
     except FileNotFoundError:
-        # Target folder doesn't exist, so let's make it
-        os.makedirs(path, mode=0o700)
+        pass
 
 
 def is_url_available(url: str, retry: bool = True) -> bool:

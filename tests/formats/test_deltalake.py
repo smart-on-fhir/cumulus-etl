@@ -57,10 +57,9 @@ class TestDeltaLake(utils.AsyncTestCase):
     def store(
         self,
         rows: list[dict],
-        batch_index: int = 10,
         schema: pyarrow.Schema = None,
-        group_field: str = None,
         groups: set[str] = None,
+        **kwargs,
     ) -> bool:
         """
         Writes a single batch of data to the data lake.
@@ -68,16 +67,15 @@ class TestDeltaLake(utils.AsyncTestCase):
         :param rows: the data to insert
         :param batch_index: which batch number this is, defaulting to 10 to avoid triggering any first/last batch logic
         :param schema: the batch schema, in pyarrow format
-        :param group_field: a group field name, used to delete non-matching group rows
         :param groups: all group values for this batch (ignored if group_field is not set)
         """
-        deltalake = DeltaLakeFormat(self.root, "patient", group_field=group_field)
-        batch = formats.Batch(rows, groups=groups, index=batch_index, schema=schema)
+        deltalake = DeltaLakeFormat(self.root, "patient", **kwargs)
+        batch = formats.Batch(rows, groups=groups, schema=schema)
         return deltalake.write_records(batch)
 
     def assert_lake_equal(self, rows: list[dict]) -> None:
         table_path = os.path.join(self.output_dir, "patient")
-        rows_by_id = sorted(rows, key=lambda x: x["id"])
+        rows_by_id = sorted(rows, key=lambda x: x.get("id", sorted(x.items())))
         self.assertListEqual(rows_by_id, utils.read_delta_lake(table_path))
 
     def test_creates_if_empty(self):
@@ -349,3 +347,29 @@ class TestDeltaLake(utils.AsyncTestCase):
                 d={"group": 'D"', "val": 3},
             )
         )
+
+    def test_custom_uniqueness(self):
+        """Verify that `uniqueness_fields` is properly handled."""
+        ids = {"F1", "F2"}
+        self.store(
+            [
+                {"F1": 1, "F2": 2, "msg": "original value"},
+                {"F1": 1, "F2": 9, "msg": "same F1"},
+                {"F1": 9, "F2": 2, "msg": "same F2"},
+            ],
+            uniqueness_fields=ids,
+        )
+        self.store([{"F1": 1, "F2": 2, "msg": "new"}], uniqueness_fields=ids)
+        self.assert_lake_equal(
+            [
+                {"F1": 1, "F2": 2, "msg": "new"},
+                {"F1": 1, "F2": 9, "msg": "same F1"},
+                {"F1": 9, "F2": 2, "msg": "same F2"},
+            ]
+        )
+
+    def test_update_existing(self):
+        """Verify that `update_existing` is properly handled."""
+        self.store(self.df(a=1, b=2))
+        self.store(self.df(a=999, c=3), update_existing=False)
+        self.assert_lake_equal(self.df(a=1, b=2, c=3))

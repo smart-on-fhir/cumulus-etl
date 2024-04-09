@@ -1,9 +1,10 @@
 """An implementation of Format designed to write in batches of files"""
 
 import abc
+import os
 import re
 
-from cumulus_etl import errors, store
+from cumulus_etl import cli_utils, store
 from cumulus_etl.formats.base import Format
 from cumulus_etl.formats.batch import Batch
 
@@ -36,42 +37,49 @@ class BatchedFileFormat(Format):
     #
     ##########################################################################################
 
+    @classmethod
+    def initialize_class(cls, root: store.Root) -> None:
+        # The ndjson formatter has a few main use cases:
+        # - unit testing
+        # - manual testing
+        # - an initial ETL run, manual inspection, then converting that to deltalake
+        #
+        # In all those use cases, we don't really need to re-use the same directory.
+        # And re-using the target directory can cause problems:
+        # - accidentally overriding important data
+        # - how should we handle the 2nd ETL run writing less / different batched files?
+        #
+        # So we just confirm that the output folder is empty - let's avoid the whole thing.
+        # But we do it in class-init rather than object-init because other tasks will create
+        # files here during the ETL run.
+        cli_utils.confirm_dir_is_empty(root)
+
     def __init__(self, *args, **kwargs) -> None:
         """Performs any preparation before any batches have been written."""
         super().__init__(*args, **kwargs)
 
-        # Let's clear out any existing files before writing any new ones.
-        # Note: There is a real issue here where Athena will see invalid results until we've written all
-        #       our files out. Use the deltalake format to get atomic updates.
-        parent_dir = self.root.joinpath(self.dbname)
-        self._confirm_no_unknown_files_exist(parent_dir)
+        self.dbroot = store.Root(self.root.joinpath(self.dbname))
+
+        # Grab the next available batch index to write.
+        # You might wonder why we do this, if we already checked that the output folder is empty
+        # during class initialization.
+        # But some output tables (like etl__completion) are written to in many small batches
+        # spread over the whole ETL run - so we need to support that workflow.
+        self._index = self._get_next_index()
+
+    def _get_next_index(self) -> int:
         try:
-            self.root.rm(parent_dir, recursive=True)
+            basenames = [os.path.basename(path) for path in self.dbroot.ls()]
         except FileNotFoundError:
-            pass
-
-    def _confirm_no_unknown_files_exist(self, folder: str) -> None:
-        """
-        Errors out if any unknown files exist in the target dir already.
-
-        This is designed to prevent accidents.
-        """
-        try:
-            filenames = [path.split("/")[-1] for path in store.Root(folder).ls()]
-        except FileNotFoundError:
-            return  # folder doesn't exist, we're good!
-
-        allowed_pattern = re.compile(rf"{self.dbname}\.[0-9]+\.({self.suffix}|meta)")
-        if not all(map(allowed_pattern.fullmatch, filenames)):
-            errors.fatal(
-                f"There are unexpected files in the output folder '{folder}'.\n"
-                f"Please confirm you are using the right output format.\n"
-                f"If so, delete the output folder and try again.",
-                errors.FOLDER_NOT_EMPTY,
-            )
+            return 0
+        pattern = re.compile(rf"{self.dbname}\.([0-9]+)\.{self.suffix}")
+        matches = [pattern.match(basename) for basename in basenames]
+        numbers = [int(match.group(1)) for match in matches if match]
+        return max(numbers, default=-1) + 1
 
     def _write_one_batch(self, batch: Batch) -> None:
         """Writes the whole dataframe to a single file"""
-        self.root.makedirs(self.root.joinpath(self.dbname))
-        full_path = self.root.joinpath(f"{self.dbname}/{self.dbname}.{batch.index:03}.{self.suffix}")
+        self.root.makedirs(self.dbroot.path)
+        full_path = self.dbroot.joinpath(f"{self.dbname}.{self._index:03}.{self.suffix}")
         self.write_format(batch, full_path)
+        self._index += 1

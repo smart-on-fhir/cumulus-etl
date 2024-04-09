@@ -2,6 +2,7 @@
 
 import abc
 import logging
+from collections.abc import Collection
 
 from cumulus_etl import store
 from cumulus_etl.formats.batch import Batch
@@ -22,7 +23,14 @@ class Format(abc.ABC):
         (e.g. some expensive setup that can be shared across per-table format instances, or eventually across threads)
         """
 
-    def __init__(self, root: store.Root, dbname: str, group_field: str = None, resource_type: str = None):
+    def __init__(
+        self,
+        root: store.Root,
+        dbname: str,
+        group_field: str = None,
+        uniqueness_fields: Collection[str] = None,
+        update_existing: bool = True,
+    ):
         """
         Initialize a new Format class
         :param root: the base location to write data to
@@ -31,18 +39,21 @@ class Format(abc.ABC):
          deleted -- for example "docref_id" will mean that any existing rows matching docref_id will be deleted before
          inserting any from this dataframe. Make sure that all records for a given group are in one single dataframe.
          See the comments for the EtlTask.group_field class attribute for more context.
-        :param resource_type: the name of the FHIR resource being stored, in case a fuller schema is needed
+        :param uniqueness_fields: a set of fields that together identify a unique row (defaults to {"id"})
+        :param update_existing: whether to update existing rows or (if False) to ignore them and leave them in place
         """
         self.root = root
         self.dbname = dbname
         self.group_field = group_field
-        self.resource_type = resource_type
+        self.uniqueness_fields = uniqueness_fields or {"id"}
+        self.update_existing = update_existing
 
     def write_records(self, batch: Batch) -> bool:
         """
         Writes a single batch of data to the output root.
 
-        The batch must contain a unique (no duplicates) "id" column.
+        The batch must contain no duplicate rows
+        (i.e. rows with the same values in all the `uniqueness_fields` columns).
 
         :param batch: the batch of data
         :returns: whether the batch was successfully written
