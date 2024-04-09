@@ -152,8 +152,8 @@ Resources:
     Properties:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
-        Name: 
-          Fn::Join: # replace hyphens with underscores for ease of SQL (hyphens are reserved)
+        # replace hyphens with underscores for ease of SQL (hyphens are reserved)
+        Name: !Join
           - '_'
           - Fn::Split:
             - '-'
