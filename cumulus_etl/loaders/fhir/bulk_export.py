@@ -57,17 +57,7 @@ class BulkExporter:
 
         # Public properties, to be read after the export:
         self.export_datetime = None
-
-        # Parse the group out of the URL, which will look something like:
-        # - https://hostname/root/Group/my-group$export  <- group name of `my-group`
-        # - https://hostname/root$export <- no group name, global export
-        if "/Group/" in self._url:
-            latter_half = self._url.split("/Group/", 2)[-1]
-            self.group_name = latter_half.split("/")[0]
-        else:
-            # Global exports don't seem realistic, but the user does do them,
-            # we'll use the empty string as the default group name for that...
-            self.group_name = ""
+        self.group_name = fhir.parse_group_from_url(self._url)
 
     async def export(self) -> None:
         """
