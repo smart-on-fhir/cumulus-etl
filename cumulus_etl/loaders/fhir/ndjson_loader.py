@@ -6,6 +6,7 @@ import tempfile
 from cumulus_etl import cli_utils, common, errors, fhir, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
+from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
 
 
 class FhirNdjsonLoader(base.Loader):
@@ -46,6 +47,16 @@ class FhirNdjsonLoader(base.Loader):
             errors.fatal(
                 "You provided FHIR bulk export parameters but did not provide a FHIR server", errors.ARGS_CONFLICT
             )
+
+        # Parse logs for export information
+        try:
+            parser = BulkExportLogParser(self.root)
+            self.group_name = parser.group_name
+            self.export_datetime = parser.export_datetime
+        except BulkExportLogParser.LogParsingError:
+            # Once we require group name & export datetime, we should warn about this.
+            # For now, just ignore any errors.
+            pass
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #

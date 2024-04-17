@@ -1,10 +1,11 @@
 """Tests for ndjson loading (both bulk export and local)"""
 
+import datetime
 import os
 import tempfile
 from unittest import mock
 
-from cumulus_etl import cli, errors, loaders, store
+from cumulus_etl import cli, common, errors, loaders, store
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase
 
@@ -32,6 +33,52 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter_class = exporter_patcher.start()
         self.mock_exporter = mock.AsyncMock()
         self.mock_exporter_class.return_value = self.mock_exporter
+
+    @staticmethod
+    def _write_log_file(path: str, group: str, timestamp: str) -> None:
+        with common.NdjsonWriter(path) as writer:
+            writer.write(
+                {
+                    "eventId": "kickoff",
+                    "eventDetail": {"exportUrl": f"https://host/Group/{group}/$export"},
+                }
+            )
+            writer.write(
+                {
+                    "eventId": "status_complete",
+                    "eventDetail": {"transactionTime": timestamp},
+                }
+            )
+
+    async def test_local_happy_path(self):
+        """Do a full local load from a folder."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_log_file(f"{tmpdir}/log.ndjson", "G", "1999-03-14T14:12:10")
+            with common.NdjsonWriter(f"{tmpdir}/Patient.ndjson") as writer:
+                writer.write({"id": "A"})
+
+            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            loaded_dir = await loader.load_all(["Patient"])
+
+        self.assertEqual(["Patient.ndjson"], os.listdir(loaded_dir.name))
+        self.assertEqual({"id": "A"}, common.read_json(f"{loaded_dir.name}/Patient.ndjson"))
+        self.assertEqual("G", loader.group_name)
+        self.assertEqual(datetime.datetime.fromisoformat("1999-03-14T14:12:10"), loader.export_datetime)
+
+    # At some point, we do want to make this fatal.
+    # But not while this feature is still optional.
+    async def test_log_parsing_is_non_fatal(self):
+        """Do a local load with a bad log setup."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._write_log_file(f"{tmpdir}/log.1.ndjson", "G1", "2001-01-01")
+            self._write_log_file(f"{tmpdir}/log.2.ndjson", "G2", "2002-02-02")
+
+            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            await loader.load_all([])
+
+        # We used neither log and didn't error out.
+        self.assertIsNone(loader.group_name)
+        self.assertIsNone(loader.export_datetime)
 
     @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     @mock.patch("cumulus_etl.etl.cli.loaders.FhirNdjsonLoader")

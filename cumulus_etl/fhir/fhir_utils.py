@@ -4,6 +4,7 @@ import base64
 import datetime
 import email.message
 import re
+import urllib.parse
 
 import inscriptis
 
@@ -107,6 +108,29 @@ def parse_datetime(value: str | None) -> datetime.datetime | None:
         return datetime.datetime.fromisoformat(value)
     except ValueError:
         return None
+
+
+def parse_group_from_url(url: str) -> str:
+    """
+    Parses the group out of a FHIR URL.
+
+    These URLS look something like:
+      - https://hostname/root/Group/my-group  <- group name of `my-group`
+      - https://hostname/root/Group/my-group/$export  <- group name of `my-group`
+      - https://hostname/root <- no group name
+    """
+    parsed = urllib.parse.urlparse(url)
+    if not parsed.scheme:
+        raise ValueError(f"Could not parse URL '{url}'")
+
+    pieces = parsed.path.split("/Group/", 2)
+    match len(pieces):
+        case 2:
+            return pieces[1].split("/")[0]
+        case _:
+            # Global exports don't seem realistic, but if the user does do them,
+            # we'll use the empty string as the default group name for that.
+            return ""
 
 
 ######################################################################################################################

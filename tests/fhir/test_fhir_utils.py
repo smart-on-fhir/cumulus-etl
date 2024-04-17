@@ -73,6 +73,32 @@ class TestDateParsing(utils.AsyncTestCase):
 
 
 @ddt.ddt
+class TestUrlParsing(utils.AsyncTestCase):
+    """Tests for URL parsing"""
+
+    @ddt.data(
+        ("//host", ValueError),
+        ("https://host", ""),
+        ("https://host/root", ""),
+        ("https://Group/MyGroup", ""),  # Group is hostname here
+        ("https://host/root/?key=/Group/Testing/", ""),
+        ("https://host/root/Group/MyGroup", "MyGroup"),
+        ("https://host/root/Group/MyGroup/", "MyGroup"),
+        ("https://host/Group/MyGroup/$export", "MyGroup"),
+        ("https://host/Group/MyGroup?key=value", "MyGroup"),
+        ("https://host/root/Group/Group/", "Group"),
+    )
+    @ddt.unpack
+    def test_parse_group_from_url(self, url, expected_group):
+        if isinstance(expected_group, str):
+            group = fhir.parse_group_from_url(url)
+            assert expected_group == group
+        else:
+            with self.assertRaises(expected_group):
+                fhir.parse_group_from_url(url)
+
+
+@ddt.ddt
 class TestDocrefNotesUtils(utils.AsyncTestCase):
     """Tests for the utility methods dealing with document reference clinical notes"""
 
