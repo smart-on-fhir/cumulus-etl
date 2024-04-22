@@ -16,7 +16,9 @@ from unittest import mock
 import httpx
 import respx
 import time_machine
+from jwcrypto import jwk
 
+from cumulus_etl import fhir
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 # Pass a non-UTC time to time-machine to help notice any bad timezone handling.
@@ -25,8 +27,6 @@ _FROZEN_TIME = datetime.datetime(2021, 9, 15, 1, 23, 45, tzinfo=datetime.timezon
 FROZEN_TIME_UTC = _FROZEN_TIME.astimezone(datetime.timezone.utc)
 
 
-# Several tests involve timestamps in some form, so just pick a standard time for all tests.
-@time_machine.travel(_FROZEN_TIME, tick=False)
 class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
     """
     Test case to hold some common code (suitable for async *OR* sync tests)
@@ -45,6 +45,11 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
         # Make it easy to grab test data, regardless of where the test is
         self.datadir = os.path.join(os.path.dirname(__file__), "data")
+
+        # Several tests involve timestamps in some form, so just pick a standard time for all tests.
+        traveller = time_machine.travel(_FROZEN_TIME, tick=False)
+        self.addCleanup(traveller.stop)
+        self.time_machine = traveller.start()
 
     def make_tempdir(self) -> str:
         """Creates a temporary dir that will be automatically cleaned up"""
@@ -158,6 +163,80 @@ class TreeCompareMixin(unittest.TestCase):
             self.assertEqual(left_rows, right_rows, f"{right_path} vs {left_path}")
         else:
             self.assertEqual(left_contents, right_contents, f"{right_path} vs {left_path}")
+
+
+class FhirClientMixin(unittest.TestCase):
+    """Mixin that provides a realistic FhirClient"""
+
+    def setUp(self):
+        super().setUp()
+
+        self.fhir_base = "http://localhost:9999/fhir"
+        self.fhir_url = f"{self.fhir_base}/Group/MyGroup"
+        self.fhir_client_id = "test-client-id"
+        self.fhir_bearer = "1234567890"  # the provided oauth bearer token
+
+        jwk_token = jwk.JWK.generate(kty="EC", alg="ES384", curve="P-384", kid="a", key_ops=["sign", "verify"]).export(
+            as_dict=True
+        )
+        self.fhir_jwks = {"keys": [jwk_token]}
+
+        self._fhir_jwks_file = tempfile.NamedTemporaryFile()  # pylint: disable=consider-using-with
+        self._fhir_jwks_file.write(json.dumps(self.fhir_jwks).encode("utf8"))
+        self._fhir_jwks_file.flush()
+        self.addCleanup(self._fhir_jwks_file.close)
+        self.fhir_jwks_path = self._fhir_jwks_file.name
+
+        # Do not unset assert_all_called - existing tests rely on it
+        self.respx_mock = respx.MockRouter(assert_all_called=True)
+        self.addCleanup(self.respx_mock.stop)
+        self.respx_mock.start()
+
+        self.mock_fhir_auth()
+
+    def mock_fhir_auth(self) -> None:
+        # /metadata
+        self.respx_mock.get(
+            f"{self.fhir_base}/metadata",
+        ).respond(
+            json={
+                "fhirVersion": "4.0.1",
+                "software": {
+                    "name": "Test",
+                    "version": "0.git",
+                    "releaseDate": "today",
+                },
+            }
+        )
+
+        # /.well-known/smart-configuration
+        self.respx_mock.get(
+            f"{self.fhir_base}/.well-known/smart-configuration",
+            headers={"Accept": "application/json"},
+        ).respond(
+            json={
+                "capabilities": ["client-confidential-asymmetric"],
+                "token_endpoint": f"{self.fhir_base}/token",
+                "token_endpoint_auth_methods_supported": ["private_key_jwt"],
+            },
+        )
+
+        # /token
+        self.respx_mock.post(
+            f"{self.fhir_base}/token",
+        ).respond(
+            json={
+                "access_token": self.fhir_bearer,
+            },
+        )
+
+    def fhir_client(self, resources: list[str]) -> fhir.FhirClient:
+        return fhir.FhirClient(
+            self.fhir_base,
+            resources,
+            smart_client_id=self.fhir_client_id,
+            smart_jwks=self.fhir_jwks,
+        )
 
 
 def make_response(status_code=200, json_payload=None, text=None, reason=None, headers=None, stream=False):

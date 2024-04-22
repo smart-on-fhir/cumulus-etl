@@ -229,9 +229,15 @@ def read_local_line_count(path) -> int:
     """Reads a local file and provides the count of new line characters."""
     # From https://stackoverflow.com/a/27517681/239668
     # Copyright Michael Bacon, licensed CC-BY-SA 3.0
+    count = 0
+    buf = None
     with open(path, "rb") as f:
         bufgen = itertools.takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in itertools.repeat(None)))
-        return sum(buf.count(b"\n") for buf in bufgen if buf)
+        for buf in bufgen:
+            count += buf.count(b"\n")
+    if buf and buf[-1] != "\n":  # catch a final line without a trailing newline
+        count += 1
+    return count
 
 
 def sparse_dict(dictionary: dict) -> dict:
@@ -326,11 +332,18 @@ def print_header(name: str | None = None) -> None:
 ###############################################################################
 
 
-def datetime_now() -> datetime.datetime:
+def datetime_now(local: bool = False) -> datetime.datetime:
     """
-    UTC date and time, suitable for use as a FHIR 'instant' data type
+    Current date and time, suitable for use as a FHIR 'instant' data type
+
+    The returned datetime is always 'aware' (not 'naive').
+
+    :param local: whether to use local timezone or (if False) UTC
     """
-    return datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
+    if local:
+        now = now.astimezone()
+    return now
 
 
 def timestamp_datetime(time: datetime.datetime = None) -> str:

@@ -8,8 +8,11 @@ import datetime
 import json
 import os
 import re
+import uuid
 
-from cumulus_etl import common, fhir, store
+import httpx
+
+from cumulus_etl import common, errors, fhir, store
 
 
 class BulkExportLogParser:
@@ -97,3 +100,186 @@ class BulkExportLogParser:
                 return filenames[log_files[0]]
             case _:
                 raise self.MultipleLogs("Multiple log.*.ndjson files found")
+
+
+class BulkExportLogWriter:
+    """Writes a standard log bulk export file."""
+
+    def __init__(self, root: store.Root):
+        self.root = root
+        self._export_id = str(uuid.uuid4())
+        self._filename = root.joinpath("log.ndjson")
+        self._num_files = 0
+        self._num_resources = 0
+        self._num_bytes = 0
+        self._start_time = None
+
+    def _event(self, event_id: str, detail: dict, *, timestamp: datetime.datetime = None) -> None:
+        timestamp = timestamp or common.datetime_now(local=True)
+        if self._start_time is None:
+            self._start_time = timestamp
+
+        # We open the file anew for each event because:
+        # a) logging should be flushed often to disk
+        # b) it makes the API of the class easier by avoiding a context manager
+        with self.root.fs.open(self._filename, "a", encoding="utf8") as f:
+            row = {
+                "exportId": self._export_id,
+                "timestamp": timestamp.isoformat(),
+                "eventId": event_id,
+                "eventDetail": detail,
+            }
+            json.dump(row, f)
+            f.write("\n")
+
+    @staticmethod
+    def _body(response: httpx.Response) -> dict | str:
+        try:
+            parsed = response.json()
+            if isinstance(parsed, dict):
+                return parsed
+        except json.JSONDecodeError:
+            pass  # fall back to text
+        return response.text
+
+    @staticmethod
+    def _response_info(response: httpx.Response) -> dict:
+        return {
+            "body": BulkExportLogWriter._body(response),
+            "code": response.status_code,
+            "responseHeaders": dict(response.headers),
+        }
+
+    @staticmethod
+    def _error_info(exc: Exception) -> dict:
+        """Merge the returned dictionary into an event detail object"""
+        info = {
+            "body": None,
+            "code": None,
+            "message": str(exc),
+            "responseHeaders": None,
+        }
+
+        if isinstance(exc, errors.NetworkError):
+            info.update(BulkExportLogWriter._response_info(exc.response))
+
+        return info
+
+    def kickoff(self, url: str, capabilities: dict, response: httpx.Response | Exception):
+        # https://www.hl7.org/fhir/R4/capabilitystatement.html
+        software = capabilities.get("software", {})
+        response_info = {}
+
+        # Spec says we shouldn't log the `patient` parameter, so strip it here.
+        request_headers = dict(httpx.URL(url).params)
+        request_headers.pop("patient", None)
+
+        if isinstance(response, Exception):
+            response_info = self._error_info(response)
+            if response_info["body"] is None:  # for non-httpx error cases
+                response_info["body"] = response_info["message"]
+        else:
+            response_info = BulkExportLogWriter._response_info(response)
+            if response.status_code == 202:
+                response_info["body"] = None
+                response_info["code"] = None
+
+        self._event(
+            "kickoff",
+            {
+                "exportUrl": url,
+                "softwareName": software.get("name"),
+                "softwareVersion": software.get("version"),
+                "softwareReleaseDate": software.get("releaseDate"),
+                "fhirVersion": capabilities.get("fhirVersion"),
+                "requestParameters": request_headers,
+                "errorCode": response_info["code"],
+                "errorBody": response_info["body"],
+                "responseHeaders": response_info["responseHeaders"],
+            },
+        )
+
+    def status_progress(self, response: httpx.Response):
+        self._event(
+            "status_progress",
+            {
+                "body": self._body(response),
+                "xProgress": response.headers.get("X-Progress"),
+                "retryAfter": response.headers.get("Retry-After"),
+            },
+        )
+
+    def status_complete(self, response: httpx.Response):
+        response_json = response.json()
+        self._event(
+            "status_complete",
+            {
+                "transactionTime": response_json.get("transactionTime"),
+                "outputFileCount": len(response_json.get("output", [])),
+                "deletedFileCount": len(response_json.get("deleted", [])),
+                "errorFileCount": len(response_json.get("error", [])),
+            },
+        )
+
+    def status_error(self, exc: Exception):
+        self._event(
+            "status_error",
+            self._error_info(exc),
+        )
+
+    def download_request(
+        self,
+        file_url: str | httpx.URL,
+        item_type: str,
+        resource_type: str | None,
+    ):
+        self._event(
+            "download_request",
+            {
+                "fileUrl": str(file_url),
+                "itemType": item_type,
+                "resourceType": resource_type,
+            },
+        )
+
+    def download_complete(
+        self,
+        file_url: str | httpx.URL,
+        resource_count: int | None,
+        file_size: int,
+    ):
+        self._num_files += 1
+        self._num_resources += resource_count or 0
+        self._num_bytes += file_size
+        self._event(
+            "download_complete",
+            {
+                "fileUrl": str(file_url),
+                "resourceCount": resource_count,
+                "fileSize": file_size,
+            },
+        )
+
+    def download_error(self, file_url: str | httpx.URL, exc: Exception):
+        self._event(
+            "download_error",
+            {
+                "fileUrl": str(file_url),
+                **self._error_info(exc),
+            },
+        )
+
+    def export_complete(self):
+        timestamp = common.datetime_now(local=True)
+        duration = (timestamp - self._start_time) if self._start_time else 0
+        self._event(
+            "export_complete",
+            {
+                "files": self._num_files,
+                "resources": self._num_resources,
+                "bytes": self._num_bytes,
+                "attachments": None,
+                "duration": duration.microseconds // 1000,
+            },
+            timestamp=timestamp,
+        )

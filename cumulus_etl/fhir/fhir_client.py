@@ -61,6 +61,7 @@ class FhirClient:
             self._server_root, resources, basic_user, basic_password, bearer_token, smart_client_id, smart_jwks
         )
         self._session: httpx.AsyncClient | None = None
+        self._capabilities: dict = {}
 
     async def __aenter__(self):
         # Limit the number of connections open at once, because EHRs tend to be very busy.
@@ -120,13 +121,16 @@ class FhirClient:
                 return exc.response
 
             if stream:
+                await response.aread()
                 await response.aclose()
 
             # All other 4xx or 5xx codes are treated as fatal errors
             message = None
             try:
                 json_response = exc.response.json()
-                if json_response.get("resourceType") == "OperationOutcome":
+                if not isinstance(json_response, dict):
+                    message = exc.response.text
+                elif json_response.get("resourceType") == "OperationOutcome":
                     issue = json_response["issue"][0]  # just grab first issue
                     message = issue.get("details", {}).get("text")
                     message = message or issue.get("diagnostics")
@@ -135,9 +139,22 @@ class FhirClient:
             if not message:
                 message = str(exc)
 
-            raise errors.FatalError(f'An error occurred when connecting to "{url}": {message}') from exc
+            raise errors.NetworkError(
+                f'An error occurred when connecting to "{url}": {message}',
+                response,
+            ) from exc
 
         return response
+
+    def get_capabilities(self) -> dict:
+        """
+        Returns the server's CapabilityStatement, if available.
+
+        See https://www.hl7.org/fhir/R4/capabilitystatement.html
+
+        If the statement could not be retrieved, this returns an empty dict.
+        """
+        return self._capabilities
 
     ###################################################################################################################
     #
@@ -179,6 +196,8 @@ class FhirClient:
         elif capabilities.get("software", {}).get("name") == "Epic":
             # Example: https://fhir.epic.com/interconnect-fhir-oauth/api/FHIR/R4/metadata?_format=json
             self._server_type = ServerType.EPIC
+
+        self._capabilities = capabilities
 
     async def _request_with_signed_headers(self, method: str, url: str, headers: dict, **kwargs) -> httpx.Response:
         """

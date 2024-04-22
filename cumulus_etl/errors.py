@@ -3,6 +3,7 @@
 import sys
 from typing import NoReturn
 
+import httpx
 import rich.console
 
 
@@ -35,26 +36,34 @@ SERVICE_MISSING = 33  # generic init-check service is missing
 COMPLETION_ARG_MISSING = 34
 
 
-class FhirConnectionError(Exception):
-    """We needed to connect to a FHIR server but failed"""
+class FatalError(Exception):
+    """An unrecoverable error"""
 
 
-class FhirUrlMissing(FhirConnectionError):
+class NetworkError(FatalError):
+    """An unrecoverable network error"""
+
+    def __init__(self, msg: str, response: httpx.Response):
+        super().__init__(msg)
+        self.response = response
+
+
+class FhirConnectionConfigError(FatalError):
+    """We needed to connect to a FHIR server but are not configured correctly"""
+
+
+class FhirUrlMissing(FhirConnectionConfigError):
     """We needed to connect to a FHIR server but no URL was provided"""
 
     def __init__(self):
         super().__init__("Could not download some files without a FHIR server URL (use --fhir-url)")
 
 
-class FhirAuthMissing(FhirConnectionError):
+class FhirAuthMissing(FhirConnectionConfigError):
     """We needed to connect to a FHIR server but no authentication config was provided"""
 
     def __init__(self):
         super().__init__("Could not download some files without authentication parameters (see --help)")
-
-
-class FatalError(Exception):
-    """An unrecoverable error"""
 
 
 def fatal(message: str, status: int) -> NoReturn:

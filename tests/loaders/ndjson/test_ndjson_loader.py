@@ -276,13 +276,46 @@ class TestNdjsonLoader(AsyncTestCase):
 
     async def test_export_to_folder_happy_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
+
+            async def fake_export() -> None:
+                output_dir = self.mock_exporter_class.call_args[0][3]
+                common.write_json(f"{output_dir}/Patient.ndjson", {"id": "A"})
+                common.write_json(f"{output_dir}/log.ndjson", {"eventId": "kickoff"})
+
+            self.mock_exporter.export.side_effect = fake_export
+
             target = f"{tmpdir}/target"
             loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target)
-            folder = await loader.load_all([])
+            folder = await loader.load_all(["Patient"])
 
-            self.assertTrue(os.path.isdir(target))  # confirm it got created
+            # Confirm export folder still has the data (and log) we created above in the mock
+            self.assertTrue(os.path.isdir(target))
             self.assertEqual(target, self.mock_exporter_class.call_args[0][3])
-            self.assertEqual(target, folder.name)
+            self.assertEqual({"Patient.ndjson", "log.ndjson"}, set(os.listdir(target)))
+            self.assertEqual({"id": "A"}, common.read_json(f"{target}/Patient.ndjson"))
+            self.assertEqual({"eventId": "kickoff"}, common.read_json(f"{target}/log.ndjson"))
+
+            # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
+            self.assertNotEqual(folder.name, target)
+            self.assertEqual({"Patient.ndjson"}, set(os.listdir(folder.name)))
+            self.assertEqual({"id": "A"}, common.read_json(f"{folder.name}/Patient.ndjson"))
+
+    async def test_export_internal_folder_happy_path(self):
+        """Test that we can also safely export without an export-to folder involved"""
+
+        async def fake_export() -> None:
+            output_dir = self.mock_exporter_class.call_args[0][3]
+            common.write_json(f"{output_dir}/Patient.ndjson", {"id": "A"})
+            common.write_json(f"{output_dir}/log.ndjson", {"eventId": "kickoff"})
+
+        self.mock_exporter.export.side_effect = fake_export
+
+        loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock())
+        folder = await loader.load_all(["Patient"])
+
+        # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
+        self.assertEqual({"Patient.ndjson"}, set(os.listdir(folder.name)))
+        self.assertEqual({"id": "A"}, common.read_json(f"{folder.name}/Patient.ndjson"))
 
     async def test_export_to_folder_has_contents(self):
         """Verify we fail if an export folder already has contents"""

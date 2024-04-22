@@ -20,7 +20,7 @@ dependencies = [
     "label-studio-sdk < 1",
     "oracledb < 3",
     "philter-lite < 1",
-    "pyarrow < 16",
+    "pyarrow < 17",
     "rich < 14",
     "s3fs",
 ]
