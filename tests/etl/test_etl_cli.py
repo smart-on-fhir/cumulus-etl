@@ -171,7 +171,7 @@ class TestEtlJobFlow(BaseEtlSimple):
         # Now run the ETL on that new input dir without any server auth config provided
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
-        self.assertEqual(errors.FHIR_AUTH_FAILED, cm.exception.code)
+        self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
     @ddt.data(
         # First line is CLI args

@@ -5,12 +5,15 @@ import datetime
 import json
 import os
 import urllib.parse
+from collections.abc import Callable
+from functools import partial
 
 import httpx
 import rich.live
 import rich.text
 
-from cumulus_etl import common, errors, fhir
+from cumulus_etl import common, errors, fhir, store
+from cumulus_etl.loaders.fhir import export_log
 
 
 class BulkExporter:
@@ -21,6 +24,10 @@ class BulkExporter:
     - The bulk-data-server test server (https://github.com/smart-on-fhir/bulk-data-server)
     - Cerner (https://www.cerner.com/)
     - Epic (https://www.epic.com/)
+
+    TODO: make it more robust against server flakiness (like random http errors during file
+     download or status checks). At least for intermittent issues (i.e. we should do some
+     retrying). Actual server errors we should continue to surface, if they persist after retries.
     """
 
     _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
@@ -54,6 +61,7 @@ class BulkExporter:
         self._total_wait_time = 0  # in seconds, across all our requests
         self._since = since
         self._until = until
+        self._log: export_log.BulkExportLogWriter = None
 
         # Public properties, to be read after the export:
         self.export_datetime = None
@@ -72,11 +80,13 @@ class BulkExporter:
           Encounter.000.ndjson
           Encounter.001.ndjson
           Patient.000.ndjson
+          log.ndjson
 
         See http://hl7.org/fhir/uv/bulkdata/export/index.html for details.
         """
         # Initiate bulk export
         print("Starting bulk FHIR export…")
+        self._log = export_log.BulkExportLogWriter(store.Root(self._destination))
 
         params = {"_type": ",".join(self._resources)}
         if self._since:
@@ -86,41 +96,60 @@ class BulkExporter:
             # But some servers do support it, and it is a possible future addition to the spec.
             params["_until"] = self._until
 
+        full_url = urllib.parse.urljoin(self._url, f"$export?{urllib.parse.urlencode(params)}")
         try:
             response = await self._request_with_delay(
-                urllib.parse.urljoin(self._url, f"$export?{urllib.parse.urlencode(params)}"),
+                full_url,
                 headers={"Prefer": "respond-async"},
                 target_status_code=202,
             )
-        except errors.FhirConnectionError as exc:
-            errors.fatal(str(exc), errors.FHIR_AUTH_FAILED)
+        except Exception as exc:
+            self._log.kickoff(full_url, self._client.get_capabilities(), exc)
+            raise
+        else:
+            self._log.kickoff(full_url, self._client.get_capabilities(), response)
 
         # Grab the poll location URL for status updates
         poll_location = response.headers["Content-Location"]
 
-        try:
-            # Request status report, until export is done
-            response = await self._request_with_delay(poll_location, headers={"Accept": "application/json"})
+        # Request status report, until export is done
+        response = await self._request_with_logging(
+            poll_location,
+            headers={"Accept": "application/json"},
+            log_progress=self._log.status_progress,
+            log_error=self._log.status_error,
+        )
+        self._log.status_complete(response)
 
-            # Finished! We're done waiting and can download all the files
-            response_json = response.json()
+        # Finished! We're done waiting and can download all the files
+        response_json = response.json()
 
-            self.export_datetime = datetime.datetime.fromisoformat(response_json["transactionTime"])
+        self.export_datetime = datetime.datetime.fromisoformat(response_json["transactionTime"])
 
-            # Were there any server-side errors during the export?
-            # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
-            error_texts, warning_texts = await self._gather_all_messages(response_json.get("error", []))
-            if error_texts:
-                raise errors.FatalError("\n - ".join(["Errors occurred during export:"] + error_texts))
-            if warning_texts:
-                print("\n - ".join(["Messages from server:"] + warning_texts))
+        # Were there any server-side errors during the export?
+        # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
+        error_texts, warning_texts = await self._gather_all_messages(response_json.get("error", []))
+        if warning_texts:
+            print("\n - ".join(["Messages from server:"] + warning_texts))
 
-            # Download all the files
-            print("Bulk FHIR export finished, now downloading resources…")
-            files = response_json.get("output", [])
-            await self._download_all_ndjson_files(files)
-        finally:
-            await self._delete_export(poll_location)
+        # Download all the files
+        print("Bulk FHIR export finished, now downloading resources…")
+        files = response_json.get("output", [])
+        await self._download_all_ndjson_files(files)
+
+        self._log.export_complete()
+
+        # If we raised an error in the above code, we intentionally will not reach this DELETE
+        # call. If we had an issue talking to the server (like http errors), we want to leave the
+        # files up there, so the user could try to manually recover.
+        await self._delete_export(poll_location)
+
+        # Make sure we're fully done before we bail because the server told us the export has issues.
+        # We still want to DELETE the export in this case. And we still want to download all the files
+        # the server DID give us. Servers may have lots of ignorable errors that need human review,
+        # before passing back to us as input ndjson.
+        if error_texts:
+            raise errors.FatalError("\n - ".join(["Errors occurred during export:"] + error_texts))
 
     ###################################################################################################################
     #
@@ -137,7 +166,12 @@ class BulkExporter:
             pass
 
     async def _request_with_delay(
-        self, path: str, headers: dict = None, target_status_code: int = 200, method: str = "GET"
+        self,
+        path: str,
+        headers: dict = None,
+        target_status_code: int = 200,
+        method: str = "GET",
+        log_progress: Callable[[httpx.Response], None] = None,
     ) -> httpx.Response:
         """
         Requests a file, while respecting any requests to wait longer.
@@ -161,6 +195,9 @@ class BulkExporter:
 
                 # 202 == server is still working on it, 429 == server is busy -- in both cases, we wait
                 if response.status_code in [202, 429]:
+                    if log_progress:
+                        log_progress(response)
+
                     # Print a message to the user, so they don't see us do nothing for a while
                     delay = int(response.headers.get("Retry-After", 60))
                     if response.status_code == 202:
@@ -181,11 +218,29 @@ class BulkExporter:
                     # It feels silly to abort on an unknown *success* code, but the spec has such clear guidance on
                     # what the expected response codes are, that it's not clear if a code outside those parameters means
                     # we should keep waiting or stop waiting. So let's be strict here for now.
-                    raise errors.FatalError(
-                        f"Unexpected status code {response.status_code} from the bulk FHIR export server."
+                    raise errors.NetworkError(
+                        f"Unexpected status code {response.status_code} from the bulk FHIR export server.",
+                        response,
                     )
 
         raise errors.FatalError("Timed out waiting for the bulk FHIR export to finish.")
+
+    async def _request_with_logging(
+        self,
+        *args,
+        log_begin: Callable[[], None] = None,
+        log_error: Callable[[Exception], None] = None,
+        **kwargs,
+    ) -> httpx.Response:
+        if log_begin:
+            log_begin()
+
+        try:
+            return await self._request_with_delay(*args, **kwargs)
+        except Exception as exc:
+            if log_error:
+                log_error(exc)
+            raise
 
     async def _gather_all_messages(self, error_list: list[dict]) -> (list[str], list[str]):
         """
@@ -197,13 +252,26 @@ class BulkExporter:
         coroutines = []
         for error in error_list:
             if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
-                coroutines.append(self._request_with_delay(error["url"], headers={"Accept": "application/fhir+ndjson"}))
+                coroutines.append(
+                    self._request_with_logging(
+                        error["url"],
+                        headers={"Accept": "application/fhir+ndjson"},
+                        log_begin=partial(
+                            self._log.download_request,
+                            error["url"],
+                            "error",
+                            error["type"],
+                        ),
+                        log_error=partial(self._log.download_error, error["url"]),
+                    ),
+                )
         responses = await asyncio.gather(*coroutines)
 
         fatal_messages = []
         info_messages = []
         for response in responses:
-            outcomes = (json.loads(x) for x in response.text.split("\n") if x)  # a list of OperationOutcomes
+            outcomes = [json.loads(x) for x in response.text.split("\n") if x]  # a list of OperationOutcomes
+            self._log.download_complete(response.url, len(outcomes), len(response.text))
             for outcome in outcomes:
                 for issue in outcome.get("issue", []):
                     text = issue.get("diagnostics")
@@ -228,23 +296,47 @@ class BulkExporter:
             count = resource_counts.get(file["type"], -1) + 1
             resource_counts[file["type"]] = count
             filename = f'{file["type"]}.{count:03}.ndjson'
-            coroutines.append(self._download_ndjson_file(file["url"], os.path.join(self._destination, filename)))
+            coroutines.append(
+                self._download_ndjson_file(
+                    file["url"],
+                    file["type"],
+                    os.path.join(self._destination, filename),
+                ),
+            )
         await asyncio.gather(*coroutines)
 
-    async def _download_ndjson_file(self, url: str, filename: str) -> None:
+    async def _download_ndjson_file(self, url: str, resource_type: str, filename: str) -> None:
         """
         Downloads a single ndjson file from the bulk export server.
 
         :param url: URL location of file to download
+        :param resource_type: the resource type of the file
         :param filename: local path to write data to
         """
-        response = await self._client.request("GET", url, headers={"Accept": "application/fhir+ndjson"}, stream=True)
+
+        self._log.download_request(url, "output", resource_type)
+        decompressed_size = 0
+
         try:
-            with open(filename, "w", encoding="utf8") as file:
-                async for block in response.aiter_text():
-                    file.write(block)
-        finally:
-            await response.aclose()
+            response = await self._client.request(
+                "GET",
+                url,
+                headers={"Accept": "application/fhir+ndjson"},
+                stream=True,
+            )
+            try:
+                with open(filename, "w", encoding="utf8") as file:
+                    async for block in response.aiter_text():
+                        file.write(block)
+                        decompressed_size += len(block)
+            finally:
+                await response.aclose()
+        except Exception as exc:
+            self._log.download_error(url, exc)
+            raise
+
+        lines = common.read_local_line_count(filename)
+        self._log.download_complete(url, lines, decompressed_size)
 
         url_last_part = url.split("/")[-1]
         filename_last_part = filename.split("/")[-1]

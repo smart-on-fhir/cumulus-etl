@@ -41,38 +41,40 @@ class FhirNdjsonLoader(base.Loader):
     async def load_all(self, resources: list[str]) -> common.Directory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
-            return await self._load_from_bulk_export(resources)
+            loaded_dir = await self._load_from_bulk_export(resources)
+            input_root = store.Root(loaded_dir.name)
+        else:
+            if self.export_to or self.since or self.until:
+                errors.fatal(
+                    "You provided FHIR bulk export parameters but did not provide a FHIR server", errors.ARGS_CONFLICT
+                )
 
-        if self.export_to or self.since or self.until:
-            errors.fatal(
-                "You provided FHIR bulk export parameters but did not provide a FHIR server", errors.ARGS_CONFLICT
-            )
+            input_root = self.root
 
-        # Parse logs for export information
-        try:
-            parser = BulkExportLogParser(self.root)
-            self.group_name = parser.group_name
-            self.export_datetime = parser.export_datetime
-        except BulkExportLogParser.LogParsingError:
-            # Once we require group name & export datetime, we should warn about this.
-            # For now, just ignore any errors.
-            pass
-
+            # Parse logs for export information
+            try:
+                parser = BulkExportLogParser(input_root)
+                self.group_name = parser.group_name
+                self.export_datetime = parser.export_datetime
+            except BulkExportLogParser.LogParsingError:
+                # Once we require group name & export datetime, we should warn about this.
+                # For now, just ignore any errors.
+                pass
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
         # We do this even if the files are local, because the next step in our pipeline is the MS deid tool,
         # and it will just process *everything* in a directory. So if there are other *.ndjson sitting next to our
         # target resources, they'll get processed by the MS tool and that slows down running a single task with
-        # "--task" a lot.
+        # "--task" a lot. (Or it'll be invalid FHIR ndjson like our log.ndjson and the MS tool will complain.)
         #
         # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
         # TemporaryDirectory gets discarded), but that seems reasonable.
         print("Copying ndjson input files…")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         for resource in resources:
-            filenames = common.ls_resources(self.root, resource)
+            filenames = common.ls_resources(input_root, resource)
             for filename in filenames:
-                self.root.get(filename, f"{tmpdir.name}/")
+                input_root.get(filename, f"{tmpdir.name}/")
             if not filenames:
                 logging.warning("No resources found for %s", resource)
         return tmpdir
