@@ -83,7 +83,7 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
     task_version = 4
     # Task Version History:
     # ** 4 (2024-01): Fixed bug preventing our cTAKES symptoms file from having any effect **
-    #   cTAKES: smartonfhir/ctakes-covid:1.1.0
+    #   cTAKES: smartonfhir/ctakes-covid:1.1.[01]
     #   cNLP: smartonfhir/cnlp-transformers:negation-0.6.1
     #   cNLP: smartonfhir/cnlp-transformers:termexists-0.6.1
     #   ctakesclient: 5.0

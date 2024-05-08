@@ -37,7 +37,7 @@ services:
       - etl-gpu
 
   ctakes-covid-base:
-    image: smartonfhir/ctakes-covid:1.1.0
+    image: smartonfhir/ctakes-covid:1.1.1
     environment:
       - ctakes_umlsuser=umls_api_key
       - ctakes_umlspw=$UMLS_API_KEY
