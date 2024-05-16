@@ -12,6 +12,9 @@ nav_order: 2
 This guide will explain how to install and run Cumulus ETL inside your hospital's infrastructure.
 It assumes you are familiar with the command line.
 
+If you're coming back to these docs after an update to the ETL on a machine you've run it on before,
+run `docker pull smartonfhir/cumulus-etl` before you start to get the latest ETL image.
+
 ## On-Premises Runs
 
 But first, a word about on-premises vs in-cloud runs of Cumulus ETL.
