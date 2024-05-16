@@ -153,12 +153,14 @@ def write_json(path: str, data: Any, indent: int = None) -> None:
 
 
 @contextlib.contextmanager
+# pylint: disable-next = contextmanager-generator-missing-cleanup
 def read_csv(path: str) -> csv.DictReader:
     # Python docs say to use newline="", to support quoted multi-line fields
     with _atomic_open(path, "r", newline="") as csvfile:
         yield csv.DictReader(csvfile)
 
 
+# pylint: disable-next = contextmanager-generator-missing-cleanup
 def read_ndjson(path: str) -> Iterator[dict]:
     """Yields parsed json from the input ndjson file, line-by-line."""
     with _atomic_open(path, "r") as f:
