@@ -80,6 +80,17 @@ def _compare_file_sizes(target: dict[str, int], current: dict[str, int]) -> floa
     return total_current / total_expected
 
 
+def _get_file_size_safe(path: str) -> int:
+    try:
+        return os.path.getsize(path)
+    except FileNotFoundError:
+        # The MS Tool moves temporary files around as it completes each file,
+        # so we guard against an unlucky race condition of a file being moved
+        # before we can query its size. (Total size will be wrong for a moment,
+        # but it will correct itself in a second.)
+        return 0
+
+
 def _count_file_sizes(pattern: str) -> dict[str, int]:
     """Returns all files that match the given pattern and their sizes"""
-    return {os.path.basename(filename): os.path.getsize(filename) for filename in glob.glob(pattern)}
+    return {os.path.basename(filename): _get_file_size_safe(filename) for filename in glob.glob(pattern)}
