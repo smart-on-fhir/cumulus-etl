@@ -13,7 +13,7 @@ requires-python = ">= 3.10"
 dependencies = [
     "ctakesclient >= 5.1, < 6",
     "cumulus-fhir-support >= 1.2, < 2",
-    "delta-spark >= 3, < 4",
+    "delta-spark >= 3.2.1, < 4",
     "httpx < 1",
     "inscriptis < 3",
     "jwcrypto < 2",

@@ -101,6 +101,7 @@ class DeltaLakeFormat(Format):
         table = (
             delta.DeltaTable.createIfNotExists(self.spark)
             .addColumns(updates.schema)
+            .clusterBy(*self.uniqueness_fields)
             .location(self._table_path(self.dbname))
             .execute()
         )
