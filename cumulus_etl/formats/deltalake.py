@@ -77,6 +77,8 @@ class DeltaLakeFormat(Format):
             cls.spark = delta.configure_spark_with_delta_pip(
                 builder,
                 extra_packages=[
+                    # See https://docs.delta.io/latest/delta-storage.html for advice
+                    # on which version of hadoop-aws to use.
                     "org.apache.hadoop:hadoop-aws:3.3.4",
                 ],
             ).getOrCreate()

@@ -152,3 +152,15 @@ class TestIOUtils(s3mock.S3Mixin, utils.AsyncTestCase):
             result = read(f"{directory}/file.txt")
 
         self.assertEqual(data, result)
+
+    @ddt.data(
+        ("1", 1),
+        ("1\n2\n", 2),
+        ("1\r\n2\r\n3\r\n", 3),
+    )
+    @ddt.unpack
+    def test_read_local_line_count(self, contents, expected_length):
+        with tempfile.NamedTemporaryFile() as tmpfile:
+            common.write_text(tmpfile.name, contents)
+            found_length = common.read_local_line_count(tmpfile.name)
+        self.assertEqual(expected_length, found_length)
