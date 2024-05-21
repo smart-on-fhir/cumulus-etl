@@ -308,7 +308,8 @@ class TestEtlFormats(BaseEtlSimple):
         self.assert_output_equal()
 
     async def test_etl_job_deltalake(self):
-        await self.run_etl(output_format=None)  # deltalake should be default output format
+        # deltalake should be default output format, so pass in None to test that
+        await self.run_etl(output_format=None, tasks=["condition"])
 
         # Just test that the files got created, for a single table.
 
@@ -329,12 +330,14 @@ class TestEtlFormats(BaseEtlSimple):
         # Check metadata files (these have consistent names)
         self.assertEqual(
             {
-                "_delta_log/00000000000000000000.json",  # write
+                "_delta_log/00000000000000000000.json",  # create
                 "_delta_log/.00000000000000000000.json.crc",
-                "_delta_log/00000000000000000001.json",  # vacuum start
+                "_delta_log/00000000000000000001.json",  # merge
                 "_delta_log/.00000000000000000001.json.crc",
-                "_delta_log/00000000000000000002.json",  # vacuum end
+                "_delta_log/00000000000000000002.json",  # vacuum start
                 "_delta_log/.00000000000000000002.json.crc",
+                "_delta_log/00000000000000000003.json",  # vacuum end
+                "_delta_log/.00000000000000000003.json.crc",
                 "_symlink_format_manifest/manifest",
                 "_symlink_format_manifest/.manifest.crc",
             },
