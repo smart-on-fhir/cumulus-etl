@@ -7,7 +7,6 @@ from cumulus_etl import common
 from cumulus_etl.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
 
-# pylint: disable-next = contextmanager-generator-missing-cleanup
 def extract_csv(path_csv: str) -> Iterator[dict]:
     """
     :param path_csv: /path/to/i2b2_formatted_file.csv

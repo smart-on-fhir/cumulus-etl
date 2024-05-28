@@ -153,14 +153,12 @@ def write_json(path: str, data: Any, indent: int = None) -> None:
 
 
 @contextlib.contextmanager
-# pylint: disable-next = contextmanager-generator-missing-cleanup
 def read_csv(path: str) -> csv.DictReader:
     # Python docs say to use newline="", to support quoted multi-line fields
     with _atomic_open(path, "r", newline="") as csvfile:
         yield csv.DictReader(csvfile)
 
 
-# pylint: disable-next = contextmanager-generator-missing-cleanup
 def read_ndjson(path: str) -> Iterator[dict]:
     """Yields parsed json from the input ndjson file, line-by-line."""
     with _atomic_open(path, "r") as f:
@@ -237,7 +235,7 @@ def read_local_line_count(path) -> int:
         bufgen = itertools.takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in itertools.repeat(None)))
         for buf in bufgen:
             count += buf.count(b"\n")
-    if buf and buf[-1] != "\n":  # catch a final line without a trailing newline
+    if buf and buf[-1] != ord("\n"):  # catch a final line without a trailing newline
         count += 1
     return count
 
