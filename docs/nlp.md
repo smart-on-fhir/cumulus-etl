@@ -177,7 +177,7 @@ Once you've prepared the services the study will need with Docker Compose,
 you can actually run Cumulus ETL on your clinical notes.
 
 1. Run the specific NLP study task you are interested in.
-   For example, `docker compose run etl-gpu --task covid_symptom__nlp_results …`
+   For example, `docker compose run cumulus-etl-gpu --task covid_symptom__nlp_results …`
 2. Cumulus ETL will read your DocumentReference FHIR resources.
 3. It will download the clinical notes mentioned by those DocumentReferences.
 4. It will feed those notes to an NLP service (in this case, to cTAKES).
