@@ -95,38 +95,32 @@ class DeltaLakeFormat(Format):
         delta_table.generate("symlink_format_manifest")
 
     def update_delta_table(self, updates: pyspark.sql.DataFrame, groups: set[str]) -> delta.DeltaTable:
-        full_path = self._table_path(self.dbname)
+        table = (
+            delta.DeltaTable.createIfNotExists(self.spark)
+            .addColumns(updates.schema)
+            .location(self._table_path(self.dbname))
+            .execute()
+        )
 
-        try:
-            # Load table -- this will trigger an AnalysisException if the table doesn't exist yet
-            table = delta.DeltaTable.forPath(self.spark, full_path)
+        # Determine merge condition
+        conditions = [f"table.{field} = updates.{field}" for field in self.uniqueness_fields]
+        condition = " AND ".join(conditions)
 
-            # Determine merge condition
-            conditions = [f"table.{field} = updates.{field}" for field in self.uniqueness_fields]
-            condition = " AND ".join(conditions)
+        # Merge in new data
+        merge = (
+            table.alias("table").merge(source=updates.alias("updates"), condition=condition).whenNotMatchedInsertAll()
+        )
+        if self.update_existing:
+            update_condition = self._get_update_condition(updates.schema)
+            merge = merge.whenMatchedUpdateAll(condition=update_condition)
 
-            # Merge in new data
-            merge = (
-                table.alias("table")
-                .merge(source=updates.alias("updates"), condition=condition)
-                .whenNotMatchedInsertAll()
-            )
-            if self.update_existing:
-                update_condition = self._get_update_condition(updates.schema)
-                merge = merge.whenMatchedUpdateAll(condition=update_condition)
+        if self.group_field and groups:
+            # Delete any entries for groups touched by this update that are no longer present in the group
+            # (we are guaranteed to have all members of each group in the `updates` dataframe).
+            condition_column = table.toDF()[self.group_field].isin(groups)
+            merge = merge.whenNotMatchedBySourceDelete(condition_column)
 
-            if self.group_field and groups:
-                # Delete any entries for groups touched by this update that are no longer present in the group
-                # (we are guaranteed to have all members of each group in the `updates` dataframe).
-                condition_column = table.toDF()[self.group_field].isin(groups)
-                merge = merge.whenNotMatchedBySourceDelete(condition_column)
-
-            merge.execute()
-
-        except AnalysisException:
-            # table does not exist yet, let's make an initial version
-            updates.write.save(path=full_path, format="delta")
-            table = delta.DeltaTable.forPath(self.spark, full_path)
+        merge.execute()
 
         return table
 
