@@ -223,7 +223,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
 def push_to_label_studio(
     notes: Collection[LabelStudioNote], access_token: str, labels: dict, args: argparse.Namespace
 ) -> None:
-    common.print_header("Pushing notes to Label Studio...")
+    common.print_header(f"Pushing {len(notes)} charts to Label Studio...")
     ls_client = LabelStudioClient(args.label_studio_url, access_token, args.ls_project, labels)
     ls_client.push_tasks(notes, overwrite=args.overwrite)
 

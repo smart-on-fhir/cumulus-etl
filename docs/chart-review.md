@@ -38,7 +38,7 @@ Launch those before you begin:
 
 ```shell
 export UMLS_API_KEY=your-umls-api-key
-docker compose --profile upload-notes up -d
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile upload-notes up -d
 ```
 
 Or if you have access to a GPU,
@@ -64,7 +64,8 @@ Additionally, there are two required Label Studio parameters:
 
 Taken altogether, here is an example minimal `upload-notes` command:
 ```sh
-docker compose run \
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
+ run --rm \
  --volume /local/path:/in \
  cumulus-etl \
  upload-notes \

@@ -172,7 +172,8 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     @ddt.data("Choices", "Labels")
-    def test_dynamic_labels(self, label_type):
+    def test_dynamic_labels_old(self, label_type):
+        """Verify old-style dynamic labels config"""
         self.ls_project.parsed_label_config = {
             "mylabel": {"type": label_type, "to_name": ["mytext"], "dynamic_labels": True},
         }
@@ -192,9 +193,31 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task()["data"],
         )
 
+    @ddt.data("Choices", "Labels")
+    def test_dynamic_labels_new(self, label_type):
+        """Verify new-style dynamic labels config"""
+        self.ls_project.parsed_label_config = {
+            "mylabel": {"type": label_type, "to_name": ["mytext"], "labels": []},
+        }
+        self.push_tasks(self.make_note())
+        self.assertEqual(
+            {
+                "text": "Normal note text",
+                "enc_id": "enc",
+                "anon_id": "enc-anon",
+                "docref_mappings": {"doc": "doc-anon"},
+                "docref_spans": {"doc": [0, 16]},
+                "mylabel": [
+                    {"value": "Itch"},
+                    {"value": "Nausea"},
+                ],
+            },
+            self.get_pushed_task()["data"],
+        )
+
     def test_dynamic_labels_no_predictions(self):
         self.ls_project.parsed_label_config = {
-            "mylabel": {"type": "Labels", "to_name": ["mytext"], "dynamic_labels": True},
+            "mylabel": {"type": "Labels", "to_name": ["mytext"], "labels": []},
         }
         self.push_tasks(self.make_note(ctakes=False, philter_label=False))
         self.assertEqual(

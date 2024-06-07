@@ -193,7 +193,16 @@ class LabelStudioClient:
         }
 
     def _update_used_labels(self, task: dict, used_labels: Iterable[str]) -> None:
+        uses_dynamic_labels = False
         if self._labels_config.get("dynamic_labels"):
+            # Old versions of Label Studio set this nice field for us.
+            uses_dynamic_labels = True
+        elif self._labels_config.get("labels") == []:
+            # Newer versions of Label Studio seem to just pass an empty labels list.
+            # (An empty list would not normally be allowed in a static setup.)
+            uses_dynamic_labels = True
+
+        if uses_dynamic_labels:
             # This path supports configs like <Labels name="label" toName="text" value="$label"/> where the labels
             # can be dynamically set by us.
             #

@@ -75,10 +75,13 @@ def get_temp_dir(subdir: str) -> str:
 ###############################################################################
 
 
-def ls_resources(root: store.Root, resource: str) -> list[str]:
+def ls_resources(root: store.Root, resource: str, warn_if_empty: bool = False) -> list[str]:
     pattern = re.compile(rf".*/([0-9]+\.)?{resource}(\.[^/]+)?\.ndjson")
     all_files = root.ls()
-    return sorted(filter(pattern.match, all_files))
+    found_files = sorted(filter(pattern.match, all_files))
+    if not found_files and warn_if_empty:
+        logging.warning("No %s files found in %s", resource, root.path)
+    return found_files
 
 
 ###############################################################################
@@ -166,13 +169,13 @@ def read_ndjson(path: str) -> Iterator[dict]:
             yield json.loads(line)
 
 
-def read_resource_ndjson(root: store.Root, resource: str) -> Iterator[dict]:
+def read_resource_ndjson(root: store.Root, resource: str, warn_if_empty: bool = False) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
 
     Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
     """
-    for filename in ls_resources(root, resource):
+    for filename in ls_resources(root, resource, warn_if_empty=warn_if_empty):
         yield from read_ndjson(filename)
 
 
