@@ -1,6 +1,5 @@
 """Ndjson FHIR loader"""
 
-import logging
 import tempfile
 
 from cumulus_etl import cli_utils, common, errors, fhir, store
@@ -72,11 +71,9 @@ class FhirNdjsonLoader(base.Loader):
         print("Copying ndjson input files…")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
         for resource in resources:
-            filenames = common.ls_resources(input_root, resource)
+            filenames = common.ls_resources(input_root, resource, warn_if_empty=True)
             for filename in filenames:
                 input_root.get(filename, f"{tmpdir.name}/")
-            if not filenames:
-                logging.warning("No resources found for %s", resource)
         return tmpdir
 
     async def _load_from_bulk_export(self, resources: list[str]) -> common.Directory:

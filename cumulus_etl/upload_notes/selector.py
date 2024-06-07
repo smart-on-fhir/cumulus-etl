@@ -24,7 +24,7 @@ def select_docrefs_from_files(
 
     # Read all input documents, filtering along the way
     with common.NdjsonWriter(output_file_path) as output_file:
-        resources = common.read_resource_ndjson(root_input, "DocumentReference")
+        resources = common.read_resource_ndjson(root_input, "DocumentReference", warn_if_empty=True)
         for docref in docref_filter(resources):
             output_file.write(docref)
 
