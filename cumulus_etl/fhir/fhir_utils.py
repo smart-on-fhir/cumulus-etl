@@ -263,10 +263,13 @@ async def get_docref_note(client: FhirClient, docref: dict) -> str:
     if best_attachment_index < 0:
         # We didn't find _any_ of our target text content types.
         # A content type isn't required by the spec with external URLs, so it's possible an unmarked link could be good.
-        # But let's optimistically enforce the need for a content type ourselves by bailing here.
-        # If we find a real-world need to be more permissive, we can change this later.
+        # We've found a real world case where we've found missing data preventing note download; for now,
+        # we are just notifying about it and returning an empty string object.
+        # If we find a actually need this data, we can change this later.
         # But note that if we do, we'll need to handle downloading Binary FHIR objects, in addition to arbitrary URLs.
-        raise ValueError("No textual mimetype found")
+        
+        print(f"Found unexpected mime type '{mimetype}', skipping.")
+        return ""
 
     note = await _get_docref_note_from_attachment(client, attachments[best_attachment_index])
 
