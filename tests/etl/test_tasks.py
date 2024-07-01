@@ -3,6 +3,7 @@
 import os
 from unittest import mock
 
+import cumulus_fhir_support
 import ddt
 
 from cumulus_etl import common, errors
@@ -15,11 +16,11 @@ class TestTasks(TaskTestCase):
     """Test case for basic task methods"""
 
     def test_read_ndjson(self):
-        """Verify we recognize all expected ndjson filename formats"""
-        self.make_json("11.Condition", "11")
-        self.make_json("Condition.12", "12")
-        self.make_json("13.Condition.13", "13")
-        self.make_json("Patient.14", "14")
+        """Verify we can read a dir of ndjson"""
+        self.make_json("Condition", "11")
+        self.make_json("Condition", "12")
+        self.make_json("Condition", "13")
+        self.make_json("Patient", "14")
 
         resources = basic_tasks.ConditionTask(self.job_config, self.scrubber).read_ndjson()
         self.assertEqual({"11", "12", "13"}, {r["id"] for r in resources})
@@ -32,8 +33,8 @@ class TestTasks(TaskTestCase):
 
     async def test_unknown_modifier_extensions_skipped_for_patients(self):
         """Verify we ignore unknown modifier extensions during a normal task (like patients)"""
-        self.make_json("Patient.0", "0")
-        self.make_json("Patient.1", "1", modifierExtension=[{"url": "unrecognized"}])
+        self.make_json("Patient", "0")
+        self.make_json("Patient", "1", modifierExtension=[{"url": "unrecognized"}])
 
         await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
 
@@ -76,9 +77,9 @@ class TestTasks(TaskTestCase):
     async def test_drop_duplicates(self):
         """Verify that we run() will drop duplicate rows inside an input batch."""
         # Two "A" ids and one "B" id
-        self.make_json("Patient.01", "A")
-        self.make_json("Patient.02", "A")
-        self.make_json("Patient.1", "B")
+        self.make_json("Patient", "A")
+        self.make_json("Patient", "A")
+        self.make_json("Patient", "B")
 
         await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
 
@@ -91,9 +92,9 @@ class TestTasks(TaskTestCase):
         )
 
     async def test_batch_write_errors_saved(self):
-        self.make_json("Patient.1", "A")
-        self.make_json("Patient.2", "B")
-        self.make_json("Patient.3", "C")
+        self.make_json("Patient", "A")
+        self.make_json("Patient", "B")
+        self.make_json("Patient", "C")
         self.job_config.batch_size = 1
         self.format = mock.MagicMock(dbname="patient")
         self.format.write_records.side_effect = [False, True, False]  # First and third will fail
@@ -104,17 +105,17 @@ class TestTasks(TaskTestCase):
             ["write-error.000.ndjson", "write-error.002.ndjson"], list(sorted(os.listdir(f"{self.errors_dir}/patient")))
         )
         self.assertEqual(
-            {"resourceType": "Test", "id": "30d95f17d9f51f3a151c51bf0a7fcb1717363f3a87d2dbace7d594ee68d3a82f"},
+            {"resourceType": "Patient", "id": "30d95f17d9f51f3a151c51bf0a7fcb1717363f3a87d2dbace7d594ee68d3a82f"},
             common.read_json(f"{self.errors_dir}/patient/write-error.000.ndjson"),
         )
         self.assertEqual(
-            {"resourceType": "Test", "id": "ed9ab553005a7c9bdb26ecf9f612ea996ad99b1a96a34bf88c260f1c901d8289"},
+            {"resourceType": "Patient", "id": "ed9ab553005a7c9bdb26ecf9f612ea996ad99b1a96a34bf88c260f1c901d8289"},
             common.read_json(f"{self.errors_dir}/patient/write-error.002.ndjson"),
         )
 
     async def test_batch_is_given_schema(self):
         """Verify that we calculate a schema for a batch"""
-        self.make_json("Patient.1", "A")
+        self.make_json("Patient", "A")
         await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
 
         # Spot check that the schema (from cumulus-fhir-support) exists / looks right
@@ -129,9 +130,9 @@ class TestTaskCompletion(TaskTestCase):
 
     async def test_encounter_completion(self):
         """Verify that we write out completion data correctly"""
-        self.make_json("Encounter.1", "FirstBatch.A")
-        self.make_json("Encounter.2", "FirstBatch.B")
-        self.make_json("Encounter.3", "SecondBatch.C")
+        self.make_json("Encounter", "FirstBatch.A")
+        self.make_json("Encounter", "FirstBatch.B")
+        self.make_json("Encounter", "SecondBatch.C")
         self.job_config.batch_size = 4  # two encounters at a time (each encounter makes 2 rows)
 
         await basic_tasks.EncounterTask(self.job_config, self.scrubber).run()
@@ -197,7 +198,7 @@ class TestTaskCompletion(TaskTestCase):
 
         We just want to verify that we handle multi-output tasks.
         """
-        self.make_json("MedicationRequest.1", "A")
+        self.make_json("MedicationRequest", "A")
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
@@ -233,7 +234,7 @@ class TestTaskCompletion(TaskTestCase):
     @ddt.data("export_datetime", "export_group_name")
     async def test_completion_disabled(self, null_field):
         """Verify that we don't write completion data if we don't have args for it"""
-        self.make_json("Encounter.1", "A")
+        self.make_json("Encounter", "A")
         setattr(self.job_config, null_field, None)
 
         await basic_tasks.EncounterTask(self.job_config, self.scrubber).run()
@@ -256,7 +257,7 @@ class TestTaskCompletion(TaskTestCase):
 
     async def test_allow_empty_group(self):
         """Empty groups are (rarely) used to mark a server-wide global export"""
-        self.make_json("Device.1", "A")
+        self.make_json("Device", "A")
         self.job_config.export_group_name = ""
 
         await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
@@ -282,8 +283,8 @@ class TestMedicationRequestTask(TaskTestCase):
 
     async def test_inline_codes(self):
         """Verify that we handle basic normal inline codes (no external fetching) as a baseline"""
-        self.make_json("MedicationRequest.1", "InlineCode", medicationCodeableConcept={"text": "Old but checks out"})
-        self.make_json("MedicationRequest.2", "NoCode")
+        self.make_json("MedicationRequest", "InlineCode", medicationCodeableConcept={"text": "Old but checks out"})
+        self.make_json("MedicationRequest", "NoCode")
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
@@ -307,7 +308,7 @@ class TestMedicationRequestTask(TaskTestCase):
 
     async def test_contained_medications(self):
         """Verify that we pass it through and don't blow up"""
-        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "#123"})
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "#123"})
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
@@ -327,7 +328,7 @@ class TestMedicationRequestTask(TaskTestCase):
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications(self, mock_download):
         """Verify that we download referenced medications"""
-        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "Medication/123"})
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "Medication/123"})
         mock_download.return_value = {"resourceType": "Medication", "id": "med1"}
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
@@ -375,7 +376,7 @@ class TestMedicationRequestTask(TaskTestCase):
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medication_scrubbed(self, mock_download):
         """Verify that we scrub referenced medications as we download them"""
-        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "Medication/123"})
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "Medication/123"})
         mock_download.return_value = {
             "resourceType": "Medication",
             "id": "med1",
@@ -404,9 +405,9 @@ class TestMedicationRequestTask(TaskTestCase):
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications_with_error(self, mock_download):
         """Verify that we record/save download errors"""
-        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "Medication/123"})
-        self.make_json("MedicationRequest.2", "B", medicationReference={"reference": "Medication/456"})
-        self.make_json("MedicationRequest.3", "C", medicationReference={"reference": "Medication/789"})
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "Medication/123"})
+        self.make_json("MedicationRequest", "B", medicationReference={"reference": "Medication/456"})
+        self.make_json("MedicationRequest", "C", medicationReference={"reference": "Medication/789"})
         mock_download.side_effect = [  # Fail on first and third
             ValueError("bad hostname"),
             {"resourceType": "Medication", "id": "medB"},
@@ -433,15 +434,18 @@ class TestMedicationRequestTask(TaskTestCase):
         self.assertEqual(["medication-fetch-errors.ndjson"], list(sorted(os.listdir(med_error_dir))))
         self.assertEqual(
             ["A", "C"],  # pre-scrubbed versions of the resources are stored, for easier debugging
-            [x["id"] for x in common.read_ndjson(f"{med_error_dir}/medication-fetch-errors.ndjson")],
+            [
+                x["id"]
+                for x in cumulus_fhir_support.read_multiline_json(f"{med_error_dir}/medication-fetch-errors.ndjson")
+            ],
         )
 
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications_skips_duplicates(self, mock_download):
         """Verify that we skip medications that are repeated"""
-        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "Medication/dup"})
-        self.make_json("MedicationRequest.2", "B", medicationReference={"reference": "Medication/dup"})
-        self.make_json("MedicationRequest.3", "C", medicationReference={"reference": "Medication/new"})
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "Medication/dup"})
+        self.make_json("MedicationRequest", "B", medicationReference={"reference": "Medication/dup"})
+        self.make_json("MedicationRequest", "C", medicationReference={"reference": "Medication/new"})
         self.job_config.batch_size = 1  # to confirm we detect duplicates even across batches
         mock_download.side_effect = [
             {"resourceType": "Medication", "id": "dup"},
@@ -471,8 +475,8 @@ class TestMedicationRequestTask(TaskTestCase):
     @mock.patch("cumulus_etl.fhir.download_reference")
     async def test_external_medications_skips_unknown_modifiers(self, mock_download):
         """Verify that we skip medications with unknown modifier extensions (unlikely, but still)"""
-        self.make_json("MedicationRequest.1", "A", medicationReference={"reference": "Medication/odd"})
-        self.make_json("MedicationRequest.2", "B", medicationReference={"reference": "Medication/good"})
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "Medication/odd"})
+        self.make_json("MedicationRequest", "B", medicationReference={"reference": "Medication/good"})
         mock_download.side_effect = [
             {
                 "resourceType": "Medication",

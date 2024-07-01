@@ -8,6 +8,7 @@ import tempfile
 from collections.abc import Iterable
 from unittest import mock
 
+import cumulus_fhir_support
 import ddt
 import respx
 
@@ -178,7 +179,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             f.write("\n".join(lines))
 
     def get_exported_ids(self) -> set[str]:
-        rows = common.read_ndjson(f"{self.export_path}/DocumentReference.ndjson")
+        rows = cumulus_fhir_support.read_multiline_json(f"{self.export_path}/DocumentReference.ndjson")
         return {row["id"] for row in rows}
 
     def get_pushed_ids(self) -> set[str]:

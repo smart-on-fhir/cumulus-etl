@@ -11,9 +11,6 @@ from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
 class FhirNdjsonLoader(base.Loader):
     """
     Loader for fhir ndjson data, either locally or from a FHIR server.
-
-    Expected local-folder format is a folder with ndjson files labeled by resource type.
-    (i.e. Condition.000.ndjson or Condition.ndjson)
     """
 
     def __init__(
@@ -70,10 +67,9 @@ class FhirNdjsonLoader(base.Loader):
         # TemporaryDirectory gets discarded), but that seems reasonable.
         print("Copying ndjson input files…")
         tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-        for resource in resources:
-            filenames = common.ls_resources(input_root, resource, warn_if_empty=True)
-            for filename in filenames:
-                input_root.get(filename, f"{tmpdir.name}/")
+        filenames = common.ls_resources(input_root, set(resources), warn_if_empty=True)
+        for filename in filenames:
+            input_root.get(filename, f"{tmpdir.name}/")
         return tmpdir
 
     async def _load_from_bulk_export(self, resources: list[str]) -> common.Directory:

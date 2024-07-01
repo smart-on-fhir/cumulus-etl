@@ -19,6 +19,7 @@ from cumulus_etl.etl.tasks import task_factory
 
 
 def make_batch(
+    root: store.Root,
     path: str,
     schema_func: Callable[[list[dict]], pyarrow.Schema],
 ) -> formats.Batch:
@@ -28,7 +29,7 @@ def make_batch(
     except FileNotFoundError:
         metadata = {}
 
-    rows = list(common.read_ndjson(path))
+    rows = list(common.read_ndjson(root, path))
     groups = set(metadata.get("groups", []))
     schema = schema_func(rows)
 
@@ -61,7 +62,7 @@ def convert_folder(
     progress_task = progress.add_task(table_name, total=count)
 
     for ndjson_path in ndjson_paths:
-        batch = make_batch(ndjson_path, schema_func)
+        batch = make_batch(input_root, ndjson_path, schema_func)
         formatter.write_records(batch)
         progress.update(progress_task, advance=1)
 

@@ -2,10 +2,10 @@
 
 import os
 
+import cumulus_fhir_support
 import ddt
 import respx
 
-from cumulus_etl import common
 from cumulus_etl.etl.studies import covid_symptom
 
 from tests.ctakesmock import CtakesMixin
@@ -25,11 +25,11 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         """Verify we ignore unknown modifier extensions during a custom read task (nlp symptoms)"""
         docref0 = i2b2_mock_data.documentreference()
         docref0["subject"]["reference"] = "Patient/1234"
-        self.make_json("DocumentReference.0", "0", **docref0)
+        self.make_json("DocumentReference", "0", **docref0)
         docref1 = i2b2_mock_data.documentreference()
         docref1["subject"]["reference"] = "Patient/5678"
         docref1["modifierExtension"] = [{"url": "unrecognized"}]
-        self.make_json("DocumentReference.1", "1", **docref1)
+        self.make_json("DocumentReference", "1", **docref1)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
@@ -63,10 +63,10 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         docref0 = i2b2_mock_data.documentreference()
         docref0["category"] = [{"coding": codings}]
         del docref0["type"]
-        self.make_json("DocumentReference.0", "0", **docref0)
+        self.make_json("DocumentReference", "0", **docref0)
         docref1 = i2b2_mock_data.documentreference()
         docref1["type"] = {"coding": codings}
-        self.make_json("DocumentReference.1", "1", **docref1)
+        self.make_json("DocumentReference", "1", **docref1)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
@@ -78,10 +78,10 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
         docref0 = i2b2_mock_data.documentreference()
         docref0["type"]["coding"][0]["code"] = "NOTE:nope"  # pylint: disable=unsubscriptable-object
-        self.make_json("DocumentReference.0", "skipped", **docref0)
+        self.make_json("DocumentReference", "skipped", **docref0)
         docref1 = i2b2_mock_data.documentreference()
         docref1["type"]["coding"][0]["code"] = "NOTE:149798455"  # pylint: disable=unsubscriptable-object
-        self.make_json("DocumentReference.1", "present", **docref1)
+        self.make_json("DocumentReference", "present", **docref1)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
@@ -106,7 +106,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         """Verify we ignore certain docStatus codes for the covid symptoms NLP"""
         docref = i2b2_mock_data.documentreference()
         docref.update(status)
-        self.make_json("DocumentReference.0", "doc", **docref)
+        self.make_json("DocumentReference", "doc", **docref)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
         self.assertEqual(1, self.format.write_records.call_count)
@@ -133,7 +133,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         docref0 = i2b2_mock_data.documentreference()
         docref0["content"] = [{"attachment": {"url": a[0], "contentType": a[1]}} for a in attachments]
-        self.make_json("DocumentReference.0", "doc0", **docref0)
+        self.make_json("DocumentReference", "doc0", **docref0)
 
         async with self.job_config.client:
             await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
@@ -147,26 +147,31 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
     async def test_nlp_errors_saved(self):
         docref = i2b2_mock_data.documentreference()
-        self.make_json("DocumentReference.2", "B", **docref)
+        self.make_json("DocumentReference", "B", **docref)
         del docref["context"]  # this will cause this docref to fail
-        self.make_json("DocumentReference.1", "A", **docref)
-        self.make_json("DocumentReference.3", "C", **docref)
+        self.make_json("DocumentReference", "A", **docref)
+        self.make_json("DocumentReference", "C", **docref)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(["nlp-errors.ndjson"], os.listdir(f"{self.errors_dir}/covid_symptom__nlp_results"))
         self.assertEqual(
             ["A", "C"],  # pre-scrubbed versions of the docrefs are stored, for easier debugging
-            [x["id"] for x in common.read_ndjson(f"{self.errors_dir}/covid_symptom__nlp_results/nlp-errors.ndjson")],
+            [
+                x["id"]
+                for x in cumulus_fhir_support.read_multiline_json(
+                    f"{self.errors_dir}/covid_symptom__nlp_results/nlp-errors.ndjson"
+                )
+            ],
         )
 
     async def test_group_values_noted(self):
         """Verify that the task does keep track of group values per batch"""
         docref = i2b2_mock_data.documentreference()
-        self.make_json("DocumentReference.1", "first-doc", **docref)
-        self.make_json("DocumentReference.2", "not-examined", **docref, docStatus="preliminary")
-        self.make_json("DocumentReference.3", "second-doc", **docref)
-        self.make_json("DocumentReference.4", "third-doc", **docref)
+        self.make_json("DocumentReference", "first-doc", **docref)
+        self.make_json("DocumentReference", "not-examined", **docref, docStatus="preliminary")
+        self.make_json("DocumentReference", "second-doc", **docref)
+        self.make_json("DocumentReference", "third-doc", **docref)
 
         self.job_config.batch_size = 4  # two symptoms for each doc that has them
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
@@ -193,8 +198,8 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         docref = i2b2_mock_data.documentreference()
         docref_no_text = i2b2_mock_data.documentreference()
         docref_no_text["content"][0]["attachment"]["data"] = ""
-        self.make_json("DocumentReference.1", "zero-symptoms", **docref_no_text)
-        self.make_json("DocumentReference.2", "not-examined", **docref, docStatus="preliminary")
+        self.make_json("DocumentReference", "zero-symptoms", **docref_no_text)
+        self.make_json("DocumentReference", "not-examined", **docref, docStatus="preliminary")
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
