@@ -13,6 +13,7 @@ from typing import Any, Protocol, TextIO
 
 import cumulus_fhir_support
 import rich
+from rich import progress
 
 from cumulus_etl import store
 
@@ -331,6 +332,13 @@ def print_header(name: str | None = None) -> None:
     rich.get_console().rule()
     if name:
         print(name)
+
+def get_transient_progress()-> (progress.Progress):
+    progress_bar = progress.Progress(
+        progress.TextColumn("[progress.description]{task.description}"),
+        refresh_per_second=0.1)
+    return progress_bar
+    
 
 
 ###############################################################################
