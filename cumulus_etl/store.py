@@ -79,45 +79,23 @@ class Root:
         """Provides a child path based off of the root path"""
         return os.path.join(self.path, *args)
 
-    def _confirm_in_root(self, path: str) -> None:
-        """
-        Make sure that a provided path is actually in our root
-
-        Just for sanity, confirm that any paths provided to us actually belong
-        underneath us.
-        """
-        if not path.startswith(self.path):
-            raise ValueError(f'Path "{path}" is not inside root "{self.path}"')
-
     def exists(self, path: str) -> bool:
         """Alias for os.path.exists"""
-        self._confirm_in_root(path)
         return self.fs.exists(path)
 
     def get(self, rpath: str, lpath: str, *, recursive: bool = False) -> None:
         """Download files"""
-        self._confirm_in_root(rpath)
         return self.fs.get(rpath, lpath, recursive=recursive)
 
     def put(self, lpath: str, rpath: str, *, recursive: bool = False) -> None:
         """Upload files"""
-        self._confirm_in_root(rpath)
         return self.fs.put(lpath, rpath, recursive=recursive)
 
     def ls(self) -> Iterator[str]:
-        files = self.fs.ls(self.path, detail=False)
-
-        # Backends like S3 rudely don't include the protocol prefix in the results.
-        # So when we try to actually use the filename, fsspec gets confused and thinks it's a local path.
-        # If the backend is trying to do us dirty, we'll just re-insert the protocol.
-        if self.protocol != "file" and files and not files[0].startswith(f"{self.protocol}://"):
-            files = [f"{self.protocol}://{filename}" for filename in files]
-
-        return files
+        return self.fs.ls(self.path, detail=False)
 
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
-        self._confirm_in_root(path)
         if self.protocol == "s3":
             # s3 doesn't really care about folders, and if we try to make one,
             # fsspec would want the CreateBucket permission as it goes up the tree
@@ -126,7 +104,6 @@ class Root:
 
     def rm(self, path: str, recursive=False) -> None:
         """Delete a file (alias for fs.rm)"""
-        self._confirm_in_root(path)
         self.fs.rm(path, recursive=recursive)
 
     def fsspec_options(self) -> dict:

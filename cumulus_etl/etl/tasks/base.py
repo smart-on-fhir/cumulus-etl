@@ -324,8 +324,6 @@ class EtlTask:
     def read_ndjson(self, *, progress: rich.progress.Progress = None) -> Iterator[dict]:
         """
         Grabs all ndjson files from a folder, of a particular resource type.
-
-        Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
         """
         input_root = store.Root(self.task_config.dir_input)
 
@@ -334,7 +332,7 @@ class EtlTask:
             row_task = progress.add_task("Reading", total=None)
 
             # Find total number of lines
-            filenames = common.ls_resources(input_root, self.resource)
+            filenames = common.ls_resources(input_root, {self.resource})
             total = sum(common.read_local_line_count(filename) for filename in filenames)
             progress.update(row_task, total=total, visible=bool(total))
 

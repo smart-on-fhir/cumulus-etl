@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support
 import ddt
 import respx
 from ctakesclient.typesystem import Polarity
@@ -66,7 +67,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             # Run a couple checks to ensure that we do indeed have PHI in this dir
             self.assertIn("Patient.ndjson", os.listdir(phi_dir))
-            patients = list(common.read_ndjson(os.path.join(phi_dir, "Patient.ndjson")))
+            patients = list(cumulus_fhir_support.read_multiline_json(os.path.join(phi_dir, "Patient.ndjson")))
             first = patients[0]
             self.assertEqual("02139", first["address"][0]["postalCode"])
 

@@ -118,6 +118,7 @@ class TaskTestCase(utils.AsyncTestCase):
         self.errors_dir = os.path.join(self.tmpdir, "errors")
         os.makedirs(self.input_dir)
         os.makedirs(self.phi_dir)
+        self.json_file_count = 0
 
         self.job_config = JobConfig(
             self.input_dir,
@@ -161,7 +162,9 @@ class TaskTestCase(utils.AsyncTestCase):
         # Keeps consistent IDs
         shutil.copy(os.path.join(self.datadir, "simple/codebook.json"), self.phi_dir)
 
-    def make_json(self, filename, resource_id, **kwargs):
+    def make_json(self, resource_type, resource_id, **kwargs):
+        self.json_file_count += 1
+        filename = f"{self.json_file_count}.ndjson"
         common.write_json(
-            os.path.join(self.input_dir, f"{filename}.ndjson"), {"resourceType": "Test", **kwargs, "id": resource_id}
+            os.path.join(self.input_dir, filename), {"resourceType": resource_type, **kwargs, "id": resource_id}
         )

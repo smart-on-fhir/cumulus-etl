@@ -7,10 +7,11 @@ import itertools
 import json
 import logging
 import os
-import re
+from collections import defaultdict
 from collections.abc import Iterator
 from typing import Any, Protocol, TextIO
 
+import cumulus_fhir_support
 import rich
 
 from cumulus_etl import store
@@ -75,13 +76,21 @@ def get_temp_dir(subdir: str) -> str:
 ###############################################################################
 
 
-def ls_resources(root: store.Root, resource: str, warn_if_empty: bool = False) -> list[str]:
-    pattern = re.compile(rf".*/([0-9]+\.)?{resource}(\.[^/]+)?\.ndjson")
-    all_files = root.ls()
-    found_files = sorted(filter(pattern.match, all_files))
-    if not found_files and warn_if_empty:
-        logging.warning("No %s files found in %s", resource, root.path)
-    return found_files
+def ls_resources(root: store.Root, resources: set[str], warn_if_empty: bool = False) -> list[str]:
+    found_files = cumulus_fhir_support.list_multiline_json_in_dir(root.path, resources, fsspec_fs=root.fs)
+
+    if warn_if_empty:
+        # Invert the {path: type} found_files dictionary into {type: [paths...]}
+        type_to_files = defaultdict(list)
+        for k, v in found_files.items():
+            type_to_files[v].append(k)
+
+        # Now iterate expected types and warn if we didn't see any of them
+        for resource in sorted(resources):
+            if not type_to_files.get(resource):
+                logging.warning("No %s files found in %s", resource, root.path)
+
+    return list(found_files)
 
 
 ###############################################################################
@@ -162,21 +171,17 @@ def read_csv(path: str) -> csv.DictReader:
         yield csv.DictReader(csvfile)
 
 
-def read_ndjson(path: str) -> Iterator[dict]:
+def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
     """Yields parsed json from the input ndjson file, line-by-line."""
-    with _atomic_open(path, "r") as f:
-        for line in f:
-            yield json.loads(line)
+    yield from cumulus_fhir_support.read_multiline_json(path, fsspec_fs=root.fs)
 
 
 def read_resource_ndjson(root: store.Root, resource: str, warn_if_empty: bool = False) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
-
-    Supports filenames like Condition.ndjson, Condition.000.ndjson, or 1.Condition.ndjson.
     """
-    for filename in ls_resources(root, resource, warn_if_empty=warn_if_empty):
-        yield from read_ndjson(filename)
+    for filename in ls_resources(root, {resource}, warn_if_empty=warn_if_empty):
+        yield from cumulus_fhir_support.read_multiline_json(filename, fsspec_fs=root.fs)
 
 
 def write_rows_to_ndjson(path: str, rows: list[dict], sparse: bool = False) -> None:

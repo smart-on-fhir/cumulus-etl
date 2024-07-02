@@ -6,6 +6,7 @@ import io
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support
 import ddt
 import respx
 
@@ -35,7 +36,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             await self.exporter.export()
 
     def assert_log_equals(self, *rows) -> None:
-        found_rows = list(common.read_ndjson(f"{self.tmpdir}/log.ndjson"))
+        found_rows = list(cumulus_fhir_support.read_multiline_json(f"{self.tmpdir}/log.ndjson"))
 
         # Do we use the same export ID throughout?
         all_export_ids = {x["exportId"] for x in found_rows}

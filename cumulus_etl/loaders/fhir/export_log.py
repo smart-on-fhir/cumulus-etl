@@ -42,21 +42,21 @@ class BulkExportLogParser:
         self.group_name: str = None
         self.export_datetime: datetime.datetime = None
 
-        self._parse(self._find(root))
+        self._parse(root, self._find(root))
 
-    def _parse(self, path: str) -> None:
+    def _parse(self, root: store.Root, path: str) -> None:
         # Go through every row, looking for the events we care about.
         # Note that we parse every kickoff event we hit, for example.
         # So we'll end up with the latest one (which works for single-export
         # log files with maybe a false start at the beginning).
         try:
-            for row in common.read_ndjson(path):
+            for row in common.read_ndjson(root, path):
                 match row.get("eventId"):
                     case "kickoff":
                         self._parse_kickoff(row)
                     case "status_complete":
                         self._parse_status_complete(row)
-        except (KeyError, json.JSONDecodeError) as exc:
+        except KeyError as exc:
             raise self.IncompleteLog(f"Error parsing '{path}'") from exc
 
         if self.group_name is None:

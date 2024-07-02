@@ -52,16 +52,18 @@ class TestNdjsonLoader(AsyncTestCase):
 
     async def test_local_happy_path(self):
         """Do a full local load from a folder."""
+        patient = {"id": "A", "resourceType": "Patient"}
+
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_log_file(f"{tmpdir}/log.ndjson", "G", "1999-03-14T14:12:10")
             with common.NdjsonWriter(f"{tmpdir}/Patient.ndjson") as writer:
-                writer.write({"id": "A"})
+                writer.write(patient)
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
             loaded_dir = await loader.load_all(["Patient"])
 
         self.assertEqual(["Patient.ndjson"], os.listdir(loaded_dir.name))
-        self.assertEqual({"id": "A"}, common.read_json(f"{loaded_dir.name}/Patient.ndjson"))
+        self.assertEqual(patient, common.read_json(f"{loaded_dir.name}/Patient.ndjson"))
         self.assertEqual("G", loader.group_name)
         self.assertEqual(datetime.datetime.fromisoformat("1999-03-14T14:12:10"), loader.export_datetime)
 
@@ -275,11 +277,13 @@ class TestNdjsonLoader(AsyncTestCase):
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
     async def test_export_to_folder_happy_path(self):
+        patient = {"id": "A", "resourceType": "Patient"}
+
         with tempfile.TemporaryDirectory() as tmpdir:
 
             async def fake_export() -> None:
                 output_dir = self.mock_exporter_class.call_args[0][3]
-                common.write_json(f"{output_dir}/Patient.ndjson", {"id": "A"})
+                common.write_json(f"{output_dir}/Patient.ndjson", patient)
                 common.write_json(f"{output_dir}/log.ndjson", {"eventId": "kickoff"})
 
             self.mock_exporter.export.side_effect = fake_export
@@ -292,20 +296,21 @@ class TestNdjsonLoader(AsyncTestCase):
             self.assertTrue(os.path.isdir(target))
             self.assertEqual(target, self.mock_exporter_class.call_args[0][3])
             self.assertEqual({"Patient.ndjson", "log.ndjson"}, set(os.listdir(target)))
-            self.assertEqual({"id": "A"}, common.read_json(f"{target}/Patient.ndjson"))
+            self.assertEqual(patient, common.read_json(f"{target}/Patient.ndjson"))
             self.assertEqual({"eventId": "kickoff"}, common.read_json(f"{target}/log.ndjson"))
 
             # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
             self.assertNotEqual(folder.name, target)
             self.assertEqual({"Patient.ndjson"}, set(os.listdir(folder.name)))
-            self.assertEqual({"id": "A"}, common.read_json(f"{folder.name}/Patient.ndjson"))
+            self.assertEqual(patient, common.read_json(f"{folder.name}/Patient.ndjson"))
 
     async def test_export_internal_folder_happy_path(self):
         """Test that we can also safely export without an export-to folder involved"""
+        patient = {"id": "A", "resourceType": "Patient"}
 
         async def fake_export() -> None:
             output_dir = self.mock_exporter_class.call_args[0][3]
-            common.write_json(f"{output_dir}/Patient.ndjson", {"id": "A"})
+            common.write_json(f"{output_dir}/Patient.ndjson", patient)
             common.write_json(f"{output_dir}/log.ndjson", {"eventId": "kickoff"})
 
         self.mock_exporter.export.side_effect = fake_export
@@ -315,7 +320,7 @@ class TestNdjsonLoader(AsyncTestCase):
 
         # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
         self.assertEqual({"Patient.ndjson"}, set(os.listdir(folder.name)))
-        self.assertEqual({"id": "A"}, common.read_json(f"{folder.name}/Patient.ndjson"))
+        self.assertEqual(patient, common.read_json(f"{folder.name}/Patient.ndjson"))
 
     async def test_export_to_folder_has_contents(self):
         """Verify we fail if an export folder already has contents"""
