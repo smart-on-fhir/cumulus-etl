@@ -17,7 +17,7 @@ dependencies = [
     "httpx < 1",
     "inscriptis < 3",
     "jwcrypto < 2",
-    "label-studio-sdk < 1",
+    "label-studio-sdk < 2",
     "oracledb < 3",
     "philter-lite < 1",
     "pyarrow < 17",
