@@ -1,7 +1,6 @@
 repos:
   - repo: https://github.com/psf/black
-    # this version is synced with the black mentioned in .github/workflows/ci.yml
-    rev: 24.3.0
+    rev: 24.4.2  # keep in rough sync with pyproject.toml
     hooks:
       - id: black
         entry: bash -c 'black "$@"; git add -u' --
