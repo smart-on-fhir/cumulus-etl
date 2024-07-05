@@ -71,10 +71,14 @@ tests = [
     "ddt",
     "moto[server,s3] >= 5.0",
     "pytest",
+    "pytest-cov",
     "respx",
     "time-machine",
 ]
 dev = [
-    "black >= 24, < 25",
-    "pre-commit"
+    "bandit[toml]",
+    "black >= 24, < 25",  # keep in rough sync with .pre-commit-config.yaml
+    "pre-commit",
+    "pycodestyle",
+    "pylint",
 ]
