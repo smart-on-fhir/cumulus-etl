@@ -174,6 +174,20 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
+    async def test_no_ms_tool(self):
+        """Verify that we require the MS tool to be in PATH."""
+        self.patch_dict(os.environ, {"PATH": "/nothing-here"})
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(skip_init_checks=False)
+        self.assertEqual(cm.exception.code, errors.MSTOOL_MISSING)
+
+    @mock.patch("cumulus_etl.etl.tasks.basic_tasks.ProcedureTask.init_check")
+    async def test_task_init_checks(self, mock_check):
+        """Verify that we check task requirements."""
+        mock_check.side_effect = ZeroDivisionError
+        with self.assertRaises(ZeroDivisionError):
+            await self.run_etl(skip_init_checks=False)
+
     @ddt.data(
         # First line is CLI args
         # Second line is what loader will represent as the group/time

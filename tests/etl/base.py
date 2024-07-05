@@ -58,15 +58,17 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         export_group: str = "test-group",
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
         write_completion: bool = True,
+        skip_init_checks: bool = True,
     ) -> None:
         args = [
             input_path or self.input_path,
             output_path or self.output_path,
             phi_path or self.phi_path,
-            "--skip-init-checks",
             f"--input-format={input_format}",
             f"--ctakes-overrides={self.ctakes_overrides.name}",
         ]
+        if skip_init_checks:
+            args.append("--skip-init-checks")
         if export_group is not None:
             args.append(f"--export-group={export_group}")
         if export_timestamp:

@@ -81,6 +81,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         philter=None,
         no_philter=None,
         overwrite=False,
+        skip_init_checks=True,
     ) -> None:
         args = [
             "upload-notes",
@@ -92,8 +93,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             f"--export-to={self.export_path}",
             "--ls-project=21",
             f"--ls-token={self.token_path}",
-            "--skip-init-checks",
         ]
+        if skip_init_checks:
+            args += ["--skip-init-checks"]
         if anon_docrefs:
             args += ["--anon-docrefs", anon_docrefs]
         if docrefs:
@@ -160,8 +162,10 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         respx_mock.get(f"https://localhost/DocumentReference?patient={patient}&_elements=content").respond(json=bundle)
 
     @staticmethod
-    def mock_read_url(respx_mock: respx.MockRouter, doc_id: str, code: int = 200, **kwargs) -> None:
-        docref = TestUploadNotes.make_docref(doc_id, **kwargs)
+    def mock_read_url(
+        respx_mock: respx.MockRouter, doc_id: str, code: int = 200, docref: dict = None, **kwargs
+    ) -> None:
+        docref = docref or TestUploadNotes.make_docref(doc_id, **kwargs)
         respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
 
     @staticmethod
@@ -451,3 +455,42 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual("doc?", note.text[match2c[0] : match2c[1]])
         spans = {x.span().key() for x in note.ctakes_matches}
         self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)
+
+    async def test_docrefs_without_encounters_are_skipped(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+                # One docref without any context/encounter info
+                docref1 = self.make_docref("D1")
+                del docref1["context"]
+                writer.write(docref1)
+
+                # And one with all the normal goodies
+                writer.write(self.make_docref("D2"))
+
+            await self.run_upload_notes(input_path=tmpdir)
+
+        self.assertEqual({"D1", "D2"}, self.get_exported_ids())
+        self.assertEqual({"D2"}, self.get_pushed_ids())
+
+    @mock.patch("cumulus_etl.nlp.restart_ctakes_with_bsv", new=lambda *_: False)
+    async def test_nlp_restart_failure_is_noticed(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_upload_notes()
+        self.assertEqual(cm.exception.code, errors.CTAKES_OVERRIDES_INVALID)
+
+    @mock.patch("cumulus_etl.nlp.check_ctakes")
+    @mock.patch("cumulus_etl.nlp.check_negation_cnlpt")
+    @mock.patch("cumulus_etl.cli_utils.is_url_available")
+    async def test_init_checks(self, mock_url, mock_cnlpt, mock_ctakes):
+        # Start with error case for our URL check (against label studio)
+        mock_url.return_value = False
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_upload_notes(skip_init_checks=False)
+        self.assertEqual(mock_ctakes.call_count, 1)
+        self.assertEqual(mock_cnlpt.call_count, 1)
+        self.assertEqual(mock_url.call_count, 1)
+        self.assertEqual(cm.exception.code, errors.LABEL_STUDIO_MISSING)
+
+        # Let the URL pass and confirm we now run successfully
+        mock_url.return_value = True
+        await self.run_upload_notes(skip_init_checks=False)
