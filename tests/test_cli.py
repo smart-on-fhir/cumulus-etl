@@ -1,12 +1,13 @@
-"""Tests for cli.py"""
+"""Tests for cli.py and cli_utils.py"""
 
 import contextlib
 import io
+import socket
 from unittest import mock
 
 import ddt
 
-from cumulus_etl import cli
+from cumulus_etl import cli, cli_utils
 from tests.utils import AsyncTestCase
 
 
@@ -47,3 +48,27 @@ class TestCumulusCLI(AsyncTestCase):
             await cli.main(argv)
 
         self.assertTrue(mock_main.called)
+
+
+class TestCumulusCLIUtils(AsyncTestCase):
+    """
+    Unit tests for our CLI helpers.
+    """
+
+    async def test_url_is_unresolvable(self):
+        """Verify that a hostname that doesn't exist is immediately failed"""
+        # First test the plumbing is real and work
+        self.assertFalse(cli_utils.is_url_available("http://nope.invalid"))
+
+        # Now mock the plumbing to confirm we don't retry
+        with mock.patch("socket.create_connection") as mock_conn:
+            mock_conn.side_effect = socket.gaierror
+            self.assertFalse(cli_utils.is_url_available("http://nope.invalid"))
+            self.assertEqual(mock_conn.call_count, 1)
+
+    @mock.patch("socket.create_connection", side_effect=ConnectionRefusedError)
+    @mock.patch("time.sleep", new=lambda x: None)  # don't sleep during retries
+    async def test_url_is_not_ready(self, mock_conn):
+        """Verify that a refused connection is retried"""
+        self.assertFalse(cli_utils.is_url_available("http://nope.invalid"))
+        self.assertEqual(mock_conn.call_count, 6)

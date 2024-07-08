@@ -80,8 +80,8 @@ async def main(argv: list[str]) -> None:
 
 
 def main_cli():
-    asyncio.run(main(sys.argv[1:]))
+    asyncio.run(main(sys.argv[1:]))  # pragma: no cover
 
 
 if __name__ == "__main__":
-    main_cli()
+    main_cli()  # pragma: no cover
