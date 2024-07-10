@@ -1,6 +1,26 @@
 services:
 
+  # This service is shared by all other services - be careful when adding to it.
+  common-base:
+    environment:
+      # These are commonly-supported networking environment variables.
+      # Yes, the lowercase forms are intentional.
+      # See https://about.gitlab.com/blog/2021/01/27/we-need-to-talk-no-proxy/ for background.
+      - HTTP_PROXY
+      - http_proxy
+      - HTTPS_PROXY
+      - https_proxy
+      - ALL_PROXY
+      - all_proxy
+      - NO_PROXY
+      - no_proxy
+      - SSL_CERT_DIR
+      - SSL_CERT_FILE
+    profiles:
+      - base
+
   cumulus-etl-base:
+    extends: common-base
     image: smartonfhir/cumulus-etl:latest
     build:
       context: .
@@ -37,6 +57,7 @@ services:
       - etl-gpu
 
   ctakes-covid-base:
+    extends: common-base
     image: smartonfhir/ctakes-covid:1.1.1
     environment:
       - ctakes_umlsuser=umls_api_key
@@ -61,6 +82,7 @@ services:
       - upload-notes-gpu
 
   cnlpt-negation:
+    extends: common-base
     image: smartonfhir/cnlp-transformers:negation-0.6.1-cpu
     profiles:
       # chart-review is a deprecated alias for upload-notes since Jan 2024.
@@ -72,6 +94,7 @@ services:
       - cumulus-etl
 
   cnlpt-negation-gpu:
+    extends: common-base
     image: smartonfhir/cnlp-transformers:negation-0.6.1-gpu
     profiles:
       # chart-review-gpu is a deprecated alias for upload-notes-gpu since Jan 2024.
@@ -88,6 +111,7 @@ services:
             - capabilities: [gpu]
 
   cnlpt-term-exists:
+    extends: common-base
     image: smartonfhir/cnlp-transformers:termexists-0.6.1-cpu
     profiles:
       - covid-symptom
@@ -95,6 +119,7 @@ services:
       - cumulus-etl
 
   cnlpt-term-exists-gpu:
+    extends: common-base
     image: smartonfhir/cnlp-transformers:termexists-0.6.1-gpu
     profiles:
       - covid-symptom-gpu
@@ -108,6 +133,7 @@ services:
 
   # This is a WIP llama2 setup, currently suitable for running in a g5.xlarge AWS instance.
   llama2:
+    extends: common-base
     image: ghcr.io/huggingface/text-generation-inference:1.0.1
     environment:
       # If you update anything here that could affect NLP results, consider updating the
@@ -187,6 +213,7 @@ services:
       - 8080:8080
 
   cnlp-transformers-test:
+    extends: common-base
     image: smartonfhir/cnlp-transformers:negation-latest-cpu
     #build: 
     #  context: ../cnlp_transformers/docker
@@ -199,6 +226,7 @@ services:
       - cumulus-etl
 
   cnlp-transformers-test-gpu:
+    extends: common-base
     image: smartonfhir/cnlp-transformers:negation-latest-gpu
     #build: 
     #  context: ../cnlp_transformers/docker
