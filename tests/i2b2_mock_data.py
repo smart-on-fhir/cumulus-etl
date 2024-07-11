@@ -2,6 +2,8 @@
 
 from cumulus_etl.loaders.i2b2 import transform
 
+DOCREF_TEXT = "Chief complaint: fever and chills. Denies cough."
+
 
 def patient_dim() -> transform.PatientDimension:
     return transform.PatientDimension(
@@ -63,7 +65,7 @@ def documentreference_dim() -> transform.ObservationFact:
             "ENCOUNTER_NUM": 67890,
             "CONCEPT_CD": "NOTE:149798455",  # emergency room type
             "START_DATE": "2016-01-01",
-            "OBSERVATION_BLOB": "Chief complaint: fever and chills. Denies cough.",
+            "OBSERVATION_BLOB": DOCREF_TEXT,
             "TVAL_CHAR": "Emergency note",
         }
     )
