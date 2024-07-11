@@ -1,9 +1,11 @@
 """Tests for the mstool module"""
 
+import asyncio
 import filecmp
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 import pytest
 
@@ -74,3 +76,69 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
                 common.write_json(os.path.join(input_dir, "Condition.ndjson"), {})
                 with self.assertRaises(SystemExit):
                     await run_mstool(input_dir, output_dir)
+
+
+# Separate class here from the above, because this doesn't need the MS tool installed
+class TestMicrosoftToolWrapper(AsyncTestCase):
+    """Test case for the MS tool wrapper code"""
+
+    def setUp(self):
+        super().setUp()
+
+        self.process = mock.MagicMock()
+        self.process.returncode = None  # process not yet finished
+
+        mock_exec = self.patch("asyncio.create_subprocess_exec")
+        mock_exec.return_value = self.process
+
+    async def test_progress(self):
+        """Confirms that we poll for progress as we go"""
+        mock_progress = mock.MagicMock()
+        mock_wrapper = mock.MagicMock()
+        mock_wrapper.__enter__.return_value = mock_progress
+        self.patch("cumulus_etl.cli_utils.make_progress_bar", return_value=mock_wrapper)
+
+        # We are going to stage 3 different checkpoints:
+        # - a couple bytes written
+        # - first file in place, a couple bytes of second
+        # - both files in place, finished
+        self.patch(
+            "asyncio.wait_for",
+            side_effect=[
+                asyncio.TimeoutError,
+                asyncio.TimeoutError,
+                ("Out", "Err"),
+            ],
+        )
+
+        def fake_getsize(path: str) -> int:
+            match path:
+                case "first.ndjson":
+                    return 10
+                case "second.ndjson":
+                    return 10
+                case "tmp1.ndjson":
+                    return 3
+                case "tmp2.ndjson":
+                    self.process.returncode = 0  # mark the process as done
+                    return 3
+                case "ghost.ndjson":
+                    # Test that we gracefully handle files deleting underneath us
+                    raise FileNotFoundError
+
+        self.patch(
+            "glob.glob",
+            side_effect=[
+                ["first.ndjson", "second.ndjson"],
+                ["tmp1.ndjson", "ghost.ndjson"],
+                ["first.ndjson", "tmp2.ndjson"],
+            ],
+        )
+        self.patch("os.path.getsize", side_effect=fake_getsize)
+
+        await run_mstool("/in", "/out")
+
+        self.assertEqual(mock_progress.update.call_count, 3)
+        self.assertEqual(mock_progress.update.call_args_list[0].kwargs, {"completed": 3 / 20})
+        self.assertEqual(mock_progress.update.call_args_list[1].kwargs, {"completed": 13 / 20})
+        self.assertEqual(mock_progress.update.call_args_list[2].kwargs, {"completed": 1})
