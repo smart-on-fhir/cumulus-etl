@@ -472,7 +472,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             await self.export()
 
         # 86760 == 24 hours + six minutes
-        self.assertEqual(86760, self.exporter._total_wait_time)  # pylint: disable=protected-access
+        self.assertEqual(86760, self.exporter._total_wait_time)
 
         self.assertListEqual(
             [

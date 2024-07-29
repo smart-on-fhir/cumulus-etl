@@ -63,7 +63,7 @@ async def covid_symptoms_extract(
         ctakes_json = await nlp.ctakes_extract(
             cache, ctakes_namespace, clinical_note, client=ctakes_http_client
         )
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         logging.warning(
             "Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc
         )
@@ -96,7 +96,7 @@ async def covid_symptoms_extract(
             model=polarity_model,
             client=cnlp_http_client,
         )
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         logging.warning(
             "Could not check polarity for docref %s (%s): %s", docref_id, type(exc).__name__, exc
         )

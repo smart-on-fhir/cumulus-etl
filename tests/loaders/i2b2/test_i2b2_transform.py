@@ -18,7 +18,6 @@ class TestI2b2Transform(AsyncTestCase):
         self.assertEqual(str(12345), subject["id"])
         self.assertEqual("2005-06-07", subject["birthDate"])
         self.assertEqual("female", subject["gender"])
-        # pylint: disable-next=unsubscriptable-object
         self.assertEqual("02115", subject["address"][0]["postalCode"])
 
     @ddt.data(

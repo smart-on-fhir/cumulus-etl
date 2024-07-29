@@ -149,7 +149,7 @@ class MedicationRequestTask(tasks.EtlTask):
 
         try:
             medication = await fhir.download_reference(self.task_config.client, reference)
-        except Exception as exc:  # pylint: disable=broad-except
+        except Exception as exc:
             logging.warning("Could not download Medication reference: %s", exc)
             self.summaries[1].had_errors = True
 

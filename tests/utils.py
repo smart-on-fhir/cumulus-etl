@@ -57,7 +57,7 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     def make_tempdir(self) -> str:
         """Creates a temporary dir that will be automatically cleaned up"""
-        tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         return tempdir.name
 
@@ -120,7 +120,7 @@ class TreeCompareMixin(unittest.TestCase):
         filecmp.clear_cache()
 
         # you'll always want this when debugging
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
     def assert_etl_output_equal(self, left: str, right: str):
         """Compares the etl output with the expected json structure"""
@@ -188,7 +188,7 @@ class FhirClientMixin(unittest.TestCase):
         ).export(as_dict=True)
         self.fhir_jwks = {"keys": [jwk_token]}
 
-        self._fhir_jwks_file = tempfile.NamedTemporaryFile()  # pylint: disable=consider-using-with
+        self._fhir_jwks_file = tempfile.NamedTemporaryFile()
         self._fhir_jwks_file.write(json.dumps(self.fhir_jwks).encode("utf8"))
         self._fhir_jwks_file.flush()
         self.addCleanup(self._fhir_jwks_file.close)

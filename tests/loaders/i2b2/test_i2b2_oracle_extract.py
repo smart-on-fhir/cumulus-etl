@@ -15,7 +15,7 @@ class TestOracleExtraction(AsyncTestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
         # Mock all the sql connection/cursor/execution stuff
         connect_patcher = mock.patch("cumulus_etl.loaders.i2b2.oracle.extract.connect")

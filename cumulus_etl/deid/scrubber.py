@@ -44,7 +44,7 @@ class Scrubber:
 
         :returns: a temporary directory holding the de-identified results, in FHIR ndjson format
         """
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tmpdir = tempfile.TemporaryDirectory()
         await mstool.run_mstool(input_dir, tmpdir.name)
         return tmpdir
 

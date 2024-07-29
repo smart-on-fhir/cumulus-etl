@@ -27,7 +27,7 @@ class TestDeltaLake(utils.AsyncTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        output_tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        output_tempdir = tempfile.TemporaryDirectory()
         cls.output_tempdir = output_tempdir
         cls.output_dir = output_tempdir.name
         cls.root = store.Root(output_tempdir.name)

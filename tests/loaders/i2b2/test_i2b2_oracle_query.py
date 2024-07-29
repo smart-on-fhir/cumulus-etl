@@ -50,7 +50,7 @@ class TestOracleQueries(utils.AsyncTestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
     def test_list_patient(self):
         common.print_header("# patient")

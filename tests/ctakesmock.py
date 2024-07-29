@@ -34,7 +34,7 @@ class CtakesMixin(unittest.TestCase):
 
         CtakesMixin.ctakes_port += 1
         os.environ["URL_CTAKES_REST"] = f"http://localhost:{CtakesMixin.ctakes_port}/"
-        self.ctakes_overrides = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        self.ctakes_overrides = tempfile.TemporaryDirectory()
         self._run_fake_ctakes_server(f"{self.ctakes_overrides.name}/symptoms.bsv")
 
         cnlp_patcher = mock.patch(
@@ -131,7 +131,7 @@ class FakeCTakesHandler(http.server.BaseHTTPRequestHandler):
     # We don't want that behavior, because if our mock code is misbehaving and not detecting an overrides file change,
     # if we time out a request on our end, it will look like a successful file change detection and mask a testing bug.
 
-    def do_POST(self):  # pylint: disable=invalid-name
+    def do_POST(self):
         """Serve a POST request."""
         self.server.was_called.value = 1  # signal to test framework that we were actually called
 

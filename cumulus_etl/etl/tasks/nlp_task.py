@@ -94,7 +94,7 @@ class BaseNlpTask(EtlTask):
                     warned_connection_error = True
                 self.add_error(orig_docref)
                 continue
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:
                 logging.warning("Error getting text for docref %s: %s", docref["id"], exc)
                 self.add_error(orig_docref)
                 continue

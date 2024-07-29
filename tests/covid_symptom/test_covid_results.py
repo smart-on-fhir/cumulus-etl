@@ -92,10 +92,10 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     async def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
         docref0 = i2b2_mock_data.documentreference()
-        docref0["type"]["coding"][0]["code"] = "NOTE:nope"  # pylint: disable=unsubscriptable-object
+        docref0["type"]["coding"][0]["code"] = "NOTE:nope"
         self.make_json("DocumentReference", "skipped", **docref0)
         docref1 = i2b2_mock_data.documentreference()
-        docref1["type"]["coding"][0]["code"] = "NOTE:149798455"  # pylint: disable=unsubscriptable-object
+        docref1["type"]["coding"][0]["code"] = "NOTE:149798455"
         self.make_json("DocumentReference", "present", **docref1)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()

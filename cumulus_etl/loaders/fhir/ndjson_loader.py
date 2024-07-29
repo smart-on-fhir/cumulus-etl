@@ -67,7 +67,7 @@ class FhirNdjsonLoader(base.Loader):
         # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
         # TemporaryDirectory gets discarded), but that seems reasonable.
         print("Copying ndjson input files…")
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tmpdir = tempfile.TemporaryDirectory()
         filenames = common.ls_resources(input_root, set(resources), warn_if_empty=True)
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")

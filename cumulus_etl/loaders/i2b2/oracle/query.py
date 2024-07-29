@@ -120,11 +120,11 @@ def where(expression=None) -> str:
     return "\n WHERE " + expression if expression else ""
 
 
-def AND(expression: str) -> str:  # pylint: disable=invalid-name
+def AND(expression: str) -> str:
     return f"\n AND ({expression})"
 
 
-def OR(expression: str) -> str:  # pylint: disable=invalid-name
+def OR(expression: str) -> str:
     return f"\n OR ({expression})"
 
 

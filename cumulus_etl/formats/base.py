@@ -62,7 +62,7 @@ class Format(abc.ABC):
         try:
             self._write_one_batch(batch)
             return True
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             logging.exception("Could not process data records")
             return False
 

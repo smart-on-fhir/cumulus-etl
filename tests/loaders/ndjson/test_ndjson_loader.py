@@ -21,7 +21,7 @@ class TestNdjsonLoader(AsyncTestCase):
 
     def setUp(self):
         super().setUp()
-        self.jwks_file = tempfile.NamedTemporaryFile()  # pylint: disable=consider-using-with
+        self.jwks_file = tempfile.NamedTemporaryFile()
         self.jwks_path = self.jwks_file.name
         self.jwks_file.write(b'{"fake":"jwks"}')
         self.jwks_file.flush()

@@ -62,7 +62,7 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
     """Makes a temporary directory to drop exported ndjson files into"""
     # Handle the easy case -- just a random temp dir
     if not export_to:
-        return tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        return tempfile.TemporaryDirectory()
 
     # OK the user has a specific spot in mind. Let's do some quality checks. It must be local and empty.
 

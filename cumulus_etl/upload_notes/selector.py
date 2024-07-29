@@ -43,7 +43,7 @@ def _create_docref_filter(
     else:
         # Just accept everything (we still want to read them though, to copy them to a possible export folder).
         # So this lambda just returns an iterator over its input.
-        return lambda x: iter(x)  # pylint: disable=unnecessary-lambda
+        return lambda x: iter(x)
 
 
 def _filter_real_docrefs(docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
