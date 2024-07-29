@@ -25,7 +25,7 @@ class I2b2Loader(Loader):
     Expected format is either a tcp:// URL pointing at an Oracle server or a local folder.
     """
 
-    def __init__(self, root: store.Root, export_to: str = None):
+    def __init__(self, root: store.Root, export_to: str | None = None):
         """
         Initialize a new I2b2Loader class
         :param root: the base location to read data from
@@ -59,7 +59,9 @@ class I2b2Loader(Loader):
         tmpdir = cli_utils.make_export_dir(self.export_to)
 
         if "Condition" in resources:
-            with open(Path(Path(__file__).resolve().parent, "icd.json"), encoding="utf-8") as code_json:
+            with open(
+                Path(Path(__file__).resolve().parent, "icd.json"), encoding="utf-8"
+            ) as code_json:
                 code_dict = json.load(code_json)
             self._loop(
                 conditions(),
@@ -109,11 +111,17 @@ class I2b2Loader(Loader):
 
         return tmpdir
 
-    def _loop(self, i2b2_entries: Iterable[schema.Dimension], to_fhir: I2b2ToFhirCallable, output_path: str) -> None:
+    def _loop(
+        self,
+        i2b2_entries: Iterable[schema.Dimension],
+        to_fhir: I2b2ToFhirCallable,
+        output_path: str,
+    ) -> None:
         """Takes one kind of i2b2 resource, loads them all up, and writes out a FHIR ndjson file"""
         fhir_resources = (to_fhir(x) for x in i2b2_entries)
 
-        ids = set()  # keep track of every ID we've seen so far, because sometimes i2b2 can have duplicates
+        # keep track of every ID we've seen so far, because sometimes i2b2 can have duplicates
+        ids = set()
 
         with common.NdjsonWriter(output_path) as output_file:
             # Now write each FHIR resource line by line to the output
@@ -151,10 +159,15 @@ class I2b2Loader(Loader):
                 os.path.join(path, "observation_fact_vitals.csv"),
             ),
             documentreferences=partial(
-                extract.extract_csv_observation_facts, os.path.join(path, "observation_fact_notes.csv")
+                extract.extract_csv_observation_facts,
+                os.path.join(path, "observation_fact_notes.csv"),
             ),
-            patients=partial(extract.extract_csv_patients, os.path.join(path, "patient_dimension.csv")),
-            encounters=partial(extract.extract_csv_visits, os.path.join(path, "visit_dimension.csv")),
+            patients=partial(
+                extract.extract_csv_patients, os.path.join(path, "patient_dimension.csv")
+            ),
+            encounters=partial(
+                extract.extract_csv_visits, os.path.join(path, "visit_dimension.csv")
+            ),
         )
 
     ###################################################################################################################
@@ -169,7 +182,9 @@ class I2b2Loader(Loader):
             resources,
             conditions=partial(oracle_extract.list_observation_fact, path, ["ICD9", "ICD10"]),
             lab_views=partial(oracle_extract.list_observation_fact, path, ["LAB"]),
-            medicationrequests=partial(oracle_extract.list_observation_fact, path, ["ADMINMED", "HOMEMED"]),
+            medicationrequests=partial(
+                oracle_extract.list_observation_fact, path, ["ADMINMED", "HOMEMED"]
+            ),
             vitals=partial(oracle_extract.list_observation_fact, path, ["VITAL"]),
             documentreferences=partial(oracle_extract.list_observation_fact, path, ["NOTE"]),
             patients=partial(oracle_extract.list_patient, path),

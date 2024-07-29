@@ -37,7 +37,8 @@ class TestConvert(utils.AsyncTestCase):
             f"{self.datadir}/covid/term-exists/etl__completion/etl__completion.000.ndjson",
             f"{self.original_path}/etl__completion/etl__completion.covid.ndjson",
         )
-        os.makedirs(f"{self.original_path}/ignored")  # just to confirm we only copy what we understand
+        # just to confirm we only copy what we understand, add an ignored folder
+        os.makedirs(f"{self.original_path}/ignored")
 
         job_timestamp = "2023-02-28__19.53.08"
         config_dir = f"{self.original_path}/JobConfig/{job_timestamp}"
@@ -46,7 +47,9 @@ class TestConvert(utils.AsyncTestCase):
 
         return job_timestamp
 
-    async def run_convert(self, input_path: str = None, output_path: str = None) -> None:
+    async def run_convert(
+        self, input_path: str | None = None, output_path: str | None = None
+    ) -> None:
         args = [
             "convert",
             input_path or self.original_path,
@@ -81,7 +84,8 @@ class TestConvert(utils.AsyncTestCase):
         expected_tables = set(os.listdir(self.original_path)) - {"ignored"}
         self.assertEqual(expected_tables, set(os.listdir(self.target_path)))
         self.assertEqual(
-            {"test": True}, common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json")
+            {"test": True},
+            common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
         )
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # spot check some patients
         self.assertEqual(2, len(patients))
@@ -91,7 +95,10 @@ class TestConvert(utils.AsyncTestCase):
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
-        symptoms = utils.read_delta_lake(f"{self.target_path}/covid_symptom__nlp_results_term_exists")  # and covid
+        # and a non-default study table
+        symptoms = utils.read_delta_lake(
+            f"{self.target_path}/covid_symptom__nlp_results_term_exists"
+        )
         self.assertEqual(2, len(symptoms))
         self.assertEqual("for", symptoms[0]["match"]["text"])
         completion = utils.read_delta_lake(f"{self.target_path}/etl__completion")  # and completion
@@ -107,7 +114,13 @@ class TestConvert(utils.AsyncTestCase):
         delta_path = os.path.join(self.tmpdir, "delta")
         os.makedirs(f"{delta_path}/patient")
         with common.NdjsonWriter(f"{delta_path}/patient/new.ndjson") as writer:
-            writer.write({"resourceType": "Patient", "id": "1de9ea66-70d3-da1f-c735-df5ef7697fb9", "birthDate": "1800"})
+            writer.write(
+                {
+                    "resourceType": "Patient",
+                    "id": "1de9ea66-70d3-da1f-c735-df5ef7697fb9",
+                    "birthDate": "1800",
+                }
+            )
             writer.write({"resourceType": "Patient", "id": "z-gen", "birthDate": "2005"})
         os.makedirs(f"{delta_path}/etl__completion_encounters")
         with common.NdjsonWriter(f"{delta_path}/etl__completion_encounters/new.ndjson") as writer:
@@ -120,7 +133,13 @@ class TestConvert(utils.AsyncTestCase):
                 }
             )
             # Totally new encounter
-            writer.write({"encounter_id": "NEW", "group_name": "NEW", "export_time": "2021-12-12T17:00:20+00:00"})
+            writer.write(
+                {
+                    "encounter_id": "NEW",
+                    "group_name": "NEW",
+                    "export_time": "2021-12-12T17:00:20+00:00",
+                }
+            )
         delta_config_dir = f"{delta_path}/JobConfig/{delta_timestamp}"
         os.makedirs(delta_config_dir)
         common.write_json(f"{delta_config_dir}/job_config.json", {"delta": "yup"})
@@ -128,25 +147,29 @@ class TestConvert(utils.AsyncTestCase):
 
         # How did that change the delta lake dir? Hopefully we only interwove the new data
         self.assertEqual(  # confirm this is still here
-            {"test": True}, common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json")
+            {"test": True},
+            common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
         )
         self.assertEqual({"delta": "yup"}, common.read_json(f"{delta_config_dir}/job_config.json"))
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # re-check the patients
         self.assertEqual(3, len(patients))
-        self.assertEqual("1800", patients[0]["birthDate"])  # these rows are sorted by id, so these are reliable indexes
+        # these rows are sorted by id, so these are reliable indexes
+        self.assertEqual("1800", patients[0]["birthDate"])
         self.assertEqual("1983", patients[1]["birthDate"])
         self.assertEqual("2005", patients[2]["birthDate"])
-        conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions shouldn't change at all
+        # and conditions shouldn't change at all
+        conditions = utils.read_delta_lake(f"{self.target_path}/condition")
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
-        comp_enc = utils.read_delta_lake(
-            f"{self.target_path}/etl__completion_encounters"
-        )  # and *some* enc mappings did
+        # but *some* enc mappings did
+        comp_enc = utils.read_delta_lake(f"{self.target_path}/etl__completion_encounters")
         self.assertEqual(3, len(comp_enc))
         self.assertEqual("08f0ebd4-950c-ddd9-ce97-b5bdf073eed1", comp_enc[0]["encounter_id"])
-        self.assertEqual("2020-10-13T12:00:20-05:00", comp_enc[0]["export_time"])  # confirm this *didn't* get updated
+        # confirm export_time *didn't* get updated
+        self.assertEqual("2020-10-13T12:00:20-05:00", comp_enc[0]["export_time"])
         self.assertEqual("NEW", comp_enc[1]["encounter_id"])
-        self.assertEqual("2021-12-12T17:00:20+00:00", comp_enc[1]["export_time"])  # but the new row did get inserted
+        # but the new row did get inserted
+        self.assertEqual("2021-12-12T17:00:20+00:00", comp_enc[1]["export_time"])
 
     @mock.patch("cumulus_etl.formats.Format.write_records")
     async def test_batch_metadata(self, mock_write):
@@ -186,4 +209,5 @@ class TestConvert(utils.AsyncTestCase):
             },
             mock_write.call_args_list[1][0][0].groups,  # first (actual) covid batch
         )
-        self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)  # second (faked) covid batch
+        # second (faked) covid batch
+        self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)

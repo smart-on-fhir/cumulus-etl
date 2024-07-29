@@ -29,7 +29,7 @@ async def ctakes_extract(
     try:
         cached_response = common.read_json(full_path)
         result = ctakesclient.typesystem.CtakesJSON(source=cached_response)
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         result = await ctakesclient.client.extract(sentence, client=client)
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, result.as_json())
@@ -58,8 +58,10 @@ async def list_polarity(
 
     try:
         result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
-    except Exception:  # pylint: disable=broad-except
-        result = await ctakesclient.transformer.list_polarity(sentence, spans, client=client, model=model)
+    except Exception:
+        result = await ctakesclient.transformer.list_polarity(
+            sentence, spans, client=client, model=model
+        )
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, [x.value for x in result])
 

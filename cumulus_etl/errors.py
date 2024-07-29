@@ -6,7 +6,6 @@ from typing import NoReturn
 import httpx
 import rich.console
 
-
 # Error return codes, mostly just distinguished for the benefit of tests.
 # These start at 10 just to leave some room for future use.
 SQL_USER_MISSING = 10
@@ -63,7 +62,9 @@ class FhirAuthMissing(FhirConnectionConfigError):
     """We needed to connect to a FHIR server but no authentication config was provided"""
 
     def __init__(self):
-        super().__init__("Could not download some files without authentication parameters (see --help)")
+        super().__init__(
+            "Could not download some files without authentication parameters (see --help)"
+        )
 
 
 def fatal(message: str, status: int) -> NoReturn:

@@ -118,24 +118,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[dev]
 
-      - name: Run pycodestyle
-        # E203: pycodestyle is a little too rigid about slices & whitespace
-        #  See https://black.readthedocs.io/en/stable/the_black_code_style/current_style.html#slices
-        # W503: a default ignore that we are restoring
-        run: |
-          pycodestyle --max-line-length=120 --ignore=E203,W503 .
-
-      - name: Run pylint
-        if: success() || failure() # still run pylint if above checks fail
-        run: |
-          pylint cumulus_etl tests
-
-      - name: Run bandit
-        if: success() || failure() # still run bandit if above checks fail
-        run: |
-          bandit -c pyproject.toml -r .
-
-      - name: Run black
-        if: success() || failure() # still run black if above checks fails
-        run: |
-          black --check --verbose --line-length 120 .
+      - name: Run ruff
+        run: ruff check --output-format=github .

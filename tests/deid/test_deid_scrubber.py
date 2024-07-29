@@ -32,7 +32,10 @@ class TestScrubber(utils.AsyncTestCase):
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(encounter))
         self.assertEqual(encounter["id"], scrubber.codebook.fake_id("Encounter", "67890"))
-        self.assertEqual(encounter["subject"]["reference"], f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
+        self.assertEqual(
+            encounter["subject"]["reference"],
+            f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}",
+        )
 
     def test_condition(self):
         """Verify a basic condition (hashed ids)"""
@@ -44,9 +47,13 @@ class TestScrubber(utils.AsyncTestCase):
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(condition))
         self.assertEqual(condition["id"], scrubber.codebook.fake_id("Condition", "4567"))
-        self.assertEqual(condition["subject"]["reference"], f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
         self.assertEqual(
-            condition["encounter"]["reference"], f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}"
+            condition["subject"]["reference"],
+            f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}",
+        )
+        self.assertEqual(
+            condition["encounter"]["reference"],
+            f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}",
         )
 
     def test_documentreference(self):
@@ -62,7 +69,10 @@ class TestScrubber(utils.AsyncTestCase):
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(docref))
         self.assertEqual(docref["id"], scrubber.codebook.fake_id("DocumentReference", "345"))
-        self.assertEqual(docref["subject"]["reference"], f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}")
+        self.assertEqual(
+            docref["subject"]["reference"],
+            f"Patient/{scrubber.codebook.fake_id('Patient', '12345')}",
+        )
         self.assertEqual(
             docref["context"]["encounter"][0]["reference"],
             f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}",
@@ -99,7 +109,9 @@ class TestScrubber(utils.AsyncTestCase):
 
     def test_nlp_extensions_allowed(self):
         """Confirm we that nlp-generated resources are allowed, with their modifier extensions"""
-        match = typesystem.MatchText({"begin": 0, "end": 1, "polarity": 0, "text": "f", "type": "SignSymptomMention"})
+        match = typesystem.MatchText(
+            {"begin": 0, "end": 1, "polarity": 0, "text": "f", "type": "SignSymptomMention"}
+        )
         observation = text2fhir.nlp_observation("1", "2", "3", match).as_json()
 
         scrubber = Scrubber()

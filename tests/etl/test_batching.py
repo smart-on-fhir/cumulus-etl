@@ -5,7 +5,6 @@ from collections.abc import AsyncIterator
 import ddt
 
 from cumulus_etl.etl.tasks import batching
-
 from tests.utils import AsyncTestCase
 
 

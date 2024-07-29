@@ -40,7 +40,9 @@ class TestOracleConnect(utils.AsyncTestCase):
             self.assertEqual(errors.SQL_PASSWORD_MISSING, cm.exception.code)
 
     @mock.patch("cumulus_etl.loaders.i2b2.oracle.connect.oracledb")
-    @mock.patch.dict(os.environ, {"CUMULUS_SQL_USER": "test-user", "CUMULUS_SQL_PASSWORD": "p4sswd"})
+    @mock.patch.dict(
+        os.environ, {"CUMULUS_SQL_USER": "test-user", "CUMULUS_SQL_PASSWORD": "p4sswd"}
+    )
     def test_connect(self, mock_oracledb):
         """Verify that we pass all the right parameters to Oracle when connecting"""
         connect.connect("tcp://localhost/foo")

@@ -22,8 +22,11 @@ from cumulus_etl import fhir
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 # Pass a non-UTC time to time-machine to help notice any bad timezone handling.
-# But only bother exposing the UTC version to other test code, since that's what will be most useful/common.
-_FROZEN_TIME = datetime.datetime(2021, 9, 15, 1, 23, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=4)))
+# But only bother exposing the UTC version to other test code,
+# since that's what will be most useful/common.
+_FROZEN_TIME = datetime.datetime(
+    2021, 9, 15, 1, 23, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=4))
+)
 FROZEN_TIME_UTC = _FROZEN_TIME.astimezone(datetime.timezone.utc)
 
 
@@ -36,12 +39,13 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         super().setUp()
-        self.patch(
-            "cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "1234"
-        )  # keep all codebook IDs consistent
 
-        # It's so common to want to see more than the tiny default fragment -- just enable this across the board.
-        self.maxDiff = None  # pylint: disable=invalid-name
+        # keep all codebook IDs consistent
+        self.patch("cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "1234")
+
+        # It's so common to want to see more than the tiny default fragment.
+        # So we just enable this across the board.
+        self.maxDiff = None
 
         # Make it easy to grab test data, regardless of where the test is
         self.datadir = os.path.join(os.path.dirname(__file__), "data")
@@ -53,7 +57,7 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     def make_tempdir(self) -> str:
         """Creates a temporary dir that will be automatically cleaned up"""
-        tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tempdir = tempfile.TemporaryDirectory()
         self.addCleanup(tempdir.cleanup)
         return tempdir.name
 
@@ -64,13 +68,13 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         return patcher.start()
 
     def patch_dict(self, *args, **kwargs) -> mock.Mock:
-        """Syntactic sugar to ease making a dictionary mock over a test's lifecycle, without decorators"""
+        """Syntactic sugar for making a dict mock over a test's lifecycle, without decorators"""
         patcher = mock.patch.dict(*args, **kwargs)
         self.addCleanup(patcher.stop)
         return patcher.start()
 
     def patch_object(self, *args, **kwargs) -> mock.Mock:
-        """Syntactic sugar to ease making an object mock over a test's lifecycle, without decorators"""
+        """Syntactic sugar for making an object mock over a test's lifecycle, without decorators"""
         patcher = mock.patch.object(*args, **kwargs)
         self.addCleanup(patcher.stop)
         return patcher.start()
@@ -88,17 +92,20 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         """
         Works around an async test case bug in python 3.10 and below.
 
-        This seems to be some version of https://github.com/python/cpython/issues/83282 but fixed & never backported.
+        This seems to be some version of https://github.com/python/cpython/issues/83282
+        but fixed & never backported.
         I was not able to find a separate bug report for this specific issue.
 
-        Given the following two test methods (for Pythons before 3.11), only the second one will hang:
+        Given the following two test methods (for Pythons before 3.11),
+        only the second one will hang:
 
             async def test_fails_correctly(self):
                 raise BaseException("OK")
             async def test_hangs_forever(self):
                 raise SystemExit("Nope")
 
-        This class works around that by wrapping all test methods and translating uncaught SystemExits into failures.
+        This class works around that by wrapping all test methods and translating uncaught
+        SystemExits into failures.
         _callTestMethod() can be deleted once we no longer use python 3.10 in our testing suite.
         """
         return super()._callTestMethod(functools.partial(self._catch_system_exit, method))
@@ -113,7 +120,7 @@ class TreeCompareMixin(unittest.TestCase):
         filecmp.clear_cache()
 
         # you'll always want this when debugging
-        self.maxDiff = None  # pylint: disable=invalid-name
+        self.maxDiff = None
 
     def assert_etl_output_equal(self, left: str, right: str):
         """Compares the etl output with the expected json structure"""
@@ -176,12 +183,12 @@ class FhirClientMixin(unittest.TestCase):
         self.fhir_client_id = "test-client-id"
         self.fhir_bearer = "1234567890"  # the provided oauth bearer token
 
-        jwk_token = jwk.JWK.generate(kty="EC", alg="ES384", curve="P-384", kid="a", key_ops=["sign", "verify"]).export(
-            as_dict=True
-        )
+        jwk_token = jwk.JWK.generate(
+            kty="EC", alg="ES384", curve="P-384", kid="a", key_ops=["sign", "verify"]
+        ).export(as_dict=True)
         self.fhir_jwks = {"keys": [jwk_token]}
 
-        self._fhir_jwks_file = tempfile.NamedTemporaryFile()  # pylint: disable=consider-using-with
+        self._fhir_jwks_file = tempfile.NamedTemporaryFile()
         self._fhir_jwks_file.write(json.dumps(self.fhir_jwks).encode("utf8"))
         self._fhir_jwks_file.flush()
         self.addCleanup(self._fhir_jwks_file.close)
@@ -239,19 +246,23 @@ class FhirClientMixin(unittest.TestCase):
         )
 
 
-def make_response(status_code=200, json_payload=None, text=None, reason=None, headers=None, stream=False):
+def make_response(
+    status_code=200, json_payload=None, text=None, reason=None, headers=None, stream=False
+):
     """
     Makes a fake respx response for ease of testing.
 
     Usually you'll want to use respx.get(...) etc directly.
-    But if you want to mock out the client <-> server interaction entirely, you can use this method to fake a
-    Response object from a method that returns one.
+    But if you want to mock out the client <-> server interaction entirely,
+    you can use this method to fake a Response object from a method that returns one.
 
     Example:
         server.request.return_value = make_response()
     """
     headers = dict(headers or {})
-    headers.setdefault("Content-Type", "application/json" if json_payload else "text/plain; charset=utf-8")
+    headers.setdefault(
+        "Content-Type", "application/json" if json_payload else "text/plain; charset=utf-8"
+    )
     json_payload = json.dumps(json_payload) if json_payload else None
     body = (json_payload or text or "").encode("utf8")
     stream_contents = None
@@ -268,7 +279,7 @@ def make_response(status_code=200, json_payload=None, text=None, reason=None, he
     )
 
 
-def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
+def read_delta_lake(lake_path: str, *, version: int | None = None) -> list[dict]:
     """
     Reads in a delta lake folder at a certain time, sorted by id.
 
@@ -284,8 +295,8 @@ def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
     table_spark = reader.format("delta").load(lake_path)
 
     # Convert the spark table to Python primitives.
-    # Going to rdd or pandas and then to Python keeps inserting spark-specific constructs like Row().
-    # So instead, convert to a JSON string and then back to Python.
+    # Going to rdd or pandas and then to Python keeps inserting spark-specific constructs like
+    # Row(). So instead, convert to a JSON string and then back to Python.
     rows = [json.loads(row) for row in table_spark.toJSON().collect()]
 
     # Try to sort by id, but if that doesn't exist (which happens for some completion tables),
@@ -294,7 +305,7 @@ def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
 
 
 @contextlib.contextmanager
-def time_it(desc: str = None):
+def time_it(desc: str | None = None):
     """Tiny little timer context manager that is useful when debugging"""
     start = time.perf_counter()
     yield
@@ -304,7 +315,7 @@ def time_it(desc: str = None):
 
 
 @contextlib.contextmanager
-def mem_it(desc: str = None):
+def mem_it(desc: str | None = None):
     """Tiny little context manager to measure memory usage"""
     start_tracing = not tracemalloc.is_tracing()
     if start_tracing:

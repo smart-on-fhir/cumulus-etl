@@ -30,7 +30,7 @@ class Scrubber:
        the resource is fully de-identified.
     """
 
-    def __init__(self, codebook_dir: str = None, use_philter: bool = False):
+    def __init__(self, codebook_dir: str | None = None, use_philter: bool = False):
         self.codebook = codebook.Codebook(codebook_dir)
         self.codebook_dir = codebook_dir
         self.philter = philter.Philter() if use_philter else None
@@ -44,7 +44,7 @@ class Scrubber:
 
         :returns: a temporary directory holding the de-identified results, in FHIR ndjson format
         """
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tmpdir = tempfile.TemporaryDirectory()
         await mstool.run_mstool(input_dir, tmpdir.name)
         return tmpdir
 
@@ -60,7 +60,9 @@ class Scrubber:
         :returns: whether this resource is allowed to be used
         """
         try:
-            self._scrub_node(node.get("resourceType"), "root", node, scrub_attachments=scrub_attachments)
+            self._scrub_node(
+                node.get("resourceType"), "root", node, scrub_attachments=scrub_attachments
+            )
         except SkipResource as exc:
             logging.warning("Ignoring resource of type %s: %s", node.__class__.__name__, exc)
             return False
@@ -90,7 +92,9 @@ class Scrubber:
     #
     ###############################################################################
 
-    def _scrub_node(self, resource_type: str, node_path: str, node: dict, scrub_attachments: bool) -> None:
+    def _scrub_node(
+        self, resource_type: str, node_path: str, node: dict, scrub_attachments: bool
+    ) -> None:
         """Examines all properties of a node"""
         for key, values in list(node.items()):
             if values is None:
@@ -106,7 +110,13 @@ class Scrubber:
                 )
 
     def _scrub_single_value(
-        self, resource_type: str, node_path: str, node: dict, key: str, value: Any, scrub_attachments: bool
+        self,
+        resource_type: str,
+        node_path: str,
+        node: dict,
+        key: str,
+        value: Any,
+        scrub_attachments: bool,
     ) -> None:
         """Examines one single property of a node"""
         # For now, just manually run each operation. If this grows further, we can abstract it more.
@@ -119,7 +129,9 @@ class Scrubber:
 
         # Recurse if we are holding another FHIR object (i.e. a dict instead of a string)
         if isinstance(value, dict):
-            self._scrub_node(resource_type, f"{node_path}.{key}", value, scrub_attachments=scrub_attachments)
+            self._scrub_node(
+                resource_type, f"{node_path}.{key}", value, scrub_attachments=scrub_attachments
+            )
 
     ###############################################################################
     #
@@ -188,7 +200,11 @@ class Scrubber:
     @staticmethod
     def _check_attachments(resource_type: str, node_path: str, node: dict, key: str) -> None:
         """Strip any attachment data"""
-        if resource_type == "DocumentReference" and node_path == "root.content.attachment" and key in {"data", "url"}:
+        if (
+            resource_type == "DocumentReference"
+            and node_path == "root.content.attachment"
+            and key in {"data", "url"}
+        ):
             del node[key]
 
     @staticmethod
@@ -200,7 +216,8 @@ class Scrubber:
         """
         if node_path == "root" and key == "meta":
             if "security" in value:
-                del value["security"]  # maybe too aggressive -- is there data we care about in meta.security?
+                # maybe too aggressive -- is there data we care about in meta.security?
+                del value["security"]
 
             # If we wiped out the only content in Meta, remove it so as not to confuse downstream bits like parquet
             # writers which try to infer values from an empty struct and fail.

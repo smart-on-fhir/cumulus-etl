@@ -7,9 +7,8 @@ import ddt
 import respx
 
 from cumulus_etl.etl.studies import covid_symptom
-
-from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
+from tests.ctakesmock import CtakesMixin
 from tests.etl import BaseEtlSimple, TaskTestCase
 
 
@@ -44,17 +43,33 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         # Invalid codes
         ([], False),
         ([{"system": "http://cumulus.smarthealthit.org/i2b2", "code": "NOTE:0"}], False),
-        ([{"system": "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72", "code": "0"}], False),
+        (
+            [
+                {
+                    "system": "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72",
+                    "code": "0",
+                }
+            ],
+            False,
+        ),
         ([{"system": "http://loinc.org", "code": "00000-0"}], False),
         ([{"system": "http://example.org", "code": "nope"}], False),
         # Valid codes
         ([{"system": "http://cumulus.smarthealthit.org/i2b2", "code": "NOTE:3710480"}], True),
         (
-            [{"system": "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72", "code": "3710480"}],
+            [
+                {
+                    "system": "https://fhir.cerner.com/96976f07-eccb-424c-9825-e0d0b887148b/codeSet/72",
+                    "code": "3710480",
+                }
+            ],
             True,
         ),
         ([{"system": "http://loinc.org", "code": "57053-1"}], True),
-        ([{"system": "nope", "code": "nope"}, {"system": "http://loinc.org", "code": "57053-1"}], True),
+        (
+            [{"system": "nope", "code": "nope"}, {"system": "http://loinc.org", "code": "57053-1"}],
+            True,
+        ),
     )
     @ddt.unpack
     async def test_ed_note_filtering_for_nlp(self, codings, expected):
@@ -77,10 +92,10 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     async def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
         docref0 = i2b2_mock_data.documentreference()
-        docref0["type"]["coding"][0]["code"] = "NOTE:nope"  # pylint: disable=unsubscriptable-object
+        docref0["type"]["coding"][0]["code"] = "NOTE:nope"
         self.make_json("DocumentReference", "skipped", **docref0)
         docref1 = i2b2_mock_data.documentreference()
-        docref1["type"]["coding"][0]["code"] = "NOTE:149798455"  # pylint: disable=unsubscriptable-object
+        docref1["type"]["coding"][0]["code"] = "NOTE:149798455"
         self.make_json("DocumentReference", "present", **docref1)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
@@ -99,10 +114,13 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         ({"docStatus": "entered-in-error"}, False),
         ({"docStatus": "final"}, True),
         ({"docStatus": "amended"}, True),
-        ({}, True),  # without any docStatus, we still run NLP on it ("status" is required and can't be skipped)
+        # without any docStatus, we still run NLP on it ("status" is required and can't be skipped)
+        ({}, True),
     )
     @ddt.unpack
-    async def test_bad_doc_status_is_skipped_for_covid_symptoms(self, status: dict, should_process: bool):
+    async def test_bad_doc_status_is_skipped_for_covid_symptoms(
+        self, status: dict, should_process: bool
+    ):
         """Verify we ignore certain docStatus codes for the covid symptoms NLP"""
         docref = i2b2_mock_data.documentreference()
         docref.update(status)
@@ -118,8 +136,10 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         ([("http://localhost/file-cough", "text/plain")], "cough"),  # handles absolute URL
         ([("file-cough", "text/html")], "cough"),  # handles html
         ([("file-cough", "application/xhtml+xml")], "cough"),  # handles xhtml
-        ([("file-cough", "text/html"), ("file-fever", "text/plain")], "fever"),  # prefers text/plain to html
-        ([("file-cough", "application/xhtml+xml"), ("file-fever", "text/html")], "fever"),  # prefers html to xhtml
+        # prefers text/plain to html
+        ([("file-cough", "text/html"), ("file-fever", "text/plain")], "fever"),
+        # prefers html to xhtml
+        ([("file-cough", "application/xhtml+xml"), ("file-fever", "text/html")], "fever"),
         ([("file-cough", "text/nope")], None),  # ignores unsupported mimetypes
     )
     @ddt.unpack
@@ -132,7 +152,9 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         docref0 = i2b2_mock_data.documentreference()
-        docref0["content"] = [{"attachment": {"url": a[0], "contentType": a[1]}} for a in attachments]
+        docref0["content"] = [
+            {"attachment": {"url": a[0], "contentType": a[1]}} for a in attachments
+        ]
         self.make_json("DocumentReference", "doc0", **docref0)
 
         async with self.job_config.client:
@@ -154,7 +176,9 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
-        self.assertEqual(["nlp-errors.ndjson"], os.listdir(f"{self.errors_dir}/covid_symptom__nlp_results"))
+        self.assertEqual(
+            ["nlp-errors.ndjson"], os.listdir(f"{self.errors_dir}/covid_symptom__nlp_results")
+        )
         self.assertEqual(
             ["A", "C"],  # pre-scrubbed versions of the docrefs are stored, for easier debugging
             [

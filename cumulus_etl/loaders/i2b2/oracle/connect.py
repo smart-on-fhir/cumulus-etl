@@ -16,7 +16,8 @@ def _get_user() -> str:
     user = os.environ.get("CUMULUS_SQL_USER")
     if not user:
         print(
-            "To connect to an Oracle SQL server, please set the environment variable CUMULUS_SQL_USER", file=sys.stderr
+            "To connect to an Oracle SQL server, please set the environment variable CUMULUS_SQL_USER",
+            file=sys.stderr,
         )
         raise SystemExit(errors.SQL_USER_MISSING)
     return user

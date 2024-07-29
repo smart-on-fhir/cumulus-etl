@@ -16,7 +16,6 @@ from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
 from cumulus_etl.etl.tasks import task_factory
 
-
 ###############################################################################
 #
 # Main Pipeline (run all tasks)
@@ -95,7 +94,10 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("dir_output", metavar="/path/to/output")
     parser.add_argument("dir_phi", metavar="/path/to/phi")
     parser.add_argument(
-        "--input-format", default="ndjson", choices=["i2b2", "ndjson"], help="input format (default is ndjson)"
+        "--input-format",
+        default="ndjson",
+        choices=["i2b2", "ndjson"],
+        help="input format (default is ndjson)",
     )
     parser.add_argument(
         "--output-format",
@@ -108,18 +110,25 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
         type=int,
         metavar="SIZE",
         default=200000,
-        help="how many entries to process at once and thus " "how many to put in one output file (default is 200k)",
+        help="how many entries to process at once and thus "
+        "how many to put in one output file (default is 200k)",
     )
     parser.add_argument("--comment", help="add the comment to the log file")
-    parser.add_argument("--philter", action="store_true", help="run philter on all freeform text fields")
-    parser.add_argument("--errors-to", metavar="DIR", help="where to put resources that could not be processed")
+    parser.add_argument(
+        "--philter", action="store_true", help="run philter on all freeform text fields"
+    )
+    parser.add_argument(
+        "--errors-to", metavar="DIR", help="where to put resources that could not be processed"
+    )
 
     cli_utils.add_aws(parser)
     cli_utils.add_auth(parser)
 
     export = parser.add_argument_group("bulk export")
     export.add_argument(
-        "--export-to", metavar="DIR", help="Where to put exported files (default is to delete after use)"
+        "--export-to",
+        metavar="DIR",
+        help="Where to put exported files (default is to delete after use)",
     )
     export.add_argument("--since", help="Start date for export from the FHIR server")
     export.add_argument("--until", help="End date for export from the FHIR server")
@@ -128,12 +137,16 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--export-group", help=argparse.SUPPRESS)
     group.add_argument("--export-timestamp", help=argparse.SUPPRESS)
     # Temporary explicit opt-in flag during the development of the completion-tracking feature
-    group.add_argument("--write-completion", action="store_true", default=False, help=argparse.SUPPRESS)
+    group.add_argument(
+        "--write-completion", action="store_true", default=False, help=argparse.SUPPRESS
+    )
 
     cli_utils.add_nlp(parser)
 
     task = parser.add_argument_group("task selection")
-    task.add_argument("--task", action="append", help="Only update the given output tables (comma separated)")
+    task.add_argument(
+        "--task", action="append", help="Only update the given output tables (comma separated)"
+    )
     task.add_argument(
         "--task-filter",
         action="append",
@@ -144,7 +157,9 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     cli_utils.add_debugging(parser)
 
 
-def print_config(args: argparse.Namespace, job_datetime: datetime.datetime, all_tasks: Iterable[tasks.EtlTask]) -> None:
+def print_config(
+    args: argparse.Namespace, job_datetime: datetime.datetime, all_tasks: Iterable[tasks.EtlTask]
+) -> None:
     """
     Prints the ETL configuration to the console.
 
@@ -186,12 +201,16 @@ def print_config(args: argparse.Namespace, job_datetime: datetime.datetime, all_
     rich.get_console().print(table)
 
 
-def handle_completion_args(args: argparse.Namespace, loader: loaders.Loader) -> (str, datetime.datetime):
+def handle_completion_args(
+    args: argparse.Namespace, loader: loaders.Loader
+) -> (str, datetime.datetime):
     """Returns (group_name, datetime)"""
     # Grab completion options from CLI or loader
     export_group_name = args.export_group or loader.group_name
     export_datetime = (
-        datetime.datetime.fromisoformat(args.export_timestamp) if args.export_timestamp else loader.export_datetime
+        datetime.datetime.fromisoformat(args.export_timestamp)
+        if args.export_timestamp
+        else loader.export_datetime
     )
 
     # Disable entirely if asked to
@@ -212,7 +231,9 @@ def handle_completion_args(args: argparse.Namespace, loader: loaders.Loader) -> 
 
 async def etl_main(args: argparse.Namespace) -> None:
     # Set up some common variables
-    store.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
+
+    # record filesystem options like --s3-region before creating Roots
+    store.set_user_fs_options(vars(args))
 
     root_input = store.Root(args.dir_input)
     root_phi = store.Root(args.dir_phi, create=True)
@@ -222,7 +243,9 @@ async def etl_main(args: argparse.Namespace) -> None:
 
     # Check which tasks are being run, allowing comma-separated values
     task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
-    task_filters = args.task_filter and list(itertools.chain.from_iterable(t.split(",") for t in args.task_filter))
+    task_filters = args.task_filter and list(
+        itertools.chain.from_iterable(t.split(",") for t in args.task_filter)
+    )
     selected_tasks = task_factory.get_selected_tasks(task_names, task_filters)
 
     # Print configuration
@@ -250,7 +273,11 @@ async def etl_main(args: argparse.Namespace) -> None:
             config_loader = loaders.I2b2Loader(root_input, export_to=args.export_to)
         else:
             config_loader = loaders.FhirNdjsonLoader(
-                root_input, client=client, export_to=args.export_to, since=args.since, until=args.until
+                root_input,
+                client=client,
+                export_to=args.export_to,
+                since=args.since,
+                until=args.until,
             )
 
         # Pull down resources from any remote location (like s3), convert from i2b2, or do a bulk export

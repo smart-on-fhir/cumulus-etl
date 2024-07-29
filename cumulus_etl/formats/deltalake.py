@@ -69,7 +69,10 @@ class DeltaLakeFormat(Format):
                 pyspark.sql.SparkSession.builder.appName("cumulus-etl")
                 .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
                 .config("spark.driver.memory", "4g")
-                .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+                .config(
+                    "spark.sql.catalog.spark_catalog",
+                    "org.apache.spark.sql.delta.catalog.DeltaCatalog",
+                )
                 .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
             )
 
@@ -94,7 +97,9 @@ class DeltaLakeFormat(Format):
 
         delta_table.generate("symlink_format_manifest")
 
-    def update_delta_table(self, updates: pyspark.sql.DataFrame, groups: set[str]) -> delta.DeltaTable:
+    def update_delta_table(
+        self, updates: pyspark.sql.DataFrame, groups: set[str]
+    ) -> delta.DeltaTable:
         table = (
             delta.DeltaTable.createIfNotExists(self.spark)
             .addColumns(updates.schema)
@@ -108,7 +113,9 @@ class DeltaLakeFormat(Format):
 
         # Merge in new data
         merge = (
-            table.alias("table").merge(source=updates.alias("updates"), condition=condition).whenNotMatchedInsertAll()
+            table.alias("table")
+            .merge(source=updates.alias("updates"), condition=condition)
+            .whenNotMatchedInsertAll()
         )
         if self.update_existing:
             update_condition = self._get_update_condition(updates.schema)
@@ -132,7 +139,7 @@ class DeltaLakeFormat(Format):
             table = delta.DeltaTable.forPath(self.spark, full_path)
         except AnalysisException:
             return  # if the table doesn't exist because we didn't write anything, that's fine - just bail
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             logging.exception("Could not finalize Delta Lake table %s", self.dbname)
             return
 
@@ -140,11 +147,12 @@ class DeltaLakeFormat(Format):
             table.optimize().executeCompaction()  # pool small files for better query performance
             table.generate("symlink_format_manifest")
             table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             logging.exception("Could not finalize Delta Lake table %s", self.dbname)
 
     def _table_path(self, dbname: str) -> str:
-        return self.root.joinpath(dbname).replace("s3://", "s3a://")  # hadoop uses the s3a: scheme instead of s3:
+        # hadoop uses the s3a: scheme instead of s3:
+        return self.root.joinpath(dbname).replace("s3://", "s3a://")
 
     @staticmethod
     def _get_update_condition(schema: pyspark.sql.types.StructType) -> str | None:
@@ -192,7 +200,10 @@ class DeltaLakeFormat(Format):
         # This credentials.provider option enables usage of the AWS credentials default priority list (i.e. it will
         # cause a check for a ~/.aws/credentials file to happen instead of just looking for env vars).
         # See http://wrschneider.github.io/2019/02/02/spark-credentials-file.html for details
-        spark.conf.set("fs.s3a.aws.credentials.provider", "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+        spark.conf.set(
+            "fs.s3a.aws.credentials.provider",
+            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+        )
         spark.conf.set("fs.s3a.sse.enabled", "true")
         spark.conf.set("fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
         kms_key = fsspec_options.get("s3_additional_kwargs", {}).get("SSEKMSKeyId")

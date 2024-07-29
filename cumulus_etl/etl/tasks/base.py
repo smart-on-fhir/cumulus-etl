@@ -4,6 +4,7 @@ import contextlib
 import dataclasses
 import os
 from collections.abc import AsyncIterator, Iterator
+from typing import ClassVar
 
 import cumulus_fhir_support
 import pyarrow
@@ -86,12 +87,14 @@ class EtlTask:
     """
 
     # Properties:
-    name: str = None  # task & table name
-    resource: str = None  # incoming resource that this task operates on (will be included in bulk exports etc)
-    tags: set[str] = []
-    needs_bulk_deid = True  # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
+    name: ClassVar[str] = None  # task & table name
+    # incoming resource that this task operates on (will be included in bulk exports etc)
+    resource: ClassVar[str] = None
+    tags: ClassVar[set[str]] = []
+    # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
+    needs_bulk_deid: ClassVar[bool] = True
 
-    outputs: list[OutputTable] = [OutputTable()]
+    outputs: ClassVar[list[OutputTable]] = [OutputTable()]
 
     ##########################################################################################
     #
@@ -100,12 +103,15 @@ class EtlTask:
     ##########################################################################################
 
     def __init__(self, task_config: config.JobConfig, scrubber: deid.Scrubber):
-        assert self.name  # nosec
-        assert self.resource  # nosec
+        assert self.name  # noqa: S101
+        assert self.resource  # noqa: S101
         self.task_config = task_config
         self.scrubber = scrubber
-        self.formatters: list[formats.Format | None] = [None] * len(self.outputs)  # create format placeholders
-        self.summaries: list[config.JobSummary] = [config.JobSummary(output.get_name(self)) for output in self.outputs]
+        # create format placeholders
+        self.formatters: list[formats.Format | None] = [None] * len(self.outputs)
+        self.summaries: list[config.JobSummary] = [
+            config.JobSummary(output.get_name(self)) for output in self.outputs
+        ]
         self.completion_tracking_enabled = (
             self.task_config.export_group_name is not None and self.task_config.export_datetime
         )
@@ -152,7 +158,9 @@ class EtlTask:
         return self.summaries
 
     @classmethod
-    def make_batch_from_rows(cls, resource_type: str | None, rows: list[dict], groups: set[str] = None):
+    def make_batch_from_rows(
+        cls, resource_type: str | None, rows: list[dict], groups: set[str] | None = None
+    ):
         schema = cls.get_schema(resource_type, rows)
         return formats.Batch(rows, groups=groups, schema=schema)
 
@@ -175,7 +183,9 @@ class EtlTask:
 
         def update_status():
             status.plain = "\n".join(
-                f"{x.success:,} written to {x.label}" for i, x in enumerate(self.summaries) if self.outputs[i].visible
+                f"{x.success:,} written to {x.label}"
+                for i, x in enumerate(self.summaries)
+                if self.outputs[i].visible
             )
 
         batch_index = 0
@@ -184,8 +194,11 @@ class EtlTask:
 
         async for batches in batching.batch_iterate(entries, self.task_config.batch_size):
             if format_progress_task is not None:
-                progress.update(format_progress_task, visible=False)  # hide old batches, to save screen space
-            format_progress_task = progress.add_task(f"Writing batch {batch_index + 1:,}", total=None)
+                # hide old batches, to save screen space
+                progress.update(format_progress_task, visible=False)
+            format_progress_task = progress.add_task(
+                f"Writing batch {batch_index + 1:,}", total=None
+            )
 
             # Batches is a tuple of lists of resources - the tuple almost never matters, but it is there in case the
             # task is generating multiple types of resources. Like MedicationRequest creating Medications as it goes.
@@ -212,7 +225,8 @@ class EtlTask:
         """Writes empty dataframe to any table we haven't written to yet"""
         for table_index, formatter in enumerate(self.formatters):
             if formatter is None:  # No data got written yet
-                self._write_one_table_batch([], table_index, 0)  # just write an empty dataframe (should be fast)
+                # just write an empty dataframe (should be fast)
+                self._write_one_table_batch([], table_index, 0)
 
     def _update_completion_table(self) -> None:
         # TODO: what about empty sets - do we assume the export gave 0 results or skip it?

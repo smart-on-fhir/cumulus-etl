@@ -5,8 +5,8 @@ import sys
 import time
 import urllib.parse
 import uuid
-from json import JSONDecodeError
 from collections.abc import Iterable
+from json import JSONDecodeError
 
 import httpx
 from jwcrypto import jwk, jwt
@@ -85,7 +85,9 @@ class JwksAuth(Auth):
             if not message:
                 message = str(exc)
 
-            errors.fatal(f"Could not authenticate with the FHIR server: {message}", errors.FHIR_AUTH_FAILED)
+            errors.fatal(
+                f"Could not authenticate with the FHIR server: {message}", errors.FHIR_AUTH_FAILED
+            )
 
     def sign_headers(self, headers: dict) -> dict:
         """Add signature token to request headers"""
@@ -166,7 +168,7 @@ class BasicAuth(Auth):
         super().__init__()
         # Assume utf8 is acceptable -- we should in theory also run these through Unicode normalization, in case they
         # have interesting Unicode characters. But we can always add that in the future.
-        combo_bytes = f"{user}:{password}".encode("utf8")
+        combo_bytes = f"{user}:{password}".encode()
         self._basic_token = base64.standard_b64encode(combo_bytes).decode("ascii")
 
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
@@ -202,7 +204,7 @@ def create_auth(
     smart_jwks: dict | None,
 ) -> Auth:
     """Determine which auth method to use based on user provided arguments"""
-    valid_smart_jwks = smart_jwks is not None  # compared to a falsy (but technically usable) empty dict for example
+    valid_smart_jwks = smart_jwks is not None
 
     # Check if the user tried to specify multiple types of auth, and help them out
     has_basic_args = bool(basic_user or basic_password)

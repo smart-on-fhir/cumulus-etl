@@ -11,7 +11,9 @@ def get_hugging_face_url() -> str:
     return os.environ.get("CUMULUS_HUGGING_FACE_URL") or "http://localhost:8086/"
 
 
-async def llama2_prompt(system_prompt: str, user_prompt: str, *, client: httpx.AsyncClient = None) -> str:
+async def llama2_prompt(
+    system_prompt: str, user_prompt: str, *, client: httpx.AsyncClient = None
+) -> str:
     """
     Prompts a llama2 chat model and provides its response.
 
@@ -35,7 +37,8 @@ async def llama2_prompt(system_prompt: str, user_prompt: str, *, client: httpx.A
 
     response = await hf_prompt(whole_prompt, client=client)
     text = response[0]["generated_text"]
-    text = text.removeprefix(whole_prompt).strip()  # llama2 gives back the prompt too, but we don't need it
+    # llama2 gives back the prompt too, but we don't need it
+    text = text.removeprefix(whole_prompt).strip()
     return text
 
 

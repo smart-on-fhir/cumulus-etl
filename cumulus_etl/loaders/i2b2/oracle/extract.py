@@ -4,9 +4,14 @@ import time
 from collections.abc import Iterable
 
 from cumulus_etl import common
-from cumulus_etl.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
-from cumulus_etl.loaders.i2b2.schema import ConceptDimension, ProviderDimension
 from cumulus_etl.loaders.i2b2.oracle import connect, query
+from cumulus_etl.loaders.i2b2.schema import (
+    ConceptDimension,
+    ObservationFact,
+    PatientDimension,
+    ProviderDimension,
+    VisitDimension,
+)
 
 
 def execute(dsn: str, desc: str, sql_statement: str) -> Iterable[dict]:

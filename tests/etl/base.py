@@ -50,10 +50,10 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         comment=None,
         batch_size=None,
         tasks=None,
-        tags: list[str] = None,
+        tags: list[str] | None = None,
         philter=True,
         errors_to=None,
-        export_to: str = None,
+        export_to: str | None = None,
         input_format: str = "ndjson",
         export_group: str = "test-group",
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
@@ -133,7 +133,9 @@ class TaskTestCase(utils.AsyncTestCase):
             batch_size=5,
             dir_errors=self.errors_dir,
             export_group_name="test-group",
-            export_datetime=datetime.datetime(2012, 10, 10, 5, 30, 12, tzinfo=datetime.timezone.utc),
+            export_datetime=datetime.datetime(
+                2012, 10, 10, 5, 30, 12, tzinfo=datetime.timezone.utc
+            ),
         )
 
         def make_formatter(dbname: str, **kwargs):
@@ -168,5 +170,6 @@ class TaskTestCase(utils.AsyncTestCase):
         self.json_file_count += 1
         filename = f"{self.json_file_count}.ndjson"
         common.write_json(
-            os.path.join(self.input_dir, filename), {"resourceType": resource_type, **kwargs, "id": resource_id}
+            os.path.join(self.input_dir, filename),
+            {"resourceType": resource_type, **kwargs, "id": resource_id},
         )

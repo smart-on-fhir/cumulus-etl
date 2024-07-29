@@ -16,16 +16,28 @@ def add_auth(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--smart-client-id", metavar="ID", help="Client ID for SMART authentication")
     group.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
     group.add_argument("--basic-user", metavar="USER", help="Username for Basic authentication")
-    group.add_argument("--basic-passwd", metavar="PATH", help="Password file for Basic authentication")
-    group.add_argument("--bearer-token", metavar="PATH", help="Token file for Bearer authentication")
-    group.add_argument("--fhir-url", metavar="URL", help="FHIR server base URL, only needed if you exported separately")
+    group.add_argument(
+        "--basic-passwd", metavar="PATH", help="Password file for Basic authentication"
+    )
+    group.add_argument(
+        "--bearer-token", metavar="PATH", help="Token file for Bearer authentication"
+    )
+    group.add_argument(
+        "--fhir-url",
+        metavar="URL",
+        help="FHIR server base URL, only needed if you exported separately",
+    )
 
 
 def add_aws(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group("AWS")
-    group.add_argument("--s3-region", metavar="REGION", help="If using S3 paths (s3://...), this is their region")
     group.add_argument(
-        "--s3-kms-key", metavar="KEY", help="If using S3 paths (s3://...), this is the KMS key ID to use"
+        "--s3-region", metavar="REGION", help="If using S3 paths (s3://...), this is their region"
+    )
+    group.add_argument(
+        "--s3-kms-key",
+        metavar="KEY",
+        help="If using S3 paths (s3://...), this is the KMS key ID to use",
     )
 
 
@@ -46,18 +58,21 @@ def add_debugging(parser: argparse.ArgumentParser):
     return group
 
 
-def make_export_dir(export_to: str = None) -> common.Directory:
+def make_export_dir(export_to: str | None = None) -> common.Directory:
     """Makes a temporary directory to drop exported ndjson files into"""
     # Handle the easy case -- just a random temp dir
     if not export_to:
-        return tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        return tempfile.TemporaryDirectory()
 
     # OK the user has a specific spot in mind. Let's do some quality checks. It must be local and empty.
 
     if urllib.parse.urlparse(export_to).netloc:
         # We require a local folder because that's all that the MS deid tool can operate on.
         # If we were to relax this requirement, we'd want to copy the exported files over to a local dir.
-        errors.fatal(f"The target export folder '{export_to}' must be local. ", errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
+        errors.fatal(
+            f"The target export folder '{export_to}' must be local. ",
+            errors.BULK_EXPORT_FOLDER_NOT_LOCAL,
+        )
 
     confirm_dir_is_empty(store.Root(export_to, create=True))
 

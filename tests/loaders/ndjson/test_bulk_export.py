@@ -90,7 +90,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             if row[1] is not None:
                 self.assertEqual(reordered_details[index][1], row[1])
 
-    def mock_kickoff(self, params: str = "?_type=Condition%2CPatient", side_effect: list = None, **kwargs) -> None:
+    def mock_kickoff(
+        self, params: str = "?_type=Condition%2CPatient", side_effect: list | None = None, **kwargs
+    ) -> None:
         kwargs.setdefault("status_code", 202)
         route = self.respx_mock.get(
             f"{self.fhir_url}/$export{params}",
@@ -144,7 +146,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         await self.export()
 
         self.assertEqual("MyGroup", self.exporter.group_name)
-        self.assertEqual("2015-02-07T13:28:17.239000+02:00", self.exporter.export_datetime.isoformat())
+        self.assertEqual(
+            "2015-02-07T13:28:17.239000+02:00", self.exporter.export_datetime.isoformat()
+        )
 
         # Ensure we can read back our own log and parse the above values too
         parser = BulkExportLogParser(store.Root(self.tmpdir))
@@ -152,12 +156,17 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.assertEqual("2015-02-07T13:28:17.239000+02:00", parser.export_datetime.isoformat())
 
         self.assertEqual(
-            {"resourceType": "Condition", "id": "1"}, common.read_json(f"{self.tmpdir}/Condition.000.ndjson")
+            {"resourceType": "Condition", "id": "1"},
+            common.read_json(f"{self.tmpdir}/Condition.000.ndjson"),
         )
         self.assertEqual(
-            {"resourceType": "Condition", "id": "2"}, common.read_json(f"{self.tmpdir}/Condition.001.ndjson")
+            {"resourceType": "Condition", "id": "2"},
+            common.read_json(f"{self.tmpdir}/Condition.001.ndjson"),
         )
-        self.assertEqual({"resourceType": "Patient", "id": "P"}, common.read_json(f"{self.tmpdir}/Patient.000.ndjson"))
+        self.assertEqual(
+            {"resourceType": "Patient", "id": "P"},
+            common.read_json(f"{self.tmpdir}/Patient.000.ndjson"),
+        )
 
         self.assert_log_equals(
             (
@@ -188,20 +197,44 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_request",
-                {"fileUrl": "https://example.com/con1", "itemType": "output", "resourceType": "Condition"},
+                {
+                    "fileUrl": "https://example.com/con1",
+                    "itemType": "output",
+                    "resourceType": "Condition",
+                },
             ),
-            ("download_complete", {"fileSize": 40, "fileUrl": "https://example.com/con1", "resourceCount": 1}),
+            (
+                "download_complete",
+                {"fileSize": 40, "fileUrl": "https://example.com/con1", "resourceCount": 1},
+            ),
             (
                 "download_request",
-                {"fileUrl": "https://example.com/con2", "itemType": "output", "resourceType": "Condition"},
+                {
+                    "fileUrl": "https://example.com/con2",
+                    "itemType": "output",
+                    "resourceType": "Condition",
+                },
             ),
-            ("download_complete", {"fileSize": 40, "fileUrl": "https://example.com/con2", "resourceCount": 1}),
+            (
+                "download_complete",
+                {"fileSize": 40, "fileUrl": "https://example.com/con2", "resourceCount": 1},
+            ),
             (
                 "download_request",
-                {"fileUrl": "https://example.com/pat1", "itemType": "output", "resourceType": "Patient"},
+                {
+                    "fileUrl": "https://example.com/pat1",
+                    "itemType": "output",
+                    "resourceType": "Patient",
+                },
             ),
-            ("download_complete", {"fileSize": 38, "fileUrl": "https://example.com/pat1", "resourceCount": 1}),
-            ("export_complete", {"attachments": None, "bytes": 118, "duration": 0, "files": 3, "resources": 3}),
+            (
+                "download_complete",
+                {"fileSize": 38, "fileUrl": "https://example.com/pat1", "resourceCount": 1},
+            ),
+            (
+                "export_complete",
+                {"attachments": None, "bytes": 118, "duration": 0, "files": 3, "resources": 3},
+            ),
         )
 
     async def test_since_until(self):
@@ -283,20 +316,44 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_request",
-                {"fileUrl": "https://example.com/con1", "itemType": "output", "resourceType": "Condition"},
+                {
+                    "fileUrl": "https://example.com/con1",
+                    "itemType": "output",
+                    "resourceType": "Condition",
+                },
             ),
-            ("download_complete", {"fileSize": 29, "fileUrl": "https://example.com/con1", "resourceCount": 1}),
+            (
+                "download_complete",
+                {"fileSize": 29, "fileUrl": "https://example.com/con1", "resourceCount": 1},
+            ),
             (
                 "download_request",
-                {"fileUrl": "https://example.com/err1", "itemType": "error", "resourceType": "OperationOutcome"},
+                {
+                    "fileUrl": "https://example.com/err1",
+                    "itemType": "error",
+                    "resourceType": "OperationOutcome",
+                },
             ),
-            ("download_complete", {"fileSize": 93, "fileUrl": "https://example.com/err1", "resourceCount": 1}),
+            (
+                "download_complete",
+                {"fileSize": 93, "fileUrl": "https://example.com/err1", "resourceCount": 1},
+            ),
             (
                 "download_request",
-                {"fileUrl": "https://example.com/err2", "itemType": "error", "resourceType": "OperationOutcome"},
+                {
+                    "fileUrl": "https://example.com/err2",
+                    "itemType": "error",
+                    "resourceType": "OperationOutcome",
+                },
             ),
-            ("download_complete", {"fileSize": 322, "fileUrl": "https://example.com/err2", "resourceCount": 3}),
-            ("export_complete", {"attachments": None, "bytes": 444, "duration": 0, "files": 3, "resources": 5}),
+            (
+                "download_complete",
+                {"fileSize": 322, "fileUrl": "https://example.com/err2", "resourceCount": 3},
+            ),
+            (
+                "export_complete",
+                {"attachments": None, "bytes": 444, "duration": 0, "files": 3, "resources": 5},
+            ),
         )
 
     async def test_export_warning(self):
@@ -335,7 +392,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 ],
             },
         )
-        self.respx_mock.get("https://example.com/con1").respond(status_code=501, content=b'["error"]')
+        self.respx_mock.get("https://example.com/con1").respond(
+            status_code=501, content=b'["error"]'
+        )
 
         with self.assertRaisesRegex(
             errors.FatalError,
@@ -393,7 +452,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             side_effect=[
                 # Before returning a successful kickoff, pause for an hour
                 respx.MockResponse(status_code=429, headers={"Retry-After": "3600"}),
-                respx.MockResponse(status_code=202, headers={"Content-Location": "https://example.com/poll"}),
+                respx.MockResponse(
+                    status_code=202, headers={"Content-Location": "https://example.com/poll"}
+                ),
             ]
         )
         self.respx_mock.get("https://example.com/poll").side_effect = [
@@ -402,14 +463,16 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             # five hours (though 202 responses will get limited to five min)
             respx.MockResponse(status_code=202, headers={"Retry-After": "18000"}, content=b"..."),
             # 23 hours (putting us over a day)
-            respx.MockResponse(status_code=429, headers={"Retry-After": "82800", "X-Progress": "plz wait"}),
+            respx.MockResponse(
+                status_code=429, headers={"Retry-After": "82800", "X-Progress": "plz wait"}
+            ),
         ]
 
         with self.assertRaisesRegex(errors.FatalError, "Timed out waiting"):
             await self.export()
 
         # 86760 == 24 hours + six minutes
-        self.assertEqual(86760, self.exporter._total_wait_time)  # pylint: disable=protected-access
+        self.assertEqual(86760, self.exporter._total_wait_time)
 
         self.assertListEqual(
             [
@@ -456,7 +519,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                     "body": "Test Status Call Failed",
                     "code": 500,
                     "message": (
-                        'An error occurred when connecting to "https://example.com/poll": ' "Test Status Call Failed"
+                        'An error occurred when connecting to "https://example.com/poll": '
+                        "Test Status Call Failed"
                     ),
                     "responseHeaders": {"content-length": "23"},
                 },
@@ -575,7 +639,10 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
             )
 
             self.assertEqual(
-                {"id": "4342abf315cf6f243e11f4d460303e36c6c3663a25c91cc6b1a8002476c850dd", "resourceType": "Patient"},
+                {
+                    "id": "4342abf315cf6f243e11f4d460303e36c6c3663a25c91cc6b1a8002476c850dd",
+                    "resourceType": "Patient",
+                },
                 common.read_json(f"{tmpdir}/output/patient/patient.000.ndjson"),
             )
 

@@ -15,7 +15,6 @@ from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import common, errors, loaders, store
 from cumulus_etl.etl import context
-
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
 from tests.s3mock import S3Mixin
@@ -67,7 +66,9 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             # Run a couple checks to ensure that we do indeed have PHI in this dir
             self.assertIn("Patient.ndjson", os.listdir(phi_dir))
-            patients = list(cumulus_fhir_support.read_multiline_json(os.path.join(phi_dir, "Patient.ndjson")))
+            patients = list(
+                cumulus_fhir_support.read_multiline_json(os.path.join(phi_dir, "Patient.ndjson"))
+            )
             first = patients[0]
             self.assertEqual("02139", first["address"][0]["postalCode"])
 
@@ -88,14 +89,18 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_failed_task(self):
         # Make it so any writes will fail
-        with mock.patch("cumulus_etl.formats.ndjson.NdjsonFormat.write_format", side_effect=Exception):
+        with mock.patch(
+            "cumulus_etl.formats.ndjson.NdjsonFormat.write_format", side_effect=Exception
+        ):
             with self.assertRaises(SystemExit) as cm:
                 await self.run_etl()
         self.assertEqual(errors.TASK_FAILED, cm.exception.code)
 
     async def test_single_task(self):
         # Grab all observations before we mock anything
-        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(["Observation"])
+        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
+            ["Observation"]
+        )
 
         def fake_load_all(internal_self, resources):
             del internal_self
@@ -107,12 +112,18 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["observation"])
 
         # Confirm we only wrote the one resource
-        self.assertEqual({"etl__completion", "observation", "JobConfig"}, set(os.listdir(self.output_path)))
-        self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
+        self.assertEqual(
+            {"etl__completion", "observation", "JobConfig"}, set(os.listdir(self.output_path))
+        )
+        self.assertEqual(
+            ["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation"))
+        )
 
     async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
-        loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(["Observation", "Patient"])
+        loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
+            ["Observation", "Patient"]
+        )
 
         def fake_load_all(internal_self, resources):
             del internal_self
@@ -124,9 +135,16 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["observation", "patient"])
 
         # Confirm we only wrote the two resources
-        self.assertEqual({"etl__completion", "observation", "patient", "JobConfig"}, set(os.listdir(self.output_path)))
-        self.assertEqual(["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation")))
-        self.assertEqual(["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient")))
+        self.assertEqual(
+            {"etl__completion", "observation", "patient", "JobConfig"},
+            set(os.listdir(self.output_path)),
+        )
+        self.assertEqual(
+            ["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation"))
+        )
+        self.assertEqual(
+            ["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient"))
+        )
 
     async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
@@ -137,7 +155,9 @@ class TestEtlJobFlow(BaseEtlSimple):
         # Cause a system exit as soon as we try to write a file.
         # The goal is that the codebook is already in place by this time.
         with self.assertRaises(SystemExit):
-            with mock.patch("cumulus_etl.formats.ndjson.NdjsonFormat.write_format", side_effect=SystemExit):
+            with mock.patch(
+                "cumulus_etl.formats.ndjson.NdjsonFormat.write_format", side_effect=SystemExit
+            ):
                 await self.run_etl(tasks=["patient"])
 
         # Ensure we wrote a valid codebook out
@@ -222,7 +242,9 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_completion_args(self, etl_args, loader_vals, expected_vals):
         """Verify that we parse completion args with the correct fallbacks and checks."""
         # Grab all observations before we mock anything
-        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(["Observation"])
+        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
+            ["Observation"]
+        )
 
         def fake_load_all(internal_self, resources):
             del resources
@@ -254,7 +276,7 @@ class TestEtlJobConfig(BaseEtlSimple):
 
     def read_config_file(self, name: str) -> dict:
         full_path = os.path.join(self.job_config_path, name)
-        with open(full_path, "r", encoding="utf8") as f:
+        with open(full_path, encoding="utf8") as f:
             return json.load(f)
 
     async def test_serialization(self):
@@ -413,12 +435,16 @@ class TestEtlNlp(BaseEtlSimple):
         ]
 
     def path_for_checksum(self, prefix, checksum):
-        return os.path.join(self.phi_path, "ctakes-cache", prefix, checksum[0:4], f"sha256-{checksum}.json")
+        return os.path.join(
+            self.phi_path, "ctakes-cache", prefix, checksum[0:4], f"sha256-{checksum}.json"
+        )
 
     def read_symptoms(self):
         """Loads the output symptoms ndjson from disk"""
-        path = os.path.join(self.output_path, "covid_symptom__nlp_results", "covid_symptom__nlp_results.000.ndjson")
-        with open(path, "r", encoding="utf8") as f:
+        path = os.path.join(
+            self.output_path, "covid_symptom__nlp_results", "covid_symptom__nlp_results.000.ndjson"
+        )
+        with open(path, encoding="utf8") as f:
             lines = f.readlines()
         return [json.loads(line) for line in lines]
 
@@ -434,8 +460,13 @@ class TestEtlNlp(BaseEtlSimple):
 
         for index, checksum in enumerate(self.expected_checksums):
             ner = fake_ctakes_extract(facts[index])
-            self.assertEqual(ner.as_json(), common.read_json(self.path_for_checksum(self.CACHE_FOLDER, checksum)))
-            self.assertEqual([0, 0], common.read_json(self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)))
+            self.assertEqual(
+                ner.as_json(), common.read_json(self.path_for_checksum(self.CACHE_FOLDER, checksum))
+            )
+            self.assertEqual(
+                [0, 0],
+                common.read_json(self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)),
+            )
 
     async def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
@@ -453,7 +484,12 @@ class TestEtlNlp(BaseEtlSimple):
                             "polarity": 0,
                             "type": "SignSymptomMention",
                             "conceptAttributes": [
-                                {"code": "68235000", "cui": "C0027424", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                                {
+                                    "code": "68235000",
+                                    "cui": "C0027424",
+                                    "codingScheme": "SNOMEDCT_US",
+                                    "tui": "T184",
+                                },
                             ],
                         }
                     ],
@@ -476,7 +512,8 @@ class TestEtlNlp(BaseEtlSimple):
         self.assertEqual({"foobar0", "foobar1"}, {x["match"]["text"] for x in symptoms})
         for symptom in symptoms:
             self.assertEqual(
-                {("68235000", "C0027424")}, {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]}
+                {("68235000", "C0027424")},
+                {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]},
             )
 
     @respx.mock
@@ -523,7 +560,8 @@ class TestEtlNlp(BaseEtlSimple):
         self.assertEqual(2, len(symptoms))
         # Confirm that the only symptom to survive was the second nausea one
         self.assertEqual(
-            {("422587007", "C0027497")}, {(x["code"], x["cui"]) for x in symptoms[0]["match"]["conceptAttributes"]}
+            {("422587007", "C0027497")},
+            {(x["code"], x["cui"]) for x in symptoms[0]["match"]["conceptAttributes"]},
         )
 
     async def test_non_covid_symptoms_skipped(self):
@@ -531,8 +569,11 @@ class TestEtlNlp(BaseEtlSimple):
         await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
         symptoms = self.read_symptoms()
-        self.assertEqual({"for"}, {x["match"]["text"] for x in symptoms})  # the second word ("for") is the fever word
-        attributes = itertools.chain.from_iterable(symptom["match"]["conceptAttributes"] for symptom in symptoms)
+        # the second word ("for") is the fever word
+        self.assertEqual({"for"}, {x["match"]["text"] for x in symptoms})
+        attributes = itertools.chain.from_iterable(
+            symptom["match"]["conceptAttributes"] for symptom in symptoms
+        )
         cuis = {x["cui"] for x in attributes}
         self.assertEqual({"C0027497", "C0015967"}, cuis)  # notably, no C0033774 itch CUI
 

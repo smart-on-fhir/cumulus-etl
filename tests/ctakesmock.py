@@ -27,17 +27,19 @@ class CtakesMixin(unittest.TestCase):
     def setUp(self):
         super().setUp()
 
-        version_patcher = mock.patch("ctakesclient.__version__", new="1.2.0")  # just freeze this in place
+        # just freeze the version in place
+        version_patcher = mock.patch("ctakesclient.__version__", new="1.2.0")
         self.addCleanup(version_patcher.stop)
         version_patcher.start()
 
         CtakesMixin.ctakes_port += 1
         os.environ["URL_CTAKES_REST"] = f"http://localhost:{CtakesMixin.ctakes_port}/"
-        self.ctakes_overrides = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        self.ctakes_overrides = tempfile.TemporaryDirectory()
         self._run_fake_ctakes_server(f"{self.ctakes_overrides.name}/symptoms.bsv")
 
         cnlp_patcher = mock.patch(
-            "cumulus_etl.nlp.extract.ctakesclient.transformer.list_polarity", side_effect=fake_transformer_list_polarity
+            "cumulus_etl.nlp.extract.ctakesclient.transformer.list_polarity",
+            side_effect=fake_transformer_list_polarity,
         )
         self.addCleanup(cnlp_patcher.stop)
         self.cnlp_mock = cnlp_patcher.start()
@@ -59,7 +61,11 @@ class CtakesMixin(unittest.TestCase):
         self._ctakes_called.value = 0
         self.ctakes_server = multiprocessing.Process(
             target=partial(
-                _serve_with_restarts, overrides_path, CtakesMixin.ctakes_port, self._ctakes_called, has_started
+                _serve_with_restarts,
+                overrides_path,
+                CtakesMixin.ctakes_port,
+                self._ctakes_called,
+                has_started,
             ),
             daemon=True,
         )
@@ -76,7 +82,10 @@ def _get_mtime(path) -> float | None:
 
 
 def _serve_with_restarts(
-    overrides_path: str, port: int, was_called: multiprocessing.Value, has_started: multiprocessing.Event
+    overrides_path: str,
+    port: int,
+    was_called: multiprocessing.Value,
+    has_started: multiprocessing.Event,
 ) -> None:
     server_address = ("", port)
     mtime = None
@@ -122,7 +131,7 @@ class FakeCTakesHandler(http.server.BaseHTTPRequestHandler):
     # We don't want that behavior, because if our mock code is misbehaving and not detecting an overrides file change,
     # if we time out a request on our end, it will look like a successful file change detection and mask a testing bug.
 
-    def do_POST(self):  # pylint: disable=invalid-name
+    def do_POST(self):
         """Serve a POST request."""
         self.server.was_called.value = 1  # signal to test framework that we were actually called
 
@@ -174,8 +183,18 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
                 "text": fever_word,
                 "polarity": 0,
                 "conceptAttributes": [
-                    {"code": "386661006", "cui": "C0015967", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
-                    {"code": "50177009", "cui": "C0015967", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {
+                        "code": "386661006",
+                        "cui": "C0015967",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
+                    {
+                        "code": "50177009",
+                        "cui": "C0015967",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
                 ],
                 "type": "SignSymptomMention",
             },
@@ -186,7 +205,12 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
                 "text": fever_word,
                 "polarity": 0,
                 "conceptAttributes": [
-                    {"code": "422587007", "cui": "C0027497", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {
+                        "code": "422587007",
+                        "cui": "C0027497",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
                 ],
                 "type": "SignSymptomMention",
             },
@@ -197,10 +221,30 @@ def fake_ctakes_extract(sentence: str) -> typesystem.CtakesJSON:
                 "text": itch_word,
                 "polarity": 0,
                 "conceptAttributes": [
-                    {"code": "418290006", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
-                    {"code": "279333002", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
-                    {"code": "424492005", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
-                    {"code": "418363000", "cui": "C0033774", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {
+                        "code": "418290006",
+                        "cui": "C0033774",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
+                    {
+                        "code": "279333002",
+                        "cui": "C0033774",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
+                    {
+                        "code": "424492005",
+                        "cui": "C0033774",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
+                    {
+                        "code": "418363000",
+                        "cui": "C0033774",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
                 ],
                 "type": "SignSymptomMention",
             },

@@ -17,9 +17,9 @@ class FhirNdjsonLoader(base.Loader):
         self,
         root: store.Root,
         client: fhir.FhirClient = None,
-        export_to: str = None,
-        since: str = None,
-        until: str = None,
+        export_to: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
     ):
         """
         :param root: location to load ndjson from
@@ -42,7 +42,8 @@ class FhirNdjsonLoader(base.Loader):
         else:
             if self.export_to or self.since or self.until:
                 errors.fatal(
-                    "You provided FHIR bulk export parameters but did not provide a FHIR server", errors.ARGS_CONFLICT
+                    "You provided FHIR bulk export parameters but did not provide a FHIR server",
+                    errors.ARGS_CONFLICT,
                 )
 
             input_root = self.root
@@ -66,7 +67,7 @@ class FhirNdjsonLoader(base.Loader):
         # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
         # TemporaryDirectory gets discarded), but that seems reasonable.
         print("Copying ndjson input files…")
-        tmpdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        tmpdir = tempfile.TemporaryDirectory()
         filenames = common.ls_resources(input_root, set(resources), warn_if_empty=True)
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")

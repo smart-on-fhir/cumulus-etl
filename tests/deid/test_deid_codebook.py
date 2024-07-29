@@ -37,8 +37,11 @@ class TestCodebook(utils.AsyncTestCase):
         fake_id = cb.fake_id("Condition", "1")
         self.assertEqual(fake_id, cb.fake_id("Condition", "1"))
         self.assertNotEqual(fake_id, cb.fake_id("Condition", "2"))
-        self.assertEqual(fake_id, cb.fake_id("Observation", "1"))  # '1' hashes the same across types
-        self.assertEqual("ee1b8555df1476e7512bc31940148a7821edae6e152e92037e6e8d7e948800a4", fake_id)
+        # '1' hashes the same across types
+        self.assertEqual(fake_id, cb.fake_id("Observation", "1"))
+        self.assertEqual(
+            "ee1b8555df1476e7512bc31940148a7821edae6e152e92037e6e8d7e948800a4", fake_id
+        )
         self.assertEqual("31323334", cb.db.settings.get("id_salt"))
 
     def test_missing_db_file(self):
@@ -111,7 +114,10 @@ class TestCodebookDB(utils.AsyncTestCase):
             db.save(tmpdir)
 
             # Verify that we saved the cached mapping to disk too
-            self.assertEqual(expected_mapping, common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")))
+            self.assertEqual(
+                expected_mapping,
+                common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")),
+            )
 
             db2 = CodebookDB(tmpdir)
 

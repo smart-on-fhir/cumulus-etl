@@ -1,14 +1,9 @@
 """Tests for nlp/watcher.py"""
 
-import os
 import tempfile
 from unittest import mock
 
-import ddt
-import respx
-
 from cumulus_etl import common, errors, nlp
-
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
 

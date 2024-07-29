@@ -10,9 +10,9 @@ from cumulus_etl import cli_utils, common, deid, store
 def select_docrefs_from_files(
     root_input: store.Root,
     codebook: deid.Codebook,
-    docrefs: str = None,
-    anon_docrefs: str = None,
-    export_to: str = None,
+    docrefs: str | None = None,
+    anon_docrefs: str | None = None,
+    export_to: str | None = None,
 ) -> common.Directory:
     """Takes an input folder of ndjson and exports just the chosen docrefs to a new ndjson folder"""
     # Get an appropriate filter method, for the given docrefs
@@ -32,7 +32,7 @@ def select_docrefs_from_files(
 
 
 def _create_docref_filter(
-    codebook: deid.Codebook, docrefs: str = None, anon_docrefs: str = None
+    codebook: deid.Codebook, docrefs: str | None = None, anon_docrefs: str | None = None
 ) -> Callable[[Iterable[dict]], Iterator[dict]]:
     """This returns a method that will can an iterator of docrefs and returns an iterator of fewer docrefs"""
     # Decide how we're filtering the input files (by real or fake ID, or no filtering at all!)
@@ -43,7 +43,7 @@ def _create_docref_filter(
     else:
         # Just accept everything (we still want to read them though, to copy them to a possible export folder).
         # So this lambda just returns an iterator over its input.
-        return lambda x: iter(x)  # pylint: disable=unnecessary-lambda
+        return lambda x: iter(x)
 
 
 def _filter_real_docrefs(docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
@@ -60,10 +60,13 @@ def _filter_real_docrefs(docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[
                 break
 
 
-def _filter_fake_docrefs(codebook: deid.Codebook, anon_docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
+def _filter_fake_docrefs(
+    codebook: deid.Codebook, anon_docrefs_csv: str, docrefs: Iterable[dict]
+) -> Iterator[dict]:
     """Calculates the fake ID for all docrefs found, and keeps any that match the csv list"""
     with common.read_csv(anon_docrefs_csv) as reader:
-        fake_docref_ids = {row["docref_id"] for row in reader}  # ignore the patient_id column, not needed
+        # ignore the patient_id column, not needed
+        fake_docref_ids = {row["docref_id"] for row in reader}
 
     for docref in docrefs:
         fake_id = codebook.fake_id("DocumentReference", docref["id"], caching_allowed=False)

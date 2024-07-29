@@ -12,8 +12,8 @@ lot of the same information that tasks need. This module provides that.
 """
 
 from .schema import (
-    COMPLETION_TABLE,
     COMPLETION_ENCOUNTERS_TABLE,
+    COMPLETION_TABLE,
     completion_encounters_output_args,
     completion_encounters_schema,
     completion_format_args,

@@ -54,7 +54,7 @@ class S3Mixin(utils.AsyncTestCase):
 
         try:
             self.s3fs.mkdir(self.bucket)  # create the bucket as a quickstart
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             self._kill_moto_server()
             self.fail("Stale moto server")
 

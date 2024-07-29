@@ -27,7 +27,7 @@ class TestDeltaLake(utils.AsyncTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        output_tempdir = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+        output_tempdir = tempfile.TemporaryDirectory()
         cls.output_tempdir = output_tempdir
         cls.output_dir = output_tempdir.name
         cls.root = store.Root(output_tempdir.name)
@@ -58,7 +58,7 @@ class TestDeltaLake(utils.AsyncTestCase):
         self,
         rows: list[dict],
         schema: pyarrow.Schema = None,
-        groups: set[str] = None,
+        groups: set[str] | None = None,
         **kwargs,
     ) -> bool:
         """
@@ -118,7 +118,11 @@ class TestDeltaLake(utils.AsyncTestCase):
                 {"id": "now", "meta": {"lastUpdated": now}, "value": 1},
                 {"id": "now-without-zed", "meta": {"lastUpdated": now_without_zed}, "value": 1},
                 {"id": "future", "meta": {"lastUpdated": future}, "value": 1},
-                {"id": "future-with-offset", "meta": {"lastUpdated": future_with_offset}, "value": 1},
+                {
+                    "id": "future-with-offset",
+                    "meta": {"lastUpdated": future_with_offset},
+                    "value": 1,
+                },
                 # this next one is off-spec (lastUpdated must provide at least seconds), but still
                 {"id": "future-partial", "meta": {"lastUpdated": "3000-01-01"}, "value": 1},
                 {"id": "missing-date-table", "meta": {}, "value": 1},
@@ -155,7 +159,11 @@ class TestDeltaLake(utils.AsyncTestCase):
                 {"id": "now", "meta": {"lastUpdated": now}, "value": 1},
                 {"id": "now-without-zed", "meta": {"lastUpdated": now_without_zed}, "value": 1},
                 {"id": "future", "meta": {"lastUpdated": future}, "value": 1},
-                {"id": "future-with-offset", "meta": {"lastUpdated": future_with_offset}, "value": 1},
+                {
+                    "id": "future-with-offset",
+                    "meta": {"lastUpdated": future_with_offset},
+                    "value": 1,
+                },
                 {"id": "future-partial", "meta": {"lastUpdated": "3000-01-01"}, "value": 1},
                 {"id": "missing-date-table", "meta": {"lastUpdated": now}, "value": 2},
                 {"id": "missing-date-update", "meta": {}, "value": 2},
@@ -275,7 +283,9 @@ class TestDeltaLake(utils.AsyncTestCase):
         (pyarrow.int32(), 2000, pyarrow.int64(), 3000000000, False, "integer", 2000),
     )
     @ddt.unpack
-    def test_column_type_merges(self, type1, val1, type2, val2, expected_success, expected_type, expected_value):
+    def test_column_type_merges(
+        self, type1, val1, type2, val2, expected_success, expected_type, expected_value
+    ):
         """Verify that if we write a slightly different, but compatible field to the delta lake, it works"""
         schema1 = pyarrow.schema(
             [
@@ -312,8 +322,16 @@ class TestDeltaLake(utils.AsyncTestCase):
             self.df(
                 aa={"group": "A", "val": 5},  # will be deleted as stale group member
                 ab={"group": "A", "val": 10},  # will be updated
-                b={"group": "B", "val": 1},  # will be ignored because 2nd batch won't have group B in it
-                c={"group": "C", "val": 2},  # will be deleted as group with zero members in new batch
+                # will be ignored because 2nd batch won't have group B in it
+                b={
+                    "group": "B",
+                    "val": 1,
+                },
+                # will be deleted as group with zero members in new batch
+                c={
+                    "group": "C",
+                    "val": 2,
+                },
             ),
             group_field="value.group",
             groups={"A", "B", "C"},
@@ -337,7 +355,11 @@ class TestDeltaLake(utils.AsyncTestCase):
                 d={"group": 'D"', "val": 3},  # whole new group
             ),
             group_field="value.group",
-            groups={"A", "C", 'D"'},  # C is present but with no rows (existing rows will be deleted)
+            groups={
+                "A",
+                "C",  # C is present but with no rows (existing rows will be deleted)
+                'D"',
+            },
         )
         self.assert_lake_equal(
             self.df(

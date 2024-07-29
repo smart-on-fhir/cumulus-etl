@@ -14,14 +14,16 @@ async def download_docrefs_from_fhir_server(
     client: fhir.FhirClient,
     root_input: store.Root,
     codebook: deid.Codebook,
-    docrefs: str = None,
-    anon_docrefs: str = None,
-    export_to: str = None,
+    docrefs: str | None = None,
+    anon_docrefs: str | None = None,
+    export_to: str | None = None,
 ):
     if docrefs:
         return await _download_docrefs_from_real_ids(client, docrefs, export_to=export_to)
     elif anon_docrefs:
-        return await _download_docrefs_from_fake_ids(client, codebook, anon_docrefs, export_to=export_to)
+        return await _download_docrefs_from_fake_ids(
+            client, codebook, anon_docrefs, export_to=export_to
+        )
     else:
         # else we'll download the entire target path as a bulk export (presumably the user has scoped a Group)
         ndjson_loader = loaders.FhirNdjsonLoader(root_input, client, export_to=export_to)
@@ -32,7 +34,7 @@ async def _download_docrefs_from_fake_ids(
     client: fhir.FhirClient,
     codebook: deid.Codebook,
     docref_csv: str,
-    export_to: str = None,
+    export_to: str | None = None,
 ) -> common.Directory:
     """Download DocumentReference resources for the given patient and docref identifiers"""
     output_folder = cli_utils.make_export_dir(export_to)
@@ -49,19 +51,22 @@ async def _download_docrefs_from_fake_ids(
     # Kick off a bunch of requests to the FHIR server for any documents for these patients
     # (filtered to only the given fake IDs)
     coroutines = [
-        _request_docrefs_for_patient(client, patient_id, codebook, fake_docref_ids) for patient_id in patient_ids
+        _request_docrefs_for_patient(client, patient_id, codebook, fake_docref_ids)
+        for patient_id in patient_ids
     ]
     docrefs_per_patient = await asyncio.gather(*coroutines)
 
     # And write them all out
-    _write_docrefs_to_output_folder(itertools.chain.from_iterable(docrefs_per_patient), output_folder.name)
+    _write_docrefs_to_output_folder(
+        itertools.chain.from_iterable(docrefs_per_patient), output_folder.name
+    )
     return output_folder
 
 
 async def _download_docrefs_from_real_ids(
     client: fhir.FhirClient,
     docref_csv: str,
-    export_to: str = None,
+    export_to: str | None = None,
 ) -> common.Directory:
     """Download DocumentReference resources for the given patient and docref identifiers"""
     output_folder = cli_utils.make_export_dir(export_to)
@@ -91,7 +96,10 @@ def _write_docrefs_to_output_folder(docrefs: Iterable[dict], output_folder: str)
 
 
 async def _request_docrefs_for_patient(
-    client: fhir.FhirClient, patient_id: str, codebook: deid.Codebook, fake_docref_ids: Container[str]
+    client: fhir.FhirClient,
+    patient_id: str,
+    codebook: deid.Codebook,
+    fake_docref_ids: Container[str],
 ) -> list[dict]:
     """Returns all DocumentReferences for a given patient"""
     params = {

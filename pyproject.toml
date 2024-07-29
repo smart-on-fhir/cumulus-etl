@@ -39,6 +39,23 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+tests = [
+    "coverage",
+    "ddt",
+    "moto[server,s3] >= 5.0",
+    "pytest",
+    "pytest-cov",
+    "respx",
+    "time-machine",
+]
+dev = [
+    "pre-commit",
+    # Ruff is using minor versions for breaking changes until their 1.0 release.
+    # See https://docs.astral.sh/ruff/versioning/
+    "ruff < 0.6",  # keep in rough sync with pre-commit-config.yaml
+]
+
 [project.urls]
 "Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
 
@@ -59,26 +76,31 @@ exclude = [
     "**/.pytest_cache",
 ]
 
-[tool.bandit]
-exclude_dirs = ["tests"]
+[tool.ruff]
+line-length = 100
 
-[tool.black]
-line-length = 120
+[tool.ruff.lint]
+allowed-confusables = ["’"]  # allow proper apostrophes
+select = [
+    "A",  # prevent using keywords that clobber python builtins
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    "I",  # isort
+    "PLE",  # pylint errors
+    "RUF",  # the ruff developer's own rules
+    "S",  # bandit security warnings
+    "UP",  # alert you when better syntax is available in your python version
+]
+ignore = [
+    # E501 is the line-too-long check.
+    # Ruff formatting will generally control the length of Python lines for us.
+    # But it leaves comments alone. And since we used to have a longer line length (120),
+    # we have a lot of legacy comments over 100 width.
+    # Just disable the check for now, rather than manually fixing all 300+ lines.
+    # Hopefully we can address them slowly over time.
+    "E501",
+]
 
-[project.optional-dependencies]
-tests = [
-    "coverage",
-    "ddt",
-    "moto[server,s3] >= 5.0",
-    "pytest",
-    "pytest-cov",
-    "respx",
-    "time-machine",
-]
-dev = [
-    "bandit[toml]",
-    "black >= 24, < 25",  # keep in rough sync with .pre-commit-config.yaml
-    "pre-commit",
-    "pycodestyle",
-    "pylint",
-]
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]  # init files hold API, so not using imports is intentional
+"tests/**" = ["S"]  # tests do suspicious stuff that's fine, actually

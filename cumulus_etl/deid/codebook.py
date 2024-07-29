@@ -19,7 +19,7 @@ class Codebook:
     Some IDs may be cryptographically hashed versions of the real ID, some may be entirely random.
     """
 
-    def __init__(self, codebook_dir: str = None):
+    def __init__(self, codebook_dir: str | None = None):
         """
         :param codebook_dir: saved codebook path or None (initialize empty)
         """
@@ -70,7 +70,9 @@ class Codebook:
             if real_id:
                 yield real_id
             else:
-                logging.warning("Real ID not found for anonymous %s ID %s. Ignoring.", resource_type, fake_id)
+                logging.warning(
+                    "Real ID not found for anonymous %s ID %s. Ignoring.", resource_type, fake_id
+                )
 
 
 ###############################################################################
@@ -83,7 +85,7 @@ class Codebook:
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
 
-    def __init__(self, codebook_dir: str = None):
+    def __init__(self, codebook_dir: str | None = None):
         """
         Create a codebook database.
 
@@ -110,7 +112,9 @@ class CodebookDB:
         if codebook_dir:
             self._load_saved_settings(common.read_json(os.path.join(codebook_dir, "codebook.json")))
             try:
-                self.cached_mapping = common.read_json(os.path.join(codebook_dir, "codebook-cached-mappings.json"))
+                self.cached_mapping = common.read_json(
+                    os.path.join(codebook_dir, "codebook-cached-mappings.json")
+                )
             except (FileNotFoundError, PermissionError):
                 pass
 
@@ -145,7 +149,9 @@ class CodebookDB:
         """
         return self._preserved_resource_hash("Encounter", real_id, cache_mapping)
 
-    def _preserved_resource_hash(self, resource_type: str, real_id: str, cache_mapping: bool) -> str:
+    def _preserved_resource_hash(
+        self, resource_type: str, real_id: str, cache_mapping: bool
+    ) -> str:
         """
         Get a hashed ID and preserve the mapping.
 
@@ -170,7 +176,10 @@ class CodebookDB:
 
         # Save this generated ID mapping so that we can store it for debugging purposes later.
         # Only save if we don't have a legacy mapping, so that we don't have both in memory at the same time.
-        if cache_mapping and self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id:
+        if (
+            cache_mapping
+            and self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id
+        ):
             # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
             # but is written defensively in case a bad mapping got saved for some reason.
             self.cached_mapping[resource_type][real_id] = fake_id
@@ -206,7 +215,8 @@ class CodebookDB:
     def _id_salt(self) -> bytes:
         """Returns the saved salt or creates and saves one if needed"""
         salt = self.settings["id_salt"]
-        return binascii.unhexlify(salt)  # revert from doubled hex 64-char string representation back to just 32 bytes
+        # revert from doubled hex 64-char string representation back to just 32 bytes
+        return binascii.unhexlify(salt)
 
     def _load_saved_settings(self, saved: dict) -> None:
         """

@@ -25,14 +25,14 @@ class JobConfig:
         input_format: str,
         output_format: str,
         client: fhir.FhirClient,
-        timestamp: datetime.datetime = None,
-        comment: str = None,
+        timestamp: datetime.datetime | None = None,
+        comment: str | None = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
-        ctakes_overrides: str = None,
-        dir_errors: str = None,
-        tasks: list[str] = None,
-        export_group_name: str = None,
-        export_datetime: datetime.datetime = None,
+        ctakes_overrides: str | None = None,
+        dir_errors: str | None = None,
+        tasks: list[str] | None = None,
+        export_group_name: str | None = None,
+        export_datetime: datetime.datetime | None = None,
     ):
         self._dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid

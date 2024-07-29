@@ -43,7 +43,8 @@ def get_subcommand(argv: list[str]) -> str | None:
         if arg in Command.values():
             return argv.pop(i)  # remove it to make later parsers' jobs easier
         elif not arg.startswith("-"):
-            return None  # first positional arg did not match a known command, assume default command
+            # first positional arg did not match a known command, assume default command
+            return None
 
 
 async def main(argv: list[str]) -> None:
@@ -71,7 +72,7 @@ async def main(argv: list[str]) -> None:
         if not subcommand:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
-            parser.description += "\n\n" "other commands available:\n" "  convert\n" "  upload-notes"
+            parser.description += "\n\nother commands available:\n  convert\n  upload-notes"
         run_method = etl.run_etl
 
     with tempfile.TemporaryDirectory() as tempdir:

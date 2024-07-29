@@ -27,8 +27,8 @@ class Format(abc.ABC):
         self,
         root: store.Root,
         dbname: str,
-        group_field: str = None,
-        uniqueness_fields: Collection[str] = None,
+        group_field: str | None = None,
+        uniqueness_fields: Collection[str] | None = None,
         update_existing: bool = True,
     ):
         """
@@ -62,7 +62,7 @@ class Format(abc.ABC):
         try:
             self._write_one_batch(batch)
             return True
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             logging.exception("Could not process data records")
             return False
 

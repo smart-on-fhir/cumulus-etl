@@ -27,7 +27,9 @@ class TestFhirClient(AsyncTestCase):
         # By default, set up a working server and auth. Tests can break things as needed.
 
         self.client_id = "my-client-id"
-        self.jwk = jwk.JWK.generate(kty="RSA", alg="RS384", kid="a", key_ops=["sign", "verify"]).export(as_dict=True)
+        self.jwk = jwk.JWK.generate(
+            kty="RSA", alg="RS384", kid="a", key_ops=["sign", "verify"]
+        ).export(as_dict=True)
         self.jwks = {"keys": [self.jwk]}
         self.server_url = "https://example.com/fhir"
         self.token_url = "https://auth.example.com/token"
@@ -120,7 +122,10 @@ class TestFhirClient(AsyncTestCase):
         )
 
         async with fhir.FhirClient(
-            self.server_url, ["Condition", "Patient"], smart_client_id=self.client_id, smart_jwks=self.jwks
+            self.server_url,
+            ["Condition", "Patient"],
+            smart_client_id=self.client_id,
+            smart_jwks=self.jwks,
         ) as client:
             await client.request("GET", "foo")
 
@@ -145,7 +150,9 @@ class TestFhirClient(AsyncTestCase):
             headers={"Authorization": "Bearer fob"},
         )
 
-        async with fhir.FhirClient(self.server_url, ["Condition", "Patient"], bearer_token="fob") as server:
+        async with fhir.FhirClient(
+            self.server_url, ["Condition", "Patient"], bearer_token="fob"
+        ) as server:
             await server.request("GET", "foo")
 
     async def test_auth_with_basic_auth(self):
@@ -155,7 +162,9 @@ class TestFhirClient(AsyncTestCase):
             headers={"Authorization": "Basic VXNlcjpwNHNzdzByZA=="},
         )
 
-        async with fhir.FhirClient(self.server_url, [], basic_user="User", basic_password="p4ssw0rd") as server:
+        async with fhir.FhirClient(
+            self.server_url, [], basic_user="User", basic_password="p4ssw0rd"
+        ) as server:
             await server.request("GET", "foo")
 
     async def test_get_with_new_header(self):
@@ -168,7 +177,9 @@ class TestFhirClient(AsyncTestCase):
             },
         )
 
-        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(
+            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ) as server:
             # With new header and stream
             await server.request("GET", "foo", headers={"Test": "Value"}, stream=True)
 
@@ -181,7 +192,9 @@ class TestFhirClient(AsyncTestCase):
             },
         )
 
-        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(
+            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ) as server:
             # With overriding a header and default stream (False)
             await server.request("GET", "bar", headers={"Accept": "text/plain"})
 
@@ -194,7 +207,9 @@ class TestFhirClient(AsyncTestCase):
     )
     async def test_jwks_without_suitable_key(self, bad_jwks):
         with self.assertRaisesRegex(errors.FatalError, "No valid private key found"):
-            async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks):
+            async with fhir.FhirClient(
+                self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks
+            ):
                 pass
 
     @ddt.data(
@@ -218,12 +233,17 @@ class TestFhirClient(AsyncTestCase):
         )
 
         with self.assertRaisesRegex(SystemExit, str(errors.FHIR_AUTH_FAILED)):
-            async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
+            async with fhir.FhirClient(
+                self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+            ):
                 pass
 
     @ddt.data(
         ({"json": {"error_description": "Ouch!"}}, "Ouch!"),
-        ({"json": {"error_uri": "http://ouch.com/sadface"}}, 'visit "http://ouch.com/sadface" for more details'),
+        (
+            {"json": {"error_uri": "http://ouch.com/sadface"}},
+            'visit "http://ouch.com/sadface" for more details',
+        ),
         # If nothing comes back, we use the default httpx error message
         (
             {},
@@ -239,11 +259,16 @@ class TestFhirClient(AsyncTestCase):
         self.respx_mock["token"].respond(400, **response_params)
 
         with mock.patch("cumulus_etl.errors.fatal") as mock_fatal:
-            async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks):
+            async with fhir.FhirClient(
+                self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+            ):
                 pass
 
         self.assertEqual(
-            mock.call(f"Could not authenticate with the FHIR server: {expected_error}", errors.FHIR_AUTH_FAILED),
+            mock.call(
+                f"Could not authenticate with the FHIR server: {expected_error}",
+                errors.FHIR_AUTH_FAILED,
+            ),
             mock_fatal.call_args,
         )
 
@@ -252,7 +277,9 @@ class TestFhirClient(AsyncTestCase):
         route = self.respx_mock.get(f"{self.server_url}/foo")
         route.side_effect = [make_response(status_code=401), make_response()]
 
-        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(
+            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ) as server:
             self.assertEqual(1, self.respx_mock["token"].call_count)
 
             # Check that we correctly tried to re-authenticate
@@ -266,7 +293,9 @@ class TestFhirClient(AsyncTestCase):
         self.respx_mock.get(f"{self.server_url}/retry-me").respond(429)
         self.respx_mock.get(f"{self.server_url}/nope").respond(430)
 
-        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(
+            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ) as server:
             # Confirm 429 passes
             response = await server.request("GET", "retry-me")
             self.assertEqual(429, response.status_code)
@@ -276,10 +305,15 @@ class TestFhirClient(AsyncTestCase):
                 await server.request("GET", "nope")
 
     @ddt.data(
+        # OperationOutcome
         {
-            "json_payload": {"resourceType": "OperationOutcome", "issue": [{"diagnostics": "testmsg"}]}
-        },  # OperationOutcome
-        {"json_payload": {"issue": [{"diagnostics": "msg"}]}, "reason": "testmsg"},  # non-OperationOutcome json
+            "json_payload": {
+                "resourceType": "OperationOutcome",
+                "issue": [{"diagnostics": "testmsg"}],
+            }
+        },
+        # non-OperationOutcome json
+        {"json_payload": {"issue": [{"diagnostics": "msg"}]}, "reason": "testmsg"},
         {"text": "testmsg"},  # just pure text content
         {"reason": "testmsg"},
     )
@@ -291,7 +325,9 @@ class TestFhirClient(AsyncTestCase):
             return_value=make_response(status_code=500, **response_args),
         )
 
-        async with fhir.FhirClient(self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks) as server:
+        async with fhir.FhirClient(
+            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+        ) as server:
             with self.assertRaisesRegex(errors.FatalError, "testmsg"):
                 await server.request("GET", "foo")
 
@@ -304,7 +340,12 @@ class TestFhirClient(AsyncTestCase):
     def test_added_binary_scope(self, resources_in, expected_resources_out, mock_client):
         """Verify that we add a Binary scope if DocumentReference is requested"""
         args = argparse.Namespace(
-            fhir_url=None, smart_client_id=None, smart_jwks=None, basic_user=None, basic_passwd=None, bearer_token=None
+            fhir_url=None,
+            smart_client_id=None,
+            smart_jwks=None,
+            basic_user=None,
+            basic_passwd=None,
+            bearer_token=None,
         )
         fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), resources_in)
         self.assertEqual(mock_client.call_args[0][1], expected_resources_out)
@@ -351,6 +392,8 @@ class TestFhirClientEpicQuirks(AsyncTestCase):
         )
 
         self.mock_as_server_type(server_type)
-        async with fhir.FhirClient(self.server_url, [], bearer_token="foo", smart_client_id="my-id") as server:
+        async with fhir.FhirClient(
+            self.server_url, [], bearer_token="foo", smart_client_id="my-id"
+        ) as server:
             response = await server.request("GET", "file")
             self.assertEqual(expected_text, response.text)

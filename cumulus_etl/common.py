@@ -16,7 +16,6 @@ import rich
 
 from cumulus_etl import store
 
-
 ###############################################################################
 #
 # Types
@@ -77,7 +76,9 @@ def get_temp_dir(subdir: str) -> str:
 
 
 def ls_resources(root: store.Root, resources: set[str], warn_if_empty: bool = False) -> list[str]:
-    found_files = cumulus_fhir_support.list_multiline_json_in_dir(root.path, resources, fsspec_fs=root.fs)
+    found_files = cumulus_fhir_support.list_multiline_json_in_dir(
+        root.path, resources, fsspec_fs=root.fs
+    )
 
     if warn_if_empty:
         # Invert the {path: type} found_files dictionary into {type: [paths...]}
@@ -151,7 +152,7 @@ def read_json(path: str) -> Any:
         return json.load(f)
 
 
-def write_json(path: str, data: Any, indent: int = None) -> None:
+def write_json(path: str, data: Any, indent: int | None = None) -> None:
     """
     Writes data to the given path, in json format
     :param path: filesystem path
@@ -176,7 +177,9 @@ def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
     yield from cumulus_fhir_support.read_multiline_json(path, fsspec_fs=root.fs)
 
 
-def read_resource_ndjson(root: store.Root, resource: str, warn_if_empty: bool = False) -> Iterator[dict]:
+def read_resource_ndjson(
+    root: store.Root, resource: str, warn_if_empty: bool = False
+) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
     """
@@ -240,7 +243,9 @@ def read_local_line_count(path) -> int:
     count = 0
     buf = None
     with open(path, "rb") as f:
-        bufgen = itertools.takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in itertools.repeat(None)))
+        bufgen = itertools.takewhile(
+            lambda x: x, (f.raw.read(1024 * 1024) for _ in itertools.repeat(None))
+        )
         for buf in bufgen:
             count += buf.count(b"\n")
     if buf and buf[-1] != ord("\n"):  # catch a final line without a trailing newline
@@ -354,7 +359,7 @@ def datetime_now(local: bool = False) -> datetime.datetime:
     return now
 
 
-def timestamp_datetime(time: datetime.datetime = None) -> str:
+def timestamp_datetime(time: datetime.datetime | None = None) -> str:
     """
     Human-readable UTC date and time
     :return: MMMM-DD-YYY hh:mm:ss
@@ -363,7 +368,7 @@ def timestamp_datetime(time: datetime.datetime = None) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def timestamp_filename(time: datetime.datetime = None) -> str:
+def timestamp_filename(time: datetime.datetime | None = None) -> str:
     """
     Human-readable UTC date and time suitable for a filesystem path
 

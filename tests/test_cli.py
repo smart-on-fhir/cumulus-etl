@@ -30,7 +30,7 @@ class TestCumulusCLI(AsyncTestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             with self.assertRaises(SystemExit):
-                await cli.main(argv + ["--help"])
+                await cli.main([*argv, "--help"])
 
         self.assertTrue(stdout.getvalue().startswith(expected_usage), stdout.getvalue())
 

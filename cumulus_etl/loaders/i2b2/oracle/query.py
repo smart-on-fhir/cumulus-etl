@@ -2,7 +2,6 @@
 
 from cumulus_etl.loaders.i2b2.schema import Table, ValueType
 
-
 ###############################################################################
 # Table.patient_dimension
 ###############################################################################
@@ -12,7 +11,7 @@ def sql_patient() -> str:
     birth_date = format_date("BIRTH_DATE")
     death_date = format_date("DEATH_DATE")
     cols = f"PATIENT_NUM, {birth_date}, {death_date}, SEX_CD, RACE_CD, ZIP_CD"
-    return f"select {cols} \n from {Table.patient.value}"  # nosec
+    return f"select {cols} \n from {Table.patient.value}"  # noqa: S608
 
 
 ###############################################################################
@@ -23,7 +22,7 @@ def sql_patient() -> str:
 def sql_provider() -> str:
     cols_dates = format_date("IMPORT_DATE")
     cols = f"PROVIDER_ID, PROVIDER_PATH, NAME_CHAR, {cols_dates}"
-    return f"select {cols} \n from {Table.provider.value}"  # nosec
+    return f"select {cols} \n from {Table.provider.value}"  # noqa: S608
 
 
 ###############################################################################
@@ -41,7 +40,7 @@ def sql_visit() -> str:
 
     cols_dates = f"{start_date}, {end_date}, {import_date}, LENGTH_OF_STAY"
     cols = "ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, " f"{cols_dates}"
-    return f"select {cols} \n from {Table.visit.value}"  # nosec
+    return f"select {cols} \n from {Table.visit.value}"  # noqa: S608
 
 
 def after_start_date(start_date: str) -> str:
@@ -73,7 +72,7 @@ def sql_concept() -> str:
     """
     cols_dates = format_date("IMPORT_DATE")
     cols = f"CONCEPT_CD, NAME_CHAR, SOURCESYSTEM_CD, CONCEPT_BLOB, {cols_dates}"
-    return f"select {cols} \n from {Table.concept.value}"  # nosec
+    return f"select {cols} \n from {Table.concept.value}"  # noqa: S608
 
 
 ###############################################################################
@@ -102,7 +101,10 @@ def sql_observation_fact(categories: list[str]) -> str:
 
     matchers = [f"(concept_cd like '{category}:%')" for category in categories]
 
-    return f"select {cols} \n from {Table.observation_fact.value} O " f"where {' or '.join(matchers)}"  # nosec
+    return (
+        f"select {cols} \n from {Table.observation_fact.value} O "  # noqa: S608
+        f"where {' or '.join(matchers)}"
+    )
 
 
 def eq_val_type(val_type: ValueType) -> str:
@@ -118,11 +120,11 @@ def where(expression=None) -> str:
     return "\n WHERE " + expression if expression else ""
 
 
-def AND(expression: str) -> str:  # pylint: disable=invalid-name
+def AND(expression: str) -> str:
     return f"\n AND ({expression})"
 
 
-def OR(expression: str) -> str:  # pylint: disable=invalid-name
+def OR(expression: str) -> str:
     return f"\n OR ({expression})"
 
 
