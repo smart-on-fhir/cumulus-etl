@@ -24,7 +24,9 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.ls_project.parsed_label_config = {"mylabel": {"type": "Labels", "to_name": ["mytext"]}}
 
     @staticmethod
-    def make_note(*, enc_id: str = "enc", ctakes: bool = True, philter_label: bool = True) -> LabelStudioNote:
+    def make_note(
+        *, enc_id: str = "enc", ctakes: bool = True, philter_label: bool = True
+    ) -> LabelStudioNote:
         text = "Normal note text"
         note = LabelStudioNote(
             enc_id,
@@ -34,7 +36,9 @@ class TestUploadLabelStudio(AsyncTestCase):
             text=text,
         )
         if ctakes:
-            note.ctakes_matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
+            note.ctakes_matches = ctakesmock.fake_ctakes_extract(note.text).list_match(
+                polarity=Polarity.pos
+            )
         if philter_label:
             matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
             note.philter_map = {m.begin: m.end for m in matches}
@@ -50,7 +54,8 @@ class TestUploadLabelStudio(AsyncTestCase):
                 # These two CUIs are in our standard mock cTAKES response
                 "C0033774": "Itch",
                 "C0027497": "Nausea",
-                "C0028081": "Night Sweats",  # to demonstrate that unmatched CUIs are not generally pushed
+                # The third is demonstrates that unmatched CUIs are not generally pushed
+                "C0028081": "Night Sweats",
             },
         )
         client.push_tasks(notes, **kwargs)
@@ -76,7 +81,8 @@ class TestUploadLabelStudio(AsyncTestCase):
                     {
                         "model_version": "Cumulus cTAKES",
                         "result": [
-                            # Note that fever does not show up, as it was not in our initial CUI mapping (in push_tasks)
+                            # Note that fever does not show up,
+                            # as it was not in our initial CUI mapping (in push_tasks)
                             {
                                 "from_name": "mylabel",
                                 "id": "ctakes0",

@@ -20,7 +20,11 @@ class TestReferenceHandlers(utils.AsyncTestCase):
         ({"reference": "123", "type": "Patient"}, "Patient", "123"),
         ({"reference": "#123"}, None, "#123"),
         # Synthea style reference
-        ({"reference": "Patient?identifier=http://example.com|123"}, "Patient", "identifier=http://example.com|123"),
+        (
+            {"reference": "Patient?identifier=http://example.com|123"},
+            "Patient",
+            "identifier=http://example.com|123",
+        ),
     )
     @ddt.unpack
     def test_unref_successes(self, full_reference, expected_type, expected_id):
@@ -62,9 +66,21 @@ class TestDateParsing(utils.AsyncTestCase):
         ("1992-11-06", datetime.datetime(1992, 11, 6)),  # naive
         (
             "1992-11-06T13:28:17.239+02:00",
-            datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.timezone(datetime.timedelta(hours=2))),
+            datetime.datetime(
+                1992,
+                11,
+                6,
+                13,
+                28,
+                17,
+                239000,
+                tzinfo=datetime.timezone(datetime.timedelta(hours=2)),
+            ),
         ),
-        ("1992-11-06T13:28:17.239Z", datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.timezone.utc)),
+        (
+            "1992-11-06T13:28:17.239Z",
+            datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.timezone.utc),
+        ),
     )
     @ddt.unpack
     def test_parse_datetime(self, input_value, expected_value):
@@ -167,4 +183,7 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
 
         result = await fhir.download_reference(mock_client, reference)
         self.assertEqual(expected_result, result)
-        self.assertEqual([mock.call("GET", reference)] if expected_result else [], mock_client.request.call_args_list)
+        self.assertEqual(
+            [mock.call("GET", reference)] if expected_result else [],
+            mock_client.request.call_args_list,
+        )

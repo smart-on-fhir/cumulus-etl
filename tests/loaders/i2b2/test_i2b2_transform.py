@@ -24,7 +24,12 @@ class TestI2b2Transform(AsyncTestCase):
     @ddt.data(
         ("Black or African American", "race", "urn:oid:2.16.840.1.113883.6.238", "2054-5"),
         ("Hispanic or Latino", "ethnicity", "urn:oid:2.16.840.1.113883.6.238", "2135-2"),
-        ("Declined to Answer", "ethnicity", "http://terminology.hl7.org/CodeSystem/v3-NullFlavor", "ASKU"),
+        (
+            "Declined to Answer",
+            "ethnicity",
+            "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
+            "ASKU",
+        ),
     )
     @ddt.unpack
     def test_patient_race_vs_ethnicity(self, race_cd, url, system, code):
@@ -66,7 +71,9 @@ class TestI2b2Transform(AsyncTestCase):
         self.assertEqual("Patient/12345", condition["subject"]["reference"])
         self.assertEqual("Encounter/67890", condition["encounter"]["reference"])
         self.assertEqual("U07.1", condition["code"]["coding"][0]["code"])
-        self.assertEqual("http://hl7.org/fhir/sid/icd-10-cm", condition["code"]["coding"][0]["system"])
+        self.assertEqual(
+            "http://hl7.org/fhir/sid/icd-10-cm", condition["code"]["coding"][0]["system"]
+        )
         self.assertEqual("COVID-19", condition["code"]["coding"][0]["display"])
 
     def test_to_fhir_documentreference(self):
@@ -101,7 +108,9 @@ class TestI2b2Transform(AsyncTestCase):
 
         self.assertEqual("10828004", lab_fhir["valueCodeableConcept"]["coding"][0]["code"])
         self.assertEqual("POSitiVE", lab_fhir["valueCodeableConcept"]["coding"][0]["display"])
-        self.assertEqual("http://snomed.info/sct", lab_fhir["valueCodeableConcept"]["coding"][0]["system"])
+        self.assertEqual(
+            "http://snomed.info/sct", lab_fhir["valueCodeableConcept"]["coding"][0]["system"]
+        )
 
     def test_to_fhir_observation_lab_unknown_tval(self):
         dim = i2b2_mock_data.observation_dim()
@@ -111,7 +120,8 @@ class TestI2b2Transform(AsyncTestCase):
         self.assertEqual("Nope", lab_fhir["valueCodeableConcept"]["coding"][0]["code"])
         self.assertEqual("Nope", lab_fhir["valueCodeableConcept"]["coding"][0]["display"])
         self.assertEqual(
-            "http://cumulus.smarthealthit.org/i2b2", lab_fhir["valueCodeableConcept"]["coding"][0]["system"]
+            "http://cumulus.smarthealthit.org/i2b2",
+            lab_fhir["valueCodeableConcept"]["coding"][0]["system"],
         )
 
     def test_to_fhir_medicationrequest(self):
@@ -169,9 +179,15 @@ class TestI2b2Transform(AsyncTestCase):
                         ]
                     }
                 ],
-                "code": {"coding": [{"code": "VITAL:1234", "system": "http://cumulus.smarthealthit.org/i2b2"}]},
+                "code": {
+                    "coding": [
+                        {"code": "VITAL:1234", "system": "http://cumulus.smarthealthit.org/i2b2"}
+                    ]
+                },
                 "valueCodeableConcept": {
-                    "coding": [{"code": "Left Leg", "system": "http://cumulus.smarthealthit.org/i2b2"}]
+                    "coding": [
+                        {"code": "Left Leg", "system": "http://cumulus.smarthealthit.org/i2b2"}
+                    ]
                 },
                 "effectiveDateTime": "2020-10-30",
                 "status": "unknown",

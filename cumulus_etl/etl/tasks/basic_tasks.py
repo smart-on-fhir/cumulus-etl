@@ -124,7 +124,9 @@ class MedicationRequestTask(tasks.EtlTask):
         # Since Medications are not patient-specific, we don't need the full MS treatment.
         # But still, we should probably drop some bits that might more easily identify the *institution*.
         # This is a poor-man's MS config tool (and a blocklist rather than allow-list, but it's a very simple resource)
-        medication.pop("extension", None)  # *should* remove at all layers, but this will catch 99% of them
+
+        # *should* remove extensions at all layers, but this will catch 99% of them
+        medication.pop("extension", None)
         medication.pop("identifier", None)
         medication.pop("text", None)
         # Leave batch.lotNumber freeform text in place, it might be useful for quality control
@@ -152,7 +154,9 @@ class MedicationRequestTask(tasks.EtlTask):
             self.summaries[1].had_errors = True
 
             if self.task_config.dir_errors:
-                error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
+                error_root = store.Root(
+                    os.path.join(self.task_config.dir_errors, self.name), create=True
+                )
                 error_path = error_root.joinpath("medication-fetch-errors.ndjson")
                 with common.NdjsonWriter(error_path, "a") as writer:
                     writer.write(resource)

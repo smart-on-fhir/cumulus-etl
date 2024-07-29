@@ -60,10 +60,13 @@ def _filter_real_docrefs(docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[
                 break
 
 
-def _filter_fake_docrefs(codebook: deid.Codebook, anon_docrefs_csv: str, docrefs: Iterable[dict]) -> Iterator[dict]:
+def _filter_fake_docrefs(
+    codebook: deid.Codebook, anon_docrefs_csv: str, docrefs: Iterable[dict]
+) -> Iterator[dict]:
     """Calculates the fake ID for all docrefs found, and keeps any that match the csv list"""
     with common.read_csv(anon_docrefs_csv) as reader:
-        fake_docref_ids = {row["docref_id"] for row in reader}  # ignore the patient_id column, not needed
+        # ignore the patient_id column, not needed
+        fake_docref_ids = {row["docref_id"] for row in reader}
 
     for docref in docrefs:
         fake_id = codebook.fake_id("DocumentReference", docref["id"], caching_allowed=False)

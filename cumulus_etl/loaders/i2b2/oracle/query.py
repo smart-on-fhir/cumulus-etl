@@ -101,7 +101,10 @@ def sql_observation_fact(categories: list[str]) -> str:
 
     matchers = [f"(concept_cd like '{category}:%')" for category in categories]
 
-    return f"select {cols} \n from {Table.observation_fact.value} O " f"where {' or '.join(matchers)}"  # noqa: S608
+    return (
+        f"select {cols} \n from {Table.observation_fact.value} O "  # noqa: S608
+        f"where {' or '.join(matchers)}"
+    )
 
 
 def eq_val_type(val_type: ValueType) -> str:

@@ -92,11 +92,16 @@ def to_fhir_encounter(visit: VisitDimension) -> dict:
         "status": "unknown",
         "period": {"start": chop_to_date(visit.start_date), "end": chop_to_date(visit.end_date)},
         # Most generic encounter type possible, only included because the 'type' field is required in us-core
-        "type": [make_concept("308335008", "http://snomed.info/sct", "Patient encounter procedure")],
+        "type": [
+            make_concept("308335008", "http://snomed.info/sct", "Patient encounter procedure")
+        ],
     }
 
     if visit.length_of_stay:  # days
-        encounter["length"] = {"unit": "d", "value": visit.length_of_stay and float(visit.length_of_stay)}
+        encounter["length"] = {
+            "unit": "d",
+            "value": visit.length_of_stay and float(visit.length_of_stay),
+        }
 
     class_fhir = external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
     if not class_fhir:
@@ -125,7 +130,9 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> dict:
         "id": str(obsfact.instance_num),
         "subject": fhir.ref_resource("Patient", obsfact.patient_num),
         "encounter": fhir.ref_resource("Encounter", obsfact.encounter_num),
-        "category": [make_concept("laboratory", "http://terminology.hl7.org/CodeSystem/observation-category")],
+        "category": [
+            make_concept("laboratory", "http://terminology.hl7.org/CodeSystem/observation-category")
+        ],
         "effectiveDateTime": chop_to_date(obsfact.start_date),
         "status": "unknown",
     }
@@ -144,7 +151,9 @@ def to_fhir_observation_lab(obsfact: ObservationFact) -> dict:
     else:
         lab_result = obsfact.tval_char
         lab_result_system = "http://cumulus.smarthealthit.org/i2b2"
-    observation["valueCodeableConcept"] = make_concept(lab_result, lab_result_system, display=obsfact.tval_char)
+    observation["valueCodeableConcept"] = make_concept(
+        lab_result, lab_result_system, display=obsfact.tval_char
+    )
 
     return observation
 
@@ -162,7 +171,11 @@ def to_fhir_observation_vitals(obsfact: ObservationFact) -> dict:
         "resourceType": "Observation",
         "id": str(obsfact.instance_num),
         "status": "unknown",
-        "category": [make_concept("vital-signs", "http://terminology.hl7.org/CodeSystem/observation-category")],
+        "category": [
+            make_concept(
+                "vital-signs", "http://terminology.hl7.org/CodeSystem/observation-category"
+            )
+        ],
         "code": make_concept(obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2"),
         "subject": fhir.ref_resource("Patient", obsfact.patient_num),
         "encounter": fhir.ref_resource("Encounter", obsfact.encounter_num),
@@ -194,8 +207,12 @@ def to_fhir_condition(obsfact: ObservationFact, display_codes: dict) -> dict:
             )
         ],
         "recordedDate": chop_to_date(obsfact.start_date),
-        "clinicalStatus": make_concept("active", "http://terminology.hl7.org/CodeSystem/condition-clinical"),
-        "verificationStatus": make_concept("unconfirmed", "http://terminology.hl7.org/CodeSystem/condition-ver-status"),
+        "clinicalStatus": make_concept(
+            "active", "http://terminology.hl7.org/CodeSystem/condition-clinical"
+        ),
+        "verificationStatus": make_concept(
+            "unconfirmed", "http://terminology.hl7.org/CodeSystem/condition-ver-status"
+        ),
     }
 
     # Code
@@ -260,11 +277,16 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> dict:
         "subject": fhir.ref_resource("Patient", obsfact.patient_num),
         "context": {
             "encounter": [fhir.ref_resource("Encounter", obsfact.encounter_num)],
-            "period": {"start": chop_to_date(obsfact.start_date), "end": chop_to_date(obsfact.end_date)},
+            "period": {
+                "start": chop_to_date(obsfact.start_date),
+                "end": chop_to_date(obsfact.end_date),
+            },
         },
         # It would be nice to get a real mapping for the "NOTE:" concept CD types to a real system.
         # But for now, use this custom (and the URL isn't even valid) system to note these i2b2 concepts.
-        "type": make_concept(obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2", obsfact.tval_char),
+        "type": make_concept(
+            obsfact.concept_cd, "http://cumulus.smarthealthit.org/i2b2", obsfact.tval_char
+        ),
         "status": "current",
         "content": [
             {
@@ -305,9 +327,17 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
     http://hl7.org/fhir/R4/datatypes.html#Quantity
     """
     if obsfact.valtype_cd == "T":
-        return {"valueCodeableConcept": make_concept(obsfact.tval_char, "http://cumulus.smarthealthit.org/i2b2")}
+        return {
+            "valueCodeableConcept": make_concept(
+                obsfact.tval_char, "http://cumulus.smarthealthit.org/i2b2"
+            )
+        }
     elif obsfact.valtype_cd == "B":
-        return {"valueCodeableConcept": make_concept(obsfact.observation_blob, "http://cumulus.smarthealthit.org/i2b2")}
+        return {
+            "valueCodeableConcept": make_concept(
+                obsfact.observation_blob, "http://cumulus.smarthealthit.org/i2b2"
+            )
+        }
     elif obsfact.valtype_cd == "@":  # no value
         return {}
     elif obsfact.valtype_cd != "N":
@@ -340,7 +370,9 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
     return {"valueQuantity": quantity}
 
 
-def make_concept(code: str, system: str | None, display: str | None = None, display_codes: dict | None = None) -> dict:
+def make_concept(
+    code: str, system: str | None, display: str | None = None, display_codes: dict | None = None
+) -> dict:
     """Syntactic sugar to make a codeable concept"""
     coding = {"code": code, "system": system}
     if display:

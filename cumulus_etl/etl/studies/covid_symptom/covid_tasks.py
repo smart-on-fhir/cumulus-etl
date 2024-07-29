@@ -67,7 +67,9 @@ def is_ed_coding(coding):
 def is_ed_docref(docref):
     """Returns true if this is a coding for an emergency department note"""
     # We check both type and category for safety -- we aren't sure yet how EHRs are using these fields.
-    codings = list(itertools.chain.from_iterable([cat.get("coding", []) for cat in docref.get("category", [])]))
+    codings = list(
+        itertools.chain.from_iterable([cat.get("coding", []) for cat in docref.get("category", [])])
+    )
     codings += docref.get("type", {}).get("coding", [])
     return any(is_ed_coding(x) for x in codings)
 
@@ -126,7 +128,9 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
         # one client for both NLP services for now -- no parallel requests yet, so no need to be fancy
         http_client = nlp.ctakes_httpx_client()
 
-        async for orig_docref, docref, clinical_note in self.read_notes(progress=progress, doc_check=is_ed_docref):
+        async for orig_docref, docref, clinical_note in self.read_notes(
+            progress=progress, doc_check=is_ed_docref
+        ):
             symptoms = await covid_ctakes.covid_symptoms_extract(
                 phi_root,
                 docref,

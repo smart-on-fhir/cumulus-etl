@@ -9,12 +9,15 @@ from cumulus_etl import common, store
 
 def is_docref_valid(docref: dict) -> bool:
     """Returns True if this docref is not a draft or entered-in-error resource and could be considered for NLP"""
-    good_status = docref.get("status") in ("current", None)  # status of DocRef itself
-    good_doc_status = docref.get("docStatus") in ("final", "amended", None)  # status of clinical note
+    good_status = docref.get("status") in {"current", None}  # status of DocRef itself
+    # docStatus is status of clinical note attachments
+    good_doc_status = docref.get("docStatus") in {"final", "amended", None}
     return good_status and good_doc_status
 
 
-async def cache_wrapper(cache_dir: str, namespace: str, content: str, method: Callable, *args, **kwargs) -> str:
+async def cache_wrapper(
+    cache_dir: str, namespace: str, content: str, method: Callable, *args, **kwargs
+) -> str:
     """Looks up an NLP result in the cache first, falling back to actually calling NLP."""
     # First, what is our target path for a possible cache file
     cache_dir = store.Root(cache_dir, create=True)

@@ -38,7 +38,9 @@ class LabelStudioNote:
     doc_spans: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
 
     # Matches found by cTAKES
-    ctakes_matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(default_factory=list)
+    ctakes_matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(
+        default_factory=list
+    )
 
     # Matches found by Philter
     philter_map: dict[int, int] = dataclasses.field(default_factory=dict)
@@ -59,7 +61,11 @@ class LabelStudioClient:
         enc_ids = [note.enc_id for note in notes]
         enc_id_filter = lsdm.Filters.create(
             lsdm.Filters.AND,
-            [lsdm.Filters.item(lsdm.Column.data("enc_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, enc_ids)],
+            [
+                lsdm.Filters.item(
+                    lsdm.Column.data("enc_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, enc_ids
+                )
+            ],
         )
         existing_tasks = self._project.get_tasks(filters=enc_id_filter)
         new_task_count = len(notes) - len(existing_tasks)
@@ -108,7 +114,8 @@ class LabelStudioClient:
                 "enc_id": note.enc_id,
                 "anon_id": note.anon_id,
                 "docref_mappings": note.doc_mappings,
-                "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},  # json doesn't natively have tuples
+                # json doesn't natively have tuples, so convert spans to lists
+                "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},
             },
             "predictions": [],
         }
@@ -134,8 +141,11 @@ class LabelStudioClient:
         results = []
         count = 0
         for match in note.ctakes_matches:
-            matched_labels = {self._cui_labels.get(concept.cui) for concept in match.conceptAttributes}
-            matched_labels.discard(None)  # drop the result of a concept not being in our bsv label set
+            matched_labels = {
+                self._cui_labels.get(concept.cui) for concept in match.conceptAttributes
+            }
+            # drop the result of a concept not being in our bsv label set
+            matched_labels.discard(None)
             if matched_labels:
                 results.append(self._format_ctakes_match(count, match, matched_labels))
                 used_labels.update(matched_labels)
@@ -151,7 +161,13 @@ class LabelStudioClient:
             "from_name": self._labels_name,
             "to_name": self._labels_config["to_name"][0],
             "type": "labels",
-            "value": {"start": match.begin, "end": match.end, "score": 1.0, "text": match.text, "labels": list(labels)},
+            "value": {
+                "start": match.begin,
+                "end": match.end,
+                "score": 1.0,
+                "text": match.text,
+                "labels": list(labels),
+            },
         }
 
     def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
@@ -188,7 +204,13 @@ class LabelStudioClient:
             "type": "labels",
             # We hardcode the label "_philter" - Label Studio will still highlight unknown labels,
             # and this is unlikely to collide with existing labels.
-            "value": {"start": start, "end": end, "score": 1.0, "text": text, "labels": ["_philter"]},
+            "value": {
+                "start": start,
+                "end": end,
+                "score": 1.0,
+                "text": text,
+                "labels": ["_philter"],
+            },
         }
 
     def _update_used_labels(self, task: dict, used_labels: Iterable[str]) -> None:

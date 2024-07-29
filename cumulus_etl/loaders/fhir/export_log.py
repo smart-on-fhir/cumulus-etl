@@ -114,7 +114,9 @@ class BulkExportLogWriter:
         self._num_bytes = 0
         self._start_time = None
 
-    def _event(self, event_id: str, detail: dict, *, timestamp: datetime.datetime | None = None) -> None:
+    def _event(
+        self, event_id: str, detail: dict, *, timestamp: datetime.datetime | None = None
+    ) -> None:
         timestamp = timestamp or common.datetime_now(local=True)
         if self._start_time is None:
             self._start_time = timestamp

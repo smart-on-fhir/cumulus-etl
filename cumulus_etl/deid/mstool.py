@@ -38,12 +38,15 @@ async def run_mstool(input_dir: str, output_dir: str) -> None:
 
     if process.returncode != 0:
         print(
-            f"An error occurred while de-identifying the input resources:\n\n{stderr.decode('utf8')}", file=sys.stderr
+            f"An error occurred while de-identifying the input resources:\n\n{stderr.decode('utf8')}",
+            file=sys.stderr,
         )
         raise SystemExit(errors.MSTOOL_FAILED)
 
 
-async def _wait_for_completion(process: asyncio.subprocess.Process, input_dir: str, output_dir: str) -> (str, str):
+async def _wait_for_completion(
+    process: asyncio.subprocess.Process, input_dir: str, output_dir: str
+) -> (str, str):
     """Waits for the MS tool to finish, with a nice little progress bar, returns stdout and stderr"""
     stdout, stderr = None, None
 
@@ -74,7 +77,8 @@ def _compare_file_sizes(target: dict[str, int], current: dict[str, int]) -> floa
     total_current = 0
     for filename, size in current.items():
         if filename in target:
-            total_current += target[filename]  # use target size, because current (de-identified) files will be smaller
+            # use target size, because current (de-identified) files will be smaller
+            total_current += target[filename]
         else:  # an in-progress file is being written out
             total_current += size
     return total_current / total_expected
@@ -93,4 +97,6 @@ def _get_file_size_safe(path: str) -> int:
 
 def _count_file_sizes(pattern: str) -> dict[str, int]:
     """Returns all files that match the given pattern and their sizes"""
-    return {os.path.basename(filename): _get_file_size_safe(filename) for filename in glob.glob(pattern)}
+    return {
+        os.path.basename(filename): _get_file_size_safe(filename) for filename in glob.glob(pattern)
+    }

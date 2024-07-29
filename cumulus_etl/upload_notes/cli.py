@@ -29,12 +29,16 @@ def init_checks(args: argparse.Namespace):
 
     if not cli_utils.is_url_available(args.label_studio_url, retry=False):
         errors.fatal(
-            f"A running Label Studio server was not found at:\n    {args.label_studio_url}", errors.LABEL_STUDIO_MISSING
+            f"A running Label Studio server was not found at:\n    {args.label_studio_url}",
+            errors.LABEL_STUDIO_MISSING,
         )
 
 
 async def gather_docrefs(
-    client: fhir.FhirClient, root_input: store.Root, codebook: deid.Codebook, args: argparse.Namespace
+    client: fhir.FhirClient,
+    root_input: store.Root,
+    codebook: deid.Codebook,
+    args: argparse.Namespace,
 ) -> common.Directory:
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
@@ -42,15 +46,27 @@ async def gather_docrefs(
     # There are three possibilities: we have real IDs, fake IDs, or neither.
     # Note that we don't support providing both real & fake IDs right now. It's not clear that would be useful.
     if args.docrefs and args.anon_docrefs:
-        errors.fatal("You cannot use both --docrefs and --anon-docrefs at the same time.", errors.ARGS_CONFLICT)
+        errors.fatal(
+            "You cannot use both --docrefs and --anon-docrefs at the same time.",
+            errors.ARGS_CONFLICT,
+        )
 
     if root_input.protocol == "https":  # is this a FHIR server?
         return await downloader.download_docrefs_from_fhir_server(
-            client, root_input, codebook, docrefs=args.docrefs, anon_docrefs=args.anon_docrefs, export_to=args.export_to
+            client,
+            root_input,
+            codebook,
+            docrefs=args.docrefs,
+            anon_docrefs=args.anon_docrefs,
+            export_to=args.export_to,
         )
     else:
         return selector.select_docrefs_from_files(
-            root_input, codebook, docrefs=args.docrefs, anon_docrefs=args.anon_docrefs, export_to=args.export_to
+            root_input,
+            codebook,
+            docrefs=args.docrefs,
+            anon_docrefs=args.anon_docrefs,
+            export_to=args.export_to,
         )
 
 
@@ -133,7 +149,9 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
             client=http_client,
             model=nlp.TransformerModel.NEGATION,
         )
-        note.ctakes_matches = [match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos]
+        note.ctakes_matches = [
+            match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos
+        ]
 
 
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
@@ -194,7 +212,9 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
             offset = len(grouped_text)
             grouped_text += note.text
 
-            offset_doc_spans = {k: (v[0] + offset, v[1] + offset) for k, v in note.doc_spans.items()}
+            offset_doc_spans = {
+                k: (v[0] + offset, v[1] + offset) for k, v in note.doc_spans.items()
+            }
             grouped_doc_spans.update(offset_doc_spans)
 
             for match in note.ctakes_matches:
@@ -243,7 +263,9 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("dir_phi", metavar="/path/to/phi")
 
     parser.add_argument(
-        "--export-to", metavar="PATH", help="Where to put exported documents (default is to delete after use)"
+        "--export-to",
+        metavar="PATH",
+        help="Where to put exported documents (default is to delete after use)",
     )
 
     parser.add_argument(
@@ -254,15 +276,25 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     )
     # Old, simpler version of the above (feel free to remove after May 2024)
     parser.add_argument(
-        "--no-philter", action="store_const", const=PHILTER_DISABLE, dest="philter", help=argparse.SUPPRESS
+        "--no-philter",
+        action="store_const",
+        const=PHILTER_DISABLE,
+        dest="philter",
+        help=argparse.SUPPRESS,
     )
 
     cli_utils.add_aws(parser)
     cli_utils.add_auth(parser)
 
     docs = parser.add_argument_group("document selection")
-    docs.add_argument("--anon-docrefs", metavar="PATH", help="CSV file with anonymized patient_id,docref_id columns")
-    docs.add_argument("--docrefs", metavar="PATH", help="CSV file with a docref_id column of original IDs")
+    docs.add_argument(
+        "--anon-docrefs",
+        metavar="PATH",
+        help="CSV file with anonymized patient_id,docref_id columns",
+    )
+    docs.add_argument(
+        "--docrefs", metavar="PATH", help="CSV file with a docref_id column of original IDs"
+    )
 
     group = cli_utils.add_nlp(parser)
     group.add_argument(
@@ -271,12 +303,24 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         help="BSV file with concept CUIs (defaults to Covid)",
         default=ctakesclient.filesystem.covid_symptoms_path(),
     )
-    group.add_argument("--no-nlp", action="store_false", dest="nlp", default=True, help="Don’t run NLP on notes")
+    group.add_argument(
+        "--no-nlp", action="store_false", dest="nlp", default=True, help="Don’t run NLP on notes"
+    )
 
     group = parser.add_argument_group("Label Studio")
-    group.add_argument("--ls-token", metavar="PATH", help="Token file for Label Studio access", required=True)
-    group.add_argument("--ls-project", metavar="ID", type=int, help="Label Studio project ID to update", required=True)
-    group.add_argument("--overwrite", action="store_true", help="Whether to overwrite an existing task for a note")
+    group.add_argument(
+        "--ls-token", metavar="PATH", help="Token file for Label Studio access", required=True
+    )
+    group.add_argument(
+        "--ls-project",
+        metavar="ID",
+        type=int,
+        help="Label Studio project ID to update",
+        required=True,
+    )
+    group.add_argument(
+        "--overwrite", action="store_true", help="Whether to overwrite an existing task for a note"
+    )
 
     cli_utils.add_debugging(parser)
 
@@ -293,7 +337,9 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     """
     init_checks(args)
 
-    store.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
+    # record filesystem options like --s3-region before creating Roots
+    store.set_user_fs_options(vars(args))
+
     root_input = store.Root(args.dir_input)
     codebook = deid.Codebook(args.dir_phi)
 
@@ -307,7 +353,8 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
         notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
 
     await run_nlp(notes, args)
-    philter_notes(notes, args)  # safe to do after NLP because philter does not change character counts
+    # It's safe to philter notes after NLP because philter does not change character counts
+    philter_notes(notes, args)
     notes = group_notes_by_encounter(notes)
     push_to_label_studio(notes, access_token, labels, args)
 

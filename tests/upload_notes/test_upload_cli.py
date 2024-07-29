@@ -158,14 +158,22 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             ],
         }
 
-        respx_mock.get(f"https://localhost/DocumentReference?patient={patient}&_elements=content").respond(json=bundle)
+        respx_mock.get(
+            f"https://localhost/DocumentReference?patient={patient}&_elements=content"
+        ).respond(json=bundle)
 
     @staticmethod
     def mock_read_url(
-        respx_mock: respx.MockRouter, doc_id: str, code: int = 200, docref: dict | None = None, **kwargs
+        respx_mock: respx.MockRouter,
+        doc_id: str,
+        code: int = 200,
+        docref: dict | None = None,
+        **kwargs,
     ) -> None:
         docref = docref or TestUploadNotes.make_docref(doc_id, **kwargs)
-        respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
+        respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(
+            status_code=code, json=docref
+        )
 
     @staticmethod
     def write_anon_docrefs(path: str, ids: list[tuple[str, str]]) -> None:
@@ -182,7 +190,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             f.write("\n".join(lines))
 
     def get_exported_ids(self) -> set[str]:
-        rows = cumulus_fhir_support.read_multiline_json(f"{self.export_path}/DocumentReference.ndjson")
+        rows = cumulus_fhir_support.read_multiline_json(
+            f"{self.export_path}/DocumentReference.ndjson"
+        )
         return {row["id"] for row in rows}
 
     def get_pushed_ids(self) -> set[str]:
@@ -195,10 +205,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         finalized = ""
         if not first:
             finalized += "\n\n\n"
-            finalized += "########################################\n########################################\n"
+            finalized += "########################################\n"
+            finalized += "########################################\n"
         finalized += f"{title}\n"
         finalized += f"{date or 'Unknown time'}\n"
-        finalized += "########################################\n########################################\n\n\n"
+        finalized += "########################################\n"
+        finalized += "########################################\n\n\n"
         finalized += text.strip()
         return finalized
 
@@ -333,8 +345,18 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 "text": "for",
                 "polarity": 0,
                 "conceptAttributes": [
-                    {"code": "386661006", "cui": "C0015967", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
-                    {"code": "50177009", "cui": "C0015967", "codingScheme": "SNOMEDCT_US", "tui": "T184"},
+                    {
+                        "code": "386661006",
+                        "cui": "C0015967",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
+                    {
+                        "code": "50177009",
+                        "cui": "C0015967",
+                        "codingScheme": "SNOMEDCT_US",
+                        "tui": "T184",
+                    },
                 ],
                 "type": "SignSymptomMention",
             },
@@ -363,7 +385,11 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     )
     @ddt.unpack
     async def test_philter_redact(self, upload_args, expect_redacted):
-        notes = [LabelStudioNote("EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010")]
+        notes = [
+            LabelStudioNote(
+                "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
+            )
+        ]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
             await self.run_upload_notes(**upload_args)
 
@@ -381,7 +407,11 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(self.wrap_note("My Title", expected_text), task.text)
 
     async def test_philter_label(self):
-        notes = [LabelStudioNote("EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010")]
+        notes = [
+            LabelStudioNote(
+                "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
+            )
+        ]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
             await self.run_upload_notes(philter="label")
 
@@ -397,11 +427,17 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="DocRef 1"))
                 writer.write(
-                    TestUploadNotes.make_docref("D2", enc_id="E1", text="DocRef 2", date="2018-01-03T13:10:10+01:00")
+                    TestUploadNotes.make_docref(
+                        "D2", enc_id="E1", text="DocRef 2", date="2018-01-03T13:10:10+01:00"
+                    )
                 )
                 writer.write(
                     TestUploadNotes.make_docref(
-                        "D3", enc_id="E1", text="DocRef 3", date="2018-01-03T13:10:20Z", period_start="2018"
+                        "D3",
+                        enc_id="E1",
+                        text="DocRef 3",
+                        date="2018-01-03T13:10:20Z",
+                        period_start="2018",
                     )
                 )
             await self.run_upload_notes(input_path=tmpdir, philter="disable")

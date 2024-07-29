@@ -64,7 +64,8 @@ class JobContext:
         self._data[self._LAST_SUCCESSFUL_OUTPUT_DIR] = value
 
     def save(self) -> None:
-        common.write_json(self._path, self.as_json(), indent=4)  # pretty-print this since it isn't large
+        # pretty-print this since it isn't large
+        common.write_json(self._path, self.as_json(), indent=4)
 
     def as_json(self) -> dict:
         return dict(self._data)

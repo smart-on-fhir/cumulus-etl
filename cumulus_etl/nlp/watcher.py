@@ -72,7 +72,8 @@ def wait_for_ctakes_restart():
     # *** Acquire socket connection with cTAKES (cTAKES is required to exist already) ***
     connection = socket.create_connection((url.hostname, url.port))
     poller = select.poll()
-    poller.register(connection, select.POLLRDHUP)  # will watch for remote disconnect (death or remote timeout)
+    # Poll for RDHUP to watch for remote disconnect (death or remote timeout)
+    poller.register(connection, select.POLLRDHUP)
 
     # *** Yield to caller ***
     yield

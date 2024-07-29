@@ -127,7 +127,9 @@ def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
         output_root.put(job_config_path, output_root.path, recursive=True)
 
 
-def walk_tree(input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]) -> None:
+def walk_tree(
+    input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]
+) -> None:
     all_tasks = task_factory.get_all_tasks()
 
     with cli_utils.make_progress_bar() as progress:
@@ -182,7 +184,8 @@ def define_convert_parser(parser: argparse.ArgumentParser) -> None:
 
 async def convert_main(args: argparse.Namespace) -> None:
     """Main logic for converting"""
-    store.set_user_fs_options(vars(args))  # record filesystem options like --s3-region before creating Roots
+    # record filesystem options like --s3-region before creating Roots
+    store.set_user_fs_options(vars(args))
 
     input_root = store.Root(args.input_dir)
     validate_input_dir(input_root)

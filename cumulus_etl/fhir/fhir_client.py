@@ -53,12 +53,19 @@ class FhirClient:
         """
         self._server_root = url  # all requests are relative to this URL
         if self._server_root and not self._server_root.endswith("/"):
-            self._server_root += "/"  # This will ensure the last segment does not get chopped off by urljoin
+            # This will ensure the last segment does not get chopped off by urljoin
+            self._server_root += "/"
 
         self._client_id = smart_client_id
         self._server_type = ServerType.UNKNOWN
         self._auth = fhir_auth.create_auth(
-            self._server_root, resources, basic_user, basic_password, bearer_token, smart_client_id, smart_jwks
+            self._server_root,
+            resources,
+            basic_user,
+            basic_password,
+            bearer_token,
+            smart_client_id,
+            smart_jwks,
         )
         self._session: httpx.AsyncClient | None = None
         self._capabilities: dict = {}
@@ -106,14 +113,18 @@ class FhirClient:
         # merge in user headers with defaults
         final_headers.update(headers or {})
 
-        response = await self._request_with_signed_headers(method, url, final_headers, stream=stream)
+        response = await self._request_with_signed_headers(
+            method, url, final_headers, stream=stream
+        )
 
         # Check if our access token expired and thus needs to be refreshed
         if response.status_code == 401:
             await self._auth.authorize(self._session, reauthorize=True)
             if stream:
                 await response.aclose()
-            response = await self._request_with_signed_headers(method, url, final_headers, stream=stream)
+            response = await self._request_with_signed_headers(
+                method, url, final_headers, stream=stream
+            )
 
         try:
             response.raise_for_status()
@@ -201,7 +212,9 @@ class FhirClient:
 
         self._capabilities = capabilities
 
-    async def _request_with_signed_headers(self, method: str, url: str, headers: dict, **kwargs) -> httpx.Response:
+    async def _request_with_signed_headers(
+        self, method: str, url: str, headers: dict, **kwargs
+    ) -> httpx.Response:
         """
         Issues a GET request and sign the headers with the current access token.
 
@@ -252,7 +265,9 @@ def create_fhir_client_for_cli(
     try:
         try:
             # Try to load client ID from file first (some servers use crazy long ones, like SMART's bulk-data-server)
-            smart_client_id = common.read_text(args.smart_client_id).strip() if args.smart_client_id else None
+            smart_client_id = (
+                common.read_text(args.smart_client_id).strip() if args.smart_client_id else None
+            )
         except FileNotFoundError:
             smart_client_id = args.smart_client_id
 

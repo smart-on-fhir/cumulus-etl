@@ -59,7 +59,9 @@ async def list_polarity(
     try:
         result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
     except Exception:  # pylint: disable=broad-except
-        result = await ctakesclient.transformer.list_polarity(sentence, spans, client=client, model=model)
+        result = await ctakesclient.transformer.list_polarity(
+            sentence, spans, client=client, model=model
+        )
         cache.makedirs(os.path.dirname(full_path))
         common.write_json(full_path, [x.value for x in result])
 

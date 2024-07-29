@@ -85,7 +85,9 @@ class JwksAuth(Auth):
             if not message:
                 message = str(exc)
 
-            errors.fatal(f"Could not authenticate with the FHIR server: {message}", errors.FHIR_AUTH_FAILED)
+            errors.fatal(
+                f"Could not authenticate with the FHIR server: {message}", errors.FHIR_AUTH_FAILED
+            )
 
     def sign_headers(self, headers: dict) -> dict:
         """Add signature token to request headers"""
@@ -202,7 +204,7 @@ def create_auth(
     smart_jwks: dict | None,
 ) -> Auth:
     """Determine which auth method to use based on user provided arguments"""
-    valid_smart_jwks = smart_jwks is not None  # compared to a falsy (but technically usable) empty dict for example
+    valid_smart_jwks = smart_jwks is not None
 
     # Check if the user tried to specify multiple types of auth, and help them out
     has_basic_args = bool(basic_user or basic_password)

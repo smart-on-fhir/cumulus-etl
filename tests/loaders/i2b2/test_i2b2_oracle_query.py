@@ -13,7 +13,9 @@ def pretty(text):
     print(text)
 
 
-def count_by_date(column: str, column_alias: str, count="*", count_alias="cnt", frmt="YYYY-MM-DD") -> str:
+def count_by_date(
+    column: str, column_alias: str, count="*", count_alias="cnt", frmt="YYYY-MM-DD"
+) -> str:
     sql_count = f"count({count}) as {count_alias}"
     sql_group = query.format_date(column, column_alias, frmt)
     return sql_count + "," + sql_group

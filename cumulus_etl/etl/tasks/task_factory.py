@@ -89,7 +89,10 @@ def get_selected_tasks(
     all_task_names = {t.name for t in all_tasks}
     if unknown_names := names - all_task_names:
         print_names = "\n".join(sorted(f"  {key}" for key in all_task_names))
-        print(f"Unknown task '{unknown_names.pop()}' requested. Valid task names:\n{print_names}", file=sys.stderr)
+        print(
+            f"Unknown task '{unknown_names.pop()}' requested. Valid task names:\n{print_names}",
+            file=sys.stderr,
+        )
         raise SystemExit(errors.TASK_UNKNOWN)
 
     # Check for names that conflict with the chosen filters

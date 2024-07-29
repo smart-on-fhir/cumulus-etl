@@ -74,9 +74,13 @@ class TestIOUtils(s3mock.S3Mixin, utils.AsyncTestCase):
 
         # By default, fsspec writes are not atomic - just sanity check that text _can_ get through exploding_text
         with self.exploding_text() as text:
-            with fsspec.open(f"{self.bucket_url}/partial.txt", "w", endpoint_url=s3mock.S3Mixin.ENDPOINT_URL) as f:
+            with fsspec.open(
+                f"{self.bucket_url}/partial.txt", "w", endpoint_url=s3mock.S3Mixin.ENDPOINT_URL
+            ) as f:
                 f.write(text)
-        self.assertEqual([f"{self.bucket}/partial.txt"], self.s3fs.ls(self.bucket_url, detail=False))
+        self.assertEqual(
+            [f"{self.bucket}/partial.txt"], self.s3fs.ls(self.bucket_url, detail=False)
+        )
 
     @ddt.idata(
         # Every combination of these sizes, backends, and data formats:

@@ -61,7 +61,10 @@ class BaseNlpTask(EtlTask):
             writer.write(docref)
 
     async def read_notes(
-        self, *, doc_check: Callable[[dict], bool] | None = None, progress: rich.progress.Progress = None
+        self,
+        *,
+        doc_check: Callable[[dict], bool] | None = None,
+        progress: rich.progress.Progress = None,
     ) -> (dict, dict, str):
         """
         Iterate through clinical notes.

@@ -42,7 +42,8 @@ class FhirNdjsonLoader(base.Loader):
         else:
             if self.export_to or self.since or self.until:
                 errors.fatal(
-                    "You provided FHIR bulk export parameters but did not provide a FHIR server", errors.ARGS_CONFLICT
+                    "You provided FHIR bulk export parameters but did not provide a FHIR server",
+                    errors.ARGS_CONFLICT,
                 )
 
             input_root = self.root

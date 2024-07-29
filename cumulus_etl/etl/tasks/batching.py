@@ -41,7 +41,9 @@ async def _batch_slice(iterable: AsyncIterable[AtomStreams], n: int) -> ItemBatc
     return slices
 
 
-async def batch_iterate(iterable: AsyncIterable[AtomStreams], size: int) -> AsyncIterator[ItemBatches]:
+async def batch_iterate(
+    iterable: AsyncIterable[AtomStreams], size: int
+) -> AsyncIterator[ItemBatches]:
     """
     Yields sub-iterators, each roughly {size} elements from iterable.
 
@@ -64,6 +66,7 @@ async def batch_iterate(iterable: AsyncIterable[AtomStreams], size: int) -> Asyn
     if size < 1:
         raise ValueError("Must iterate by at least a batch of 1")
 
-    true_iterable = aiter(iterable)  # get a real once-through iterable (we want to iterate only once)
+    # get a real once-through iterable (we want to iterate only once)
+    true_iterable = aiter(iterable)
     while batches := await _batch_slice(true_iterable, size):
         yield batches

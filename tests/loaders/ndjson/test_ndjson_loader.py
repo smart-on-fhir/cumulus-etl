@@ -28,7 +28,9 @@ class TestNdjsonLoader(AsyncTestCase):
 
         # Mock out the bulk export code by default. We don't care about actually doing any
         # bulk work in this test case, just confirming the flow.
-        exporter_patcher = mock.patch("cumulus_etl.loaders.fhir.ndjson_loader.BulkExporter", spec=BulkExporter)
+        exporter_patcher = mock.patch(
+            "cumulus_etl.loaders.fhir.ndjson_loader.BulkExporter", spec=BulkExporter
+        )
         self.addCleanup(exporter_patcher.stop)
         self.mock_exporter_class = exporter_patcher.start()
         self.mock_exporter = mock.AsyncMock()
@@ -65,7 +67,9 @@ class TestNdjsonLoader(AsyncTestCase):
         self.assertEqual(["Patient.ndjson"], os.listdir(loaded_dir.name))
         self.assertEqual(patient, common.read_json(f"{loaded_dir.name}/Patient.ndjson"))
         self.assertEqual("G", loader.group_name)
-        self.assertEqual(datetime.datetime.fromisoformat("1999-03-14T14:12:10"), loader.export_datetime)
+        self.assertEqual(
+            datetime.datetime.fromisoformat("1999-03-14T14:12:10"), loader.export_datetime
+        )
 
     # At some point, we do want to make this fatal.
     # But not while this feature is still optional.
@@ -247,7 +251,8 @@ class TestNdjsonLoader(AsyncTestCase):
         """
         Verify that we make the right calls down as far as the bulk export helper classes, with the right resources.
         """
-        self.mock_exporter.export.side_effect = ValueError  # stop us when we get this far, but also confirm we call it
+        # stop us when we get to the exporting step, but also confirm we call it
+        self.mock_exporter.export.side_effect = ValueError
 
         with self.assertRaises(ValueError):
             await cli.main(
@@ -271,7 +276,9 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter.export.side_effect = errors.FatalError
 
         with self.assertRaises(SystemExit) as cm:
-            await loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock()).load_all(["Patient"])
+            await loaders.FhirNdjsonLoader(
+                store.Root("http://localhost:9999"), mock.AsyncMock()
+            ).load_all(["Patient"])
 
         self.assertEqual(1, self.mock_exporter.export.call_count)
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
@@ -289,7 +296,9 @@ class TestNdjsonLoader(AsyncTestCase):
             self.mock_exporter.export.side_effect = fake_export
 
             target = f"{tmpdir}/target"
-            loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target)
+            loader = loaders.FhirNdjsonLoader(
+                store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target
+            )
             folder = await loader.load_all(["Patient"])
 
             # Confirm export folder still has the data (and log) we created above in the mock
@@ -326,14 +335,18 @@ class TestNdjsonLoader(AsyncTestCase):
         """Verify we fail if an export folder already has contents"""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.mkdir(f"{tmpdir}/stuff")
-            loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir)
+            loader = loaders.FhirNdjsonLoader(
+                store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir
+            )
             with self.assertRaises(SystemExit) as cm:
                 await loader.load_all([])
         self.assertEqual(cm.exception.code, errors.FOLDER_NOT_EMPTY)
 
     async def test_export_to_folder_not_local(self):
         """Verify we fail if an export folder is not local"""
-        loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo")
+        loader = loaders.FhirNdjsonLoader(
+            store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo"
+        )
         with self.assertRaises(SystemExit) as cm:
             await loader.load_all([])
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)

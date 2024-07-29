@@ -60,9 +60,13 @@ async def covid_symptoms_extract(
     timestamp = common.datetime_now().isoformat()
 
     try:
-        ctakes_json = await nlp.ctakes_extract(cache, ctakes_namespace, clinical_note, client=ctakes_http_client)
+        ctakes_json = await nlp.ctakes_extract(
+            cache, ctakes_namespace, clinical_note, client=ctakes_http_client
+        )
     except Exception as exc:  # pylint: disable=broad-except
-        logging.warning("Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
+        logging.warning(
+            "Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc
+        )
         return None
 
     matches = ctakes_json.list_sign_symptom(ctakesclient.typesystem.Polarity.pos)
@@ -85,10 +89,17 @@ async def covid_symptoms_extract(
     try:
         spans = ctakes_json.list_spans(matches)
         polarities_cnlp = await nlp.list_polarity(
-            cache, cnlp_namespace, clinical_note, spans, model=polarity_model, client=cnlp_http_client
+            cache,
+            cnlp_namespace,
+            clinical_note,
+            spans,
+            model=polarity_model,
+            client=cnlp_http_client,
         )
     except Exception as exc:  # pylint: disable=broad-except
-        logging.warning("Could not check polarity for docref %s (%s): %s", docref_id, type(exc).__name__, exc)
+        logging.warning(
+            "Could not check polarity for docref %s (%s): %s", docref_id, type(exc).__name__, exc
+        )
         return None
 
     # Helper to make a single row (match_value is None if there were no found symptoms at all)

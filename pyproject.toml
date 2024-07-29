@@ -77,7 +77,7 @@ exclude = [
 ]
 
 [tool.ruff]
-line-length = 120
+line-length = 100
 
 [tool.ruff.lint]
 allowed-confusables = ["’"]  # allow proper apostrophes
@@ -90,6 +90,15 @@ select = [
     "RUF",  # the ruff developer's own rules
     "S",  # bandit security warnings
     "UP",  # alert you when better syntax is available in your python version
+]
+ignore = [
+    # E501 is the line-too-long check.
+    # Ruff formatting will generally control the length of Python lines for us.
+    # But it leaves comments alone. And since we used to have a longer line length (120),
+    # we have a lot of legacy comments over 100 width.
+    # Just disable the check for now, rather than manually fixing all 300+ lines.
+    # Hopefully we can address them slowly over time.
+    "E501",
 ]
 
 [tool.ruff.lint.per-file-ignores]

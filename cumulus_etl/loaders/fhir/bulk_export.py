@@ -56,7 +56,8 @@ class BulkExporter:
         self._resources = resources
         self._url = url
         if not self._url.endswith("/"):
-            self._url += "/"  # This will ensure the last segment does not get chopped off by urljoin
+            # This will ensure the last segment does not get chopped off by urljoin
+            self._url += "/"
         self._destination = destination
         self._total_wait_time = 0  # in seconds, across all our requests
         self._since = since
@@ -190,7 +191,9 @@ class BulkExporter:
                 if response.status_code == target_status_code:
                     if status_box.plain:
                         status.stop()
-                        print(f"  Waited for a total of {common.human_time_offset(self._total_wait_time)}")
+                        print(
+                            f"  Waited for a total of {common.human_time_offset(self._total_wait_time)}"
+                        )
                     return response
 
                 # 202 == server is still working on it, 429 == server is busy -- in both cases, we wait
@@ -251,7 +254,8 @@ class BulkExporter:
         """
         coroutines = []
         for error in error_list:
-            if error.get("type") == "OperationOutcome":  # per spec as of writing, the only allowed type
+            # per spec as of writing, OperationOutcome is the only allowed type
+            if error.get("type") == "OperationOutcome":
                 coroutines.append(
                     self._request_with_logging(
                         error["url"],
@@ -270,7 +274,8 @@ class BulkExporter:
         fatal_messages = []
         info_messages = []
         for response in responses:
-            outcomes = [json.loads(x) for x in response.text.split("\n") if x]  # a list of OperationOutcomes
+            # Create a list of OperationOutcomes
+            outcomes = [json.loads(x) for x in response.text.split("\n") if x]
             self._log.download_complete(response.url, len(outcomes), len(response.text))
             for outcome in outcomes:
                 for issue in outcome.get("issue", []):

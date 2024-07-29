@@ -36,7 +36,9 @@ class TestOracleExtraction(AsyncTestCase):
         results = extract.list_observation_fact("localhost", "Diagnosis")
         self.assertEqual(1, len(results))
         self.assertEqual("notes", results[0].observation_blob)
-        self.assertEqual([mock.call(query.sql_observation_fact("Diagnosis"))], self.mock_execute.call_args_list)
+        self.assertEqual(
+            [mock.call(query.sql_observation_fact("Diagnosis"))], self.mock_execute.call_args_list
+        )
 
     def test_list_patient(self):
         self.mock_cursor.__iter__.return_value = [
@@ -103,6 +105,14 @@ class TestOracleExtraction(AsyncTestCase):
             set(os.listdir(tmpdir.name)),
         )
 
-        self.assertEqual(i2b2_mock_data.condition(), common.read_json(os.path.join(tmpdir.name, "Condition.ndjson")))
-        self.assertEqual(i2b2_mock_data.encounter(), common.read_json(os.path.join(tmpdir.name, "Encounter.ndjson")))
-        self.assertEqual(i2b2_mock_data.patient(), common.read_json(os.path.join(tmpdir.name, "Patient.ndjson")))
+        self.assertEqual(
+            i2b2_mock_data.condition(),
+            common.read_json(os.path.join(tmpdir.name, "Condition.ndjson")),
+        )
+        self.assertEqual(
+            i2b2_mock_data.encounter(),
+            common.read_json(os.path.join(tmpdir.name, "Encounter.ndjson")),
+        )
+        self.assertEqual(
+            i2b2_mock_data.patient(), common.read_json(os.path.join(tmpdir.name, "Patient.ndjson"))
+        )
