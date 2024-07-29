@@ -58,7 +58,7 @@ class TestDeltaLake(utils.AsyncTestCase):
         self,
         rows: list[dict],
         schema: pyarrow.Schema = None,
-        groups: set[str] = None,
+        groups: set[str] | None = None,
         **kwargs,
     ) -> bool:
         """

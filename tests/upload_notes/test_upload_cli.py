@@ -14,7 +14,6 @@ import respx
 
 from cumulus_etl import cli, common, errors
 from cumulus_etl.upload_notes.labelstudio import LabelStudioNote
-
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
 
@@ -113,11 +112,11 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     @staticmethod
     def make_docref(
         doc_id: str,
-        text: str = None,
-        content: list[dict] = None,
-        enc_id: str = None,
-        date: str = None,
-        period_start: str = None,
+        text: str | None = None,
+        content: list[dict] | None = None,
+        enc_id: str | None = None,
+        date: str | None = None,
+        period_start: str | None = None,
     ) -> dict:
         docref = {
             "resourceType": "DocumentReference",
@@ -163,7 +162,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
     @staticmethod
     def mock_read_url(
-        respx_mock: respx.MockRouter, doc_id: str, code: int = 200, docref: dict = None, **kwargs
+        respx_mock: respx.MockRouter, doc_id: str, code: int = 200, docref: dict | None = None, **kwargs
     ) -> None:
         docref = docref or TestUploadNotes.make_docref(doc_id, **kwargs)
         respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(status_code=code, json=docref)
@@ -178,7 +177,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     @staticmethod
     def write_real_docrefs(path: str, ids: list[str]) -> None:
         """Fills a file with the provided docref ids"""
-        lines = ["docref_id"] + ids
+        lines = ["docref_id", *ids]
         with open(path, "w", encoding="utf8") as f:
             f.write("\n".join(lines))
 

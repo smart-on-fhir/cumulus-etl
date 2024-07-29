@@ -14,9 +14,9 @@ async def download_docrefs_from_fhir_server(
     client: fhir.FhirClient,
     root_input: store.Root,
     codebook: deid.Codebook,
-    docrefs: str = None,
-    anon_docrefs: str = None,
-    export_to: str = None,
+    docrefs: str | None = None,
+    anon_docrefs: str | None = None,
+    export_to: str | None = None,
 ):
     if docrefs:
         return await _download_docrefs_from_real_ids(client, docrefs, export_to=export_to)
@@ -32,7 +32,7 @@ async def _download_docrefs_from_fake_ids(
     client: fhir.FhirClient,
     codebook: deid.Codebook,
     docref_csv: str,
-    export_to: str = None,
+    export_to: str | None = None,
 ) -> common.Directory:
     """Download DocumentReference resources for the given patient and docref identifiers"""
     output_folder = cli_utils.make_export_dir(export_to)
@@ -61,7 +61,7 @@ async def _download_docrefs_from_fake_ids(
 async def _download_docrefs_from_real_ids(
     client: fhir.FhirClient,
     docref_csv: str,
-    export_to: str = None,
+    export_to: str | None = None,
 ) -> common.Directory:
     """Download DocumentReference resources for the given patient and docref identifiers"""
     output_folder = cli_utils.make_export_dir(export_to)

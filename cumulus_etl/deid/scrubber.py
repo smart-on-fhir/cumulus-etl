@@ -30,7 +30,7 @@ class Scrubber:
        the resource is fully de-identified.
     """
 
-    def __init__(self, codebook_dir: str = None, use_philter: bool = False):
+    def __init__(self, codebook_dir: str | None = None, use_philter: bool = False):
         self.codebook = codebook.Codebook(codebook_dir)
         self.codebook_dir = codebook_dir
         self.philter = philter.Philter() if use_philter else None

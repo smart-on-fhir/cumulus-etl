@@ -2,7 +2,6 @@
 
 import pyarrow
 
-
 COMPLETION_TABLE = "etl__completion"
 COMPLETION_ENCOUNTERS_TABLE = "etl__completion_encounters"
 

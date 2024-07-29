@@ -3,6 +3,7 @@
 import copy
 import logging
 import os
+from typing import ClassVar
 
 import pyarrow
 import rich.progress
@@ -12,46 +13,46 @@ from cumulus_etl.etl import tasks
 
 
 class AllergyIntoleranceTask(tasks.EtlTask):
-    name = "allergyintolerance"
-    resource = "AllergyIntolerance"
-    tags = {"cpu"}
+    name: ClassVar = "allergyintolerance"
+    resource: ClassVar = "AllergyIntolerance"
+    tags: ClassVar = {"cpu"}
 
 
 class ConditionTask(tasks.EtlTask):
-    name = "condition"
-    resource = "Condition"
-    tags = {"cpu"}
+    name: ClassVar = "condition"
+    resource: ClassVar = "Condition"
+    tags: ClassVar = {"cpu"}
 
 
 class DeviceTask(tasks.EtlTask):
-    name = "device"
-    resource = "Device"
-    tags = {"cpu"}
+    name: ClassVar = "device"
+    resource: ClassVar = "Device"
+    tags: ClassVar = {"cpu"}
 
 
 class DiagnosticReportTask(tasks.EtlTask):
-    name = "diagnosticreport"
-    resource = "DiagnosticReport"
-    tags = {"cpu"}
+    name: ClassVar = "diagnosticreport"
+    resource: ClassVar = "DiagnosticReport"
+    tags: ClassVar = {"cpu"}
 
 
 class DocumentReferenceTask(tasks.EtlTask):
-    name = "documentreference"
-    resource = "DocumentReference"
-    tags = {"cpu"}
+    name: ClassVar = "documentreference"
+    resource: ClassVar = "DocumentReference"
+    tags: ClassVar = {"cpu"}
 
 
 class EncounterTask(tasks.EtlTask):
     """Processes Encounter FHIR resources"""
 
-    name = "encounter"
-    resource = "Encounter"
-    tags = {"cpu"}
+    name: ClassVar = "encounter"
+    resource: ClassVar = "Encounter"
+    tags: ClassVar = {"cpu"}
 
     # Encounters are a little more complicated than normal FHIR resources.
     # We also write out a table tying Encounters to a group name, for completion tracking.
 
-    outputs = [
+    outputs: ClassVar = [
         # Write completion data out first, so that if an encounter is being completion-tracked,
         # there's never a gap where it doesn't have an entry. This will help downstream users
         # know if an Encounter is tracked or not - by simply looking at this table.
@@ -81,17 +82,17 @@ class EncounterTask(tasks.EtlTask):
 
 
 class ImmunizationTask(tasks.EtlTask):
-    name = "immunization"
-    resource = "Immunization"
-    tags = {"cpu"}
+    name: ClassVar = "immunization"
+    resource: ClassVar = "Immunization"
+    tags: ClassVar = {"cpu"}
 
 
 class MedicationRequestTask(tasks.EtlTask):
     """Write MedicationRequest resources and associated Medication resources"""
 
-    name = "medicationrequest"
-    resource = "MedicationRequest"
-    tags = {"cpu"}
+    name: ClassVar = "medicationrequest"
+    resource: ClassVar = "MedicationRequest"
+    tags: ClassVar = {"cpu"}
 
     # We may write to a second Medication table as we go.
     # MedicationRequest can have inline medications via CodeableConcepts, or external Medication references.
@@ -99,7 +100,7 @@ class MedicationRequestTask(tasks.EtlTask):
     # We do all this special business logic because Medication is a special, "reference" resource,
     # and many EHRs don't let you simply bulk export them.
 
-    outputs = [
+    outputs: ClassVar = [
         # Write medication out first, to avoid a moment where links are broken
         tasks.OutputTable(name="medication", resource_type="Medication"),
         tasks.OutputTable(),
@@ -171,24 +172,24 @@ class MedicationRequestTask(tasks.EtlTask):
 
 
 class ObservationTask(tasks.EtlTask):
-    name = "observation"
-    resource = "Observation"
-    tags = {"cpu"}
+    name: ClassVar = "observation"
+    resource: ClassVar = "Observation"
+    tags: ClassVar = {"cpu"}
 
 
 class PatientTask(tasks.EtlTask):
-    name = "patient"
-    resource = "Patient"
-    tags = {"cpu"}
+    name: ClassVar = "patient"
+    resource: ClassVar = "Patient"
+    tags: ClassVar = {"cpu"}
 
 
 class ProcedureTask(tasks.EtlTask):
-    name = "procedure"
-    resource = "Procedure"
-    tags = {"cpu"}
+    name: ClassVar = "procedure"
+    resource: ClassVar = "Procedure"
+    tags: ClassVar = {"cpu"}
 
 
 class ServiceRequestTask(tasks.EtlTask):
-    name = "servicerequest"
-    resource = "ServiceRequest"
-    tags = {"cpu"}
+    name: ClassVar = "servicerequest"
+    resource: ClassVar = "ServiceRequest"
+    tags: ClassVar = {"cpu"}

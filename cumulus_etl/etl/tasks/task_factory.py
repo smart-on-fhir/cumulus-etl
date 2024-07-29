@@ -8,7 +8,7 @@ from cumulus_etl import errors
 from cumulus_etl.etl.studies import covid_symptom, hftest
 from cumulus_etl.etl.tasks import basic_tasks
 
-AnyTask = TypeVar("AnyTask", bound="EtlTask")
+AnyTask = TypeVar("AnyTask", bound="EtlTask")  # noqa: F821
 
 
 def get_all_tasks() -> list[type[AnyTask]]:
@@ -19,7 +19,8 @@ def get_all_tasks() -> list[type[AnyTask]]:
     """
     # Right now, just hard-code these. One day we might allow plugins or something similarly dynamic.
     # Note: tasks will be run in the order listed here.
-    return get_default_tasks() + [
+    return [
+        *get_default_tasks(),
         covid_symptom.CovidSymptomNlpResultsTask,
         covid_symptom.CovidSymptomNlpResultsTermExistsTask,
         hftest.HuggingFaceTestTask,
@@ -53,7 +54,9 @@ def get_default_tasks() -> list[type[AnyTask]]:
     ]
 
 
-def get_selected_tasks(names: Iterable[str] = None, filter_tags: Iterable[str] = None) -> list[type[AnyTask]]:
+def get_selected_tasks(
+    names: Iterable[str] | None = None, filter_tags: Iterable[str] | None = None
+) -> list[type[AnyTask]]:
     """
     Returns classes for every selected task.
 

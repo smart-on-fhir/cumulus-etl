@@ -46,7 +46,7 @@ class TestConvert(utils.AsyncTestCase):
 
         return job_timestamp
 
-    async def run_convert(self, input_path: str = None, output_path: str = None) -> None:
+    async def run_convert(self, input_path: str | None = None, output_path: str | None = None) -> None:
         args = [
             "convert",
             input_path or self.original_path,

@@ -46,7 +46,7 @@ def add_debugging(parser: argparse.ArgumentParser):
     return group
 
 
-def make_export_dir(export_to: str = None) -> common.Directory:
+def make_export_dir(export_to: str | None = None) -> common.Directory:
     """Makes a temporary directory to drop exported ndjson files into"""
     # Handle the easy case -- just a random temp dir
     if not export_to:

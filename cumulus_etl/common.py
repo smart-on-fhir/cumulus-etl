@@ -16,7 +16,6 @@ import rich
 
 from cumulus_etl import store
 
-
 ###############################################################################
 #
 # Types
@@ -151,7 +150,7 @@ def read_json(path: str) -> Any:
         return json.load(f)
 
 
-def write_json(path: str, data: Any, indent: int = None) -> None:
+def write_json(path: str, data: Any, indent: int | None = None) -> None:
     """
     Writes data to the given path, in json format
     :param path: filesystem path
@@ -354,7 +353,7 @@ def datetime_now(local: bool = False) -> datetime.datetime:
     return now
 
 
-def timestamp_datetime(time: datetime.datetime = None) -> str:
+def timestamp_datetime(time: datetime.datetime | None = None) -> str:
     """
     Human-readable UTC date and time
     :return: MMMM-DD-YYY hh:mm:ss
@@ -363,7 +362,7 @@ def timestamp_datetime(time: datetime.datetime = None) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def timestamp_filename(time: datetime.datetime = None) -> str:
+def timestamp_filename(time: datetime.datetime | None = None) -> str:
     """
     Human-readable UTC date and time suitable for a filesystem path
 

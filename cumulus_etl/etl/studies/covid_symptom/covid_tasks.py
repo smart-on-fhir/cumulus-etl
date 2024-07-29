@@ -1,6 +1,7 @@
 """Define tasks for the covid_symptom study"""
 
 import itertools
+from typing import ClassVar
 
 import ctakesclient
 import pyarrow
@@ -10,7 +11,6 @@ from ctakesclient.transformer import TransformerModel
 from cumulus_etl import nlp, store
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
-
 
 # List of recognized emergency department note types. We'll add more as we discover them in use.
 ED_CODES = {
@@ -109,7 +109,7 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
     #   cNLP: smartonfhir/cnlp-transformers:negation-0.4.0
     #   ctakesclient: 3.0
 
-    outputs = [tasks.OutputTable(resource_type=None, group_field="docref_id")]
+    outputs: ClassVar = [tasks.OutputTable(resource_type=None, group_field="docref_id")]
 
     async def prepare_task(self) -> bool:
         bsv_path = ctakesclient.filesystem.covid_symptoms_path()
@@ -196,9 +196,9 @@ class BaseCovidSymptomNlpResultsTask(tasks.BaseNlpTask):
 class CovidSymptomNlpResultsTask(BaseCovidSymptomNlpResultsTask):
     """Covid Symptom study task, to generate symptom lists from ED notes using cTAKES and cnlpt negation"""
 
-    name = "covid_symptom__nlp_results"
-    tags = {"covid_symptom", "gpu"}
-    polarity_model = TransformerModel.NEGATION
+    name: ClassVar = "covid_symptom__nlp_results"
+    tags: ClassVar = {"covid_symptom", "gpu"}
+    polarity_model: ClassVar = TransformerModel.NEGATION
 
     @classmethod
     async def init_check(cls) -> None:
@@ -209,12 +209,12 @@ class CovidSymptomNlpResultsTask(BaseCovidSymptomNlpResultsTask):
 class CovidSymptomNlpResultsTermExistsTask(BaseCovidSymptomNlpResultsTask):
     """Covid Symptom study task, to generate symptom lists from ED notes using cTAKES and cnlpt termexists"""
 
-    name = "covid_symptom__nlp_results_term_exists"
-    polarity_model = TransformerModel.TERM_EXISTS
+    name: ClassVar = "covid_symptom__nlp_results_term_exists"
+    polarity_model: ClassVar = TransformerModel.TERM_EXISTS
 
     # Explicitly don't use any tags because this is really a "hidden" task that is mostly for comparing
     # polarity model performance more than running a study. So we don't want it to be accidentally run.
-    tags = {}
+    tags: ClassVar = {}
 
     @classmethod
     async def init_check(cls) -> None:

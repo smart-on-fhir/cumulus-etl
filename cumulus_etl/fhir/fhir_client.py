@@ -4,8 +4,8 @@ import argparse
 import enum
 import re
 import sys
-from json import JSONDecodeError
 from collections.abc import Iterable
+from json import JSONDecodeError
 
 import httpx
 
@@ -34,11 +34,11 @@ class FhirClient:
         self,
         url: str | None,
         resources: Iterable[str],
-        basic_user: str = None,
-        basic_password: str = None,
-        bearer_token: str = None,
-        smart_client_id: str = None,
-        smart_jwks: dict = None,
+        basic_user: str | None = None,
+        basic_password: str | None = None,
+        bearer_token: str | None = None,
+        smart_client_id: str | None = None,
+        smart_jwks: dict | None = None,
     ):
         """
         Initialize and authorize a BackendServiceServer context manager.
@@ -78,7 +78,9 @@ class FhirClient:
         if self._session:
             await self._session.aclose()
 
-    async def request(self, method: str, path: str, headers: dict = None, stream: bool = False) -> httpx.Response:
+    async def request(
+        self, method: str, path: str, headers: dict | None = None, stream: bool = False
+    ) -> httpx.Response:
         """
         Issues an HTTP request.
 

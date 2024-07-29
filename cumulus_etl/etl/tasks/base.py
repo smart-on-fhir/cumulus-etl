@@ -4,6 +4,7 @@ import contextlib
 import dataclasses
 import os
 from collections.abc import AsyncIterator, Iterator
+from typing import ClassVar
 
 import cumulus_fhir_support
 import pyarrow
@@ -86,12 +87,14 @@ class EtlTask:
     """
 
     # Properties:
-    name: str = None  # task & table name
-    resource: str = None  # incoming resource that this task operates on (will be included in bulk exports etc)
-    tags: set[str] = []
-    needs_bulk_deid = True  # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
+    name: ClassVar[str] = None  # task & table name
+    # incoming resource that this task operates on (will be included in bulk exports etc)
+    resource: ClassVar[str] = None
+    tags: ClassVar[set[str]] = []
+    # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
+    needs_bulk_deid: ClassVar[bool] = True
 
-    outputs: list[OutputTable] = [OutputTable()]
+    outputs: ClassVar[list[OutputTable]] = [OutputTable()]
 
     ##########################################################################################
     #
@@ -100,8 +103,8 @@ class EtlTask:
     ##########################################################################################
 
     def __init__(self, task_config: config.JobConfig, scrubber: deid.Scrubber):
-        assert self.name  # nosec
-        assert self.resource  # nosec
+        assert self.name  # noqa: S101
+        assert self.resource  # noqa: S101
         self.task_config = task_config
         self.scrubber = scrubber
         self.formatters: list[formats.Format | None] = [None] * len(self.outputs)  # create format placeholders
@@ -152,7 +155,7 @@ class EtlTask:
         return self.summaries
 
     @classmethod
-    def make_batch_from_rows(cls, resource_type: str | None, rows: list[dict], groups: set[str] = None):
+    def make_batch_from_rows(cls, resource_type: str | None, rows: list[dict], groups: set[str] | None = None):
         schema = cls.get_schema(resource_type, rows)
         return formats.Batch(rows, groups=groups, schema=schema)
 

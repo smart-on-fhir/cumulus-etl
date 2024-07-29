@@ -25,7 +25,7 @@ class I2b2Loader(Loader):
     Expected format is either a tcp:// URL pointing at an Oracle server or a local folder.
     """
 
-    def __init__(self, root: store.Root, export_to: str = None):
+    def __init__(self, root: store.Root, export_to: str | None = None):
         """
         Initialize a new I2b2Loader class
         :param root: the base location to read data from

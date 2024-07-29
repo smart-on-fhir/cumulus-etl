@@ -39,6 +39,23 @@ classifiers = [
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+tests = [
+    "coverage",
+    "ddt",
+    "moto[server,s3] >= 5.0",
+    "pytest",
+    "pytest-cov",
+    "respx",
+    "time-machine",
+]
+dev = [
+    "pre-commit",
+    # Ruff is using minor versions for breaking changes until their 1.0 release.
+    # See https://docs.astral.sh/ruff/versioning/
+    "ruff < 0.6",  # keep in rough sync with pre-commit-config.yaml
+]
+
 [project.urls]
 "Homepage" = "https://github.com/smart-on-fhir/cumulus-etl"
 
@@ -59,26 +76,22 @@ exclude = [
     "**/.pytest_cache",
 ]
 
-[tool.bandit]
-exclude_dirs = ["tests"]
-
-[tool.black]
+[tool.ruff]
 line-length = 120
 
-[project.optional-dependencies]
-tests = [
-    "coverage",
-    "ddt",
-    "moto[server,s3] >= 5.0",
-    "pytest",
-    "pytest-cov",
-    "respx",
-    "time-machine",
+[tool.ruff.lint]
+allowed-confusables = ["’"]  # allow proper apostrophes
+select = [
+    "A",  # prevent using keywords that clobber python builtins
+    "E",  # pycodestyle
+    "F",  # pyflakes
+    "I",  # isort
+    "PLE",  # pylint errors
+    "RUF",  # the ruff developer's own rules
+    "S",  # bandit security warnings
+    "UP",  # alert you when better syntax is available in your python version
 ]
-dev = [
-    "bandit[toml]",
-    "black >= 24, < 25",  # keep in rough sync with .pre-commit-config.yaml
-    "pre-commit",
-    "pycodestyle",
-    "pylint",
-]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]  # init files hold API, so not using imports is intentional
+"tests/**" = ["S"]  # tests do suspicious stuff that's fine, actually

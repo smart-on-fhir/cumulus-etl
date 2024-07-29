@@ -15,7 +15,6 @@ from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import common, errors, loaders, store
 from cumulus_etl.etl import context
-
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
 from tests.s3mock import S3Mixin
@@ -254,7 +253,7 @@ class TestEtlJobConfig(BaseEtlSimple):
 
     def read_config_file(self, name: str) -> dict:
         full_path = os.path.join(self.job_config_path, name)
-        with open(full_path, "r", encoding="utf8") as f:
+        with open(full_path, encoding="utf8") as f:
             return json.load(f)
 
     async def test_serialization(self):
@@ -418,7 +417,7 @@ class TestEtlNlp(BaseEtlSimple):
     def read_symptoms(self):
         """Loads the output symptoms ndjson from disk"""
         path = os.path.join(self.output_path, "covid_symptom__nlp_results", "covid_symptom__nlp_results.000.ndjson")
-        with open(path, "r", encoding="utf8") as f:
+        with open(path, encoding="utf8") as f:
             lines = f.readlines()
         return [json.loads(line) for line in lines]
 

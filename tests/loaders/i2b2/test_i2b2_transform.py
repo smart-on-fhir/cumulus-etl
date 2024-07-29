@@ -3,7 +3,6 @@
 import ddt
 
 from cumulus_etl.loaders.i2b2 import schema, transform
-
 from tests import i2b2_mock_data
 from tests.utils import AsyncTestCase
 

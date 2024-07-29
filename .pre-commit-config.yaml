@@ -1,11 +1,10 @@
 repos:
-  - repo: https://github.com/psf/black
-    rev: 24.4.2  # keep in rough sync with pyproject.toml
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.5  # keep in rough sync with pyproject.toml
     hooks:
-      - id: black
-        entry: bash -c 'black "$@"; git add -u' --
-        # It is recommended to specify the latest version of Python
-        # supported by your project here, or alternatively use
-        # pre-commit's default_language_version, see
-        # https://pre-commit.com/#top_level-default_language_version
-        language_version: python3.12
+      - name: Ruff formatting
+        id: ruff-format
+        entry: bash -c 'ruff format --force-exclude "$@"; git add -u' --
+      - name: Ruff linting
+        id: ruff
+        stages: [pre-push]

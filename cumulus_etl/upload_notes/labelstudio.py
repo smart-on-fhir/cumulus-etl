@@ -11,7 +11,6 @@ from ctakesclient.typesystem import MatchText
 
 from cumulus_etl import errors
 
-
 ###############################################################################
 #
 # LabelStudio : Document Annotation

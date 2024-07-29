@@ -268,7 +268,7 @@ def make_response(status_code=200, json_payload=None, text=None, reason=None, he
     )
 
 
-def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
+def read_delta_lake(lake_path: str, *, version: int | None = None) -> list[dict]:
     """
     Reads in a delta lake folder at a certain time, sorted by id.
 
@@ -294,7 +294,7 @@ def read_delta_lake(lake_path: str, *, version: int = None) -> list[dict]:
 
 
 @contextlib.contextmanager
-def time_it(desc: str = None):
+def time_it(desc: str | None = None):
     """Tiny little timer context manager that is useful when debugging"""
     start = time.perf_counter()
     yield
@@ -304,7 +304,7 @@ def time_it(desc: str = None):
 
 
 @contextlib.contextmanager
-def mem_it(desc: str = None):
+def mem_it(desc: str | None = None):
     """Tiny little context manager to measure memory usage"""
     start_tracing = not tracemalloc.is_tracing()
     if start_tracing:

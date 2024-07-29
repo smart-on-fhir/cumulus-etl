@@ -6,7 +6,6 @@ import ddt
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
-
 from tests import ctakesmock
 from tests.utils import AsyncTestCase
 

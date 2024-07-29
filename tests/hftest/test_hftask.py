@@ -6,7 +6,6 @@ import respx
 
 from cumulus_etl import common, errors
 from cumulus_etl.etl.studies import hftest
-
 from tests import i2b2_mock_data
 from tests.etl import BaseEtlSimple, TaskTestCase
 
@@ -32,7 +31,7 @@ You will be given a clinical note, and you should reply with a short summary of 
 
 
 def mock_info(
-    respx_mock: respx.MockRouter, url: str = "http://localhost:8086/info", override: dict = None
+    respx_mock: respx.MockRouter, url: str = "http://localhost:8086/info", override: dict | None = None
 ) -> respx.Route:
     response = {
         "model_id": "meta-llama/Llama-2-13b-chat-hf",

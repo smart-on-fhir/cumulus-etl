@@ -2,7 +2,7 @@
 
 import hashlib
 import os
-from typing import Callable
+from collections.abc import Callable
 
 from cumulus_etl import common, store
 

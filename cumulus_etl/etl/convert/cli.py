@@ -7,8 +7,8 @@ Usually used for ndjson -> deltalake conversions, after the ndjson has been manu
 import argparse
 import os
 import tempfile
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import pyarrow
 import rich.progress

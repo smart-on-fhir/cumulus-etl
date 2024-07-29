@@ -5,8 +5,7 @@ import logging
 
 from cumulus_etl import fhir
 from cumulus_etl.loaders.i2b2 import external_mappings
-from cumulus_etl.loaders.i2b2.schema import PatientDimension, VisitDimension, ObservationFact
-
+from cumulus_etl.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
 ###############################################################################
 #
@@ -341,7 +340,7 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
     return {"valueQuantity": quantity}
 
 
-def make_concept(code: str, system: str | None, display: str = None, display_codes: dict = None) -> dict:
+def make_concept(code: str, system: str | None, display: str | None = None, display_codes: dict | None = None) -> dict:
     """Syntactic sugar to make a codeable concept"""
     coding = {"code": code, "system": system}
     if display:

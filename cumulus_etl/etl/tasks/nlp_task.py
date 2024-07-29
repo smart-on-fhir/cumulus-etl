@@ -4,7 +4,8 @@ import copy
 import logging
 import os
 import sys
-from typing import Callable
+from collections.abc import Callable
+from typing import ClassVar
 
 import rich.progress
 
@@ -15,12 +16,15 @@ from cumulus_etl.etl.tasks.base import EtlTask, OutputTable
 class BaseNlpTask(EtlTask):
     """Base class for any clinical-notes-based NLP task."""
 
-    resource = "DocumentReference"
-    needs_bulk_deid = False
+    resource: ClassVar = "DocumentReference"
+    needs_bulk_deid: ClassVar = False
 
     # You may want to override these in your subclass
-    outputs = [OutputTable(resource_type=None)]  # maybe a group_field? (remember to call self.seen_docrefs.add() if so)
-    tags = {"gpu"}  # maybe a study identifier?
+    outputs: ClassVar = [
+        # maybe add a group_field? (remember to call self.seen_docrefs.add() if so)
+        OutputTable(resource_type=None)
+    ]
+    tags: ClassVar = {"gpu"}  # maybe a study identifier?
 
     # Task Version
     # The "task_version" field is a simple integer that gets incremented any time an NLP-relevant parameter is changed.
@@ -32,7 +36,7 @@ class BaseNlpTask(EtlTask):
     # - Record the new bundle of metadata in your class documentation
     # - Update any safety checks in prepare_task() or elsewhere that check the NLP versioning
     # - Be aware that your caching will be reset
-    task_version = 1
+    task_version: ClassVar = 1
     # Task Version History:
     # ** 1 (20xx-xx): First version **
     #   CHANGE ME
@@ -57,7 +61,7 @@ class BaseNlpTask(EtlTask):
             writer.write(docref)
 
     async def read_notes(
-        self, *, doc_check: Callable[[dict], bool] = None, progress: rich.progress.Progress = None
+        self, *, doc_check: Callable[[dict], bool] | None = None, progress: rich.progress.Progress = None
     ) -> (dict, dict, str):
         """
         Iterate through clinical notes.

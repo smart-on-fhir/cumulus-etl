@@ -27,8 +27,8 @@ class Format(abc.ABC):
         self,
         root: store.Root,
         dbname: str,
-        group_field: str = None,
-        uniqueness_fields: Collection[str] = None,
+        group_field: str | None = None,
+        uniqueness_fields: Collection[str] | None = None,
         update_existing: bool = True,
     ):
         """

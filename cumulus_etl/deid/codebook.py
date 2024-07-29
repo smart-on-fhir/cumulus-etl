@@ -19,7 +19,7 @@ class Codebook:
     Some IDs may be cryptographically hashed versions of the real ID, some may be entirely random.
     """
 
-    def __init__(self, codebook_dir: str = None):
+    def __init__(self, codebook_dir: str | None = None):
         """
         :param codebook_dir: saved codebook path or None (initialize empty)
         """
@@ -83,7 +83,7 @@ class Codebook:
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
 
-    def __init__(self, codebook_dir: str = None):
+    def __init__(self, codebook_dir: str | None = None):
         """
         Create a codebook database.
 

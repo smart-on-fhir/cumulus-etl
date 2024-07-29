@@ -5,8 +5,8 @@ import sys
 import time
 import urllib.parse
 import uuid
-from json import JSONDecodeError
 from collections.abc import Iterable
+from json import JSONDecodeError
 
 import httpx
 from jwcrypto import jwk, jwt
@@ -166,7 +166,7 @@ class BasicAuth(Auth):
         super().__init__()
         # Assume utf8 is acceptable -- we should in theory also run these through Unicode normalization, in case they
         # have interesting Unicode characters. But we can always add that in the future.
-        combo_bytes = f"{user}:{password}".encode("utf8")
+        combo_bytes = f"{user}:{password}".encode()
         self._basic_token = base64.standard_b64encode(combo_bytes).decode("ascii")
 
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:

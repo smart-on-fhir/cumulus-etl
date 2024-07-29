@@ -7,9 +7,8 @@ import ddt
 import respx
 
 from cumulus_etl.etl.studies import covid_symptom
-
-from tests.ctakesmock import CtakesMixin
 from tests import i2b2_mock_data
+from tests.ctakesmock import CtakesMixin
 from tests.etl import BaseEtlSimple, TaskTestCase
 
 

@@ -38,8 +38,8 @@ class BulkExporter:
         resources: list[str],
         url: str,
         destination: str,
-        since: str = None,
-        until: str = None,
+        since: str | None = None,
+        until: str | None = None,
     ):
         """
         Initialize a bulk exporter (but does not start an export).
@@ -130,7 +130,7 @@ class BulkExporter:
         # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
         error_texts, warning_texts = await self._gather_all_messages(response_json.get("error", []))
         if warning_texts:
-            print("\n - ".join(["Messages from server:"] + warning_texts))
+            print("\n - ".join(["Messages from server:", *warning_texts]))
 
         # Download all the files
         print("Bulk FHIR export finished, now downloading resources…")
@@ -149,7 +149,7 @@ class BulkExporter:
         # the server DID give us. Servers may have lots of ignorable errors that need human review,
         # before passing back to us as input ndjson.
         if error_texts:
-            raise errors.FatalError("\n - ".join(["Errors occurred during export:"] + error_texts))
+            raise errors.FatalError("\n - ".join(["Errors occurred during export:", *error_texts]))
 
     ###################################################################################################################
     #
@@ -168,10 +168,10 @@ class BulkExporter:
     async def _request_with_delay(
         self,
         path: str,
-        headers: dict = None,
+        headers: dict | None = None,
         target_status_code: int = 200,
         method: str = "GET",
-        log_progress: Callable[[httpx.Response], None] = None,
+        log_progress: Callable[[httpx.Response], None] | None = None,
     ) -> httpx.Response:
         """
         Requests a file, while respecting any requests to wait longer.
@@ -228,8 +228,8 @@ class BulkExporter:
     async def _request_with_logging(
         self,
         *args,
-        log_begin: Callable[[], None] = None,
-        log_error: Callable[[Exception], None] = None,
+        log_begin: Callable[[], None] | None = None,
+        log_error: Callable[[Exception], None] | None = None,
         **kwargs,
     ) -> httpx.Response:
         if log_begin:

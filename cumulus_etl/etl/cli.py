@@ -16,7 +16,6 @@ from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
 from cumulus_etl.etl.tasks import task_factory
 
-
 ###############################################################################
 #
 # Main Pipeline (run all tasks)

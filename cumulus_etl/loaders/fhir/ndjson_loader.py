@@ -17,9 +17,9 @@ class FhirNdjsonLoader(base.Loader):
         self,
         root: store.Root,
         client: fhir.FhirClient = None,
-        export_to: str = None,
-        since: str = None,
-        until: str = None,
+        export_to: str | None = None,
+        since: str | None = None,
+        until: str | None = None,
     ):
         """
         :param root: location to load ndjson from

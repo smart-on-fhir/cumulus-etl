@@ -6,7 +6,6 @@ from typing import NoReturn
 import httpx
 import rich.console
 
-
 # Error return codes, mostly just distinguished for the benefit of tests.
 # These start at 10 just to leave some room for future use.
 SQL_USER_MISSING = 10

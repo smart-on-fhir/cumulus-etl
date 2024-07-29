@@ -10,9 +10,9 @@ from cumulus_etl import cli_utils, common, deid, store
 def select_docrefs_from_files(
     root_input: store.Root,
     codebook: deid.Codebook,
-    docrefs: str = None,
-    anon_docrefs: str = None,
-    export_to: str = None,
+    docrefs: str | None = None,
+    anon_docrefs: str | None = None,
+    export_to: str | None = None,
 ) -> common.Directory:
     """Takes an input folder of ndjson and exports just the chosen docrefs to a new ndjson folder"""
     # Get an appropriate filter method, for the given docrefs
@@ -32,7 +32,7 @@ def select_docrefs_from_files(
 
 
 def _create_docref_filter(
-    codebook: deid.Codebook, docrefs: str = None, anon_docrefs: str = None
+    codebook: deid.Codebook, docrefs: str | None = None, anon_docrefs: str | None = None
 ) -> Callable[[Iterable[dict]], Iterator[dict]]:
     """This returns a method that will can an iterator of docrefs and returns an iterator of fewer docrefs"""
     # Decide how we're filtering the input files (by real or fake ID, or no filtering at all!)

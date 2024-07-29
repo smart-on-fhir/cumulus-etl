@@ -90,7 +90,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             if row[1] is not None:
                 self.assertEqual(reordered_details[index][1], row[1])
 
-    def mock_kickoff(self, params: str = "?_type=Condition%2CPatient", side_effect: list = None, **kwargs) -> None:
+    def mock_kickoff(
+        self, params: str = "?_type=Condition%2CPatient", side_effect: list | None = None, **kwargs
+    ) -> None:
         kwargs.setdefault("status_code", 202)
         route = self.respx_mock.get(
             f"{self.fhir_url}/$export{params}",
