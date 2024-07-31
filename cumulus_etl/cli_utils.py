@@ -11,34 +11,44 @@ import rich.progress
 from cumulus_etl import common, errors, store
 
 
-def add_auth(parser: argparse.ArgumentParser) -> None:
+def add_auth(parser: argparse.ArgumentParser, *, use_fhir_url: bool = True):
     group = parser.add_argument_group("authentication")
-    group.add_argument("--smart-client-id", metavar="ID", help="Client ID for SMART authentication")
+    group.add_argument("--smart-client-id", metavar="ID", help="client ID for SMART authentication")
     group.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
-    group.add_argument("--basic-user", metavar="USER", help="Username for Basic authentication")
+    group.add_argument("--basic-user", metavar="USER", help="username for Basic authentication")
     group.add_argument(
-        "--basic-passwd", metavar="PATH", help="Password file for Basic authentication"
+        "--basic-passwd", metavar="PATH", help="password file for Basic authentication"
     )
     group.add_argument(
-        "--bearer-token", metavar="PATH", help="Token file for Bearer authentication"
+        "--bearer-token", metavar="PATH", help="token file for Bearer authentication"
     )
-    group.add_argument(
-        "--fhir-url",
-        metavar="URL",
-        help="FHIR server base URL, only needed if you exported separately",
-    )
+    if use_fhir_url:
+        group.add_argument(
+            "--fhir-url",
+            metavar="URL",
+            help="FHIR server base URL, only needed if you exported separately",
+        )
 
 
 def add_aws(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group("AWS")
     group.add_argument(
-        "--s3-region", metavar="REGION", help="If using S3 paths (s3://...), this is their region"
+        "--s3-region", metavar="REGION", help="if using S3 paths (s3://...), this is their region"
     )
     group.add_argument(
         "--s3-kms-key",
         metavar="KEY",
-        help="If using S3 paths (s3://...), this is the KMS key ID to use",
+        help="if using S3 paths (s3://...), this is the KMS key ID to use",
     )
+
+
+def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True):
+    if as_subgroup:
+        parser = parser.add_argument_group("bulk export")
+    parser.add_argument("--since", help="start date for export from the FHIR server")
+    # "Until" is not an official part of the bulk FHIR API, but some custom servers support it
+    parser.add_argument("--until", help="end date for export from the FHIR server")
+    return parser
 
 
 def add_nlp(parser: argparse.ArgumentParser):
@@ -47,9 +57,26 @@ def add_nlp(parser: argparse.ArgumentParser):
         "--ctakes-overrides",
         metavar="DIR",
         default="/ctakes-overrides",
-        help="Path to cTAKES overrides dir (default is /ctakes-overrides)",
+        help="path to cTAKES overrides dir (default is /ctakes-overrides)",
     )
     return group
+
+
+def add_task_selection(parser: argparse.ArgumentParser):
+    task = parser.add_argument_group("task selection")
+    task.add_argument(
+        "--task",
+        action="append",
+        help="only consider these tasks (comma separated, "
+        "default is all supported FHIR resources, "
+        "use '--task help' to see full list)",
+    )
+    task.add_argument(
+        "--task-filter",
+        action="append",
+        choices=["covid_symptom", "cpu", "gpu"],
+        help="restrict tasks to only the given sets (comma separated)",
+    )
 
 
 def add_debugging(parser: argparse.ArgumentParser):

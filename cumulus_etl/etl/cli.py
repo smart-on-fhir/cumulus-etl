@@ -2,7 +2,6 @@
 
 import argparse
 import datetime
-import itertools
 import os
 import shutil
 import sys
@@ -124,14 +123,12 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     cli_utils.add_aws(parser)
     cli_utils.add_auth(parser)
 
-    export = parser.add_argument_group("bulk export")
+    export = cli_utils.add_bulk_export(parser)
     export.add_argument(
         "--export-to",
         metavar="DIR",
-        help="Where to put exported files (default is to delete after use)",
+        help="where to put exported files (default is to delete after use)",
     )
-    export.add_argument("--since", help="Start date for export from the FHIR server")
-    export.add_argument("--until", help="End date for export from the FHIR server")
 
     group = parser.add_argument_group("external export identification")
     group.add_argument("--export-group", help=argparse.SUPPRESS)
@@ -142,18 +139,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     cli_utils.add_nlp(parser)
-
-    task = parser.add_argument_group("task selection")
-    task.add_argument(
-        "--task", action="append", help="Only update the given output tables (comma separated)"
-    )
-    task.add_argument(
-        "--task-filter",
-        action="append",
-        choices=["covid_symptom", "cpu", "gpu"],
-        help="Restrict tasks to only the given sets (comma separated)",
-    )
-
+    cli_utils.add_task_selection(parser)
     cli_utils.add_debugging(parser)
 
 
@@ -241,12 +227,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     job_context = context.JobContext(root_phi.joinpath("context.json"))
     job_datetime = common.datetime_now()  # grab timestamp before we do anything
 
-    # Check which tasks are being run, allowing comma-separated values
-    task_names = args.task and set(itertools.chain.from_iterable(t.split(",") for t in args.task))
-    task_filters = args.task_filter and list(
-        itertools.chain.from_iterable(t.split(",") for t in args.task_filter)
-    )
-    selected_tasks = task_factory.get_selected_tasks(task_names, task_filters)
+    selected_tasks = task_factory.get_selected_tasks(args.task, args.task_filter)
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)

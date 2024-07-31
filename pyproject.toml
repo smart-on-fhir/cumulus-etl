@@ -28,7 +28,6 @@ authors = [
   { name="Andy McMurry, PhD", email="andrew.mcmurry@childrens.harvard.edu" },
   { name="Michael Terry", email="michael.terry@childrens.harvard.edu" },
 ]
-description = "Turns FHIR data into de-identified & aggregated records"
 readme = "README.md"
 license = { text="Apache License 2.0" }
 classifiers = [
@@ -37,7 +36,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dynamic = ["version"]
+dynamic = ["description", "version"]
 
 [project.optional-dependencies]
 tests = [

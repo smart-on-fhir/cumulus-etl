@@ -1,5 +1,6 @@
 """Finds and creates ETL tasks"""
 
+import itertools
 import sys
 from collections.abc import Iterable
 from typing import TypeVar
@@ -64,8 +65,16 @@ def get_selected_tasks(
     :param filter_tags: only tasks that have all the listed tags will be eligible for selection
     :returns: a list of selected EtlTask subclasses, to instantiate and run
     """
-    names = names and set(names)
+    names = names and set(itertools.chain.from_iterable(t.lower().split(",") for t in names))
+    filter_tags = filter_tags and list(
+        itertools.chain.from_iterable(t.lower().split(",") for t in filter_tags)
+    )
     filter_tag_set = set(filter_tags or [])
+
+    if names and "help" in names:
+        # OK, we actually are just going to print the list of all task names and be done.
+        _print_task_names()
+        raise SystemExit(errors.TASK_HELP)  # not an *error* exactly, but not successful ETL either
 
     # Just give back the default set if the user didn't specify any constraints
     if not names and not filter_tag_set:
@@ -88,11 +97,8 @@ def get_selected_tasks(
     # Check for unknown names the user gave us
     all_task_names = {t.name for t in all_tasks}
     if unknown_names := names - all_task_names:
-        print_names = "\n".join(sorted(f"  {key}" for key in all_task_names))
-        print(
-            f"Unknown task '{unknown_names.pop()}' requested. Valid task names:\n{print_names}",
-            file=sys.stderr,
-        )
+        print(f"Unknown task '{unknown_names.pop()}' requested.", file=sys.stderr)
+        _print_task_names(file=sys.stderr)
         raise SystemExit(errors.TASK_UNKNOWN)
 
     # Check for names that conflict with the chosen filters
@@ -106,3 +112,10 @@ def get_selected_tasks(
         raise SystemExit(errors.TASK_FILTERED_OUT)
 
     return [task for task in filtered_tasks if task.name in names]
+
+
+def _print_task_names(*, file=sys.stdout) -> None:
+    all_tasks = get_all_tasks()
+    all_task_names = {t.name for t in all_tasks}
+    print_names = "\n".join(sorted(f"  {key}" for key in all_task_names))
+    print(f"Valid task names:\n{print_names}", file=file)

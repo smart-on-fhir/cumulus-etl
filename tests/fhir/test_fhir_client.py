@@ -172,7 +172,8 @@ class TestFhirClient(AsyncTestCase):
         self.respx_mock.get(
             f"{self.server_url}/foo",
             headers={
-                "Accept": "application/fhir+json",  # just to confirm we don't replace default headers entirely
+                # just to confirm we don't replace default headers entirely
+                "Accept": "application/fhir+json",
                 "Test": "Value",
             },
         )
@@ -272,7 +273,30 @@ class TestFhirClient(AsyncTestCase):
             mock_fatal.call_args,
         )
 
-    async def test_get_error_401(self):
+    def test_file_read_error(self):
+        """Verify that if we can't read a provided file, we gracefully error out"""
+        args = argparse.Namespace(
+            fhir_url=None,
+            smart_client_id=None,
+            smart_jwks="does-not-exist.txt",
+            basic_user=None,
+            basic_passwd=None,
+            bearer_token=None,
+        )
+        with self.assertRaises(SystemExit) as cm:
+            fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), [])
+        self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+
+    async def test_must_be_context_manager(self):
+        """Verify that FHIRClient enforces its use as a context manager."""
+        client = fhir.FhirClient(
+            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
+        )
+        with self.assertRaisesRegex(RuntimeError, "FhirClient must be used as a context manager"):
+            await client.request("GET", "foo")
+
+    @ddt.data(True, False)  # confirm that we handle both stream and non-stream resets
+    async def test_get_error_401(self, stream_mode):
         """Verify that an expired token is refreshed."""
         route = self.respx_mock.get(f"{self.server_url}/foo")
         route.side_effect = [make_response(status_code=401), make_response()]
@@ -283,7 +307,7 @@ class TestFhirClient(AsyncTestCase):
             self.assertEqual(1, self.respx_mock["token"].call_count)
 
             # Check that we correctly tried to re-authenticate
-            response = await server.request("GET", "foo")
+            response = await server.request("GET", "foo", stream=stream_mode)
             self.assertEqual(200, response.status_code)
 
             self.assertEqual(2, self.respx_mock["token"].call_count)
@@ -368,11 +392,14 @@ class TestFhirClientEpicQuirks(AsyncTestCase):
         response_json = {}
         if server_type == "epic":
             response_json = {"software": {"name": "Epic"}}
+        elif server_type == "cerner":
+            response_json = {"publisher": "Cerner"}
 
         self.respx_mock.get(f"{self.server_url}/metadata").respond(json=response_json)
 
     @ddt.data(
         ("epic", "present"),
+        ("cerner", "missing"),
         (None, "missing"),
     )
     @ddt.unpack

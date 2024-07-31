@@ -247,9 +247,9 @@ def create_fhir_client_for_cli(
 
     The usual FHIR server authentication options should be represented in args.
     """
-    client_base_url = args.fhir_url
+    client_base_url = getattr(args, "fhir_url", None)
     if root_input.protocol in {"http", "https"}:
-        if args.fhir_url and not root_input.path.startswith(args.fhir_url):
+        if client_base_url and not root_input.path.startswith(client_base_url):
             print(
                 "You provided both an input FHIR server and a different --fhir-url. Try dropping --fhir-url.",
                 file=sys.stderr,
