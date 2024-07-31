@@ -3,6 +3,7 @@
 import contextlib
 import datetime
 import io
+import os
 import tempfile
 from unittest import mock
 
@@ -91,7 +92,10 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 self.assertEqual(reordered_details[index][1], row[1])
 
     def mock_kickoff(
-        self, params: str = "?_type=Condition%2CPatient", side_effect: list | None = None, **kwargs
+        self,
+        params: str = "?_type=Condition&_type=Patient",
+        side_effect: list | None = None,
+        **kwargs,
     ) -> None:
         kwargs.setdefault("status_code", 202)
         route = self.respx_mock.get(
@@ -172,7 +176,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             (
                 "kickoff",
                 {
-                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition%2CPatient",
+                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition&_type=Patient",
                     "softwareName": "Test",
                     "softwareVersion": "0.git",
                     "softwareReleaseDate": "today",
@@ -240,7 +244,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
     async def test_since_until(self):
         """Verify that we send since & until parameters correctly to the server"""
         self.mock_kickoff(
-            params="?_type=Condition%2CPatient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
+            params="?_type=Condition&_type=Patient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
             status_code=500,  # early exit
         )
 
@@ -256,7 +260,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             headers={"Accept": "application/json"},
         ).respond(
             json={
-                "transactionTime": "2015-02-07T13:28:17.239+02:00",
+                "transactionTime": "bogus-time",  # just confirm we gracefully handle this
                 "error": [
                     {"type": "OperationOutcome", "url": "https://example.com/err1"},
                     {"type": "OperationOutcome", "url": "https://example.com/err2"},
@@ -303,6 +307,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         ):
             await self.export()
 
+        self.assertIsNone(self.exporter.export_datetime)  # date time couldn't be parsed
+
         self.assert_log_equals(
             ("kickoff", None),
             (
@@ -311,7 +317,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                     "deletedFileCount": 0,
                     "errorFileCount": 2,
                     "outputFileCount": 1,
-                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
+                    "transactionTime": "bogus-time",
                 },
             ),
             (
@@ -429,7 +435,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             (
                 "kickoff",
                 {
-                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition%2CPatient",
+                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition&_type=Patient",
                     "softwareName": "Test",
                     "softwareVersion": "0.git",
                     "softwareReleaseDate": "today",
@@ -527,6 +533,15 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
         )
 
+    async def test_delete_error_is_ignored(self):
+        """Verify that we don't freak out if our DELETE call fails"""
+        self.mock_kickoff()
+        self.mock_delete(status_code=500)
+        self.respx_mock.get("https://example.com/poll").respond(
+            json={"transactionTime": "2015-02-07T13:28:17.239+02:00"},
+        )
+        await self.export()  # no exception thrown
+
     async def test_log_duration(self):
         """Verify that we calculate the correct export duration for the logs"""
 
@@ -554,6 +569,40 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 {"attachments": None, "bytes": 0, "duration": 192, "files": 0, "resources": 0},
             ),
         )
+
+
+@ddt.ddt
+class TestBulkExporterInit(utils.AsyncTestCase):
+    """Tests for just creating the exporter, without any mocking needed"""
+
+    @ddt.data(
+        ("http://a.com", {}, "http://a.com/$export?_type=Patient"),  # no extra args
+        (  # all the args, including merged _type fields and overridden _since!
+            "http://a.com/$export?_type=Condition&_since=2000",
+            {"since": "2020", "until": "2024"},
+            "http://a.com/$export?_type=Condition&_type=Patient&_since=2020&_until=2024",
+        ),
+        (  # extraneous args are kept
+            "http://a.com/$export?_elements=birthDate",
+            {},
+            "http://a.com/$export?_elements=birthDate&_type=Patient",
+        ),
+        (  # can ignore provided resources when _type is present
+            "http://a.com/$export?_type=Condition",
+            {"prefer_url_resources": True},
+            "http://a.com/$export?_type=Condition",
+        ),
+        (  # will not ignore provided resources when _type is *not* present
+            "http://a.com/$export",
+            {"prefer_url_resources": True},
+            "http://a.com/$export?_type=Patient",
+        ),
+    )
+    @ddt.unpack
+    def test_param_merging(self, original_url, kwargs, expected_url):
+        """Verify that we allow existing params and add some in ourselves"""
+        exporter = BulkExporter(None, ["Patient"], original_url, "fake_dir", **kwargs)
+        self.assertEqual(exporter._url, expected_url)
 
 
 class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
@@ -619,8 +668,8 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
             status_code=202,
         )
 
-    async def test_successful_bulk_export(self):
-        """Verify a happy path bulk export, from toe to tip"""
+    async def test_successful_etl_bulk_export(self):
+        """Verify a happy path ETL bulk export, from toe to tip"""
         with tempfile.TemporaryDirectory() as tmpdir:
             self.set_up_requests()
 
@@ -654,3 +703,32 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
                 },
                 common.read_json(f"{tmpdir}/output/etl__completion/etl__completion.000.ndjson"),
             )
+
+    async def test_successful_standalone_bulk_export(self):
+        """Verify a happy path standalone bulk export, from toe to tip"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self.set_up_requests()
+
+            await cli.main(
+                [
+                    "export",
+                    self.fhir_url,
+                    tmpdir,
+                    "--task=patient",
+                    f"--smart-client-id={self.fhir_client_id}",
+                    f"--smart-jwks={self.fhir_jwks_path}",
+                ]
+            )
+
+            self.assertEqual({"Patient.000.ndjson", "log.ndjson"}, set(os.listdir(tmpdir)))
+
+            self.assertEqual(
+                {
+                    "id": "testPatient1",
+                    "resourceType": "Patient",
+                },
+                common.read_json(f"{tmpdir}/Patient.000.ndjson"),
+            )
+
+            # log should have kickoff, progress, download start, download complete, finished
+            self.assertEqual(5, common.read_local_line_count(f"{tmpdir}/log.ndjson"))

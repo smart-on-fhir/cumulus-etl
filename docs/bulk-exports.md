@@ -10,28 +10,41 @@ nav_order: 9
 
 Cumulus ETL wants data, and lots of it.
 
-It's happy to ingest data that you've gathered elsewhere (what we call external exports),
-and it's happy to download the data itself (internal exports).
+It's happy to ingest data that you've gathered elsewhere (as a separate export),
+but it's also happy to download the data itself as needed during the ETL (as an on-the-fly export).
 
-## External Exports
+## Separate Exports
 
-If you have an existing process to export health data, you can do that bulk export externally,
+1. If you have an existing process to export health data, you can do that bulk export externally,
 and then just feed the resulting files to Cumulus ETL.
 
-Or you may need more export options than our internal exporter supports.
-The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client)
-is a great tool with lots of features.
+2. Cumulus ETL has an `export` command to perform just a bulk export without an ETL step.
+   Run it like so: `cumulus-etl export FHIR_URL ./output` (see `--help` for more options).
+   You can use all sorts of
+   [interesting FHIR options](https://hl7.org/fhir/uv/bulkdata/export.html#query-parameters)
+   like `_typeFilter` or `_since` in the URL.
 
-In either case, it's simple to feed that data to the ETL:
+3. Or you may need more advanced options than our internal exporter supports.
+   The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client)
+   is a great tool with lots of features.
+
+In any case, it's simple to feed that data to the ETL:
 1. Pass Cumulus ETL the folder that holds the downloaded data as the input path.
-1. Pass `--fhir-url=` pointing at your FHIR server so that external document notes can be downloaded.
+1. Pass `--fhir-url=` pointing at your FHIR server so that externally referenced document notes
+   and medications can still be downloaded as needed.
 
-## Internal Exports
+## On-The-Fly Exports
 
-If you don't have an existing process or you don't need too many fancy options,
-Cumulus ETL's internal bulk exporter can do the trick. 
+If it's easier to just do it all in one step,
+you can also start an ETL run with your FHIR URL as the input path.
+Cumulus ETL will do a bulk export first, then ETL the results.
 
-### Registering Cumulus ETL
+You can save the exported files for archiving after the fact with `--export-to=PATH`.
+
+However, bulk exports tend to be brittle and slow for many EHRs at the time of this writing.
+It might be wiser to separately export, make sure the data is all there and good, and then ETL it.
+
+## Registering an Export Client
 
 On your server, you need to register a new "backend service" client.
 You'll be asked to provide a JWKS (JWK Set) file.
@@ -70,37 +83,3 @@ And for Cumulus ETL's input path argument,
 you will give your server's URL address,
 including a Group identifier if you want to scope the export
 (e.g. `https://example.com/fhir` or `https://example.com/fhir/Group/1234`).
-
-### Narrowing Export Scope
-
-You can pass `--since=` and/or `--until=` to narrow your bulk export to a date range.
-
-Note that support for these parameters among EHRs is not super common.
-- `--since=` is in the FHIR spec but is not required by law.
-  (And notably, it's not supported by Epic.)
-- `--until=` is not even in the FHIR spec yet. No major EHR supports it.
-
-But if you are lucky enough to be working with an EHR that supports either one,
-you can pass in a time like `--since=2023-01-16T20:32:48Z`.
-
-### Saving Bulk Export Files
-
-Bulk exports can be tricky to get right and can take a long time.
-Often (and especially when first experimenting with Cumulus ETL),
-you will want to save the results of a bulk export for inspection or in case Cumulus ETL fails.
-
-By default, Cumulus ETL throws away the results of a bulk export once it's done with them.
-But you can pass `--export-to=/path/to/folder` to instead save the exported `.ndjson` files in the given folder.
-
-Note that you'll want to expose the local path to docker so that the files reach your actual disk, like so:
-
-```sh
-docker compose \
-  run --rm \
-  --volume /my/exported/files:/folder \
-  cumulus-etl \
-  --export-to=/folder \
-  https://my-fhir-server/ \
-  s3://output/ \
-  s3://phi/
-```

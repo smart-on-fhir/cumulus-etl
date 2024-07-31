@@ -1,3 +1,3 @@
-"""Cumulus public entry point"""
+"""Turns FHIR data into de-identified & aggregated records"""
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"

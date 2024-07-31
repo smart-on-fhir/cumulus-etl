@@ -40,6 +40,7 @@ class BulkExporter:
         destination: str,
         since: str | None = None,
         until: str | None = None,
+        prefer_url_resources: bool = False,
     ):
         """
         Initialize a bulk exporter (but does not start an export).
@@ -50,23 +51,55 @@ class BulkExporter:
         :param destination: a local folder to store all the files
         :param since: start date for export
         :param until: end date for export
+        :param prefer_url_resources: if the URL includes _type, ignore the provided resources
         """
         super().__init__()
         self._client = client
-        self._resources = resources
-        self._url = url
-        if not self._url.endswith("/"):
-            # This will ensure the last segment does not get chopped off by urljoin
-            self._url += "/"
         self._destination = destination
         self._total_wait_time = 0  # in seconds, across all our requests
-        self._since = since
-        self._until = until
         self._log: export_log.BulkExportLogWriter = None
+
+        self._url = self.format_kickoff_url(
+            url,
+            resources=resources,
+            since=since,
+            until=until,
+            prefer_url_resources=prefer_url_resources,
+        )
 
         # Public properties, to be read after the export:
         self.export_datetime = None
         self.group_name = fhir.parse_group_from_url(self._url)
+
+    def format_kickoff_url(
+        self,
+        url: str,
+        *,
+        resources: list[str],
+        since: str | None,
+        until: str | None,
+        prefer_url_resources: bool,
+    ) -> str:
+        parsed = urllib.parse.urlsplit(url)
+
+        # Add an export path to the end of the URL if it's not provided
+        if not parsed.path.endswith("/$export"):
+            parsed = parsed._replace(path=os.path.join(parsed.path, "$export"))
+
+        # Integrate in any externally-provided flags
+        query = urllib.parse.parse_qs(parsed.query)
+        ignore_provided_resources = prefer_url_resources and "_type" in query
+        if not ignore_provided_resources:
+            query.setdefault("_type", []).extend(resources)
+        if since:
+            query["_since"] = since
+        if until:
+            # This parameter is not part of the FHIR spec and is unlikely to be supported by your
+            # server. But some custom servers *do* support it, so we added support for it too.
+            query["_until"] = until
+        parsed = parsed._replace(query=urllib.parse.urlencode(query, doseq=True))
+
+        return urllib.parse.urlunsplit(parsed)
 
     async def export(self) -> None:
         """
@@ -89,26 +122,17 @@ class BulkExporter:
         print("Starting bulk FHIR export…")
         self._log = export_log.BulkExportLogWriter(store.Root(self._destination))
 
-        params = {"_type": ",".join(self._resources)}
-        if self._since:
-            params["_since"] = self._since
-        if self._until:
-            # This parameter is not part of the FHIR spec and is unlikely to be supported by your server.
-            # But some servers do support it, and it is a possible future addition to the spec.
-            params["_until"] = self._until
-
-        full_url = urllib.parse.urljoin(self._url, f"$export?{urllib.parse.urlencode(params)}")
         try:
             response = await self._request_with_delay(
-                full_url,
+                self._url,
                 headers={"Prefer": "respond-async"},
                 target_status_code=202,
             )
         except Exception as exc:
-            self._log.kickoff(full_url, self._client.get_capabilities(), exc)
+            self._log.kickoff(self._url, self._client.get_capabilities(), exc)
             raise
         else:
-            self._log.kickoff(full_url, self._client.get_capabilities(), response)
+            self._log.kickoff(self._url, self._client.get_capabilities(), response)
 
         # Grab the poll location URL for status updates
         poll_location = response.headers["Content-Location"]
@@ -125,7 +149,11 @@ class BulkExporter:
         # Finished! We're done waiting and can download all the files
         response_json = response.json()
 
-        self.export_datetime = datetime.datetime.fromisoformat(response_json["transactionTime"])
+        try:
+            transaction_time = response_json.get("transactionTime", "")
+            self.export_datetime = datetime.datetime.fromisoformat(transaction_time)
+        except ValueError:
+            pass  # server gave us a bad timestamp, ignore it :shrug:
 
         # Were there any server-side errors during the export?
         # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.

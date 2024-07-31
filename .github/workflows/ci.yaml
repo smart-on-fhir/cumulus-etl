@@ -57,13 +57,17 @@ jobs:
         run: |
           python -m pytest --cov=cumulus_etl --cov-report=xml
 
+      - name: Log missing coverage
+        run: |
+          coverage report -m --skip-covered
+
       - name: Check coverage report
         if: github.ref != 'refs/heads/main'
-        uses: orgoro/coverage@v3.1
+        uses: orgoro/coverage@v3.2
         with:
           coverageFile: coverage.xml
           token: ${{ secrets.GITHUB_TOKEN }}
-          thresholdAll: .93
+          thresholdAll: .97
           thresholdNew: 1
           thresholdModified: 1
 

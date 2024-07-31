@@ -172,8 +172,15 @@ class BulkExportLogWriter:
         software = capabilities.get("software", {})
         response_info = {}
 
+        # Create a "merged" version of the params.
+        # (Merged in the sense that duplicates are converted to comma separated lists.)
+        request_headers = {}
+        for k, v in httpx.URL(url).params.multi_items():
+            if k in request_headers:
+                request_headers[k] += f",{v}"
+            else:
+                request_headers[k] = v
         # Spec says we shouldn't log the `patient` parameter, so strip it here.
-        request_headers = dict(httpx.URL(url).params)
         request_headers.pop("patient", None)
 
         if isinstance(response, Exception):

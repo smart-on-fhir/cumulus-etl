@@ -37,7 +37,7 @@ class FhirNdjsonLoader(base.Loader):
     async def load_all(self, resources: list[str]) -> common.Directory:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
-            loaded_dir = await self._load_from_bulk_export(resources)
+            loaded_dir = await self.load_from_bulk_export(resources)
             input_root = store.Root(loaded_dir.name)
         else:
             if self.export_to or self.since or self.until:
@@ -57,6 +57,7 @@ class FhirNdjsonLoader(base.Loader):
                 # Once we require group name & export datetime, we should warn about this.
                 # For now, just ignore any errors.
                 pass
+
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
         # We do this even if the files are local, because the next step in our pipeline is the MS deid tool,
@@ -73,12 +74,26 @@ class FhirNdjsonLoader(base.Loader):
             input_root.get(filename, f"{tmpdir.name}/")
         return tmpdir
 
-    async def _load_from_bulk_export(self, resources: list[str]) -> common.Directory:
+    async def load_from_bulk_export(
+        self, resources: list[str], prefer_url_resources: bool = False
+    ) -> common.Directory:
+        """
+        Performs a bulk export and drops the results in an export dir.
+
+        :param resources: a list of resources to load
+        :param prefer_url_resources: if the URL includes _type, ignore the provided resources
+        """
         target_dir = cli_utils.make_export_dir(self.export_to)
 
         try:
             bulk_exporter = BulkExporter(
-                self.client, resources, self.root.path, target_dir.name, self.since, self.until
+                self.client,
+                resources,
+                self.root.path,
+                target_dir.name,
+                self.since,
+                self.until,
+                prefer_url_resources=prefer_url_resources,
             )
             await bulk_exporter.export()
 

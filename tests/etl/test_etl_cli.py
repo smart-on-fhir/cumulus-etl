@@ -87,6 +87,11 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["blarg"])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
+    async def test_help_task(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(tasks=["patient", "help"])
+        self.assertEqual(errors.TASK_HELP, cm.exception.code)
+
     async def test_failed_task(self):
         # Make it so any writes will fail
         with mock.patch(
@@ -193,6 +198,12 @@ class TestEtlJobFlow(BaseEtlSimple):
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
+
+    async def test_bulk_no_url(self):
+        """Verify that if no FHIR URL is provided, but export args *are*, we'll error out."""
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(export_to="output/dir")
+        self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
 
     async def test_no_ms_tool(self):
         """Verify that we require the MS tool to be in PATH."""
