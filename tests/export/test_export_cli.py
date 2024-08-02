@@ -64,6 +64,7 @@ class TestExportCLI(AsyncTestCase):
             "--basic-user=alice",
             "--basic-passwd=passwd.txt",
             "--bearer-token=token.txt",
+            "--resume=my-url",
         )
         # built-in positional args
         self.assertEqual("https://example.com", self.loader_init_mock.call_args.args[0].path)
@@ -71,6 +72,7 @@ class TestExportCLI(AsyncTestCase):
         # custom args from above
         self.assertEqual("1920", self.loader_init_mock.call_args.kwargs["since"])
         self.assertEqual("1923", self.loader_init_mock.call_args.kwargs["until"])
+        self.assertEqual("my-url", self.loader_init_mock.call_args.kwargs["resume"])
         self.assertEqual("ID", self.client_mock.call_args.args[0].smart_client_id)
         self.assertEqual("jwks.json", self.client_mock.call_args.args[0].smart_jwks)
         self.assertEqual("alice", self.client_mock.call_args.args[0].basic_user)

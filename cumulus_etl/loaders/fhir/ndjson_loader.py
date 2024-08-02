@@ -20,6 +20,7 @@ class FhirNdjsonLoader(base.Loader):
         export_to: str | None = None,
         since: str | None = None,
         until: str | None = None,
+        resume: str | None = None,
     ):
         """
         :param root: location to load ndjson from
@@ -27,12 +28,14 @@ class FhirNdjsonLoader(base.Loader):
         :param export_to: folder to write the results into, instead of a temporary directory
         :param since: export start date for a FHIR server
         :param until: export end date for a FHIR server
+        :param resume: a polling status URL from a previous expor
         """
         super().__init__(root)
         self.client = client
         self.export_to = export_to
         self.since = since
         self.until = until
+        self.resume = resume
 
     async def load_all(self, resources: list[str]) -> common.Directory:
         # Are we doing a bulk FHIR export from a server?
@@ -40,7 +43,7 @@ class FhirNdjsonLoader(base.Loader):
             loaded_dir = await self.load_from_bulk_export(resources)
             input_root = store.Root(loaded_dir.name)
         else:
-            if self.export_to or self.since or self.until:
+            if self.export_to or self.since or self.until or self.resume:
                 errors.fatal(
                     "You provided FHIR bulk export parameters but did not provide a FHIR server",
                     errors.ARGS_CONFLICT,
@@ -91,8 +94,9 @@ class FhirNdjsonLoader(base.Loader):
                 resources,
                 self.root.path,
                 target_dir.name,
-                self.since,
-                self.until,
+                since=self.since,
+                until=self.until,
+                resume=self.resume,
                 prefer_url_resources=prefer_url_resources,
             )
             await bulk_exporter.export()

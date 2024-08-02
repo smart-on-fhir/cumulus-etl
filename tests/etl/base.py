@@ -43,6 +43,7 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
 
     async def run_etl(
         self,
+        *args,
         input_path=None,
         output_path=None,
         phi_path=None,
@@ -66,6 +67,7 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             phi_path or self.phi_path,
             f"--input-format={input_format}",
             f"--ctakes-overrides={self.ctakes_overrides.name}",
+            *args,
         ]
         if skip_init_checks:
             args.append("--skip-init-checks")

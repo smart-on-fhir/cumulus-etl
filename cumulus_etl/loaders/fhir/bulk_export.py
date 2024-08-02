@@ -38,8 +38,10 @@ class BulkExporter:
         resources: list[str],
         url: str,
         destination: str,
+        *,
         since: str | None = None,
         until: str | None = None,
+        resume: str | None = None,
         prefer_url_resources: bool = False,
     ):
         """
@@ -51,6 +53,7 @@ class BulkExporter:
         :param destination: a local folder to store all the files
         :param since: start date for export
         :param until: end date for export
+        :param resume: a polling status URL from a previous expor
         :param prefer_url_resources: if the URL includes _type, ignore the provided resources
         """
         super().__init__()
@@ -58,6 +61,13 @@ class BulkExporter:
         self._destination = destination
         self._total_wait_time = 0  # in seconds, across all our requests
         self._log: export_log.BulkExportLogWriter = None
+
+        self._resume = resume
+        if self._resume and ":" not in self._resume:
+            # Decode URL first (we normally encode the URL for ease of copy-paste in the
+            # terminal). We check if we need to first, to also support accepting resume URLs
+            # that we didn't generate.
+            self._resume = urllib.parse.unquote(self._resume)
 
         self._url = self.format_kickoff_url(
             url,
@@ -97,6 +107,14 @@ class BulkExporter:
             # This parameter is not part of the FHIR spec and is unlikely to be supported by your
             # server. But some custom servers *do* support it, so we added support for it too.
             query["_until"] = until
+
+        # Combine repeated query params into a single comma-delimited params.
+        # The spec says servers SHALL support repeated params (and even prefers them, claiming
+        # that comma-delimited params may be deprecated in future releases).
+        # But... Cerner doesn't support repeated _type at least.
+        # So for wider compatibility, we'll condense into comma-delimited params.
+        query = {k: ",".join(v) if isinstance(v, list) else v for k, v in query.items()}
+
         parsed = parsed._replace(query=urllib.parse.urlencode(query, doseq=True))
 
         return urllib.parse.urlunsplit(parsed)
@@ -105,10 +123,12 @@ class BulkExporter:
         """
         Bulk export resources from a FHIR server into local ndjson files.
 
-        This call will block for a while, as resources tend to be large, and we may also have to wait if the server is
-        busy. Because it is a slow operation, this function will also print status updates to the console.
+        This call will block for a while, as resources tend to be large, and we may also have to
+        wait if the server is busy. Because it is a slow operation, this function will also print
+        status updates to the console.
 
-        After this completes, the destination folder will be full of files that look like Resource.000.ndjson, like so:
+        After this completes, the destination folder will be full of files that look like
+        Resource.000.ndjson, like so:
 
         destination/
           Encounter.000.ndjson
@@ -118,24 +138,14 @@ class BulkExporter:
 
         See http://hl7.org/fhir/uv/bulkdata/export/index.html for details.
         """
-        # Initiate bulk export
-        print("Starting bulk FHIR export…")
         self._log = export_log.BulkExportLogWriter(store.Root(self._destination))
 
-        try:
-            response = await self._request_with_delay(
-                self._url,
-                headers={"Prefer": "respond-async"},
-                target_status_code=202,
-            )
-        except Exception as exc:
-            self._log.kickoff(self._url, self._client.get_capabilities(), exc)
-            raise
+        if self._resume:
+            poll_location = self._resume
+            print("Resuming bulk FHIR export… (all other export arguments ignored)")
         else:
-            self._log.kickoff(self._url, self._client.get_capabilities(), response)
-
-        # Grab the poll location URL for status updates
-        poll_location = response.headers["Content-Location"]
+            poll_location = await self._kick_off()
+            print("Starting bulk FHIR export…")
 
         # Request status report, until export is done
         response = await self._request_with_logging(
@@ -156,7 +166,8 @@ class BulkExporter:
             pass  # server gave us a bad timestamp, ignore it :shrug:
 
         # Were there any server-side errors during the export?
-        # The spec acknowledges that "error" is perhaps misleading for an array that can contain info messages.
+        # The spec acknowledges that "error" is perhaps misleading for an array that can contain
+        # info messages.
         error_texts, warning_texts = await self._gather_all_messages(response_json.get("error", []))
         if warning_texts:
             print("\n - ".join(["Messages from server:", *warning_texts]))
@@ -173,21 +184,57 @@ class BulkExporter:
         # files up there, so the user could try to manually recover.
         await self._delete_export(poll_location)
 
-        # Make sure we're fully done before we bail because the server told us the export has issues.
-        # We still want to DELETE the export in this case. And we still want to download all the files
-        # the server DID give us. Servers may have lots of ignorable errors that need human review,
-        # before passing back to us as input ndjson.
+        # Make sure we're fully done before we bail because the server told us the export has
+        # issues. We still want to DELETE the export in this case. And we still want to download
+        # all the files the server DID give us. Servers may have lots of ignorable errors that
+        # need human review, before passing back to us as input ndjson.
         if error_texts:
             raise errors.FatalError("\n - ".join(["Errors occurred during export:", *error_texts]))
 
-    ###################################################################################################################
+    ##############################################################################################
     #
     # Helpers
     #
-    ###################################################################################################################
+    ##############################################################################################
+
+    async def _kick_off(self):
+        """Initiate bulk export"""
+        try:
+            response = await self._request_with_delay(
+                self._url,
+                headers={"Prefer": "respond-async"},
+                target_status_code=202,
+            )
+        except Exception as exc:
+            self._log.kickoff(self._url, self._client.get_capabilities(), exc)
+            raise
+        else:
+            self._log.kickoff(self._url, self._client.get_capabilities(), response)
+
+        # Grab the poll location URL for status updates
+        poll_location = response.headers["Content-Location"]
+
+        print()
+        print("If interrupted, try again but add the following argument to resume the export:")
+        rich.get_console().print(
+            # Quote the poll location here only so that it's easier to copy & paste the whole
+            # argument in one double-click. Colons are often used as separators in word-
+            # highlighting algorithms.
+            f"--resume={urllib.parse.quote(poll_location)}",
+            style="bold",
+            highlight=False,
+            soft_wrap=True,
+        )
+        print()
+
+        return poll_location
 
     async def _delete_export(self, poll_url: str) -> None:
-        """As a kindness, send a DELETE to the polling location. Then the server knows it can delete the files."""
+        """
+        As a kindness, send a DELETE to the polling location.
+
+        Then the server knows it can delete the files.
+        """
         try:
             await self._request_with_delay(poll_url, method="DELETE", target_status_code=202)
         except errors.FatalError:
@@ -224,7 +271,8 @@ class BulkExporter:
                         )
                     return response
 
-                # 202 == server is still working on it, 429 == server is busy -- in both cases, we wait
+                # 202 == server is still working on it, 429 == server is busy.
+                # In both cases, we wait.
                 if response.status_code in [202, 429]:
                     if log_progress:
                         log_progress(response)

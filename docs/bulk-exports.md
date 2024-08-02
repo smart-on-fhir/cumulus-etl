@@ -44,6 +44,22 @@ You can save the exported files for archiving after the fact with `--export-to=P
 However, bulk exports tend to be brittle and slow for many EHRs at the time of this writing.
 It might be wiser to separately export, make sure the data is all there and good, and then ETL it.
 
+## Resuming an Interrupted Export
+
+Bulk exports can be brittle.
+The server can give the odd occasional error or time you out.
+Maybe you lose your internet connection.
+Who knows.
+
+But thankfully, you can resume a bulk export with Cumulus ETL.
+Every time you start a bulk export,
+the ETL will print an argument that you can add onto your command line
+if you get interrupted and want to try again.
+
+When you add this command line argument (it usually looks like `--resume=URL`),
+the rest of the bulk export arguments (like `--since`) that you provide don't matter,
+but they are also harmless and will be ignored.
+
 ## Registering an Export Client
 
 On your server, you need to register a new "backend service" client.
