@@ -88,7 +88,9 @@ jobs:
           tags: smartonfhir/cumulus-etl:latest
 
       - name: Download NLP images
-        run: docker compose --profile covid-symptom up -d --quiet-pull
+        run: |
+          # Just start the specific services we need, to conserve CI disk space
+          docker compose up -d --quiet-pull cnlpt-negation ctakes-covid
 
       - name: Run NLP
         run: |
