@@ -188,6 +188,14 @@ class TestEtlJobFlow(BaseEtlSimple):
                 await self.run_etl(errors_to=f"{self.tmpdir}/errors")
         self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.tmpdir}/errors")
 
+    async def test_resume_url_passed_to_loader(self):
+        with self.assertRaises(SystemExit):
+            with mock.patch(
+                "cumulus_etl.loaders.FhirNdjsonLoader", side_effect=SystemExit
+            ) as mock_loader:
+                await self.run_etl("--resume=https://blarg/", input_path="http://example.invalid/")
+        self.assertEqual(mock_loader.call_args[1]["resume"], "https://blarg/")
+
     @respx.mock
     async def test_bulk_no_auth(self):
         """Verify that if no auth is provided, we'll error out well."""
@@ -199,10 +207,16 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
-    async def test_bulk_no_url(self):
+    @ddt.data(
+        "--export-to=output/dir",
+        "--since=2024",
+        "--until=2024",
+        "--resume=http://example.com/",
+    )
+    async def test_bulk_no_url(self, bulk_arg):
         """Verify that if no FHIR URL is provided, but export args *are*, we'll error out."""
         with self.assertRaises(SystemExit) as cm:
-            await self.run_etl(export_to="output/dir")
+            await self.run_etl(bulk_arg)
         self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
 
     async def test_no_ms_tool(self):

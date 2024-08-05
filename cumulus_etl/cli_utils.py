@@ -1,10 +1,12 @@
 """Helper methods for CLI parsing."""
 
 import argparse
+import os
 import socket
 import tempfile
 import time
 import urllib.parse
+from collections.abc import Iterable
 
 import rich.progress
 
@@ -45,9 +47,14 @@ def add_aws(parser: argparse.ArgumentParser) -> None:
 def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True):
     if as_subgroup:
         parser = parser.add_argument_group("bulk export")
-    parser.add_argument("--since", help="start date for export from the FHIR server")
+    parser.add_argument(
+        "--since", metavar="TIMESTAMP", help="start date for export from the FHIR server"
+    )
     # "Until" is not an official part of the bulk FHIR API, but some custom servers support it
-    parser.add_argument("--until", help="end date for export from the FHIR server")
+    parser.add_argument(
+        "--until", metavar="TIMESTAMP", help="end date for export from the FHIR server"
+    )
+    parser.add_argument("--resume", metavar="URL", help="polling status URL from a previous export")
     return parser
 
 
@@ -91,25 +98,32 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
     if not export_to:
         return tempfile.TemporaryDirectory()
 
-    # OK the user has a specific spot in mind. Let's do some quality checks. It must be local and empty.
+    # OK the user has a specific spot in mind. Let's do some quality checks.
+    # It must be local and empty.
 
     if urllib.parse.urlparse(export_to).netloc:
         # We require a local folder because that's all that the MS deid tool can operate on.
-        # If we were to relax this requirement, we'd want to copy the exported files over to a local dir.
+        # If we were to relax this requirement, we'd want to copy the exported files over to a
+        # local dir.
         errors.fatal(
             f"The target export folder '{export_to}' must be local. ",
             errors.BULK_EXPORT_FOLDER_NOT_LOCAL,
         )
 
-    confirm_dir_is_empty(store.Root(export_to, create=True))
+    # Allowing a previous export log file is harmless, since we append to it.
+    # This helps the UX for resuming an interrupted bulk export by not requiring a new dir.
+    confirm_dir_is_empty(store.Root(export_to, create=True), allow=["log.ndjson"])
 
     return common.RealDirectory(export_to)
 
 
-def confirm_dir_is_empty(root: store.Root) -> None:
+def confirm_dir_is_empty(root: store.Root, allow: Iterable[str] | None = None) -> None:
     """Errors out if the dir exists with contents"""
     try:
-        if root.ls():
+        files = {os.path.basename(p) for p in root.ls()}
+        if allow is not None:
+            files -= set(allow)
+        if files:
             errors.fatal(
                 f"The target folder '{root.path}' already has contents. Please provide an empty folder.",
                 errors.FOLDER_NOT_EMPTY,

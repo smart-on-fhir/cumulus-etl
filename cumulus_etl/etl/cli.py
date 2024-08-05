@@ -259,6 +259,7 @@ async def etl_main(args: argparse.Namespace) -> None:
                 export_to=args.export_to,
                 since=args.since,
                 until=args.until,
+                resume=args.resume,
             )
 
         # Pull down resources from any remote location (like s3), convert from i2b2, or do a bulk export

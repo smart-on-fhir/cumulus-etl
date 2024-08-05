@@ -36,12 +36,12 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             self.exporter = BulkExporter(client, resources, self.fhir_url, self.tmpdir, **kwargs)
             await self.exporter.export()
 
-    def assert_log_equals(self, *rows) -> None:
+    def assert_log_equals(self, *rows, num_export_ids: int = 1) -> None:
         found_rows = list(cumulus_fhir_support.read_multiline_json(f"{self.tmpdir}/log.ndjson"))
 
         # Do we use the same export ID throughout?
         all_export_ids = {x["exportId"] for x in found_rows}
-        self.assertEqual(1, len(all_export_ids))
+        self.assertEqual(num_export_ids, len(all_export_ids))
 
         # Are timestamps increasing?
         all_timestamps = [x["timestamp"] for x in found_rows]
@@ -93,7 +93,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
 
     def mock_kickoff(
         self,
-        params: str = "?_type=Condition&_type=Patient",
+        params: str = "?_type=Condition%2CPatient",
         side_effect: list | None = None,
         **kwargs,
     ) -> None:
@@ -176,7 +176,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             (
                 "kickoff",
                 {
-                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition&_type=Patient",
+                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition%2CPatient",
                     "softwareName": "Test",
                     "softwareVersion": "0.git",
                     "softwareReleaseDate": "today",
@@ -244,7 +244,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
     async def test_since_until(self):
         """Verify that we send since & until parameters correctly to the server"""
         self.mock_kickoff(
-            params="?_type=Condition&_type=Patient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
+            params="?_type=Condition%2CPatient&_since=2000-01-01T00%3A00%3A00%2B00.00&_until=2010",
             status_code=500,  # early exit
         )
 
@@ -435,7 +435,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             (
                 "kickoff",
                 {
-                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition&_type=Patient",
+                    "exportUrl": f"{self.fhir_url}/$export?_type=Condition%2CPatient",
                     "softwareName": "Test",
                     "softwareVersion": "0.git",
                     "softwareReleaseDate": "today",
@@ -570,6 +570,31 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
         )
 
+    async def test_resume(self):
+        """Verify that we just skip kickoff entirely if given a resume URL"""
+        # Do initial (interrupted by server error) export
+        self.mock_kickoff()
+        self.respx_mock.get("https://example.com/poll").respond(status_code=500)
+        with self.assertRaises(errors.FatalError):
+            await self.export()
+        self.assert_log_equals(
+            ("kickoff", None),
+            ("status_error", None),
+        )
+
+        # Now prep for resumed backup
+        self.mock_kickoff(status_code=500)  # detect any attempt to start a new kickoff
+        self.mock_delete()
+        self.respx_mock.get("https://example.com/poll").respond(json={})
+        await self.export(resume="https://example.com/poll")
+        self.assert_log_equals(  # confirm we append to previous log
+            ("kickoff", None),
+            ("status_error", None),
+            ("status_complete", None),
+            ("export_complete", None),
+            num_export_ids=2,
+        )
+
 
 @ddt.ddt
 class TestBulkExporterInit(utils.AsyncTestCase):
@@ -580,7 +605,7 @@ class TestBulkExporterInit(utils.AsyncTestCase):
         (  # all the args, including merged _type fields and overridden _since!
             "http://a.com/$export?_type=Condition&_since=2000",
             {"since": "2020", "until": "2024"},
-            "http://a.com/$export?_type=Condition&_type=Patient&_since=2020&_until=2024",
+            "http://a.com/$export?_type=Condition%2CPatient&_since=2020&_until=2024",
         ),
         (  # extraneous args are kept
             "http://a.com/$export?_elements=birthDate",
@@ -603,6 +628,18 @@ class TestBulkExporterInit(utils.AsyncTestCase):
         """Verify that we allow existing params and add some in ourselves"""
         exporter = BulkExporter(None, ["Patient"], original_url, "fake_dir", **kwargs)
         self.assertEqual(exporter._url, expected_url)
+
+    @ddt.data(
+        ("http://example.com/?info=a%2Cb", "http://example.com/?info=a%2Cb"),
+        ("http%3A//example.com/%3Finfo%3Da%252Cb", "http://example.com/?info=a%2Cb"),
+    )
+    @ddt.unpack
+    def test_resume_unquoting(self, resume_url, expected_url):
+        """Verify that we correctly unquote the incoming URL as needed"""
+        exporter = BulkExporter(
+            None, ["Patient"], "http://example.com/", "fake_dir", resume=resume_url
+        )
+        self.assertEqual(exporter._resume, expected_url)
 
 
 class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):

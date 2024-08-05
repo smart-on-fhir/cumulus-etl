@@ -2,7 +2,7 @@
 
 import argparse
 
-from cumulus_etl import cli_utils, fhir, loaders, store
+from cumulus_etl import cli_utils, common, fhir, loaders, store
 from cumulus_etl.etl.tasks import task_factory
 
 
@@ -29,6 +29,8 @@ async def export_main(args: argparse.Namespace) -> None:
     fhir_root = store.Root(args.url_input)
     client = fhir.create_fhir_client_for_cli(args, fhir_root, required_resources)
 
+    common.print_header()
+
     async with client:
         loader = loaders.FhirNdjsonLoader(
             fhir_root,
@@ -36,6 +38,7 @@ async def export_main(args: argparse.Namespace) -> None:
             export_to=args.export_to,
             since=args.since,
             until=args.until,
+            resume=args.resume,
         )
         await loader.load_from_bulk_export(
             sorted(required_resources), prefer_url_resources=using_default_tasks
