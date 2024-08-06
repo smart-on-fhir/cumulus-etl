@@ -287,6 +287,28 @@ class TestFhirClient(AsyncTestCase):
             fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), [])
         self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
 
+    @ddt.data(
+        "http://example.invalid/root/",
+        "http://example.invalid/root/$export?",
+        "http://example.invalid/root/Group/xxx",
+        "http://example.invalid/root/Group/xxx/$export?_type=Patient",
+        "http://example.invalid/root/Patient",
+        "http://example.invalid/root/Patient/$export",
+    )
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
+    def test_can_find_auth_root(self, input_url, mock_client):
+        """Verify that we detect the auth root for an input URL"""
+        args = argparse.Namespace(
+            fhir_url=None,
+            smart_client_id=None,
+            smart_jwks=None,
+            basic_user=None,
+            basic_passwd=None,
+            bearer_token=None,
+        )
+        fhir.create_fhir_client_for_cli(args, store.Root(input_url), [])
+        self.assertEqual("http://example.invalid/root/", mock_client.call_args[0][0])
+
     async def test_must_be_context_manager(self):
         """Verify that FHIRClient enforces its use as a context manager."""
         client = fhir.FhirClient(

@@ -91,12 +91,14 @@ class FhirClient:
         """
         Issues an HTTP request.
 
-        The default Accept type is application/fhir+json, but can be overridden by a provided header.
+        The default Accept type is application/fhir+json, but can be overridden by a provided
+        header.
 
-        This is a lightly modified version of FHIRServer._get(), but additionally supports streaming and
-        reauthorization.
+        This is a lightly modified version of FHIRServer._get(), but additionally supports
+        streaming and reauthorization.
 
-        Will raise a FatalError for an HTTP error, except for 429 which gets returned like a success code.
+        Will raise a FatalError for an HTTP error, except for 429 which gets returned like a
+        success code.
 
         :param method: HTTP method to issue
         :param path: relative path from the server root to request
@@ -169,16 +171,17 @@ class FhirClient:
         """
         return self._capabilities
 
-    ###################################################################################################################
+    #############################################################################################
     #
     # Helpers
     #
-    ###################################################################################################################
+    #############################################################################################
 
     async def _read_capabilities(self) -> None:
         """
-        Reads the server's CapabilityStatement and sets any properties as a result (like server/vendor type).
+        Reads the server's CapabilityStatement and sets any properties as a result.
 
+        Notably, this gathers the server/vendor type.
         This is expected to be called extremely early, right as the http session is opened.
         """
         if not self._server_root:
@@ -259,6 +262,7 @@ def create_fhir_client_for_cli(
             # Use the input URL as the base URL. But note that it may not be the server root.
             # For example, it may be a Group export URL. Let's try to find the actual root.
             client_base_url = root_input.path
+            client_base_url = re.sub(r"/\$export(\?.*)?$", "/", client_base_url)
             client_base_url = re.sub(r"/Patient/?$", "/", client_base_url)
             client_base_url = re.sub(r"/Group/[^/]+/?$", "/", client_base_url)
 

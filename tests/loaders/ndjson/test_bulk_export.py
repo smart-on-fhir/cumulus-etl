@@ -9,6 +9,7 @@ from unittest import mock
 
 import cumulus_fhir_support
 import ddt
+import httpx
 import respx
 
 from cumulus_etl import cli, common, errors, store
@@ -27,6 +28,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
 
     def setUp(self):
         super().setUp()
+        self.sleep_mock = self.patch("asyncio.sleep")
         self.tmpdir = self.make_tempdir()
         self.exporter = None
 
@@ -72,8 +74,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         downloads = {}
         for event_id, detail in extracted_details:
             if event_id == "download_request":
-                self.assertNotIn(detail["fileUrl"], downloads)
-                downloads[detail["fileUrl"]] = [(event_id, detail)]
+                event_list = downloads.setdefault(detail["fileUrl"], [])
+                event_list.append((event_id, detail))
             elif event_id in ("download_complete", "download_error"):
                 self.assertIn(detail["fileUrl"], downloads)
                 downloads[detail["fileUrl"]].append((event_id, detail))
@@ -412,6 +414,14 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("kickoff", None),
             ("status_complete", None),
             ("download_request", None),
+            ("download_error", None),
+            ("download_request", None),
+            ("download_error", None),
+            ("download_request", None),
+            ("download_error", None),
+            ("download_request", None),
+            ("download_error", None),
+            ("download_request", None),
             (
                 "download_error",
                 {
@@ -420,6 +430,45 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                     "code": 501,
                     "message": 'An error occurred when connecting to "https://example.com/con1": ["error"]',
                     "responseHeaders": {"content-length": "9"},
+                },
+            ),
+        )
+
+    async def test_file_download_error_during_stream(self):
+        """Verify that we correctly handle a resource download failure during the streaming"""
+        self.mock_kickoff()
+        self.respx_mock.get("https://example.com/poll").respond(
+            json={
+                "output": [
+                    {"type": "Condition", "url": "https://example.com/con1"},
+                ],
+            },
+        )
+
+        async def exploding_stream() -> bytes:
+            raise ZeroDivisionError("oops")
+            yield b'{"id":"con1"}'
+
+        self.respx_mock.get("https://example.com/con1").respond(stream=exploding_stream())
+
+        with self.assertRaisesRegex(
+            errors.FatalError,
+            "Error downloading 'https://example.com/con1': oops",
+        ):
+            await self.export()
+
+        self.assert_log_equals(
+            ("kickoff", None),
+            ("status_complete", None),
+            ("download_request", None),
+            (
+                "download_error",
+                {
+                    "fileUrl": "https://example.com/con1",
+                    "body": None,
+                    "code": None,
+                    "message": "oops",
+                    "responseHeaders": None,
                 },
             ),
         )
@@ -451,8 +500,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
         )
 
-    @mock.patch("cumulus_etl.loaders.fhir.bulk_export.asyncio.sleep")
-    async def test_delay(self, mock_sleep):
+    async def test_delay(self):
         """Verify that we wait the amount of time the server asks us to"""
         self.mock_kickoff(
             side_effect=[
@@ -487,7 +535,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 mock.call(300),
                 mock.call(82800),
             ],
-            mock_sleep.call_args_list,
+            self.sleep_mock.call_args_list,
         )
 
         self.assert_log_equals(
@@ -510,7 +558,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         """Verify that we don't delete the export on the server if we raise an exception during the middle of export"""
         self.mock_kickoff()
         self.respx_mock.get("https://example.com/poll").respond(
-            status_code=500,
+            status_code=400,
             content=b"Test Status Call Failed",
         )
 
@@ -523,7 +571,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 "status_error",
                 {
                     "body": "Test Status Call Failed",
-                    "code": 500,
+                    "code": 400,
                     "message": (
                         'An error occurred when connecting to "https://example.com/poll": '
                         "Test Status Call Failed"
@@ -574,7 +622,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         """Verify that we just skip kickoff entirely if given a resume URL"""
         # Do initial (interrupted by server error) export
         self.mock_kickoff()
-        self.respx_mock.get("https://example.com/poll").respond(status_code=500)
+        self.respx_mock.get("https://example.com/poll").respond(status_code=400)
         with self.assertRaises(errors.FatalError):
             await self.export()
         self.assert_log_equals(
@@ -593,6 +641,66 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("status_complete", None),
             ("export_complete", None),
             num_export_ids=2,
+        )
+
+    async def test_retry_status_poll_then_failure(self):
+        """Verify that we retry polling the status URL on server errors"""
+        self.mock_kickoff()
+        self.respx_mock.get("https://example.com/poll").respond(
+            status_code=500,
+            content=b"Test Status Call Failed",
+        )
+
+        with self.assertRaisesRegex(errors.FatalError, "Test Status Call Failed"):
+            await self.export()
+
+        self.assert_log_equals(
+            ("kickoff", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_error", None),
+        )
+
+        self.assertEqual(
+            [mock.call(x) for x in (60, 120, 240, 480)], self.sleep_mock.call_args_list
+        )
+
+    async def test_retry_status_poll_then_success(self):
+        """Verify that we can recover from server errors"""
+        self.mock_kickoff()
+        self.mock_delete()
+        self.respx_mock.get("https://example.com/poll").mock(
+            side_effect=[
+                httpx.Response(500),
+                httpx.Response(500),
+                httpx.Response(202, json={}),
+                httpx.Response(500),
+                httpx.Response(500, headers={"Retry-After": "20"}),
+                httpx.Response(500),
+                httpx.Response(500),
+                httpx.Response(200, json={}),
+            ],
+        )
+
+        await self.export()
+
+        self.assert_log_equals(
+            ("kickoff", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_progress", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_error", None),
+            ("status_complete", None),
+            ("export_complete", None),
+        )
+
+        self.assertEqual(
+            [mock.call(x) for x in (60, 120, 60, 60, 20, 240, 480)], self.sleep_mock.call_args_list
         )
 
 
