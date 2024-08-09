@@ -22,6 +22,8 @@ def get_all_tasks() -> list[type[AnyTask]]:
     # Note: tasks will be run in the order listed here.
     return [
         *get_default_tasks(),
+        covid_symptom.CovidSymptomNlpResultsGpt35Task,
+        covid_symptom.CovidSymptomNlpResultsGpt4Task,
         covid_symptom.CovidSymptomNlpResultsTask,
         covid_symptom.CovidSymptomNlpResultsTermExistsTask,
         hftest.HuggingFaceTestTask,

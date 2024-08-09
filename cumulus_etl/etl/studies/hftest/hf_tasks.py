@@ -63,7 +63,9 @@ class HuggingFaceTestTask(tasks.BaseNlpTask):
             summary = await nlp.cache_wrapper(
                 self.task_config.dir_phi,
                 f"{self.name}_v{self.task_version}",
-                user_prompt,
+                clinical_note,
+                lambda x: x,  # from file: just store the string
+                lambda x: x,  # to file: just read it back
                 nlp.llama2_prompt,
                 system_prompt,
                 user_prompt,

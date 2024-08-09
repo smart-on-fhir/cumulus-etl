@@ -170,8 +170,6 @@ class TaskTestCase(utils.AsyncTestCase):
 
     def make_json(self, resource_type, resource_id, **kwargs):
         self.json_file_count += 1
-        filename = f"{self.json_file_count}.ndjson"
-        common.write_json(
-            os.path.join(self.input_dir, filename),
-            {"resourceType": resource_type, **kwargs, "id": resource_id},
-        )
+        filename = f"{self.input_dir}/{self.json_file_count}.ndjson"
+        with common.NdjsonWriter(filename) as writer:
+            writer.write({"resourceType": resource_type, **kwargs, "id": resource_id})

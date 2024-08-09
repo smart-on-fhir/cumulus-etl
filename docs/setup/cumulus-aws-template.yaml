@@ -197,6 +197,8 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/procedure"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/servicerequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_gpt35"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_gpt4"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_term_exists"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion_encounters"

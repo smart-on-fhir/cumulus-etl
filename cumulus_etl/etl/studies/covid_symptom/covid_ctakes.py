@@ -6,7 +6,7 @@ import ctakesclient
 import httpx
 from ctakesclient.transformer import TransformerModel
 
-from cumulus_etl import common, fhir, nlp, store
+from cumulus_etl import common, nlp, store
 
 
 async def covid_symptoms_extract(
@@ -31,14 +31,11 @@ async def covid_symptoms_extract(
     :param cnlp_http_client: HTTPX client to use for the cNLP transformer server
     :return: list of NLP results encoded as FHIR observations
     """
-    docref_id = docref["id"]
-    _, subject_id = fhir.unref_resource(docref["subject"])
-
-    encounters = docref.get("context", {}).get("encounter", [])
-    if not encounters:
-        logging.warning("No encounters for docref %s", docref_id)
+    try:
+        docref_id, encounter_id, subject_id = nlp.get_docref_info(docref)
+    except KeyError as exc:
+        logging.warning(exc)
         return None
-    _, encounter_id = fhir.unref_resource(encounters[0])
 
     # cTAKES cache namespace history (and thus, cache invalidation history):
     #   v1: original cTAKES processing
@@ -54,7 +51,7 @@ async def covid_symptoms_extract(
         case TransformerModel.TERM_EXISTS:
             cnlp_namespace = f"{ctakes_namespace}-cnlp_term_exists_v1"
         case _:
-            logging.warning("Unknown polarity method: %s", polarity_model.value)
+            logging.warning("Unknown polarity method: %s", polarity_model)
             return None
 
     timestamp = common.datetime_now().isoformat()
