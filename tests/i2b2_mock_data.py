@@ -71,8 +71,10 @@ def documentreference_dim() -> transform.ObservationFact:
     )
 
 
-def documentreference() -> dict:
-    return transform.to_fhir_documentreference(documentreference_dim())
+def documentreference(text: str = DOCREF_TEXT) -> dict:
+    dim = documentreference_dim()
+    dim.observation_blob = text
+    return transform.to_fhir_documentreference(dim)
 
 
 def observation_dim() -> transform.ObservationFact:
