@@ -1,6 +1,7 @@
 """Tests for etl/studies/covid_symptom/covid_tasks.py"""
 
 import os
+from unittest import mock
 
 import cumulus_fhir_support
 import ddt
@@ -19,6 +20,82 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     def setUp(self):
         super().setUp()
         self.job_config.ctakes_overrides = self.ctakes_overrides.name
+
+    async def test_prepare_failure(self):
+        """Verify that if ctakes can't be restarted, we skip"""
+        task = covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber)
+        with mock.patch("cumulus_etl.nlp.restart_ctakes_with_bsv", return_value=False):
+            self.assertFalse(await task.prepare_task())
+        self.assertEqual(task.summaries[0].had_errors, True)
+
+    @mock.patch("cumulus_etl.nlp.check_ctakes")
+    @mock.patch("cumulus_etl.nlp.check_negation_cnlpt")
+    async def test_negation_init_check(self, mock_cnlpt, mock_ctakes):
+        await covid_symptom.CovidSymptomNlpResultsTask.init_check()
+        self.assertEqual(mock_ctakes.call_count, 1)
+        self.assertEqual(mock_cnlpt.call_count, 1)
+
+    @mock.patch("cumulus_etl.nlp.check_ctakes")
+    @mock.patch("cumulus_etl.nlp.check_term_exists_cnlpt")
+    async def test_term_exists_init_check(self, mock_cnlpt, mock_ctakes):
+        await covid_symptom.CovidSymptomNlpResultsTermExistsTask.init_check()
+        self.assertEqual(mock_ctakes.call_count, 1)
+        self.assertEqual(mock_cnlpt.call_count, 1)
+
+    @mock.patch("cumulus_etl.nlp.ctakes_extract", side_effect=ValueError("oops"))
+    async def test_ctakes_error(self, mock_extract):
+        """Verify we skip docrefs when a cTAKES error happens"""
+        self.make_json("DocumentReference", "doc", **i2b2_mock_data.documentreference())
+
+        task = covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber)
+        with self.assertLogs(level="WARN") as cm:
+            await task.run()
+
+        self.assertEqual(len(cm.output), 1)
+        self.assertRegex(
+            cm.output[0], r"Could not extract symptoms for docref .* \(ValueError\): oops"
+        )
+
+        # Confirm that we skipped the doc
+        self.assertEqual(self.format.write_records.call_count, 1)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(len(batch.rows), 0)
+
+    @mock.patch("cumulus_etl.nlp.list_polarity", side_effect=ValueError("oops"))
+    async def test_cnlpt_error(self, mock_extract):
+        """Verify we skip docrefs when a cNLPT error happens"""
+        self.make_json("DocumentReference", "doc", **i2b2_mock_data.documentreference())
+
+        task = covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber)
+        with self.assertLogs(level="WARN") as cm:
+            await task.run()
+
+        self.assertEqual(len(cm.output), 1)
+        self.assertRegex(
+            cm.output[0], r"Could not check polarity for docref .* \(ValueError\): oops"
+        )
+
+        # Confirm that we skipped the doc
+        self.assertEqual(self.format.write_records.call_count, 1)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(len(batch.rows), 0)
+
+    async def test_extract_polarity_type_error(self):
+        """Verify we bail if a bogus polarity model was given"""
+        self.make_json("DocumentReference", "doc", **i2b2_mock_data.documentreference())
+
+        task = covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber)
+        task.polarity_model = None
+        with self.assertLogs(level="WARN") as cm:
+            await task.run()
+
+        self.assertEqual(len(cm.output), 1)
+        self.assertRegex(cm.output[0], "Unknown polarity method: None")
+
+        # Confirm that we skipped the doc
+        self.assertEqual(self.format.write_records.call_count, 1)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(len(batch.rows), 0)
 
     async def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
         """Verify we ignore unknown modifier extensions during a custom read task (nlp symptoms)"""
@@ -220,8 +297,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     async def test_zero_symptoms(self):
         """Verify that we write out a marker for DocRefs we did examine, even if no symptoms appeared"""
         docref = i2b2_mock_data.documentreference()
-        docref_no_text = i2b2_mock_data.documentreference()
-        docref_no_text["content"][0]["attachment"]["data"] = ""
+        docref_no_text = i2b2_mock_data.documentreference("")
         self.make_json("DocumentReference", "zero-symptoms", **docref_no_text)
         self.make_json("DocumentReference", "not-examined", **docref, docStatus="preliminary")
 
@@ -246,7 +322,7 @@ class TestCovidSymptomEtl(BaseEtlSimple):
     DATA_ROOT = "covid"
 
     async def test_basic_run(self):
-        await self.run_etl(tags=["covid_symptom"])
+        await self.run_etl(tasks=["covid_symptom__nlp_results"])
         self.assert_output_equal()
 
     async def test_term_exists_task(self):
