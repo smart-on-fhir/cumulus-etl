@@ -96,8 +96,8 @@ class TestHuggingFaceTestTask(TaskTestCase):
         await hftest.HuggingFaceTestTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(1, route.call_count)
-        cache_dir = f"{self.phi_dir}/ctakes-cache/hftest__summary_v0/06ee/"
-        cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.json"
+        cache_dir = f"{self.phi_dir}/nlp-cache/hftest__summary_v0/06ee/"
+        cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual("Patient has a fever.", common.read_text(cache_file))
 
         await hftest.HuggingFaceTestTask(self.job_config, self.scrubber).run()

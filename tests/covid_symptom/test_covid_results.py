@@ -220,8 +220,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     async def test_zero_symptoms(self):
         """Verify that we write out a marker for DocRefs we did examine, even if no symptoms appeared"""
         docref = i2b2_mock_data.documentreference()
-        docref_no_text = i2b2_mock_data.documentreference()
-        docref_no_text["content"][0]["attachment"]["data"] = ""
+        docref_no_text = i2b2_mock_data.documentreference("")
         self.make_json("DocumentReference", "zero-symptoms", **docref_no_text)
         self.make_json("DocumentReference", "not-examined", **docref, docStatus="preliminary")
 
@@ -246,7 +245,7 @@ class TestCovidSymptomEtl(BaseEtlSimple):
     DATA_ROOT = "covid"
 
     async def test_basic_run(self):
-        await self.run_etl(tags=["covid_symptom"])
+        await self.run_etl(tasks=["covid_symptom__nlp_results"])
         self.assert_output_equal()
 
     async def test_term_exists_task(self):
