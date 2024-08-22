@@ -16,7 +16,7 @@ class Philter:
     def __init__(self):
         # Ensure all the nltk data that our filter_config (below) needs is available.
         # In docker deployments, these should already be shipped with our docker image.
-        nltk.download("averaged_perceptron_tagger", quiet=True)
+        nltk.download("averaged_perceptron_tagger_eng", quiet=True)
 
         # philter-lite does not seem to have any easy way to reference this default config...?
         filter_config = os.path.join(os.path.dirname(__file__), "philter-config.toml")
