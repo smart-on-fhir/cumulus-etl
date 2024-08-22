@@ -116,10 +116,6 @@ One additional challenge with cloud LLMs is reproducibility,
 but recording metadata like the current time and vendor version in the database
 along with the results can at least help explain changes over time.
 
-{: .note }
-Cloud LLM support has not yet been prioritized, and none are currently supported.
-But if a new study did need to talk to a specific vendor, we know how we would integrate it.
-
 ### cTAKES
 
 [Apache cTAKES](https://ctakes.apache.org/) is a tried and true method of tagging symptoms in text.
