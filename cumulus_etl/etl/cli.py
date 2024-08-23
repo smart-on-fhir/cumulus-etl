@@ -10,6 +10,7 @@ from collections.abc import Iterable
 import rich
 import rich.table
 
+import cumulus_etl
 from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
@@ -92,6 +93,9 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("dir_input", metavar="/path/to/input")
     parser.add_argument("dir_output", metavar="/path/to/output")
     parser.add_argument("dir_phi", metavar="/path/to/phi")
+    parser.add_argument(
+        "--version", action="version", version=f"cumulus-etl {cumulus_etl.__version__}"
+    )
     parser.add_argument(
         "--input-format",
         default="ndjson",
