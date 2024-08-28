@@ -441,7 +441,8 @@ class TestMedicationRequestTask(TaskTestCase):
             ValueError("bad haircut"),
         ]
 
-        await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
+        with self.assertLogs(level="WARNING") as logs:
+            await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
         med_format = self.format
         med_req_format = self.format2
@@ -450,6 +451,11 @@ class TestMedicationRequestTask(TaskTestCase):
         self.assertEqual(1, med_req_format.write_records.call_count)
         batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual(3, len(batch.rows))
+
+        # Confirm we only logged about the first problem (to avoid spamming console)
+        self.assertEqual(
+            logs.output, ["WARNING:root:Could not download Medication reference: bad hostname"]
+        )
 
         # Confirm we still wrote out the medication for B
         self.assertEqual(1, med_format.write_records.call_count)
