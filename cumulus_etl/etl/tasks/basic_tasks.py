@@ -95,7 +95,8 @@ class MedicationRequestTask(tasks.EtlTask):
     tags: ClassVar = {"cpu"}
 
     # We may write to a second Medication table as we go.
-    # MedicationRequest can have inline medications via CodeableConcepts, or external Medication references.
+    # MedicationRequest can have inline medications via CodeableConcepts, or external Medication
+    # references.
     # If external, we'll download them and stuff them in this output table.
     # We do all this special business logic because Medication is a special, "reference" resource,
     # and many EHRs don't let you simply bulk export them.
@@ -110,9 +111,13 @@ class MedicationRequestTask(tasks.EtlTask):
         super().__init__(*args, **kwargs)
 
         # Keep a cache of medication IDs that we've already downloaded.
-        # If this ends up growing too large in practice, we can wipe it during a call to table_batch_cleanup().
+        # If this ends up growing too large in practice, we can wipe it during a call to
+        # table_batch_cleanup().
         # But let's try initially with keeping it around for the whole task.
         self.medication_ids = set()
+
+        # Track whether we already warned about downloading Medications, to avoid spamming.
+        self.warned_connection_error = False
 
     def scrub_medication(self, medication: dict | None) -> bool:
         """Scrub incoming medication resources, returns False if it should be skipped"""
@@ -120,10 +125,13 @@ class MedicationRequestTask(tasks.EtlTask):
             return False
 
         # Normally the above is all we'd need to do.
-        # But this resource just came hot from the FHIR server, and we did not run the MS anonymizer on it.
+        # But this resource just came hot from the FHIR server, and we did not run the MS
+        # anonymizer on it.
         # Since Medications are not patient-specific, we don't need the full MS treatment.
-        # But still, we should probably drop some bits that might more easily identify the *institution*.
-        # This is a poor-man's MS config tool (and a blocklist rather than allow-list, but it's a very simple resource)
+        # But still, we should probably drop some bits that might more easily identify the
+        # *institution*.
+        # This is a poor-man's MS config tool (and a blocklist rather than allow-list, but it's a
+        # very simple resource)
 
         # *should* remove extensions at all layers, but this will catch 99% of them
         medication.pop("extension", None)
@@ -141,8 +149,9 @@ class MedicationRequestTask(tasks.EtlTask):
 
         if not reference.startswith("#"):
             # Don't duplicate medications we've already seen this run.
-            # This will still duplicate medications from previous runs, but avoiding that feels like more work than it's
-            # worth - just download em again and push em through (there might be updates to the resources, too!)
+            # This will still duplicate medications from previous runs, but avoiding that feels
+            # like more work than it's worth - just download em again and push em through (there
+            # might be updates to the resources, too!)
             if reference in self.medication_ids:
                 return None
             self.medication_ids.add(reference)
@@ -150,7 +159,10 @@ class MedicationRequestTask(tasks.EtlTask):
         try:
             medication = await fhir.download_reference(self.task_config.client, reference)
         except Exception as exc:
-            logging.warning("Could not download Medication reference: %s", exc)
+            if not self.warned_connection_error:
+                logging.warning("Could not download Medication reference: %s", exc)
+                self.warned_connection_error = True
+
             self.summaries[1].had_errors = True
 
             if self.task_config.dir_errors:

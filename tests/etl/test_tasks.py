@@ -441,7 +441,8 @@ class TestMedicationRequestTask(TaskTestCase):
             ValueError("bad haircut"),
         ]
 
-        await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
+        with self.assertLogs(level="WARNING") as logs:
+            await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
         med_format = self.format
         med_req_format = self.format2
@@ -450,6 +451,11 @@ class TestMedicationRequestTask(TaskTestCase):
         self.assertEqual(1, med_req_format.write_records.call_count)
         batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual(3, len(batch.rows))
+
+        # Confirm we only logged about the first problem (to avoid spamming console)
+        self.assertEqual(
+            logs.output, ["WARNING:root:Could not download Medication reference: bad hostname"]
+        )
 
         # Confirm we still wrote out the medication for B
         self.assertEqual(1, med_format.write_records.call_count)
@@ -520,6 +526,11 @@ class TestMedicationRequestTask(TaskTestCase):
         self.make_json(
             "MedicationRequest", "B", medicationReference={"reference": "Medication/good"}
         )
+        self.make_json(
+            "MedicationRequest",
+            "Skipped",  # this will be ignored due to uknown modifier in the MedReq itself
+            modifierExtension=[{"url": "unrecognized"}],
+        )
         mock_download.side_effect = [
             {
                 "resourceType": "Medication",
@@ -534,7 +545,15 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
-        med_format = self.format
+        med_format = self.format  # Medication
+        medreq_format = self.format2  # MedicationRequest
+
+        self.assertEqual(1, medreq_format.write_records.call_count)
+        batch = medreq_format.write_records.call_args[0][0]
+        self.assertEqual(  # no "Skipped"
+            {self.codebook.db.resource_hash("A"), self.codebook.db.resource_hash("B")},
+            {row["id"] for row in batch.rows},
+        )
 
         self.assertEqual(1, med_format.write_records.call_count)
         batch = med_format.write_records.call_args[0][0]
