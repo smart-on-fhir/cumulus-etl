@@ -526,6 +526,11 @@ class TestMedicationRequestTask(TaskTestCase):
         self.make_json(
             "MedicationRequest", "B", medicationReference={"reference": "Medication/good"}
         )
+        self.make_json(
+            "MedicationRequest",
+            "Skipped",  # this will be ignored due to uknown modifier in the MedReq itself
+            modifierExtension=[{"url": "unrecognized"}],
+        )
         mock_download.side_effect = [
             {
                 "resourceType": "Medication",
@@ -540,7 +545,15 @@ class TestMedicationRequestTask(TaskTestCase):
 
         await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
 
-        med_format = self.format
+        med_format = self.format  # Medication
+        medreq_format = self.format2  # MedicationRequest
+
+        self.assertEqual(1, medreq_format.write_records.call_count)
+        batch = medreq_format.write_records.call_args[0][0]
+        self.assertEqual(  # no "Skipped"
+            {self.codebook.db.resource_hash("A"), self.codebook.db.resource_hash("B")},
+            {row["id"] for row in batch.rows},
+        )
 
         self.assertEqual(1, med_format.write_records.call_count)
         batch = med_format.write_records.call_args[0][0]

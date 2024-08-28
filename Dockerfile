@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM alpine/git as ms-tool-src
+FROM alpine/git AS ms-tool-src
 RUN git clone https://github.com/microsoft/Tools-for-Health-Data-Anonymization.git /app
 
 FROM mcr.microsoft.com/dotnet/sdk:6.0 AS ms-tool
@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/root/.cache \
   pip3 install /app/[tests]
 RUN rm -r /app
 
-ENV JAVA_HOME /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
 
 ENTRYPOINT ["cumulus-etl"]
 
@@ -42,6 +42,6 @@ RUN --mount=type=cache,target=/root/.cache \
   pip3 install /app
 RUN rm -r /app
 
-ENV JAVA_HOME /opt/java/openjdk
+ENV JAVA_HOME=/opt/java/openjdk
 
 ENTRYPOINT ["cumulus-etl"]
