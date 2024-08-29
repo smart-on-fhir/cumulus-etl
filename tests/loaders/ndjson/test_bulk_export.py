@@ -272,31 +272,29 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 ],
             },
         )
+        err1 = (
+            '{"resourceType": "OperationOutcome",'
+            ' "issue": [{"severity": "error", "diagnostics": "err1"}]}'
+        )
         self.respx_mock.get(
             "https://example.com/err1",
             headers={"Accept": "application/fhir+ndjson"},
-        ).respond(
-            json={
-                "resourceType": "OperationOutcome",
-                "issue": [{"severity": "error", "diagnostics": "err1"}],
-            },
+        ).respond(text=err1)
+        err2 = (
+            '{"resourceType": "OperationOutcome",'
+            '"issue": [{"severity": "fatal", "details": {"text": "err2"}}]}\n'
+            '{"resourceType": "OperationOutcome",'
+            '"issue": [{"severity": "warning", "diagnostics": "warning1"}]}\n'
+            '{"resourceType": "OperationOutcome",'
+            '"issue": ['
+            '{"severity": "error", "code": "err3"},'
+            '{"severity": "fatal", "code": "err4"}'
+            "]}\n"
         )
         self.respx_mock.get(
             "https://example.com/err2",
             headers={"Accept": "application/fhir+ndjson"},
-        ).respond(
-            text=(
-                '{"resourceType": "OperationOutcome",'
-                '"issue": [{"severity": "fatal", "details": {"text": "err2"}}]}\n'
-                '{"resourceType": "OperationOutcome",'
-                '"issue": [{"severity": "warning", "diagnostics": "warning1"}]}\n'
-                '{"resourceType": "OperationOutcome",'
-                '"issue": ['
-                '{"severity": "error", "code": "err3"},'
-                '{"severity": "fatal", "code": "err4"}'
-                "]}\n"
-            )
-        )
+        ).respond(text=err2)
         self.respx_mock.get(
             "https://example.com/con1",
             headers={"Accept": "application/fhir+ndjson"},
@@ -310,6 +308,11 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             await self.export()
 
         self.assertIsNone(self.exporter.export_datetime)  # date time couldn't be parsed
+
+        err1_file = common.read_text(f"{self.tmpdir}/error/OperationOutcome.000.ndjson")
+        self.assertEqual(err1_file, err1)
+        err2_file = common.read_text(f"{self.tmpdir}/error/OperationOutcome.001.ndjson")
+        self.assertEqual(err2_file, err2)
 
         self.assert_log_equals(
             ("kickoff", None),
@@ -388,6 +391,54 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             await self.export()
 
         self.assertIn("Messages from server:\n - warning1\n", stdout.getvalue())
+
+    async def test_deleted_resources(self):
+        """Verify that we preserve the list of resources to be deleted"""
+        self.mock_kickoff()
+        self.mock_delete()
+        self.respx_mock.get("https://example.com/poll").respond(
+            json={
+                "deleted": [
+                    {"type": "Bundle", "url": "https://example.com/deleted1"},
+                ],
+            },
+        )
+        deleted1 = {
+            "resourceType": "Bundle",
+            "type": "transaction",
+            "entry": [
+                {
+                    "request": {"method": "DELETE", "url": "Patient/123"},
+                }
+            ],
+        }
+        self.respx_mock.get("https://example.com/deleted1").respond(json=deleted1)
+
+        await self.export()
+
+        bundle = common.read_json(f"{self.tmpdir}/deleted/Bundle.000.ndjson")
+        self.assertEqual(bundle, deleted1)
+
+        self.assert_log_equals(
+            ("kickoff", None),
+            ("status_complete", None),
+            (
+                "download_request",
+                {
+                    "fileUrl": "https://example.com/deleted1",
+                    "itemType": "deleted",
+                    "resourceType": "Bundle",
+                },
+            ),
+            (
+                "download_complete",
+                {"fileSize": 117, "fileUrl": "https://example.com/deleted1", "resourceCount": 1},
+            ),
+            (
+                "export_complete",
+                {"attachments": None, "bytes": 117, "duration": 0, "files": 1, "resources": 1},
+            ),
+        )
 
     async def test_file_download_error(self):
         """Verify that we correctly handle a resource download failure"""
