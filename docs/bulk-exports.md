@@ -44,6 +44,23 @@ You can save the exported files for archiving after the fact with `--export-to=P
 However, bulk exports tend to be brittle and slow for many EHRs at the time of this writing.
 It might be wiser to separately export, make sure the data is all there and good, and then ETL it.
 
+## Archiving Exports
+
+Exports can take a long time, and it's often convenient to archive the results.
+For later re-processing, sanity checking, quality assurance, or whatever.
+
+It's recommended that you archive everything in the export folder.
+This is what you may expect to archive:
+
+- The resource export files themselves
+  (these will look like `1.Patient.ndjson` or `Patient.000.ndjson` or similar)
+- The `log.ndjson` log file
+- The `deleted/` subfolder, if present
+  (this will hold a list of resources that the FHIR server says should be deleted)
+- The `error/` subfolder, if present
+  (this will hold a list of errors from the FHIR server
+  as well as warnings and informational messages, despite the name)
+
 ## Resuming an Interrupted Export
 
 Bulk exports can be brittle.

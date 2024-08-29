@@ -205,13 +205,9 @@ Follow the [S3 setup guide](aws.md) document for guidance there.
 While technically optional, it's recommended that you manually specify these arguments because their
 defaults are subject to change or might not match your situation.
 
-* `--input-format`: There are two reasonable values (`ndjson` and `i2b2`). If you want to pull from
-  your bulk export FHIR server, pass in its URL as your input path and use `ndjson` as your input
-  format. Otherwise, you can use either value to point at a local folder with either FHIR ndjson
-  or i2b2 csv files sitting in them, respectively.
-
 * `--output-format`: There are two reasonable values (`ndjson` and `deltalake`).
-  For production use, you want `deltalake` as it is supports incremental, batched updates.
+  For production use, you can use the default value of `deltalake` as it supports incremental,
+  batched updates.
   But `ndjson` is useful when debugging as it is human-readable.
 
 * `--batch-size`: How many resources to save in a single output file. If there are more resources

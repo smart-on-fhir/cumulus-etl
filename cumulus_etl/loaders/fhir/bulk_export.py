@@ -2,7 +2,6 @@
 
 import asyncio
 import datetime
-import json
 import os
 import urllib.parse
 from collections.abc import Callable
@@ -162,17 +161,11 @@ class BulkExporter:
         except ValueError:
             pass  # server gave us a bad timestamp, ignore it :shrug:
 
-        # Were there any server-side errors during the export?
-        # The spec acknowledges that "error" is perhaps misleading for an array that can contain
-        # info messages.
-        error_texts, warning_texts = await self._gather_all_messages(response_json.get("error", []))
-        if warning_texts:
-            print("\n - ".join(["Messages from server:", *warning_texts]))
-
         # Download all the files
         print("Bulk FHIR export finished, now downloading resources…")
-        files = response_json.get("output", [])
-        await self._download_all_ndjson_files(files)
+        await self._download_all_ndjson_files(response_json, "output")
+        await self._download_all_ndjson_files(response_json, "error")
+        await self._download_all_ndjson_files(response_json, "deleted")
 
         self._log.export_complete()
 
@@ -180,6 +173,11 @@ class BulkExporter:
         # call. If we had an issue talking to the server (like http errors), we want to leave the
         # files up there, so the user could try to manually recover.
         await self._delete_export(poll_location)
+
+        # Were there any server-side errors during the export?
+        error_texts, warning_texts = self._gather_all_messages()
+        if warning_texts:
+            print("\n - ".join(["Messages from server:", *warning_texts]))
 
         # Make sure we're fully done before we bail because the server told us the export has
         # issues. We still want to DELETE the export in this case. And we still want to download
@@ -260,7 +258,6 @@ class BulkExporter:
         headers: dict | None = None,
         target_status_code: int = 200,
         method: str = "GET",
-        log_begin: Callable[[], None] | None = None,
         log_request: Callable[[], None] | None = None,
         log_progress: Callable[[httpx.Response], None] | None = None,
         log_error: Callable[[Exception], None] | None = None,
@@ -275,7 +272,6 @@ class BulkExporter:
         :param headers: headers for request
         :param target_status_code: retries until this status code is returned
         :param method: HTTP method to request
-        :param log_begin: method to call to report that we are about to start requests
         :param log_request: method to call to report every request attempt
         :param log_progress: method to call to report a successful request but not yet done
         :param log_error: method to call to report request failures
@@ -290,9 +286,6 @@ class BulkExporter:
         error_retry_minutes = [1, 2, 4, 8]  # and then raise
         max_errors = len(error_retry_minutes)
         num_errors = 0
-
-        if log_begin:
-            log_begin()
 
         # Actually loop, attempting the request multiple times as needed
         while self._total_wait_time < self._TIMEOUT_THRESHOLD:
@@ -361,57 +354,43 @@ class BulkExporter:
             log_error(exc)
         raise exc
 
-    async def _gather_all_messages(self, error_list: list[dict]) -> (list[str], list[str]):
+    def _gather_all_messages(self) -> (list[str], list[str]):
         """
-        Downloads all outcome message ndjson files from the bulk export server.
+        Parses all error/info ndjson files from the bulk export server.
 
-        :param error_list: info about each error file from the bulk FHIR server
         :returns: (error messages, non-fatal messages)
         """
-        coroutines = []
-        for error in error_list:
-            # per spec as of writing, OperationOutcome is the only allowed type
-            if error.get("type") == "OperationOutcome":
-                coroutines.append(
-                    self._request_with_delay_status(
-                        error["url"],
-                        headers={"Accept": "application/fhir+ndjson"},
-                        retry_errors=True,
-                        log_begin=partial(
-                            self._log.download_request,
-                            error["url"],
-                            "error",
-                            error["type"],
-                        ),
-                        log_error=partial(self._log.download_error, error["url"]),
-                    ),
-                )
-        responses = await asyncio.gather(*coroutines)
+        # The spec acknowledges that "error" is perhaps misleading for an array that can contain
+        # info messages.
+        error_folder = store.Root(f"{self._destination}/error")
+        outcomes = common.read_resource_ndjson(error_folder, "OperationOutcome")
 
         fatal_messages = []
         info_messages = []
-        for response in responses:
-            # Create a list of OperationOutcomes
-            outcomes = [json.loads(x) for x in response.text.split("\n") if x]
-            self._log.download_complete(response.url, len(outcomes), len(response.text))
-            for outcome in outcomes:
-                for issue in outcome.get("issue", []):
-                    text = issue.get("diagnostics")
-                    text = text or issue.get("details", {}).get("text")
-                    text = text or issue.get("code")  # code is required at least
-                    if issue.get("severity") in ("fatal", "error"):
-                        fatal_messages.append(text)
-                    else:
-                        info_messages.append(text)
+        for outcome in outcomes:
+            for issue in outcome.get("issue", []):
+                text = issue.get("diagnostics")
+                text = text or issue.get("details", {}).get("text")
+                text = text or issue.get("code")  # code is required at least
+                if issue.get("severity") in ("fatal", "error"):
+                    fatal_messages.append(text)
+                else:
+                    info_messages.append(text)
 
         return fatal_messages, info_messages
 
-    async def _download_all_ndjson_files(self, files: list[dict]) -> None:
+    async def _download_all_ndjson_files(self, resource_json: dict, item_type: str) -> None:
         """
         Downloads all exported ndjson files from the bulk export server.
 
-        :param files: info about each file from the bulk FHIR server
+        :param resource_json: the status response from bulk FHIR server
+        :param item_type: which type of object to download: output, error, or deleted
         """
+        files = resource_json.get(item_type, [])
+
+        # Use the same (sensible) download folder layout as bulk-data-client:
+        subfolder = "" if item_type == "output" else item_type
+
         resource_counts = {}  # how many of each resource we've seen
         coroutines = []
         for file in files:
@@ -422,12 +401,15 @@ class BulkExporter:
                 self._download_ndjson_file(
                     file["url"],
                     file["type"],
-                    os.path.join(self._destination, filename),
+                    os.path.join(self._destination, subfolder, filename),
+                    item_type,
                 ),
             )
         await asyncio.gather(*coroutines)
 
-    async def _download_ndjson_file(self, url: str, resource_type: str, filename: str) -> None:
+    async def _download_ndjson_file(
+        self, url: str, resource_type: str, filename: str, item_type: str
+    ) -> None:
         """
         Downloads a single ndjson file from the bulk export server.
 
@@ -442,10 +424,11 @@ class BulkExporter:
             headers={"Accept": "application/fhir+ndjson"},
             stream=True,
             retry_errors=True,
-            log_request=partial(self._log.download_request, url, "output", resource_type),
+            log_request=partial(self._log.download_request, url, item_type, resource_type),
             log_error=partial(self._log.download_error, url),
         )
         try:
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
             with open(filename, "w", encoding="utf8") as file:
                 async for block in response.aiter_text():
                     file.write(block)
