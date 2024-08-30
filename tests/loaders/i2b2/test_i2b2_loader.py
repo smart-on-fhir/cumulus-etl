@@ -4,7 +4,7 @@ import os
 import shutil
 import tempfile
 
-from cumulus_etl import store
+from cumulus_etl import common, store
 from cumulus_etl.loaders.i2b2 import loader
 from tests.utils import AsyncTestCase
 
@@ -22,6 +22,22 @@ class TestI2b2Loader(AsyncTestCase):
             vitals = f"{self.datadir}/i2b2/input/observation_fact_vitals.csv"
             shutil.copy(vitals, tmpdir)
 
-            loaded_dir = await i2b2_loader.load_all(["Observation", "Patient"])
+            results = await i2b2_loader.load_all(["Observation", "Patient"])
 
-            self.assertEqual(["Observation.1.ndjson"], os.listdir(loaded_dir.name))
+            self.assertEqual(["Observation.1.ndjson"], os.listdir(results.path))
+
+    async def test_duplicate_ids(self):
+        """Verify that we ignore duplicate IDs"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = store.Root(tmpdir)
+            i2b2_loader = loader.I2b2Loader(root)
+
+            common.write_text(
+                f"{tmpdir}/patient_dimension.csv",
+                "PATIENT_NUM,BIRTH_DATE\n" "123,1982-10-16\n" "123,1983-11-17\n" "456,2000-01-13\n",
+            )
+
+            results = await i2b2_loader.load_all(["Patient"])
+            rows = common.read_resource_ndjson(store.Root(results.path), "Patient")
+            values = [(r["id"], r["birthDate"]) for r in rows]
+            self.assertEqual(values, [("123", "1982-10-16"), ("456", "2000-01-13")])

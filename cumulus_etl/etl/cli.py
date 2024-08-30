@@ -192,15 +192,15 @@ def print_config(
 
 
 def handle_completion_args(
-    args: argparse.Namespace, loader: loaders.Loader
+    args: argparse.Namespace, loader_results: loaders.LoaderResults
 ) -> (str, datetime.datetime):
     """Returns (group_name, datetime)"""
     # Grab completion options from CLI or loader
-    export_group_name = args.export_group or loader.group_name
+    export_group_name = args.export_group or loader_results.group_name
     export_datetime = (
         datetime.datetime.fromisoformat(args.export_timestamp)
         if args.export_timestamp
-        else loader.export_datetime
+        else loader_results.export_datetime
     )
 
     # Disable entirely if asked to
@@ -267,14 +267,14 @@ async def etl_main(args: argparse.Namespace) -> None:
             )
 
         # Pull down resources from any remote location (like s3), convert from i2b2, or do a bulk export
-        loaded_dir = await config_loader.load_all(list(required_resources))
+        loader_results = await config_loader.load_all(list(required_resources))
 
         # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
-        export_group_name, export_datetime = handle_completion_args(args, config_loader)
+        export_group_name, export_datetime = handle_completion_args(args, loader_results)
 
         # If *any* of our tasks need bulk MS de-identification, run it
         if any(t.needs_bulk_deid for t in selected_tasks):
-            loaded_dir = await deid.Scrubber.scrub_bulk_data(loaded_dir.name)
+            loader_results.directory = await deid.Scrubber.scrub_bulk_data(loader_results.path)
         else:
             print("Skipping bulk de-identification.")
             print("These selected tasks will de-identify resources as they are processed.")
@@ -282,7 +282,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         # Prepare config for jobs
         config = JobConfig(
             args.dir_input,
-            loaded_dir.name,
+            loader_results.path,
             args.dir_output,
             args.dir_phi,
             args.input_format,

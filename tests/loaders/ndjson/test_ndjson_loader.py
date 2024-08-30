@@ -62,13 +62,13 @@ class TestNdjsonLoader(AsyncTestCase):
                 writer.write(patient)
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            loaded_dir = await loader.load_all(["Patient"])
+            results = await loader.load_all(["Patient"])
 
-        self.assertEqual(["Patient.ndjson"], os.listdir(loaded_dir.name))
-        self.assertEqual(patient, common.read_json(f"{loaded_dir.name}/Patient.ndjson"))
-        self.assertEqual("G", loader.group_name)
+        self.assertEqual(["Patient.ndjson"], os.listdir(results.path))
+        self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
+        self.assertEqual("G", results.group_name)
         self.assertEqual(
-            datetime.datetime.fromisoformat("1999-03-14T14:12:10"), loader.export_datetime
+            datetime.datetime.fromisoformat("1999-03-14T14:12:10"), results.export_datetime
         )
 
     # At some point, we do want to make this fatal.
@@ -80,11 +80,11 @@ class TestNdjsonLoader(AsyncTestCase):
             self._write_log_file(f"{tmpdir}/log.2.ndjson", "G2", "2002-02-02")
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            await loader.load_all([])
+            results = await loader.load_all([])
 
         # We used neither log and didn't error out.
-        self.assertIsNone(loader.group_name)
-        self.assertIsNone(loader.export_datetime)
+        self.assertIsNone(results.group_name)
+        self.assertIsNone(results.export_datetime)
 
     @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
     @mock.patch("cumulus_etl.etl.cli.loaders.FhirNdjsonLoader")
@@ -299,7 +299,7 @@ class TestNdjsonLoader(AsyncTestCase):
             loader = loaders.FhirNdjsonLoader(
                 store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target
             )
-            folder = await loader.load_all(["Patient"])
+            results = await loader.load_all(["Patient"])
 
             # Confirm export folder still has the data (and log) we created above in the mock
             self.assertTrue(os.path.isdir(target))
@@ -309,9 +309,9 @@ class TestNdjsonLoader(AsyncTestCase):
             self.assertEqual({"eventId": "kickoff"}, common.read_json(f"{target}/log.ndjson"))
 
             # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
-            self.assertNotEqual(folder.name, target)
-            self.assertEqual({"Patient.ndjson"}, set(os.listdir(folder.name)))
-            self.assertEqual(patient, common.read_json(f"{folder.name}/Patient.ndjson"))
+            self.assertNotEqual(results.path, target)
+            self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
+            self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
 
     async def test_export_internal_folder_happy_path(self):
         """Test that we can also safely export without an export-to folder involved"""
@@ -325,11 +325,11 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter.export.side_effect = fake_export
 
         loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock())
-        folder = await loader.load_all(["Patient"])
+        results = await loader.load_all(["Patient"])
 
         # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
-        self.assertEqual({"Patient.ndjson"}, set(os.listdir(folder.name)))
-        self.assertEqual(patient, common.read_json(f"{folder.name}/Patient.ndjson"))
+        self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
+        self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
 
     async def test_export_to_folder_has_contents(self):
         """Verify we fail if an export folder already has contents"""

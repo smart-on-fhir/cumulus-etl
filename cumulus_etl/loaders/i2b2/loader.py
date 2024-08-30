@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, common, store
-from cumulus_etl.loaders.base import Loader
+from cumulus_etl.loaders import base
 from cumulus_etl.loaders.i2b2 import extract, schema, transform
 from cumulus_etl.loaders.i2b2.oracle import extract as oracle_extract
 
@@ -18,7 +18,7 @@ CsvToI2b2Callable = Callable[[str], Iterable[schema.Dimension]]
 I2b2ToFhirCallable = Callable[[AnyDimension], dict]
 
 
-class I2b2Loader(Loader):
+class I2b2Loader(base.Loader):
     """
     Loader for i2b2 data.
 
@@ -34,11 +34,12 @@ class I2b2Loader(Loader):
         super().__init__(root)
         self.export_to = export_to
 
-    async def load_all(self, resources: list[str]) -> common.Directory:
+    async def load_all(self, resources: list[str]) -> base.LoaderResults:
         if self.root.protocol in ["tcp"]:
-            return self._load_all_from_oracle(resources)
-
-        return self._load_all_from_csv(resources)
+            directory = self._load_all_from_oracle(resources)
+        else:
+            directory = self._load_all_from_csv(resources)
+        return base.LoaderResults(directory=directory)
 
     def _load_all_with_extractors(
         self,

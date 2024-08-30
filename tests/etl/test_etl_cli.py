@@ -267,20 +267,16 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_completion_args(self, etl_args, loader_vals, expected_vals):
         """Verify that we parse completion args with the correct fallbacks and checks."""
         # Grab all observations before we mock anything
-        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
+        observations = await loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
             ["Observation"]
         )
-
-        def fake_load_all(internal_self, resources):
-            del resources
-            internal_self.group_name = loader_vals[0]
-            internal_self.export_datetime = loader_vals[1]
-            return observations
+        observations.group_name = loader_vals[0]
+        observations.export_datetime = loader_vals[1]
 
         with (
             self.assertRaises(SystemExit) as cm,
             mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
-            mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all),
+            mock.patch.object(loaders.FhirNdjsonLoader, "load_all", return_value=observations),
         ):
             await self.run_etl(tasks=["observation"], **etl_args)
 
