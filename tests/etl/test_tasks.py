@@ -7,6 +7,7 @@ import cumulus_fhir_support
 import ddt
 
 from cumulus_etl import common, errors
+from cumulus_etl.etl import tasks
 from cumulus_etl.etl.tasks import basic_tasks, task_factory
 from tests.etl import TaskTestCase
 
@@ -132,6 +133,46 @@ class TestTasks(TaskTestCase):
         schema = self.format.write_records.call_args[0][0].schema
         self.assertIn("address", schema.names)
         self.assertIn("id", schema.names)
+
+    async def test_get_schema(self):
+        """Verify that Task.get_schema() works for resources and non-resources"""
+        schema = tasks.EtlTask.get_schema("Patient", [])
+        self.assertIn("gender", schema.names)
+        schema = tasks.EtlTask.get_schema(None, [])
+        self.assertIsNone(schema)
+
+    async def test_prepare_can_skip_task(self):
+        """Verify that if prepare_task returns false, we skip the task"""
+        self.make_json("Patient", "A")
+        with mock.patch(
+            "cumulus_etl.etl.tasks.basic_tasks.PatientTask.prepare_task", return_value=False
+        ):
+            summaries = await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
+        self.assertEqual(len(summaries), 1)
+        self.assertEqual(summaries[0].attempt, 0)
+        self.assertIsNone(self.format)
+
+    async def test_deleted_ids_no_op(self):
+        """Verify that we don't try to delete IDs if none are given"""
+        # Just a simple test to confirm we don't even ask the formatter to consider
+        # deleting any IDs if we weren't given any.
+        await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
+        self.assertEqual(self.format.delete_records.call_count, 0)
+
+    async def test_deleted_ids(self):
+        """Verify that we send deleted IDs down to the formatter"""
+        self.job_config.deleted_ids = {"Patient": {"p1", "p2"}}
+        await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(self.format.delete_records.call_count, 1)
+        ids = self.format.delete_records.call_args[0][0]
+        self.assertEqual(
+            ids,
+            {
+                self.codebook.db.resource_hash("p1"),
+                self.codebook.db.resource_hash("p2"),
+            },
+        )
 
 
 @ddt.ddt

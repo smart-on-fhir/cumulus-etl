@@ -287,6 +287,24 @@ class TestEtlJobFlow(BaseEtlSimple):
             self.assertEqual(expected_vals[0], config.export_group_name)
             self.assertEqual(expected_vals[1], config.export_datetime)
 
+    async def test_deleted_ids_passed_down(self):
+        """Verify that we parse pass along any deleted ids to the JobConfig."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            results = loaders.LoaderResults(
+                directory=common.RealDirectory(tmpdir), deleted_ids={"Observation": {"obs1"}}
+            )
+
+            with (
+                self.assertRaises(SystemExit),
+                mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
+                mock.patch.object(loaders.FhirNdjsonLoader, "load_all", return_value=results),
+            ):
+                await self.run_etl(tasks=["observation"])
+
+        self.assertEqual(mock_etl_job.call_count, 1)
+        config = mock_etl_job.call_args[0][0]
+        self.assertEqual({"Observation": {"obs1"}}, config.deleted_ids)
+
 
 class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""

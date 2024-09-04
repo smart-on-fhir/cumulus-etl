@@ -23,6 +23,10 @@ class LoaderResults:
     group_name: str | None = None
     export_datetime: datetime.datetime | None = None
 
+    # A list of resource IDs that should be deleted from the output tables.
+    # This is a map of resource -> set of IDs like {"Patient": {"A", "B"}}
+    deleted_ids: dict[str, set[str]] = dataclasses.field(default_factory=dict)
+
 
 class Loader(abc.ABC):
     """

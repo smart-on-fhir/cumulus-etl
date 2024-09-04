@@ -62,6 +62,8 @@ class FhirNdjsonLoader(base.Loader):
                 # For now, just ignore any errors.
                 pass
 
+        results.deleted_ids = self.read_deleted_ids(input_root)
+
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
         # We do this even if the files are local, because the next step in our pipeline is the MS deid tool,
@@ -112,3 +114,28 @@ class FhirNdjsonLoader(base.Loader):
             group_name=bulk_exporter.group_name,
             export_datetime=bulk_exporter.export_datetime,
         )
+
+    def read_deleted_ids(self, root: store.Root) -> dict[str, set[str]]:
+        """
+        Reads any deleted IDs that a bulk export gave us.
+
+        See https://hl7.org/fhir/uv/bulkdata/export.html for details.
+        """
+        deleted_ids = {}
+
+        subdir = store.Root(root.joinpath("deleted"))
+        bundles = common.read_resource_ndjson(subdir, "Bundle")
+        for bundle in bundles:
+            if bundle.get("type") != "transaction":
+                continue
+            for entry in bundle.get("entry", []):
+                request = entry.get("request", {})
+                if request.get("method") != "DELETE":
+                    continue
+                url = request.get("url")  # should be relative URL like "Patient/123"
+                if not url or url.count("/") != 1:
+                    continue
+                resource, res_id = url.split("/")
+                deleted_ids.setdefault(resource, set()).add(res_id)
+
+        return deleted_ids

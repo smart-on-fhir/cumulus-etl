@@ -350,3 +350,47 @@ class TestNdjsonLoader(AsyncTestCase):
         with self.assertRaises(SystemExit) as cm:
             await loader.load_all([])
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
+
+    async def test_reads_deleted_ids(self):
+        """Verify we read in the deleted/ folder"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.mkdir(f"{tmpdir}/deleted")
+            common.write_json(
+                f"{tmpdir}/deleted/deletes.ndjson",
+                {
+                    "resourceType": "Bundle",
+                    "type": "transaction",
+                    "entry": [
+                        {"request": {"method": "GET", "url": "Patient/bad-method"}},
+                        {"request": {"method": "DELETE", "url": "Patient/pat1"}},
+                        {"request": {"method": "DELETE", "url": "Patient/too/many/slashes"}},
+                        {"request": {"method": "DELETE", "url": "Condition/con1"}},
+                        {"request": {"method": "DELETE", "url": "Condition/con2"}},
+                    ],
+                },
+            )
+            # This next bundle will be ignored because of the wrong "type"
+            common.write_json(
+                f"{tmpdir}/deleted/messages.ndjson",
+                {
+                    "resourceType": "Bundle",
+                    "type": "message",
+                    "entry": [
+                        {
+                            "request": {"method": "DELETE", "url": "Patient/wrong-message-type"},
+                        }
+                    ],
+                },
+            )
+            # This next file will be ignored because of the wrong "resourceType"
+            common.write_json(
+                f"{tmpdir}/deleted/conditions-for-some-reason.ndjson",
+                {
+                    "resourceType": "Condition",
+                    "recordedDate": "2024-09-04",
+                },
+            )
+            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            results = await loader.load_all(["Patient"])
+
+        self.assertEqual(results.deleted_ids, {"Patient": {"pat1"}, "Condition": {"con1", "con2"}})

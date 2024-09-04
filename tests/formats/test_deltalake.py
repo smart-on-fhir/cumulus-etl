@@ -5,6 +5,7 @@ import io
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 import ddt
 import pyarrow
@@ -395,3 +396,116 @@ class TestDeltaLake(utils.AsyncTestCase):
         self.store(self.df(a=1, b=2))
         self.store(self.df(a=999, c=3), update_existing=False)
         self.assert_lake_equal(self.df(a=1, b=2, c=3))
+
+    def test_s3_options(self):
+        """Verify that we read in S3 options and set spark config appropriately"""
+        # Save global/class-wide spark object, to be restored. Then clear it out.
+        old_spark = DeltaLakeFormat.spark
+
+        def restore_spark():
+            DeltaLakeFormat.spark = old_spark
+
+        self.addCleanup(restore_spark)
+        DeltaLakeFormat.spark = None
+
+        # Now re-initialize the class, mocking out all the slow spark stuff, and using S3.
+        fs_options = {
+            "s3_kms_key": "test-key",
+            "s3_region": "us-west-1",
+        }
+        with (
+            mock.patch("cumulus_etl.store._user_fs_options", new=fs_options),
+            mock.patch("delta.configure_spark_with_delta_pip"),
+            mock.patch("pyspark.sql"),
+        ):
+            DeltaLakeFormat.initialize_class(store.Root("s3://test/"))
+
+        self.assertEqual(
+            sorted(DeltaLakeFormat.spark.conf.set.call_args_list, key=lambda x: x[0][0]),
+            [
+                mock.call(
+                    "fs.s3a.aws.credentials.provider",
+                    "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+                ),
+                mock.call("fs.s3a.endpoint.region", "us-west-1"),
+                mock.call("fs.s3a.server-side-encryption-algorithm", "SSE-KMS"),
+                mock.call("fs.s3a.server-side-encryption.key", "test-key"),
+                mock.call("fs.s3a.sse.enabled", "true"),
+            ],
+        )
+
+    def test_finalize_happy_path(self):
+        """Verify that we clean up the delta lake when finalizing."""
+        # Limit our fake table to just these attributes, to notice any new usage in future
+        mock_table = mock.MagicMock(spec=["generate", "optimize", "vacuum"])
+        self.patch("delta.DeltaTable.forPath", return_value=mock_table)
+
+        DeltaLakeFormat(self.root, "patient").finalize()
+        self.assertEqual(mock_table.optimize.call_args_list, [mock.call()])
+        self.assertEqual(
+            mock_table.optimize.return_value.executeCompaction.call_args_list, [mock.call()]
+        )
+        self.assertEqual(mock_table.generate.call_args_list, [mock.call("symlink_format_manifest")])
+        self.assertEqual(mock_table.vacuum.call_args_list, [mock.call()])
+
+    def test_finalize_cannot_load_table(self):
+        """Verify that we gracefully handle failing to read an existing table when finalizing."""
+        # No table
+        deltalake = DeltaLakeFormat(self.root, "patient")
+        with self.assertNoLogs():
+            deltalake.finalize()
+        self.assertFalse(os.path.exists(self.output_dir))
+
+        # Error loading the table
+        with self.assertLogs(level="ERROR") as logs:
+            with mock.patch("delta.DeltaTable.forPath", side_effect=ValueError):
+                deltalake.finalize()
+        self.assertEqual(len(logs.output), 1)
+        self.assertTrue(
+            logs.output[0].startswith("ERROR:root:Could not load Delta Lake table patient\n")
+        )
+
+    def test_finalize_error(self):
+        """Verify that we gracefully handle an error while finalizing."""
+        self.store(self.df(a=1))  # create a simple table to load
+        with self.assertLogs(level="ERROR") as logs:
+            with mock.patch("delta.DeltaTable.optimize", side_effect=ValueError):
+                DeltaLakeFormat(self.root, "patient").finalize()
+        self.assertEqual(len(logs.output), 1)
+        self.assertTrue(
+            logs.output[0].startswith("ERROR:root:Could not finalize Delta Lake table patient\n")
+        )
+
+    def test_delete_records_happy_path(self):
+        """Verify that `delete_records` works in a basic way."""
+        self.store(self.df(a=1, b=2, c=3, d=4))
+
+        deltalake = DeltaLakeFormat(self.root, "patient")
+        deltalake.delete_records({"a", "c"})
+        deltalake.delete_records({"d"})
+        deltalake.delete_records(set())
+
+        self.assert_lake_equal(self.df(b=2))
+
+    def test_delete_records_cannot_load_table(self):
+        """Verify we gracefully handle a missing table"""
+        deltalake = DeltaLakeFormat(self.root, "patient")
+        with self.assertNoLogs():
+            deltalake.delete_records({"a"})
+        self.assertFalse(os.path.exists(self.output_dir))
+
+    def test_delete_records_error(self):
+        """Verify that `delete_records` handles errors gracefully."""
+        mock_table = mock.MagicMock(spec=["delete"])
+        mock_table.delete.side_effect = ValueError
+        self.patch("delta.DeltaTable.forPath", return_value=mock_table)
+
+        with self.assertLogs(level="ERROR") as logs:
+            DeltaLakeFormat(self.root, "patient").delete_records("a")
+
+        self.assertEqual(len(logs.output), 1)
+        self.assertTrue(
+            logs.output[0].startswith(
+                "ERROR:root:Could not delete IDs from Delta Lake table patient\n"
+            )
+        )

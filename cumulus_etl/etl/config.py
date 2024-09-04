@@ -33,6 +33,7 @@ class JobConfig:
         tasks: list[str] | None = None,
         export_group_name: str | None = None,
         export_datetime: datetime.datetime | None = None,
+        deleted_ids: dict[str, set[str]] | None = None,
     ):
         self._dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid
@@ -50,6 +51,7 @@ class JobConfig:
         self.tasks = tasks or []
         self.export_group_name = export_group_name
         self.export_datetime = export_datetime
+        self.deleted_ids = deleted_ids or {}
 
         # initialize format class
         self._output_root = store.Root(self._dir_output, create=True)

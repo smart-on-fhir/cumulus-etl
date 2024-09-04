@@ -74,6 +74,14 @@ class Format(abc.ABC):
         :param batch: the batch of data
         """
 
+    @abc.abstractmethod
+    def delete_records(self, ids: set[str]) -> None:
+        """
+        Deletes all mentioned IDs from the table.
+
+        :param ids: all IDs to remove
+        """
+
     def finalize(self) -> None:
         """
         Performs any necessary cleanup after all batches have been written.

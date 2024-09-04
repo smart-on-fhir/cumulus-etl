@@ -143,10 +143,16 @@ class EtlTask:
 
             with self._indeterminate_progress(progress, "Finalizing"):
                 # Ensure that we touch every output table (to create them and/or to confirm schema).
-                # Consider case of Medication for an EHR that only has inline Medications inside MedicationRequest.
-                # The Medication table wouldn't get created otherwise. Plus this is a good place to push any schema
-                # changes. (The reason it's nice if the table & schema exist is so that downstream SQL can be dumber.)
+                # Consider case of Medication for an EHR that only has inline Medications inside
+                # MedicationRequest.
+                # The Medication table wouldn't get created otherwise. Plus this is a good place to
+                # push any schema changes.
+                # (The reason it's nice if the table & schema exist is so that downstream SQL can
+                # be dumber.)
                 self._touch_remaining_tables()
+
+                # If the input data indicates we should delete some IDs, do that here.
+                self._delete_requested_ids()
 
                 # Mark this group & resource combo as complete
                 self._update_completion_table()
@@ -227,6 +233,32 @@ class EtlTask:
             if formatter is None:  # No data got written yet
                 # just write an empty dataframe (should be fast)
                 self._write_one_table_batch([], table_index, 0)
+
+    def _delete_requested_ids(self):
+        """
+        Deletes IDs that have been marked for deletion.
+
+        Formatters are expected to already exist when this is called.
+
+        This usually happens via the `deleted` array from a bulk export.
+        Which clients usually drop in a deleted/ folder in the download directory.
+        But in our case, that's abstracted away into a JobConfig.deleted_ids dictionary.
+        """
+        for index, output in enumerate(self.outputs):
+            resource = output.get_resource_type(self)
+            if not resource or resource.lower() != output.get_name(self):
+                # Only delete from the main table for the resource
+                continue
+
+            deleted_ids = self.task_config.deleted_ids.get(resource, set())
+            if not deleted_ids:
+                continue
+
+            deleted_ids = {
+                self.scrubber.codebook.fake_id(resource, x, caching_allowed=False)
+                for x in deleted_ids
+            }
+            self.formatters[index].delete_records(deleted_ids)
 
     def _update_completion_table(self) -> None:
         # TODO: what about empty sets - do we assume the export gave 0 results or skip it?
