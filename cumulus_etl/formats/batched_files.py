@@ -91,4 +91,6 @@ class BatchedFileFormat(Format):
         Though this is a no-op for batched file outputs, since:
         - we guarantee the output folder is empty at the start
         - the spec says deleted IDs won't overlap with output IDs
+
+        But subclasses may still want to write these to disk to preserve the metadata.
         """

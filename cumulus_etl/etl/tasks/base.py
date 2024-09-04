@@ -144,11 +144,9 @@ class EtlTask:
             with self._indeterminate_progress(progress, "Finalizing"):
                 # Ensure that we touch every output table (to create them and/or to confirm schema).
                 # Consider case of Medication for an EHR that only has inline Medications inside
-                # MedicationRequest.
-                # The Medication table wouldn't get created otherwise. Plus this is a good place to
-                # push any schema changes.
-                # (The reason it's nice if the table & schema exist is so that downstream SQL can
-                # be dumber.)
+                # MedicationRequest. The Medication table wouldn't get created otherwise.
+                # Plus this is a good place to push any schema changes. (The reason it's nice if
+                # the table & schema exist is so that downstream SQL can be dumber.)
                 self._touch_remaining_tables()
 
                 # If the input data indicates we should delete some IDs, do that here.

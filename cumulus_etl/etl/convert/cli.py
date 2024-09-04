@@ -36,6 +36,20 @@ def make_batch(
     return formats.Batch(rows, groups=groups, schema=schema)
 
 
+def convert_table_metadata(
+    meta_path: str,
+    formatter: formats.Format,
+) -> None:
+    try:
+        meta = common.read_json(meta_path)
+    except (FileNotFoundError, PermissionError):
+        return
+
+    # Only one metadata field currently: deleted IDs
+    deleted = meta.get("deleted", [])
+    formatter.delete_records(set(deleted))
+
+
 def convert_folder(
     input_root: store.Root,
     *,
@@ -66,6 +80,7 @@ def convert_folder(
         formatter.write_records(batch)
         progress.update(progress_task, advance=1)
 
+    convert_table_metadata(f"{table_input_dir}/{table_name}.meta", formatter)
     formatter.finalize()
     progress.update(progress_task, advance=1)
 
@@ -117,14 +132,15 @@ def convert_completion(
 
 def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        job_config_path = input_root.joinpath("JobConfig")
+        job_config_path = input_root.joinpath("JobConfig/")
 
         # Download input dir if it's not local
         if input_root.protocol != "file":
-            input_root.get(job_config_path, tmpdir, recursive=True)
-            job_config_path = os.path.join(tmpdir, "JobConfig")
+            new_location = os.path.join(tmpdir, "JobConfig/")
+            input_root.get(job_config_path, new_location, recursive=True)
+            job_config_path = new_location
 
-        output_root.put(job_config_path, output_root.path, recursive=True)
+        output_root.put(job_config_path, output_root.joinpath("JobConfig/"), recursive=True)
 
 
 def walk_tree(

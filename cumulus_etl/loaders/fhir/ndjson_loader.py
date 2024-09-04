@@ -132,7 +132,8 @@ class FhirNdjsonLoader(base.Loader):
                 request = entry.get("request", {})
                 if request.get("method") != "DELETE":
                     continue
-                url = request.get("url")  # should be relative URL like "Patient/123"
+                url = request.get("url")
+                # Sanity check that we have a relative URL like "Patient/123"
                 if not url or url.count("/") != 1:
                     continue
                 resource, res_id = url.split("/")
