@@ -8,12 +8,11 @@ from unittest import mock
 import ddt
 
 from cumulus_etl import cli, common, errors
-from tests import utils
+from tests import s3mock, utils
 
 
-@ddt.ddt
-class TestConvert(utils.AsyncTestCase):
-    """Tests for high-level convert support."""
+class ConvertTestsBase(utils.AsyncTestCase):
+    """Base class for convert tests"""
 
     def setUp(self):
         super().setUp()
@@ -24,6 +23,21 @@ class TestConvert(utils.AsyncTestCase):
 
         self.original_path = os.path.join(self.tmpdir, "original")
         self.target_path = os.path.join(self.tmpdir, "target")
+
+    async def run_convert(
+        self, input_path: str | None = None, output_path: str | None = None
+    ) -> None:
+        args = [
+            "convert",
+            input_path or self.original_path,
+            output_path or self.target_path,
+        ]
+        await cli.main(args)
+
+
+@ddt.ddt
+class TestConvert(ConvertTestsBase):
+    """Tests for high-level convert support."""
 
     def prepare_original_dir(self) -> str:
         """Returns the job timestamp used, for easier inspection"""
@@ -46,16 +60,6 @@ class TestConvert(utils.AsyncTestCase):
         common.write_json(f"{config_dir}/job_config.json", {"test": True})
 
         return job_timestamp
-
-    async def run_convert(
-        self, input_path: str | None = None, output_path: str | None = None
-    ) -> None:
-        args = [
-            "convert",
-            input_path or self.original_path,
-            output_path or self.target_path,
-        ]
-        await cli.main(args)
 
     async def test_input_dir_must_exist(self):
         """Verify that the input dir must already exist"""
@@ -150,7 +154,10 @@ class TestConvert(utils.AsyncTestCase):
             {"test": True},
             common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
         )
-        self.assertEqual({"delta": "yup"}, common.read_json(f"{delta_config_dir}/job_config.json"))
+        self.assertEqual(
+            {"delta": "yup"},
+            common.read_json(f"{self.target_path}/JobConfig/{delta_timestamp}/job_config.json"),
+        )
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # re-check the patients
         self.assertEqual(3, len(patients))
         # these rows are sorted by id, so these are reliable indexes
@@ -211,3 +218,54 @@ class TestConvert(utils.AsyncTestCase):
         )
         # second (faked) covid batch
         self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)
+
+    @mock.patch("cumulus_etl.formats.Format.write_records")
+    @mock.patch("cumulus_etl.formats.deltalake.DeltaLakeFormat.delete_records")
+    async def test_deleted_ids(self, mock_delete, mock_write):
+        """Verify that we pass along deleted IDs in the table metadata"""
+        # Set up input path
+        shutil.copytree(  # First, one table that has no metadata
+            f"{self.datadir}/simple/output/patient",
+            f"{self.original_path}/patient",
+        )
+        shutil.copytree(  # Then, one that will
+            f"{self.datadir}/simple/output/condition",
+            f"{self.original_path}/condition",
+        )
+        common.write_json(f"{self.original_path}/condition/condition.meta", {"deleted": ["a", "b"]})
+        os.makedirs(f"{self.original_path}/JobConfig")
+
+        # Run conversion
+        await self.run_convert()
+
+        # Verify results
+        self.assertEqual(mock_write.call_count, 2)
+        self.assertEqual(mock_delete.call_count, 1)
+        self.assertEqual(mock_delete.call_args, mock.call({"a", "b"}))
+
+
+class TestConvertOnS3(s3mock.S3Mixin, ConvertTestsBase):
+    @mock.patch("cumulus_etl.formats.Format.write_records")
+    async def test_convert_from_s3(self, mock_write):
+        """Quick test that we can read from an arbitrary input dir using fsspec"""
+        # Set up input
+        common.write_json(
+            f"{self.bucket_url}/JobConfig/2024-08-09__16.32.51/job_config.json",
+            {"comment": "unittest"},
+        )
+        common.write_json(
+            f"{self.bucket_url}/condition/condition.000.ndjson",
+            {"id": "con1"},
+        )
+
+        # Run conversion
+        await self.run_convert(input_path=self.bucket_url)
+
+        # Verify results
+        self.assertEqual(mock_write.call_count, 1)
+        self.assertEqual([{"id": "con1"}], mock_write.call_args[0][0].rows)
+        print(os.listdir(f"{self.target_path}"))
+        self.assertEqual(
+            common.read_json(f"{self.target_path}/JobConfig/2024-08-09__16.32.51/job_config.json"),
+            {"comment": "unittest"},
+        )

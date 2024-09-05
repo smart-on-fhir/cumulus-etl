@@ -1,8 +1,31 @@
 """Base abstract loader"""
 
 import abc
+import dataclasses
+import datetime
 
 from cumulus_etl import common, store
+
+
+@dataclasses.dataclass(kw_only=True)
+class LoaderResults:
+    """Bundles results of a load request"""
+
+    # Where loaded files reside on disk (use .path for convenience)
+    directory: common.Directory
+
+    @property
+    def path(self) -> str:
+        return self.directory.name
+
+    # Completion tracking values - noting an export group name for this bundle of data
+    # and the time when it was exported ("transactionTime" in bulk-export terms).
+    group_name: str | None = None
+    export_datetime: datetime.datetime | None = None
+
+    # A list of resource IDs that should be deleted from the output tables.
+    # This is a map of resource -> set of IDs like {"Patient": {"A", "B"}}
+    deleted_ids: dict[str, set[str]] = dataclasses.field(default_factory=dict)
 
 
 class Loader(abc.ABC):
@@ -21,12 +44,8 @@ class Loader(abc.ABC):
         """
         self.root = root
 
-        # Public properties (potentially set when loading) for reporting back to caller
-        self.group_name = None
-        self.export_datetime = None
-
     @abc.abstractmethod
-    async def load_all(self, resources: list[str]) -> common.Directory:
+    async def load_all(self, resources: list[str]) -> LoaderResults:
         """
         Loads the listed remote resources and places them into a local folder as FHIR ndjson
 

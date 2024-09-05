@@ -93,7 +93,7 @@ class TestOracleExtraction(AsyncTestCase):
 
         root = store.Root("tcp://localhost/foo")
         oracle_loader = loader.I2b2Loader(root)
-        tmpdir = await oracle_loader.load_all(["Condition", "Encounter", "Patient"])
+        results = await oracle_loader.load_all(["Condition", "Encounter", "Patient"])
 
         # Check results
         self.assertEqual(
@@ -102,17 +102,17 @@ class TestOracleExtraction(AsyncTestCase):
                 "Encounter.ndjson",
                 "Patient.ndjson",
             },
-            set(os.listdir(tmpdir.name)),
+            set(os.listdir(results.path)),
         )
 
         self.assertEqual(
             i2b2_mock_data.condition(),
-            common.read_json(os.path.join(tmpdir.name, "Condition.ndjson")),
+            common.read_json(os.path.join(results.path, "Condition.ndjson")),
         )
         self.assertEqual(
             i2b2_mock_data.encounter(),
-            common.read_json(os.path.join(tmpdir.name, "Encounter.ndjson")),
+            common.read_json(os.path.join(results.path, "Encounter.ndjson")),
         )
         self.assertEqual(
-            i2b2_mock_data.patient(), common.read_json(os.path.join(tmpdir.name, "Patient.ndjson"))
+            i2b2_mock_data.patient(), common.read_json(os.path.join(results.path, "Patient.ndjson"))
         )

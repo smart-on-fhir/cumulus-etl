@@ -56,3 +56,20 @@ class TestNdjsonFormat(utils.AsyncTestCase):
         else:
             with self.assertRaises(SystemExit):
                 NdjsonFormat.initialize_class(self.root)
+
+    def test_writes_deleted_ids(self):
+        """Verify that we write a table metadata file with deleted IDs"""
+        meta_path = f"{self.root.joinpath('condition')}/condition.meta"
+
+        # Test with a fresh directory
+        formatter = NdjsonFormat(self.root, "condition")
+        formatter.delete_records({"b", "a"})
+        metadata = common.read_json(meta_path)
+        self.assertEqual(metadata, {"deleted": ["a", "b"]})
+
+        # Confirm we append to existing metadata, should we ever need to
+        metadata["extra"] = "bonus metadata!"
+        common.write_json(meta_path, metadata)
+        formatter.delete_records({"c"})
+        metadata = common.read_json(meta_path)
+        self.assertEqual(metadata, {"deleted": ["a", "b", "c"], "extra": "bonus metadata!"})

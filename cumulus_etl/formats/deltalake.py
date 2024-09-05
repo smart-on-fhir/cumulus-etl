@@ -91,8 +91,6 @@ class DeltaLakeFormat(Format):
     def _write_one_batch(self, batch: Batch) -> None:
         """Writes the whole dataframe to a delta lake"""
         with self.batch_to_spark(batch) as updates:
-            if updates is None:
-                return
             delta_table = self.update_delta_table(updates, groups=batch.groups)
 
         delta_table.generate("symlink_format_manifest")
@@ -131,16 +129,25 @@ class DeltaLakeFormat(Format):
 
         return table
 
-    def finalize(self) -> None:
-        """Performs any necessary cleanup after all batches have been written"""
-        full_path = self._table_path(self.dbname)
+    def delete_records(self, ids: set[str]) -> None:
+        """Deletes the given IDs."""
+        if not ids:
+            return
+
+        table = self._load_table()
+        if not table:
+            return
 
         try:
-            table = delta.DeltaTable.forPath(self.spark, full_path)
-        except AnalysisException:
-            return  # if the table doesn't exist because we didn't write anything, that's fine - just bail
+            id_list = "', '".join(ids)
+            table.delete(f"id in ('{id_list}')")
         except Exception:
-            logging.exception("Could not finalize Delta Lake table %s", self.dbname)
+            logging.exception("Could not delete IDs from Delta Lake table %s", self.dbname)
+
+    def finalize(self) -> None:
+        """Performs any necessary cleanup after all batches have been written"""
+        table = self._load_table()
+        if not table:
             return
 
         try:
@@ -153,6 +160,19 @@ class DeltaLakeFormat(Format):
     def _table_path(self, dbname: str) -> str:
         # hadoop uses the s3a: scheme instead of s3:
         return self.root.joinpath(dbname).replace("s3://", "s3a://")
+
+    def _load_table(self) -> delta.DeltaTable | None:
+        full_path = self._table_path(self.dbname)
+
+        try:
+            return delta.DeltaTable.forPath(self.spark, full_path)
+        except AnalysisException:
+            # The table likely doesn't exist.
+            # Which can be normal if we didn't write anything yet, that's fine - just bail.
+            return None
+        except Exception:
+            logging.exception("Could not load Delta Lake table %s", self.dbname)
+            return None
 
     @staticmethod
     def _get_update_condition(schema: pyspark.sql.types.StructType) -> str | None:
@@ -214,7 +234,7 @@ class DeltaLakeFormat(Format):
             spark.conf.set("fs.s3a.endpoint.region", region_name)
 
     @contextlib.contextmanager
-    def batch_to_spark(self, batch: Batch) -> pyspark.sql.DataFrame | None:
+    def batch_to_spark(self, batch: Batch) -> pyspark.sql.DataFrame:
         """Transforms a batch to a spark DF"""
         # This is the quick and dirty way - write batch to parquet with pyarrow and read it back.
         # But a more direct way would be to convert the pyarrow schema to a pyspark schema and just

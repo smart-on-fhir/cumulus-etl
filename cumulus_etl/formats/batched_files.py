@@ -83,3 +83,14 @@ class BatchedFileFormat(Format):
         full_path = self.dbroot.joinpath(f"{self.dbname}.{self._index:03}.{self.suffix}")
         self.write_format(batch, full_path)
         self._index += 1
+
+    def delete_records(self, ids: set[str]) -> None:
+        """
+        Deletes the given IDs.
+
+        Though this is a no-op for batched file outputs, since:
+        - we guarantee the output folder is empty at the start
+        - the spec says deleted IDs won't overlap with output IDs
+
+        But subclasses may still want to write these to disk to preserve the metadata.
+        """
