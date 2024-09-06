@@ -2,6 +2,10 @@ services:
 
   # This service is shared by all other services - be careful when adding to it.
   common-base:
+    # Set an arbitrary base image, because older versions of Docker (24.x at least; 27.x is fixed)
+    # require an image on all services. But every subclass of common-base here redefines
+    # the image property. At some point (when platforms have newer Dockers) we can drop this.
+    image: alpine:latest
     environment:
       # These are commonly-supported networking environment variables.
       # Yes, the lowercase forms are intentional.
