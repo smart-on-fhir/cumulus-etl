@@ -27,17 +27,16 @@ TaskList = list[type[tasks.EtlTask]]
 
 
 async def etl_job(
-    config: JobConfig, selected_tasks: TaskList, use_philter: bool = False
+    config: JobConfig, selected_tasks: TaskList, scrubber: deid.Scrubber
 ) -> list[JobSummary]:
     """
     :param config: job config
     :param selected_tasks: the tasks to run
-    :param use_philter: whether to run text through philter
+    :param scrubber: de-id scrubber to use for jobs
     :return: a list of job summaries
     """
     summary_list = []
 
-    scrubber = deid.Scrubber(config.dir_phi, use_philter=use_philter)
     for task_class in selected_tasks:
         task = task_class(config, scrubber)
         task_summaries = await task.run()
@@ -374,13 +373,17 @@ async def etl_main(args: argparse.Namespace) -> None:
         common.write_json(config.path_config(), config.as_json(), indent=4)
 
         # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-        summaries = await etl_job(config, selected_tasks, use_philter=args.philter)
+        scrubber = deid.Scrubber(config.dir_phi, use_philter=args.philter)
+        summaries = await etl_job(config, selected_tasks, scrubber)
 
     # Update job context for future runs
     job_context.last_successful_datetime = job_datetime
     job_context.last_successful_input_dir = args.dir_input
     job_context.last_successful_output_dir = args.dir_output
     job_context.save()
+
+    # Report out any stripped extensions or dropped resources due to modiferExtensions
+    scrubber.print_extension_report()
 
     # Flag final status to user
     common.print_header()

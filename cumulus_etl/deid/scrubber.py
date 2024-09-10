@@ -4,11 +4,22 @@ import logging
 import tempfile
 from typing import Any
 
-from cumulus_etl import fhir
+import rich
+import rich.padding
+import rich.tree
+
+from cumulus_etl import common, fhir
 from cumulus_etl.deid import codebook, mstool, philter
+
+# Record of unknown extensions (resource type -> extension URL -> count)
+ExtensionCount = dict[str, dict[str, int]]
 
 
 class SkipResource(Exception):
+    pass
+
+
+class SkipValue(Exception):
     pass
 
 
@@ -34,6 +45,10 @@ class Scrubber:
         self.codebook = codebook.Codebook(codebook_dir)
         self.codebook_dir = codebook_dir
         self.philter = philter.Philter() if use_philter else None
+        # List of ignored extensions (resource -> url -> count)
+        self.dropped_extensions: ExtensionCount = {}
+        # List of modifier extensions that caused us to skip a resource (resource -> url -> count)
+        self.skipped_modifer_extensions: ExtensionCount = {}
 
     @staticmethod
     async def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
@@ -48,7 +63,9 @@ class Scrubber:
         await mstool.run_mstool(input_dir, tmpdir.name)
         return tmpdir
 
-    def scrub_resource(self, node: dict, scrub_attachments: bool = True) -> bool:
+    def scrub_resource(
+        self, node: dict, scrub_attachments: bool = True, keep_stats: bool = True
+    ) -> bool:
         """
         Cleans/de-identifies resource (in-place) and returns False if it should be rejected
 
@@ -57,14 +74,21 @@ class Scrubber:
 
         :param node: resource to de-identify
         :param scrub_attachments: whether to remove any attachment data found
+        :param keep_stats: whether to records stats about this resource
         :returns: whether this resource is allowed to be used
         """
         try:
             self._scrub_node(
-                node.get("resourceType"), "root", node, scrub_attachments=scrub_attachments
+                node.get("resourceType"),
+                "root",
+                node,
+                scrub_attachments=scrub_attachments,
+                keep_stats=keep_stats,
             )
-        except SkipResource as exc:
-            logging.warning("Ignoring resource of type %s: %s", node.__class__.__name__, exc)
+        except SkipValue:
+            return False  # an empty resource? Not even an "id"? Skip invalid entry
+        except SkipResource:
+            # No need to log, we'll have already reported out what we should
             return False
         except ValueError as exc:
             logging.warning("Could not parse value: %s", exc)
@@ -86,6 +110,16 @@ class Scrubber:
         if self.codebook_dir:
             self.codebook.db.save(self.codebook_dir)
 
+    def print_extension_report(self) -> None:
+        self._print_extension_table(
+            "Unrecognized extensions dropped from resources:",
+            self.dropped_extensions,
+        )
+        self._print_extension_table(
+            "🚨 Resources skipped due to unrecognized modifier extensions: 🚨",
+            self.skipped_modifer_extensions,
+        )
+
     ###############################################################################
     #
     # Implementation details
@@ -93,45 +127,102 @@ class Scrubber:
     ###############################################################################
 
     def _scrub_node(
-        self, resource_type: str, node_path: str, node: dict, scrub_attachments: bool
+        self,
+        resource_type: str,
+        node_path: str,
+        node: dict,
+        *,
+        scrub_attachments: bool,
+        keep_stats: bool,
+        inside_extension: bool = False,
     ) -> None:
-        """Examines all properties of a node"""
+        """Examines all properties of a node and modifies node in-place"""
         for key, values in list(node.items()):
             if values is None:
                 continue
 
-            if not isinstance(values, list):
+            is_list = isinstance(values, list)
+            if not is_list:
                 # Make everything a list for ease of the next bit where we iterate a list
                 values = [values]
 
+            result = []
             for value in values:
-                self._scrub_single_value(
-                    resource_type, node_path, node, key, value, scrub_attachments=scrub_attachments
-                )
+                try:
+                    result.append(
+                        self._scrub_single_value(
+                            resource_type,
+                            node_path,
+                            key,
+                            value,
+                            scrub_attachments=scrub_attachments,
+                            keep_stats=keep_stats,
+                            inside_extension=inside_extension,
+                        )
+                    )
+                except SkipValue:
+                    pass
+
+            # Write the result array back to node (safe because we did list(node.items()) above)
+            if result:
+                node[key] = result if is_list else result[0]
+            else:
+                del node[key]  # must have gotten SkipValue, erase the key for cleanliness
+
+        # Skip empty structs for cleanliness
+        if not node:
+            raise SkipValue
 
     def _scrub_single_value(
         self,
         resource_type: str,
         node_path: str,
-        node: dict,
         key: str,
         value: Any,
+        *,
         scrub_attachments: bool,
-    ) -> None:
+        keep_stats: bool,
+        inside_extension: bool = False,
+    ) -> Any:
         """Examines one single property of a node"""
         # For now, just manually run each operation. If this grows further, we can abstract it more.
-        self._check_ids(node, key, value)
-        self._check_modifier_extensions(key, value)
-        self._check_security(node_path, node, key, value)
-        self._check_text(node, key, value)
+        value = self._check_ids(resource_type, key, value)
+        value = self._check_security(node_path, key, value)
+        value = self._check_text(key, value)
         if scrub_attachments:
-            self._check_attachments(resource_type, node_path, node, key)
+            value = self._check_attachments(resource_type, node_path, key, value)
+
+        # If this is an extension, see if we should ignore it / ignore the resource
+        if not inside_extension:  # don't examine extensions-in-extensions
+            if self._check_extensions(resource_type, key, value, keep_stats=keep_stats):
+                inside_extension = True
+            if self._check_modifier_extensions(resource_type, key, value, keep_stats=keep_stats):
+                inside_extension = True
 
         # Recurse if we are holding another FHIR object (i.e. a dict instead of a string)
         if isinstance(value, dict):
             self._scrub_node(
-                resource_type, f"{node_path}.{key}", value, scrub_attachments=scrub_attachments
+                resource_type,
+                f"{node_path}.{key}",
+                value,
+                scrub_attachments=scrub_attachments,
+                keep_stats=keep_stats,
+                inside_extension=inside_extension,
             )
+
+        return value
+
+    def _print_extension_table(self, title: str, table: ExtensionCount) -> None:
+        if not table:
+            return  # nothing to do!
+
+        common.print_header(title)
+        for resource_type in sorted(table):
+            tree = rich.tree.Tree(resource_type)
+            for url, count in sorted(table[resource_type].items()):
+                tree.add(f"{url} ({count:,} time{'' if count == 1 else 's'})")
+            indented = rich.padding.Padding.indent(tree, 1)
+            rich.get_console().print(indented)
 
     ###############################################################################
     #
@@ -139,31 +230,133 @@ class Scrubber:
     #
     ###############################################################################
 
-    @staticmethod
-    def _check_modifier_extensions(key: str, value: Any) -> None:
+    def _count_unknown_extension(self, table: ExtensionCount, resource: str, url: str) -> None:
+        resource_counts = table.setdefault(resource, {})
+        count = resource_counts.setdefault(url, 0)
+        resource_counts[url] = count + 1
+
+    def _check_extensions(
+        self, resource_type: str, key: str, value: Any, *, keep_stats: bool
+    ) -> None:
+        """If there's any unrecognized extensions, log and delete them"""
+        if key == "extension" and isinstance(value, dict):
+            # We want to allow almost any extension that might have clinical or QA relevance.
+            # But we use an allow list to avoid letting in PHI.
+            allowed_extensions = {
+                ### Base spec extensions
+                ### (See https://www.hl7.org/fhir/R4/extensibility-registry.html)
+                "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                "http://hl7.org/fhir/StructureDefinition/derivation-reference",
+                "http://hl7.org/fhir/StructureDefinition/event-performerFunction",
+                "http://hl7.org/fhir/StructureDefinition/iso21090-PQ-translation",
+                "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+                ### US Core extensions
+                ### (See https://hl7.org/fhir/us/core/profiles-and-extensions.html)
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-jurisdiction",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-medication-adherence",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-sex",
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-tribal-affiliation",
+                ### Next two are old US Core DSTU1 URLs, still seen in the wild
+                ### (See https://www.hl7.org/fhir/DSTU1/us-core.html)
+                "http://hl7.org/fhir/Profile/us-core#ethnicity",
+                "http://hl7.org/fhir/Profile/us-core#race",
+                ### Cerner extensions
+                # Links to a client Organization reference in an Encounter
+                "https://fhir-ehr.cerner.com/r4/StructureDefinition/client-organization",
+                # "precision" here is the precision of a date field
+                "https://fhir-ehr.cerner.com/r4/StructureDefinition/precision",
+                # Some medication extensions used by Cerner
+                "https://fhir-ehr.cerner.com/r4/StructureDefinition/pharmacy-verification-status",
+                "http://electronichealth.se/fhir/StructureDefinition/NLLDosePackaging",
+                "http://electronichealth.se/fhir/StructureDefinition/NLLPrescriptionFormat",
+                "http://electronichealth.se/fhir/StructureDefinition/NLLRegistrationBasis",
+                ### Epic extensions
+                "http://open.epic.com/FHIR/StructureDefinition/extension/accidentrelated",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-authentication-instant",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-author-provider-type",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-interval-update-source",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-post-procedure-diagnosis",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-pre-procedure-diagnosis",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-service",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/ip-admit-datetime",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/observation-datetime",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/specialty",
+                "http://open.epic.com/FHIR/STU3/StructureDefinition/temperature-in-fahrenheit",
+                "http://open.epic.com/FHIR/R4/StructureDefinition/patient-preferred-provider-sex",
+                # A Netherlands extension used by Epic
+                "http://nictiz.nl/fhir/StructureDefinition/BodySite-Qualifier",
+            }
+            # Some extensions we know about, but aren't necessary to us (they duplicate standard
+            # extensions, contain PHI, or are otherwise not relevant). We don't want to warn
+            # the user about them as "unrecognized", so we just ignore them entirely.
+            ignored_extensions = {
+                # Base spec extension holding a phone number
+                "http://hl7.org/fhir/StructureDefinition/iso21090-TEL-address",
+                # Usually harmless, but we ignore it to avoid accidentally leaving in the
+                # rendered value of a PHI element that we removed or didn't allow-list.
+                "http://hl7.org/fhir/StructureDefinition/rendered-value",
+                # US Core extension, but deals with how to email a person, which we don't need
+                "http://hl7.org/fhir/us/core/StructureDefinition/us-core-direct",
+                # Cerner dosage instruction freeform text extension, could have PHI
+                "https://fhir-ehr.cerner.com/r4/StructureDefinition/clinical-instruction",
+                # Cerner arbitrary key/value extension - could have PHI?
+                "https://fhir-ehr.cerner.com/r4/StructureDefinition/custom-attribute",
+                # Cerner financial extension for Encounters, we don't need to record this
+                "https://fhir-ehr.cerner.com/r4/StructureDefinition/estimated-financial-responsibility-amount",
+                # Epic PHI extension
+                "http://open.epic.com/FHIR/StructureDefinition/extension/birth-location",
+                # Epic extension that points at an Encounter Identifier, the kind we normally strip
+                "http://open.epic.com/FHIR/StructureDefinition/extension/ce-encounter-id",
+            }
+            url = value.get("url")
+            if url not in allowed_extensions:
+                if keep_stats and url not in ignored_extensions:
+                    self._count_unknown_extension(self.dropped_extensions, resource_type, url)
+                raise SkipValue
+            return True
+        return False
+
+    def _check_modifier_extensions(
+        self, resource_type: str, key: str, value: Any, *, keep_stats: bool
+    ) -> None:
         """If there's any unrecognized modifierExtensions, raise a SkipResource exception"""
         if key == "modifierExtension" and isinstance(value, dict):
-            known_extensions = [
+            allowed_extensions = {
+                # These NLP extensions are generated by ctakesclient's text2fhir code.
+                # While we don't anticipate ingesting any resources using these extensions
+                # (and we don't currently generate them ourselves), we might in the future.
                 "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity",
                 "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source",
-            ]
+            }
             url = value.get("url")
-            if url not in known_extensions:
-                raise SkipResource(f'Unrecognized modifierExtension with URL "{url}"')
+            if url not in allowed_extensions:
+                if keep_stats:
+                    self._count_unknown_extension(
+                        self.skipped_modifer_extensions, resource_type, url
+                    )
+                raise SkipResource
+            return True
+        return False
 
-    def _check_ids(self, node: dict, key: str, value: Any) -> None:
+    def _check_ids(self, resource_type: str, key: str, value: Any) -> Any:
         """Converts any IDs and references to a de-identified version"""
         # ID values ("id" is only ever used as a resource/element ID)
         # Can occur at the root node, contained resources, and TECHNICALLY in any backbone element.
         # But the backbone elements won't have resourceType, and we can ignore those as non-resources/non-PHI.
         # So we only convert if there's also a resourceType present.
-        if key == "id" and "resourceType" in node:
-            node["id"] = self.codebook.fake_id(node["resourceType"], value)
+        if key == "id":
+            value = self.codebook.fake_id(resource_type, value)
 
         # References
         # "reference" can sometimes be a URL or non-FHIRReference element -- at some point we'll need to be smarter.
-        elif key == "reference":
-            resource_type, real_id = fhir.unref_resource(node)
+        elif isinstance(value, dict) and "reference" in value:
+            ref_type, real_id = fhir.unref_resource(value)
 
             # Handle contained references (see comments in unref_resource for more detail)
             prefix = ""
@@ -171,10 +364,12 @@ class Scrubber:
                 prefix = "#"
                 real_id = real_id[1:]
 
-            fake_id = f"{prefix}{self.codebook.fake_id(resource_type, real_id)}"
-            node["reference"] = fhir.ref_resource(resource_type, fake_id)["reference"]
+            fake_id = f"{prefix}{self.codebook.fake_id(ref_type, real_id)}"
+            value["reference"] = fhir.ref_resource(ref_type, fake_id)["reference"]
 
-    def _check_text(self, node: dict, key: str, value: Any):
+        return value
+
+    def _check_text(self, key: str, value: Any) -> Any:
         """Scrubs text values that got through the MS config by passing them through philter"""
         # Mostly, we are filtering any freeform text fields we previously allowed in with ms-config.json.
         if isinstance(value, str) and any(
@@ -195,31 +390,31 @@ class Scrubber:
                 key == "valueString",
             )
         ):
-            node[key] = self.scrub_text(value)
+            value = self.scrub_text(value)
+
+        return value
 
     @staticmethod
-    def _check_attachments(resource_type: str, node_path: str, node: dict, key: str) -> None:
+    def _check_attachments(resource_type: str, node_path: str, key: str, value: Any) -> Any:
         """Strip any attachment data"""
         if (
             resource_type == "DocumentReference"
             and node_path == "root.content.attachment"
             and key in {"data", "url"}
         ):
-            del node[key]
+            raise SkipValue
+
+        return value
 
     @staticmethod
-    def _check_security(node_path: str, node: dict, key: str, value: Any) -> None:
+    def _check_security(node_path: str, key: str, value: Any) -> Any:
         """
         Strip any security data that the MS tool injects
 
         It takes up space in the result and anyone using Cumulus ETL understands that there was ETL applied.
         """
-        if node_path == "root" and key == "meta":
-            if "security" in value:
-                # maybe too aggressive -- is there data we care about in meta.security?
-                del value["security"]
+        if node_path == "root.meta" and key == "security":
+            # maybe too aggressive -- is there data we care about in meta.security?
+            raise SkipValue
 
-            # If we wiped out the only content in Meta, remove it so as not to confuse downstream bits like parquet
-            # writers which try to infer values from an empty struct and fail.
-            if not value:
-                del node["meta"]
+        return value

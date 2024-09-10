@@ -19,10 +19,47 @@
       }
     ]
   },
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
+      "valueString": "Peggie Terry"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+      "valueAddress": {
+        "city": "Fall River",
+        "state": "Massachusetts",
+        "country": "US"
+      }
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
+      "valueDecimal": 0.6074581808639448
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
+      "valueDecimal": 108.39254181913606
+    }
+  ],
   "gender": "male",
   "birthDate": "1910",
   "address": [
     {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/geolocation",
+          "extension": [
+            {
+              "url": "latitude",
+              "valueDecimal": 42.21439783732538
+            },
+            {
+              "url": "longitude",
+              "valueDecimal": -71.10738356606545
+            }
+          ]
+        }
+      ],
       "state": "Massachusetts",
       "postalCode": "02100",
       "country": "US"

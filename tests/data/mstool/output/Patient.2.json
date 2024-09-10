@@ -19,6 +19,28 @@
       }
     ]
   },
+  "extension": [
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
+      "valueString": "Marquetta Schamberger"
+    },
+    {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+      "valueAddress": {
+        "city": "Macau",
+        "state": "Macao Special Administrative Region of the People's Republic of China",
+        "country": "CN"
+      }
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
+      "valueDecimal": 9.931319288245724
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
+      "valueDecimal": 38.068680711754276
+    }
+  ],
   "gender": "female",
   "birthDate": "1971",
   "deceasedDateTime": "2023-03-02",

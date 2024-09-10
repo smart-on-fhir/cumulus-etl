@@ -78,7 +78,7 @@ class BaseNlpTask(EtlTask):
             can_process = (
                 nlp.is_docref_valid(docref)
                 and (doc_check is None or doc_check(docref))
-                and self.scrubber.scrub_resource(docref, scrub_attachments=False)
+                and self.scrubber.scrub_resource(docref, scrub_attachments=False, keep_stats=False)
             )
             if not can_process:
                 continue
