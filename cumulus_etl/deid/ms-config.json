@@ -30,7 +30,7 @@
     {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-sex-for-clinical-use')", "method": "keep"},
     {"path": "Patient.extension('http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use')", "method": "keep"}, // Epic has used this pre-final-spec URL
     {"path": "nodesByName('modifierExtension')", "method": "keep"}, // keep these so we can ignore resources with modifiers we don't understand
-    {"path": "nodesByType('Extension')", "method": "redact"}, // drop all unknown extensions
+    {"path": "nodesByType('Extension')", "method": "keep"}, // drop all unknown extensions
 
     // Elements that might be embedded and kept elsewhere -- redact pieces of the whole
     {"path": "nodesByType('Attachment').title", "method": "redact"},
