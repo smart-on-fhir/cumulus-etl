@@ -86,6 +86,8 @@ jobs:
         with:
           load: true  # just build, no push
           tags: smartonfhir/cumulus-etl:latest
+          build-args: |
+            LOCAL_VERSION=${{ github.sha }}
 
       - name: Download NLP images
         run: |

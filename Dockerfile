@@ -38,6 +38,14 @@ RUN pip3 install nltk
 RUN python3 -m nltk.downloader -d /usr/local/share/nltk_data averaged_perceptron_tagger
 
 COPY . /app
+
+# A local version is the trailing bit of a Python version after a plus sign, like 5.0+ubuntu1.
+# We use it here mostly to inject a git commit sha when building from git.
+ARG LOCAL_VERSION
+RUN [ -z "$LOCAL_VERSION" ] || sed -i "s/\(__version__.*\)\"/\1+$LOCAL_VERSION\"/" /app/cumulus_etl/__init__.py
+# Print the final version we're using
+RUN grep __version__ /app/cumulus_etl/__init__.py
+
 RUN --mount=type=cache,target=/root/.cache \
   pip3 install /app
 RUN rm -r /app
