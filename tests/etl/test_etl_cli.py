@@ -410,20 +410,24 @@ class TestEtlFormats(BaseEtlSimple):
                 "_delta_log/.00000000000000000000.json.crc",
                 "_delta_log/00000000000000000001.json",  # merge
                 "_delta_log/.00000000000000000001.json.crc",
-                "_delta_log/00000000000000000002.json",  # vacuum start
+                "_delta_log/00000000000000000002.json",  # optimize
                 "_delta_log/.00000000000000000002.json.crc",
-                "_delta_log/00000000000000000003.json",  # vacuum end
+                "_delta_log/00000000000000000003.json",  # vacuum start
                 "_delta_log/.00000000000000000003.json.crc",
+                "_delta_log/00000000000000000004.json",  # vacuum end
+                "_delta_log/.00000000000000000004.json.crc",
                 "_symlink_format_manifest/manifest",
                 "_symlink_format_manifest/.manifest.crc",
             },
             metadata_files,
         )
 
-        self.assertEqual(1, len(data_files))
+        # Expect two data files - one will be original (now marked as deleted from optimize call)
+        # and the other will be the new optimized file.
+        self.assertEqual(2, len(data_files))
         self.assertRegex(data_files.pop(), r"part-00000-.*-c000.snappy.parquet")
 
-        self.assertEqual(1, len(data_crc_files))
+        self.assertEqual(2, len(data_crc_files))
         self.assertRegex(data_crc_files.pop(), r".part-00000-.*-c000.snappy.parquet.crc")
 
 
