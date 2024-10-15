@@ -41,6 +41,7 @@ class BulkExportLogParser:
     def __init__(self, root: store.Root):
         self.group_name: str = None
         self.export_datetime: datetime.datetime = None
+        self.export_url: str = None
 
         self._parse(root, self._find(root))
 
@@ -67,6 +68,7 @@ class BulkExportLogParser:
     def _parse_kickoff(self, row: dict) -> None:
         details = row["eventDetail"]
         self.group_name = fhir.parse_group_from_url(details["exportUrl"])
+        self.export_url = details["exportUrl"]
 
     def _parse_status_complete(self, row: dict) -> None:
         details = row["eventDetail"]

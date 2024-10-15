@@ -339,6 +339,7 @@ class TestEtlJobConfig(BaseEtlSimple):
                 "tasks": "patient,condition",
                 "export_group_name": "test-group",
                 "export_timestamp": "2020-10-13T12:00:20-05:00",
+                "export_url": None,
             },
             config_file,
         )

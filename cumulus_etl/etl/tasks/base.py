@@ -13,6 +13,7 @@ import rich.progress
 import rich.table
 import rich.text
 
+import cumulus_etl
 from cumulus_etl import cli_utils, common, completion, deid, formats, store
 from cumulus_etl.etl import config
 from cumulus_etl.etl.tasks import batching
@@ -272,6 +273,8 @@ class EtlTask:
                     "table_name": output.get_name(self),
                     "group_name": self.task_config.export_group_name,
                     "export_time": self.task_config.export_datetime.isoformat(),
+                    "export_url": self.task_config.export_url,
+                    "etl_version": cumulus_etl.__version__,
                 }
                 for output in self.outputs
                 if not output.get_name(self).startswith("etl__")

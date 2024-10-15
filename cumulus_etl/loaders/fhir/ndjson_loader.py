@@ -40,29 +40,15 @@ class FhirNdjsonLoader(base.Loader):
     async def load_all(self, resources: list[str]) -> base.LoaderResults:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
-            results = await self.load_from_bulk_export(resources)
-            input_root = store.Root(results.path)
+            bulk_dir = await self.load_from_bulk_export(resources)
+            input_root = store.Root(bulk_dir.name)
         else:
             if self.export_to or self.since or self.until or self.resume:
                 errors.fatal(
                     "You provided FHIR bulk export parameters but did not provide a FHIR server",
                     errors.ARGS_CONFLICT,
                 )
-
-            results = base.LoaderResults(directory=self.root.path)
             input_root = self.root
-
-            # Parse logs for export information
-            try:
-                parser = BulkExportLogParser(input_root)
-                results.group_name = parser.group_name
-                results.export_datetime = parser.export_datetime
-            except BulkExportLogParser.LogParsingError:
-                # Once we require group name & export datetime, we should warn about this.
-                # For now, just ignore any errors.
-                pass
-
-        results.deleted_ids = self.read_deleted_ids(input_root)
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
@@ -78,13 +64,12 @@ class FhirNdjsonLoader(base.Loader):
         filenames = common.ls_resources(input_root, set(resources), warn_if_empty=True)
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
-        results.directory = tmpdir
 
-        return results
+        return self.read_loader_results(input_root, tmpdir)
 
     async def load_from_bulk_export(
         self, resources: list[str], prefer_url_resources: bool = False
-    ) -> base.LoaderResults:
+    ) -> common.Directory:
         """
         Performs a bulk export and drops the results in an export dir.
 
@@ -109,11 +94,28 @@ class FhirNdjsonLoader(base.Loader):
         except errors.FatalError as exc:
             errors.fatal(str(exc), errors.BULK_EXPORT_FAILED)
 
-        return base.LoaderResults(
-            directory=target_dir,
-            group_name=bulk_exporter.group_name,
-            export_datetime=bulk_exporter.export_datetime,
+        return target_dir
+
+    def read_loader_results(
+        self, input_root: store.Root, results_dir: common.Directory
+    ) -> base.LoaderResults:
+        results = base.LoaderResults(
+            directory=results_dir,
+            deleted_ids=self.read_deleted_ids(input_root),
         )
+
+        # Parse logs for export information
+        try:
+            parser = BulkExportLogParser(input_root)
+            results.group_name = parser.group_name
+            results.export_datetime = parser.export_datetime
+            results.export_url = parser.export_url
+        except BulkExportLogParser.LogParsingError:
+            # Once we require group name & export datetime, we should warn about this.
+            # For now, just ignore any errors.
+            pass
+
+        return results
 
     def read_deleted_ids(self, root: store.Root) -> dict[str, set[str]]:
         """

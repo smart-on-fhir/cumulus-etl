@@ -296,6 +296,7 @@ async def etl_main(args: argparse.Namespace) -> None:
             tasks=[t.name for t in selected_tasks],
             export_group_name=export_group_name,
             export_datetime=export_datetime,
+            export_url=loader_results.export_url,
             deleted_ids=loader_results.deleted_ids,
         )
         common.write_json(config.path_config(), config.as_json(), indent=4)

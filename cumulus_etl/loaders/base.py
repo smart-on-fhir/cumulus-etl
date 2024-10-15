@@ -22,6 +22,7 @@ class LoaderResults:
     # and the time when it was exported ("transactionTime" in bulk-export terms).
     group_name: str | None = None
     export_datetime: datetime.datetime | None = None
+    export_url: str | None = None
 
     # A list of resource IDs that should be deleted from the output tables.
     # This is a map of resource -> set of IDs like {"Patient": {"A", "B"}}

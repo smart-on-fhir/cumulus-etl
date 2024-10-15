@@ -238,6 +238,8 @@ class TestTaskCompletion(TaskTestCase):
                     "table_name": "encounter",
                     "group_name": "test-group",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "export_url": self.export_url,
+                    "etl_version": "1.0.0+test",
                 }
             ],
             comp_batch.rows,
@@ -272,11 +274,15 @@ class TestTaskCompletion(TaskTestCase):
                     "table_name": "medication",
                     "group_name": "test-group",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "export_url": self.export_url,
+                    "etl_version": "1.0.0+test",
                 },
                 {
                     "table_name": "medicationrequest",
                     "group_name": "test-group",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "export_url": self.export_url,
+                    "etl_version": "1.0.0+test",
                 },
             ],
             comp_batch.rows,
@@ -322,6 +328,8 @@ class TestTaskCompletion(TaskTestCase):
                     "table_name": "device",
                     "group_name": "",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "export_url": self.export_url,
+                    "etl_version": "1.0.0+test",
                 }
             ],
             comp_format.write_records.call_args[0][0].rows,
