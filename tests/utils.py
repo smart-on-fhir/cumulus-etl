@@ -50,6 +50,9 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         # Make it easy to grab test data, regardless of where the test is
         self.datadir = os.path.join(os.path.dirname(__file__), "data")
 
+        # Lock our version in place (it's referenced in some static files)
+        self.patch("cumulus_etl.__version__", new="1.0.0+test")
+
         # Several tests involve timestamps in some form, so just pick a standard time for all tests.
         traveller = time_machine.travel(_FROZEN_TIME, tick=False)
         self.addCleanup(traveller.stop)

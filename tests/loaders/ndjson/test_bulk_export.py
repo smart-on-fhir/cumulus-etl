@@ -14,7 +14,7 @@ import respx
 
 from cumulus_etl import cli, common, errors, store
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
-from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
+from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser, BulkExportLogWriter
 from tests import utils
 
 
@@ -755,6 +755,25 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         )
 
 
+class TestBulkExportLogWriter(utils.AsyncTestCase):
+    async def test_log_writer_multiple_params(self):
+        """
+        Verify that we handle writing a log with repeated params.
+
+        This is something the bulk exporter *could* do and the spec kinda encourages,
+        so we want the log writer to be able to handle it, if we change the bulk exporter
+        to do it. But also, some servers seem to complain if you do it (even though the spec
+        likes it). So this support is not normally tested - except here.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log = BulkExportLogWriter(store.Root(tmpdir))
+            log.kickoff("https://localhost/?_type=Patient&_type=Condition", {}, ValueError())
+            written = common.read_json(f"{tmpdir}/log.ndjson")
+        self.assertEqual(
+            written["eventDetail"]["requestParameters"], {"_type": "Patient,Condition"}
+        )
+
+
 @ddt.ddt
 class TestBulkExporterInit(utils.AsyncTestCase):
     """Tests for just creating the exporter, without any mocking needed"""
@@ -896,6 +915,8 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
                     "table_name": "patient",
                     "group_name": "MyGroup",
                     "export_time": "2015-02-07T13:28:17+02:00",
+                    "export_url": f"{self.fhir_url}/$export?_type=Patient",
+                    "etl_version": "1.0.0+test",
                 },
                 common.read_json(f"{tmpdir}/output/etl__completion/etl__completion.000.ndjson"),
             )

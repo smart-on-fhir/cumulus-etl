@@ -124,6 +124,7 @@ class TaskTestCase(utils.AsyncTestCase):
         os.makedirs(self.phi_dir)
         self.json_file_count = 0
 
+        self.export_url = "https://example.com/Group/test-group/$export"
         self.job_config = JobConfig(
             self.input_dir,
             self.input_dir,
@@ -138,6 +139,7 @@ class TaskTestCase(utils.AsyncTestCase):
             export_datetime=datetime.datetime(
                 2012, 10, 10, 5, 30, 12, tzinfo=datetime.timezone.utc
             ),
+            export_url=self.export_url,
         )
 
         def make_formatter(dbname: str, **kwargs):

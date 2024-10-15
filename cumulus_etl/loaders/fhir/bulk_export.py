@@ -75,6 +75,7 @@ class BulkExporter:
         # Public properties, to be read after the export:
         self.export_datetime = None
         self.group_name = fhir.parse_group_from_url(self._url)
+        self.export_url = self._url
 
     def format_kickoff_url(
         self,

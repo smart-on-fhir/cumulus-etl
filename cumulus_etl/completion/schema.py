@@ -45,6 +45,8 @@ def completion_schema() -> pyarrow.Schema:
             # datetime) would then require conversion to and fro, it's easier to
             # just mirror our FHIR tables and use strings for timestamps.
             pyarrow.field("export_time", pyarrow.string()),
+            pyarrow.field("export_url", pyarrow.string()),
+            pyarrow.field("etl_version", pyarrow.string()),
         ]
     )
 

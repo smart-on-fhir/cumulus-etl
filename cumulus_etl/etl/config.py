@@ -33,6 +33,7 @@ class JobConfig:
         tasks: list[str] | None = None,
         export_group_name: str | None = None,
         export_datetime: datetime.datetime | None = None,
+        export_url: str | None = None,
         deleted_ids: dict[str, set[str]] | None = None,
     ):
         self._dir_input_orig = dir_input_orig
@@ -51,6 +52,7 @@ class JobConfig:
         self.tasks = tasks or []
         self.export_group_name = export_group_name
         self.export_datetime = export_datetime
+        self.export_url = export_url
         self.deleted_ids = deleted_ids or {}
 
         # initialize format class
@@ -82,6 +84,7 @@ class JobConfig:
             "tasks": ",".join(self.tasks),
             "export_group_name": self.export_group_name,
             "export_timestamp": self.export_datetime and self.export_datetime.isoformat(),
+            "export_url": self.export_url,
         }
 
 
