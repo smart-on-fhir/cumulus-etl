@@ -10,19 +10,21 @@ from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
 from tests.utils import AsyncTestCase
 
 
-def kickoff(group: str) -> dict:
+def kickoff(group: str, export_id: str = "test-export") -> dict:
     url = f"https://host/Group/{group}" if group else "https://host/"
     return {
         "eventId": "kickoff",
+        "exportId": export_id,
         "eventDetail": {
             "exportUrl": url,
         },
     }
 
 
-def status_complete(timestamp: str) -> dict:
+def status_complete(timestamp: str, export_id: str = "test-export") -> dict:
     return {
         "eventId": "status_complete",
+        "exportId": export_id,
         "eventDetail": {
             "transactionTime": timestamp,
         },
@@ -76,12 +78,14 @@ class TestBulkExportLogParser(AsyncTestCase):
             [kickoff("G"), status_complete("2020-10-17")],
             ("G", "2020-10-17"),
         ),
-        (  # multiple rows - we should pick last of each
+        (  # multiple rows - we should pick last events for the last kickoff
             [
-                kickoff("1st"),
-                kickoff("2nd"),
-                status_complete("2001-01-01"),
-                status_complete("2002-02-02"),
+                kickoff("1st", export_id="1st"),
+                kickoff("2nd", export_id="2nd"),
+                # shouldn't be two status completes, but just in case there are, we grab last
+                status_complete("2002-02-01", export_id="2nd"),
+                status_complete("2002-02-02", export_id="2nd"),
+                status_complete("2001-01-01", export_id="1st"),
             ],
             ("2nd", "2002-02-02"),
         ),
@@ -90,7 +94,10 @@ class TestBulkExportLogParser(AsyncTestCase):
         ([status_complete("2010-03-09")], BulkExportLogParser.IncompleteLog),  # missing group
         ([kickoff("G")], BulkExportLogParser.IncompleteLog),  # missing time
         ([], BulkExportLogParser.IncompleteLog),  # missing all
-        ([{"eventId": "kickoff"}], BulkExportLogParser.IncompleteLog),  # missing eventDetail
+        (  # missing eventDetail
+            [{"eventId": "kickoff", "exportId": "test"}],
+            BulkExportLogParser.IncompleteLog,
+        ),
         (  # missing transactionTime
             [{"eventId": "status_complete", "eventDetail": {}}],
             BulkExportLogParser.IncompleteLog,

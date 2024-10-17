@@ -66,6 +66,11 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             found_duration = found_rows[complete_index]["eventDetail"]["duration"]
             self.assertEqual(found_duration, expected_duration)
 
+        # Confirm we add debugging info to the kickoff event
+        kickoff_index = all_event_ids.index("kickoff")
+        self.assertEqual(found_rows[kickoff_index]["_client"], "cumulus-etl")
+        self.assertEqual(found_rows[kickoff_index]["_clientVersion"], "1.0.0+test")
+
         extracted_details = [(x["eventId"], x["eventDetail"]) for x in found_rows]
 
         # Match and reorder download requests/completes because those can be async/non-deterministic
