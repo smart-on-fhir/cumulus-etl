@@ -12,6 +12,7 @@ import uuid
 
 import httpx
 
+import cumulus_etl
 from cumulus_etl import common, errors, fhir, store
 
 
@@ -46,12 +47,22 @@ class BulkExportLogParser:
         self._parse(root, self._find(root))
 
     def _parse(self, root: store.Root, path: str) -> None:
-        # Go through every row, looking for the events we care about.
-        # Note that we parse every kickoff event we hit, for example.
-        # So we'll end up with the latest one (which works for single-export
-        # log files with maybe a false start at the beginning).
+        # Go through every row, looking for the final kickoff event.
+        # We only want to look at one series of events for one bulk export.
+        # So we pick the last one, in case there are multiple in the log.
+        # Those early events might be false starts.
+        export_id = None
+        for row in common.read_ndjson(root, path):
+            if row.get("eventId") == "kickoff":
+                export_id = row.get("exportId")
+        if not export_id:
+            raise self.IncompleteLog(f"No kickoff event found in '{path}'")
+
+        # Now read through the log file again, only looking for the events from the one export.
         try:
             for row in common.read_ndjson(root, path):
+                if row.get("exportId") != export_id:
+                    continue
                 match row.get("eventId"):
                     case "kickoff":
                         self._parse_kickoff(row)
@@ -60,8 +71,6 @@ class BulkExportLogParser:
         except KeyError as exc:
             raise self.IncompleteLog(f"Error parsing '{path}'") from exc
 
-        if self.group_name is None:
-            raise self.IncompleteLog(f"No kickoff event found in '{path}'")
         if self.export_datetime is None:
             raise self.IncompleteLog(f"No status_complete event found in '{path}'")
 
@@ -133,6 +142,12 @@ class BulkExportLogWriter:
                 "eventId": event_id,
                 "eventDetail": detail,
             }
+            if event_id == "kickoff":
+                # The bulk logging spec says we can add whatever other keys we want,
+                # but does not encourage a namespace to separate them or anything.
+                # We use a sunder prefix, just in case the spec wants to add new keys itself.
+                row["_client"] = "cumulus-etl"
+                row["_clientVersion"] = cumulus_etl.__version__
             json.dump(row, f)
             f.write("\n")
 

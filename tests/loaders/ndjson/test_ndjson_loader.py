@@ -42,12 +42,14 @@ class TestNdjsonLoader(AsyncTestCase):
             writer.write(
                 {
                     "eventId": "kickoff",
+                    "exportId": "testing",
                     "eventDetail": {"exportUrl": f"https://host/Group/{group}/$export"},
                 }
             )
             writer.write(
                 {
                     "eventId": "status_complete",
+                    "exportId": "testing",
                     "eventDetail": {"transactionTime": timestamp},
                 }
             )
