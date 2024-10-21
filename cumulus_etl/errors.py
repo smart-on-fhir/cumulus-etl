@@ -34,6 +34,7 @@ FHIR_AUTH_FAILED = 32
 SERVICE_MISSING = 33  # generic init-check service is missing
 COMPLETION_ARG_MISSING = 34
 TASK_HELP = 35
+MISSING_REQUESTED_RESOURCES = 36
 
 
 class FatalError(Exception):

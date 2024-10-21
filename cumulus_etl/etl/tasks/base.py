@@ -260,9 +260,6 @@ class EtlTask:
             self.formatters[index].delete_records(deleted_ids)
 
     def _update_completion_table(self) -> None:
-        # TODO: what about empty sets - do we assume the export gave 0 results or skip it?
-        #  Is there a difference we could notice? (like empty input file vs no file at all)
-
         if not self.completion_tracking_enabled:
             return
 

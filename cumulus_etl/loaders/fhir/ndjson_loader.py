@@ -2,6 +2,8 @@
 
 import tempfile
 
+import cumulus_fhir_support
+
 from cumulus_etl import cli_utils, common, errors, fhir, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
@@ -37,7 +39,18 @@ class FhirNdjsonLoader(base.Loader):
         self.until = until
         self.resume = resume
 
-    async def load_all(self, resources: list[str]) -> base.LoaderResults:
+    async def detect_resources(self) -> set[str] | None:
+        if self.root.protocol in {"http", "https"}:
+            # We haven't done the export yet, so there are no files to inspect yet.
+            # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
+            return None
+
+        found_files = cumulus_fhir_support.list_multiline_json_in_dir(
+            self.root.path, fsspec_fs=self.root.fs
+        )
+        return {resource for resource in found_files.values() if resource}
+
+    async def load_resources(self, resources: set[str]) -> base.LoaderResults:
         # Are we doing a bulk FHIR export from a server?
         if self.root.protocol in ["http", "https"]:
             bulk_dir = await self.load_from_bulk_export(resources)
@@ -61,14 +74,14 @@ class FhirNdjsonLoader(base.Loader):
         # TemporaryDirectory gets discarded), but that seems reasonable.
         print("Copying ndjson input files…")
         tmpdir = tempfile.TemporaryDirectory()
-        filenames = common.ls_resources(input_root, set(resources), warn_if_empty=True)
+        filenames = common.ls_resources(input_root, resources, warn_if_empty=True)
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
 
         return self.read_loader_results(input_root, tmpdir)
 
     async def load_from_bulk_export(
-        self, resources: list[str], prefer_url_resources: bool = False
+        self, resources: set[str], prefer_url_resources: bool = False
     ) -> common.Directory:
         """
         Performs a bulk export and drops the results in an export dir.

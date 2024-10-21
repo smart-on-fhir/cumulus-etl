@@ -64,7 +64,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 writer.write(patient)
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            results = await loader.load_all(["Patient"])
+            results = await loader.load_resources(["Patient"])
 
         self.assertEqual(["Patient.ndjson"], os.listdir(results.path))
         self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
@@ -82,7 +82,7 @@ class TestNdjsonLoader(AsyncTestCase):
             self._write_log_file(f"{tmpdir}/log.2.ndjson", "G2", "2002-02-02")
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            results = await loader.load_all([])
+            results = await loader.load_resources([])
 
         # We used neither log and didn't error out.
         self.assertIsNone(results.group_name)
@@ -280,7 +280,7 @@ class TestNdjsonLoader(AsyncTestCase):
         with self.assertRaises(SystemExit) as cm:
             await loaders.FhirNdjsonLoader(
                 store.Root("http://localhost:9999"), mock.AsyncMock()
-            ).load_all(["Patient"])
+            ).load_resources({"Patient"})
 
         self.assertEqual(1, self.mock_exporter.export.call_count)
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
@@ -301,7 +301,7 @@ class TestNdjsonLoader(AsyncTestCase):
             loader = loaders.FhirNdjsonLoader(
                 store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target
             )
-            results = await loader.load_all(["Patient"])
+            results = await loader.load_resources({"Patient"})
 
             # Confirm export folder still has the data (and log) we created above in the mock
             self.assertTrue(os.path.isdir(target))
@@ -327,7 +327,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter.export.side_effect = fake_export
 
         loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock())
-        results = await loader.load_all(["Patient"])
+        results = await loader.load_resources({"Patient"})
 
         # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
         self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
@@ -341,7 +341,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir
             )
             with self.assertRaises(SystemExit) as cm:
-                await loader.load_all([])
+                await loader.load_resources(set())
         self.assertEqual(cm.exception.code, errors.FOLDER_NOT_EMPTY)
 
     async def test_export_to_folder_not_local(self):
@@ -350,7 +350,7 @@ class TestNdjsonLoader(AsyncTestCase):
             store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo"
         )
         with self.assertRaises(SystemExit) as cm:
-            await loader.load_all([])
+            await loader.load_resources(set())
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
 
     async def test_reads_deleted_ids(self):
@@ -393,6 +393,18 @@ class TestNdjsonLoader(AsyncTestCase):
                 },
             )
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            results = await loader.load_all(["Patient"])
+            results = await loader.load_resources({"Patient"})
 
         self.assertEqual(results.deleted_ids, {"Patient": {"pat1"}, "Condition": {"con1", "con2"}})
+
+    async def test_detect_resources(self):
+        """Verify we can inspect a folder and find all resources."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            common.write_json(f"{tmpdir}/p.ndjson", {"id": "A", "resourceType": "Patient"})
+            common.write_json(f"{tmpdir}/unrelated.ndjson", {"num_cats": 5})
+            common.write_json(f"{tmpdir}/c.ndjson", {"id": "A", "resourceType": "Condition"})
+
+            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            resources = await loader.detect_resources()
+
+        self.assertEqual(resources, {"Condition", "Patient"})

@@ -2,10 +2,10 @@
 
 import argparse
 import datetime
+import logging
 import os
 import shutil
 import sys
-from collections.abc import Iterable
 
 import rich
 import rich.table
@@ -16,6 +16,9 @@ from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary
 from cumulus_etl.etl.tasks import task_factory
 
+TaskList = list[type[tasks.EtlTask]]
+
+
 ###############################################################################
 #
 # Main Pipeline (run all tasks)
@@ -24,7 +27,7 @@ from cumulus_etl.etl.tasks import task_factory
 
 
 async def etl_job(
-    config: JobConfig, selected_tasks: list[type[tasks.EtlTask]], use_philter: bool = False
+    config: JobConfig, selected_tasks: TaskList, use_philter: bool = False
 ) -> list[JobSummary]:
     """
     :param config: job config
@@ -68,7 +71,7 @@ def check_mstool() -> None:
         raise SystemExit(errors.MSTOOL_MISSING)
 
 
-async def check_requirements(selected_tasks: Iterable[type[tasks.EtlTask]]) -> None:
+async def check_requirements(selected_tasks: TaskList) -> None:
     """
     Verifies that all external services and programs are ready
 
@@ -118,6 +121,11 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--errors-to", metavar="DIR", help="where to put resources that could not be processed"
     )
+    parser.add_argument(
+        "--allow-missing-resources",
+        action="store_true",
+        help="run tasks even if their resources are not present",
+    )
 
     cli_utils.add_aws(parser)
     cli_utils.add_auth(parser)
@@ -143,7 +151,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def print_config(
-    args: argparse.Namespace, job_datetime: datetime.datetime, all_tasks: Iterable[tasks.EtlTask]
+    args: argparse.Namespace, job_datetime: datetime.datetime, all_tasks: TaskList
 ) -> None:
     """
     Prints the ETL configuration to the console.
@@ -214,6 +222,49 @@ def handle_completion_args(
     return export_group_name, export_datetime
 
 
+async def check_available_resources(
+    loader: loaders.Loader,
+    *,
+    requested_resources: set[str],
+    args: argparse.Namespace,
+    is_default_tasks: bool,
+) -> set[str]:
+    # Here we try to reconcile which resources the user requested and which resources are actually
+    # available in the input root.
+    # - If the user didn't specify a specific task, we'll scope down the requested resources to
+    #   what is actually present in the input.
+    # - If they did, we'll complain if their required resources are not available.
+    #
+    # Reconciling is helpful for performance reasons (don't need to finalize untouched tables),
+    # UX reasons (can tell user if they made a CLI mistake), and completion tracking (don't
+    # mark a resource as complete if we didn't even export it)
+    if args.allow_missing_resources:
+        return requested_resources
+
+    detected = await loader.detect_resources()
+    if detected is None:
+        return requested_resources  # likely we haven't run bulk export yet
+
+    if missing_resources := requested_resources - detected:
+        for resource in sorted(missing_resources):
+            # Log the same message we would print if in common.py if we ran tasks anyway
+            logging.warning("No %s files found in %s", resource, loader.root.path)
+
+        if is_default_tasks:
+            requested_resources -= missing_resources  # scope down to detected resources
+            if not requested_resources:
+                errors.fatal(
+                    "No supported resources found.",
+                    errors.MISSING_REQUESTED_RESOURCES,
+                )
+        else:
+            msg = "Required resources not found.\n"
+            msg += "Add --allow-missing-resources to run related tasks anyway with no input."
+            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+
+    return requested_resources
+
+
 async def etl_main(args: argparse.Namespace) -> None:
     # Set up some common variables
 
@@ -227,6 +278,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     job_datetime = common.datetime_now()  # grab timestamp before we do anything
 
     selected_tasks = task_factory.get_selected_tasks(args.task, args.task_filter)
+    is_default_tasks = not args.task and not args.task_filter
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)
@@ -261,8 +313,17 @@ async def etl_main(args: argparse.Namespace) -> None:
                 resume=args.resume,
             )
 
+        required_resources = await check_available_resources(
+            config_loader,
+            args=args,
+            is_default_tasks=is_default_tasks,
+            requested_resources=required_resources,
+        )
+        # Drop any tasks that we didn't find resources for
+        selected_tasks = [t for t in selected_tasks if t.resource in required_resources]
+
         # Pull down resources from any remote location (like s3), convert from i2b2, or do a bulk export
-        loader_results = await config_loader.load_all(list(required_resources))
+        loader_results = await config_loader.load_resources(required_resources)
 
         # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
         export_group_name, export_datetime = handle_completion_args(args, loader_results)
