@@ -259,12 +259,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     @mock.patch("cumulus_etl.upload_notes.downloader.loaders.FhirNdjsonLoader")
     async def test_gather_all_docrefs_from_server(self, mock_loader):
         # Mock out the bulk export loading, as that's well tested elsewhere
-        async def load_all(*args):
+        async def load_resources(*args):
             del args
             return common.RealDirectory(self.input_path)
 
-        load_all_mock = mock_loader.return_value.load_all
-        load_all_mock.side_effect = load_all
+        load_resources_mock = mock_loader.return_value.load_resources
+        load_resources_mock.side_effect = load_resources
 
         # Do the actual upload-notes push
         await self.run_upload_notes(input_path="https://localhost")
@@ -273,7 +273,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(1, mock_loader.call_count)
         self.assertEqual("https://localhost", mock_loader.call_args[0][0].path)
         self.assertEqual(self.export_path, mock_loader.call_args[1]["export_to"])
-        self.assertEqual([mock.call(["DocumentReference"])], load_all_mock.call_args_list)
+        self.assertEqual([mock.call({"DocumentReference"})], load_resources_mock.call_args_list)
 
         # Make sure we do read the result and push the docrefs out
         self.assertEqual({"43", "44"}, self.get_pushed_ids())

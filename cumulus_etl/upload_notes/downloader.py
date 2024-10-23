@@ -27,7 +27,7 @@ async def download_docrefs_from_fhir_server(
     else:
         # else we'll download the entire target path as a bulk export (presumably the user has scoped a Group)
         ndjson_loader = loaders.FhirNdjsonLoader(root_input, client, export_to=export_to)
-        return await ndjson_loader.load_all(["DocumentReference"])
+        return await ndjson_loader.load_resources({"DocumentReference"})
 
 
 async def _download_docrefs_from_fake_ids(

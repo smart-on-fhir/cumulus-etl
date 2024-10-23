@@ -30,7 +30,7 @@ class BulkExporter:
     def __init__(
         self,
         client: fhir.FhirClient,
-        resources: list[str],
+        resources: set[str],
         url: str,
         destination: str,
         *,
@@ -81,7 +81,7 @@ class BulkExporter:
         self,
         url: str,
         *,
-        resources: list[str],
+        resources: set[str],
         since: str | None,
         until: str | None,
         prefer_url_resources: bool,

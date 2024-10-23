@@ -103,17 +103,17 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_single_task(self):
         # Grab all observations before we mock anything
-        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
-            ["Observation"]
+        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
+            {"Observation"}
         )
 
-        def fake_load_all(internal_self, resources):
+        def fake_load_resources(internal_self, resources):
             del internal_self
             # Confirm we only tried to load one resource
-            self.assertEqual(["Observation"], resources)
+            self.assertEqual({"Observation"}, resources)
             return observations
 
-        with mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all):
+        with mock.patch.object(loaders.FhirNdjsonLoader, "load_resources", new=fake_load_resources):
             await self.run_etl(tasks=["observation"])
 
         # Confirm we only wrote the one resource
@@ -126,17 +126,17 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
-        loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
-            ["Observation", "Patient"]
+        loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
+            {"Observation", "Patient"}
         )
 
-        def fake_load_all(internal_self, resources):
+        def fake_load_resources(internal_self, resources):
             del internal_self
             # Confirm we only tried to load two resources
-            self.assertEqual({"Observation", "Patient"}, set(resources))
+            self.assertEqual({"Observation", "Patient"}, resources)
             return loaded
 
-        with mock.patch.object(loaders.FhirNdjsonLoader, "load_all", new=fake_load_all):
+        with mock.patch.object(loaders.FhirNdjsonLoader, "load_resources", new=fake_load_resources):
             await self.run_etl(tasks=["observation", "patient"])
 
         # Confirm we only wrote the two resources
@@ -267,8 +267,8 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_completion_args(self, etl_args, loader_vals, expected_vals):
         """Verify that we parse completion args with the correct fallbacks and checks."""
         # Grab all observations before we mock anything
-        observations = await loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_all(
-            ["Observation"]
+        observations = await loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
+            {"Observation"}
         )
         observations.group_name = loader_vals[0]
         observations.export_datetime = loader_vals[1]
@@ -276,7 +276,9 @@ class TestEtlJobFlow(BaseEtlSimple):
         with (
             self.assertRaises(SystemExit) as cm,
             mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
-            mock.patch.object(loaders.FhirNdjsonLoader, "load_all", return_value=observations),
+            mock.patch.object(
+                loaders.FhirNdjsonLoader, "load_resources", return_value=observations
+            ),
         ):
             await self.run_etl(tasks=["observation"], **etl_args)
 
@@ -297,13 +299,35 @@ class TestEtlJobFlow(BaseEtlSimple):
             with (
                 self.assertRaises(SystemExit),
                 mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
-                mock.patch.object(loaders.FhirNdjsonLoader, "load_all", return_value=results),
+                mock.patch.object(loaders.FhirNdjsonLoader, "load_resources", return_value=results),
             ):
                 await self.run_etl(tasks=["observation"])
 
         self.assertEqual(mock_etl_job.call_count, 1)
         config = mock_etl_job.call_args[0][0]
         self.assertEqual({"Observation": {"obs1"}}, config.deleted_ids)
+
+    @ddt.data(["patient"], None)
+    async def test_missing_resources(self, tasks):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assertRaises(SystemExit) as cm:
+                await self.run_etl(tasks=tasks, input_path=tmpdir)
+        self.assertEqual(errors.MISSING_REQUESTED_RESOURCES, cm.exception.code)
+
+    async def test_allow_missing_resources(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await self.run_etl("--allow-missing-resources", tasks=["patient"], input_path=tmpdir)
+
+        self.assertEqual("", common.read_text(f"{self.output_path}/patient/patient.000.ndjson"))
+
+    async def test_missing_resources_skips_tasks(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            common.write_json(f"{tmpdir}/p.ndjson", {"id": "A", "resourceType": "Patient"})
+            await self.run_etl(input_path=tmpdir)
+
+        self.assertEqual(
+            {"etl__completion", "patient", "JobConfig"}, set(os.listdir(self.output_path))
+        )
 
 
 class TestEtlJobConfig(BaseEtlSimple):

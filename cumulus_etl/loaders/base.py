@@ -46,7 +46,15 @@ class Loader(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    async def load_all(self, resources: list[str]) -> LoaderResults:
+    async def detect_resources(self) -> set[str] | None:
+        """
+        Inspect which resources are available for use.
+
+        :returns: the types of resources detected (or None if that can't be determined yet)
+        """
+
+    @abc.abstractmethod
+    async def load_resources(self, resources: set[str]) -> LoaderResults:
         """
         Loads the listed remote resources and places them into a local folder as FHIR ndjson
 

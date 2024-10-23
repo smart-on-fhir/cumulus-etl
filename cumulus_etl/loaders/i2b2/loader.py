@@ -34,7 +34,29 @@ class I2b2Loader(base.Loader):
         super().__init__(root)
         self.export_to = export_to
 
-    async def load_all(self, resources: list[str]) -> base.LoaderResults:
+    async def detect_resources(self) -> set[str] | None:
+        if self.root.protocol in {"tcp"}:
+            # We haven't done the export yet, so there are no files to inspect yet.
+            # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
+            return None
+
+        filenames = {
+            "observation_fact_diagnosis.csv": "Condition",
+            "observation_fact_lab_views.csv": "Observation",
+            "observation_fact_medications.csv": "MedicationRequest",
+            "observation_fact_notes.csv": "DocumentReference",
+            "observation_fact_vitals.csv": "Observation",
+            "patient_dimension.csv": "Patient",
+            "visit_dimension.csv": "Encounter",
+        }
+
+        return {
+            resource
+            for path, resource in filenames.items()
+            if self.root.exists(self.root.joinpath(path))
+        }
+
+    async def load_resources(self, resources: set[str]) -> base.LoaderResults:
         if self.root.protocol in ["tcp"]:
             directory = self._load_all_from_oracle(resources)
         else:
@@ -43,7 +65,7 @@ class I2b2Loader(base.Loader):
 
     def _load_all_with_extractors(
         self,
-        resources: list[str],
+        resources: set[str],
         conditions: I2b2ExtractorCallable,
         lab_views: I2b2ExtractorCallable,
         medicationrequests: I2b2ExtractorCallable,
@@ -139,7 +161,7 @@ class I2b2Loader(base.Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_csv(self, resources: list[str]) -> common.Directory:
+    def _load_all_from_csv(self, resources: set[str]) -> common.Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,
@@ -177,7 +199,7 @@ class I2b2Loader(base.Loader):
     #
     ###################################################################################################################
 
-    def _load_all_from_oracle(self, resources: list[str]) -> common.Directory:
+    def _load_all_from_oracle(self, resources: set[str]) -> common.Directory:
         path = self.root.path
         return self._load_all_with_extractors(
             resources,

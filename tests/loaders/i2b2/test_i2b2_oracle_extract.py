@@ -93,7 +93,7 @@ class TestOracleExtraction(AsyncTestCase):
 
         root = store.Root("tcp://localhost/foo")
         oracle_loader = loader.I2b2Loader(root)
-        results = await oracle_loader.load_all(["Condition", "Encounter", "Patient"])
+        results = await oracle_loader.load_resources({"Condition", "Encounter", "Patient"})
 
         # Check results
         self.assertEqual(
