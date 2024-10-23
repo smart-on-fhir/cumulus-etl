@@ -102,12 +102,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
         choices=["i2b2", "ndjson"],
         help="input format (default is ndjson)",
     )
-    parser.add_argument(
-        "--output-format",
-        default="deltalake",
-        choices=["deltalake", "ndjson"],
-        help="output format (default is deltalake)",
-    )
+    cli_utils.add_output_format(parser)
     parser.add_argument(
         "--batch-size",
         type=int,

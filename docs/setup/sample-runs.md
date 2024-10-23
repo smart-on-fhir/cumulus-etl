@@ -135,16 +135,32 @@ Congratulations! You've run your first Cumulus ETL process. The first of many!
 
 ### AWS Test Run
 
-Let's do the same thing, but now pointing at S3 buckets.
+Let's do that again, but now pointing at S3 buckets.
 This assumes you've followed the [S3 setup guide](aws.md).
+
+We didn't do this above, but now that we're getting more serious,
+let's run `cumulus-etl init` first, which will create all the basic tables for us.
 
 When using S3 buckets, you'll need to set the `--s3-region` argument to the correct region.
 
-Run this command, but replace:
+Run the command below, but replace:
 * `us-east-2` with the region your buckets are in
 * `99999999999` with your account ID
 * `my-cumulus-prefix` with the bucket prefix you used when setting up AWS
 * and `subdir1` with the ETL subdirectory you used when setting up AWS
+
+```sh
+docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
+  run --rm \
+  cumulus-etl init \
+  --s3-region=us-east-2 \
+  s3://my-cumulus-prefix-99999999999-us-east-2/subdir1/
+```
+
+This will create empty tables for all the core resources that Cumulus works with.
+You should now even be able to see some (very small) output files in your S3 buckets!
+
+Let's go one step further and put some actual (fake) test data in there too.
 
 ```sh
 docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
@@ -156,7 +172,8 @@ docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
 ```
 
-You should now be able to see some (very small) output files in your S3 buckets!
+(Though, note now that your S3 bucket has test data in it.
+Before you put any real data in there, you should delete the S3 folder and start fresh.)
 
 Obviously, this was just example data.
 But if you'd prefer to keep PHI off of AWS when you deploy for real,

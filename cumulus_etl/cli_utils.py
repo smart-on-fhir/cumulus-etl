@@ -69,6 +69,15 @@ def add_nlp(parser: argparse.ArgumentParser):
     return group
 
 
+def add_output_format(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--output-format",
+        default="deltalake",
+        choices=["deltalake", "ndjson"],
+        help="output format (default is deltalake)",
+    )
+
+
 def add_task_selection(parser: argparse.ArgumentParser):
     task = parser.add_argument_group("task selection")
     task.add_argument(
