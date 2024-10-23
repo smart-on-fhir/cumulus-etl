@@ -10,7 +10,7 @@ import tempfile
 import rich.logging
 
 from cumulus_etl import common, etl, export, upload_notes
-from cumulus_etl.etl import convert
+from cumulus_etl.etl import convert, init
 
 
 class Command(enum.Enum):
@@ -23,6 +23,7 @@ class Command(enum.Enum):
     CONVERT = "convert"
     ETL = "etl"
     EXPORT = "export"
+    INIT = "init"
     UPLOAD_NOTES = "upload-notes"
 
     # Why isn't this part of Enum directly...?
@@ -70,13 +71,15 @@ async def main(argv: list[str]) -> None:
         run_method = convert.run_convert
     elif subcommand == Command.EXPORT.value:
         run_method = export.run_export
+    elif subcommand == Command.INIT.value:
+        run_method = init.run_init
     else:
         parser.description = "Extract, transform, and load FHIR data."
         if not subcommand:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
             parser.description += "\n\nother commands available:\n"
-            parser.description += "  convert\n  export\n  upload-notes"
+            parser.description += "  convert\n  export\n  init\n  upload-notes"
         run_method = etl.run_etl
 
     with tempfile.TemporaryDirectory() as tempdir:
