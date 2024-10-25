@@ -197,7 +197,9 @@ class TestTaskCompletion(TaskTestCase):
         self.assertFalse(comp_enc_format.update_existing)
 
         self.assertEqual("etl__completion", comp_format.dbname)
-        self.assertEqual({"table_name", "group_name"}, comp_format.uniqueness_fields)
+        self.assertEqual(
+            {"table_name", "group_name", "export_time", "etl_time"}, comp_format.uniqueness_fields
+        )
         self.assertTrue(comp_format.update_existing)
 
         self.assertEqual(2, comp_enc_format.write_records.call_count)
@@ -240,6 +242,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_time": "2012-10-10T05:30:12+00:00",
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
+                    "etl_time": "2021-09-14T21:23:45+00:00",
                 }
             ],
             comp_batch.rows,
@@ -276,6 +279,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_time": "2012-10-10T05:30:12+00:00",
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
+                    "etl_time": "2021-09-14T21:23:45+00:00",
                 },
                 {
                     "table_name": "medicationrequest",
@@ -283,6 +287,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_time": "2012-10-10T05:30:12+00:00",
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
+                    "etl_time": "2021-09-14T21:23:45+00:00",
                 },
             ],
             comp_batch.rows,
@@ -330,6 +335,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_time": "2012-10-10T05:30:12+00:00",
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
+                    "etl_time": "2021-09-14T21:23:45+00:00",
                 }
             ],
             comp_format.write_records.call_args[0][0].rows,
@@ -420,7 +426,10 @@ class TestMedicationRequestTask(TaskTestCase):
                     uniqueness_fields=None,
                     update_existing=True,
                 ),
-                mock.call(dbname="etl__completion", uniqueness_fields={"group_name", "table_name"}),
+                mock.call(
+                    dbname="etl__completion",
+                    uniqueness_fields={"group_name", "table_name", "export_time", "etl_time"},
+                ),
             ],
             self.create_formatter_mock.call_args_list,
         )

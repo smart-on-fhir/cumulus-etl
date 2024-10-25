@@ -13,7 +13,11 @@ def completion_format_args() -> dict:
     """Returns kwargs to pass to the Format class initializer of your choice"""
     return {
         "dbname": COMPLETION_TABLE,
-        "uniqueness_fields": {"table_name", "group_name"},
+        # These fields altogether basically guarantee that we never collide.
+        # (i.e. that every 'merge' is really an 'insert')
+        # That's intentional - we want this table to be a bit of a historical log.
+        # (We couldn't have no uniqueness fields -- delta lake doesn't like that.)
+        "uniqueness_fields": {"table_name", "group_name", "export_time", "etl_time"},
     }
 
 
@@ -47,6 +51,8 @@ def completion_schema() -> pyarrow.Schema:
             pyarrow.field("export_time", pyarrow.string()),
             pyarrow.field("export_url", pyarrow.string()),
             pyarrow.field("etl_version", pyarrow.string()),
+            # See note above for why this isn't a pyarrow.timestamp() field.
+            pyarrow.field("etl_time", pyarrow.string()),
         ]
     )
 

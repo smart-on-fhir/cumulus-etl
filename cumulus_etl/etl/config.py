@@ -44,7 +44,7 @@ class JobConfig:
         self._output_format = output_format
         self.dir_errors = dir_errors
         self.client = client
-        self.timestamp = common.timestamp_filename(timestamp)
+        self.timestamp = timestamp
         self.hostname = gethostname()
         self.comment = comment or ""
         self.batch_size = batch_size
@@ -67,7 +67,8 @@ class JobConfig:
         return os.path.join(self.dir_job_config(), "job_config.json")
 
     def dir_job_config(self) -> str:
-        path = self._output_root.joinpath(f"JobConfig/{self.timestamp}")
+        timestamp_dir = common.timestamp_filename(self.timestamp)
+        path = self._output_root.joinpath(f"JobConfig/{timestamp_dir}")
         self._output_root.makedirs(path)
         return path
 
