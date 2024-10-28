@@ -133,6 +133,7 @@ class TaskTestCase(utils.AsyncTestCase):
             "ndjson",
             "ndjson",
             client,
+            timestamp=common.datetime_now(),
             batch_size=5,
             dir_errors=self.errors_dir,
             export_group_name="test-group",

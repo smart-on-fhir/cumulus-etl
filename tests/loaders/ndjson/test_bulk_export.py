@@ -922,6 +922,7 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
                     "export_time": "2015-02-07T13:28:17+02:00",
                     "export_url": f"{self.fhir_url}/$export?_type=Patient",
                     "etl_version": "1.0.0+test",
+                    "etl_time": "2021-09-14T21:23:45+00:00",
                 },
                 common.read_json(f"{tmpdir}/output/etl__completion/etl__completion.000.ndjson"),
             )
