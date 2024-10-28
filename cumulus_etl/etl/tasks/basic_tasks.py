@@ -62,15 +62,11 @@ class EncounterTask(tasks.EtlTask):
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         async for encounter in super().read_entries(progress=progress):
-            if self.completion_tracking_enabled:
-                completion_info = {
-                    "encounter_id": encounter["id"],
-                    "group_name": self.task_config.export_group_name,
-                    "export_time": self.task_config.export_datetime.isoformat(),
-                }
-            else:
-                completion_info = None
-
+            completion_info = {
+                "encounter_id": encounter["id"],
+                "group_name": self.task_config.export_group_name,
+                "export_time": self.task_config.export_datetime.isoformat(),
+            }
             yield completion_info, encounter
 
     @classmethod

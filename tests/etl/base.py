@@ -58,7 +58,6 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         input_format: str = "ndjson",
         export_group: str = "test-group",
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
-        write_completion: bool = True,
         skip_init_checks: bool = True,
     ) -> None:
         args = [
@@ -75,8 +74,6 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             args.append(f"--export-group={export_group}")
         if export_timestamp:
             args.append(f"--export-timestamp={export_timestamp}")
-        if write_completion:
-            args.append("--write-completion")
         if output_format:
             args.append(f"--output-format={output_format}")
         if comment:

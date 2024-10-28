@@ -199,6 +199,10 @@ docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
 ```
 
+(Read [more about bulk exporting](../bulk-exports.md)
+to learn how to get some real data from your EHR,
+and how to properly feed it into the ETL.)
+
 Now let's talk about customizing this command for your own environment.
 (And remember that you can always run `docker compose run cumulus-etl --help` for more guidance.)
 
@@ -225,7 +229,8 @@ defaults are subject to change or might not match your situation.
 * `--output-format`: There are two reasonable values (`ndjson` and `deltalake`).
   For production use, you can use the default value of `deltalake` as it supports incremental,
   batched updates.
-  But `ndjson` is useful when debugging as it is human-readable.
+  But since the `ndjson` output is human-readable, it's useful for debugging
+  or reviewing the output before pushing to the cloud.
 
 * `--batch-size`: How many resources to save in a single output file. If there are more resources
   (e.g. more patients) than this limit, multiple output files will be created for that resource

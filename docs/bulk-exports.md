@@ -13,27 +13,33 @@ Cumulus ETL wants data, and lots of it.
 It's happy to ingest data that you've gathered elsewhere (as a separate export),
 but it's also happy to download the data itself as needed during the ETL (as an on-the-fly export).
 
-## Separate Exports
+## Export Options
+
+### External Exports
 
 1. If you have an existing process to export health data, you can do that bulk export externally,
 and then just feed the resulting files to Cumulus ETL.
+(Though note that you will need to provide some export information manually,
+with the `--export-group` and `--export-timestamp` options. See `--help` for more info.)
 
 2. Cumulus ETL has an `export` command to perform just a bulk export without an ETL step.
    Run it like so: `cumulus-etl export FHIR_URL ./output` (see `--help` for more options).
-   You can use all sorts of
+   - You can use all sorts of
    [interesting FHIR options](https://hl7.org/fhir/uv/bulkdata/export.html#query-parameters)
    like `_typeFilter` or `_since` in the URL.
+   - This workflow will generate an export log file, from which Cumulus ETL can pull
+   some export metadata like the Group name and export timestamp.
 
 3. Or you may need more advanced options than our internal exporter supports.
    The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client)
-   is a great tool with lots of features.
+   is a great tool with lots of features (and also generates an export log file).
 
 In any case, it's simple to feed that data to the ETL:
 1. Pass Cumulus ETL the folder that holds the downloaded data as the input path.
 1. Pass `--fhir-url=` pointing at your FHIR server so that externally referenced document notes
    and medications can still be downloaded as needed.
 
-## On-The-Fly Exports
+### On-The-Fly Exports
 
 If it's easier to just do it all in one step,
 you can also start an ETL run with your FHIR URL as the input path.
@@ -43,6 +49,60 @@ You can save the exported files for archiving after the fact with `--export-to=P
 
 However, bulk exports tend to be brittle and slow for many EHRs at the time of this writing.
 It might be wiser to separately export, make sure the data is all there and good, and then ETL it.
+
+## Cumulus Assumptions
+
+Cumulus ETL makes some specific assumptions about the data you feed it and the order you feed it in.
+
+This is because Cumulus tracks which resources were exported from which FHIR Groups and when.
+It only allows Encounters that have had all their data fully imported to be queried by SQL,
+to prevent an in-progress ETL workflow from affecting queries against the database.
+(i.e. to prevent an Encounter that hasn't yet had Conditions loaded in from looking like an
+Encounter that doesn't _have_ any Conditions)
+
+Of course, even in the normal course of events, resources may show up weeks after an Encounter
+(like lab results).
+So an Encounter can never knowingly be truly _complete_,
+but Cumulus ETL makes an effort to keep a consistent view of the world at least for a given
+point in time.
+
+### Encounters First
+
+**Please export Encounters along with or before you export other Encounter-linked resources.**
+(Patients can be exported beforehand, since they don't depend on Encounters.)
+
+To prevent incomplete Encounters, Cumulus only looks at Encounters that have an export
+timestamp at the same time or before linked resources like Condition.
+(As a result, there may be extra Conditions that point to not-yet-loaded Encounters.
+But that's fine, they will also be ignored until their Encounters do get loaded.)
+
+If you do export Encounters last, you may not see any of those Encounters in the `core` study
+tables once you run Cumulus Library on the data.
+(Your Encounter data is safe and sound,
+just temporarily ignored by the Library until later exports come through.)
+
+### No Partial Group Exports
+
+**Please don't slice and dice your Group resources when exporting.**
+Cumulus ETL assumes that when you feed it an input folder of export files,
+that everything in the Group is available (at least, for the exported resources).
+You can export one resource from the Group at a time, just don't slice that resource further.
+
+This is because when you run ETL on say, Conditions exported from Group `Group1234`,
+it will mark Conditions in `Group1234` as completely loaded (up to the export timestamp).
+
+Using `_since` or a date-oriented `_typeFilter` is still fine, to grab new data for an export.
+The concern is more about an incomplete view of the data at a given point in time.
+
+For example, if you sliced Conditions according to category when exporting
+(e.g. `_typeFilter=Condition?category=problem-list-item`),
+Cumulus will have an incorrect view of the world
+(thinking it got all Conditions when it only got problem list items).
+
+You can still do this if you are careful!
+For example, maybe exporting Observations is too slow unless you slice by category.
+Just make sure that after you export all the Observations separately,
+you then combine them again into one big Observation folder before running Cumulus ETL.
 
 ## Archiving Exports
 

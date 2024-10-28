@@ -105,6 +105,8 @@ jobs:
             /in/input \
             /in/run-output \
             /in/phi \
+            --export-group nlp-test \
+            --export-timestamp 2024-08-29 \
             --output-format=ndjson \
             --task covid_symptom__nlp_results
 

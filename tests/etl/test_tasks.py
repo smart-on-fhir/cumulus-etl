@@ -293,30 +293,6 @@ class TestTaskCompletion(TaskTestCase):
             comp_batch.rows,
         )
 
-    @ddt.data("export_datetime", "export_group_name")
-    async def test_completion_disabled(self, null_field):
-        """Verify that we don't write completion data if we don't have args for it"""
-        self.make_json("Encounter", "A")
-        setattr(self.job_config, null_field, None)
-
-        await basic_tasks.EncounterTask(self.job_config, self.scrubber).run()
-
-        # This order is unusual - normally `encounter` is second,
-        # but because there is no content for etl__completion_encounters,
-        # it is only touched during task finalization, so it goes second instead.
-        enc_format = self.format  # encounter
-        comp_enc_format = self.format2  # etl__completion_encounters
-        comp_format = self.format3  # etl__completion
-
-        self.assertEqual("encounter", enc_format.dbname)
-        self.assertEqual("etl__completion_encounters", comp_enc_format.dbname)
-        self.assertIsNone(comp_format)  # tasks don't create this when completion is disabled
-
-        self.assertEqual(1, comp_enc_format.write_records.call_count)
-        self.assertEqual(1, enc_format.write_records.call_count)
-
-        self.assertEqual([], comp_enc_format.write_records.call_args[0][0].rows)
-
     async def test_allow_empty_group(self):
         """Empty groups are (rarely) used to mark a server-wide global export"""
         self.make_json("Device", "A")
