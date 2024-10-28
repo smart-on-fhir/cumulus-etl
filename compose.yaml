@@ -80,10 +80,6 @@ services:
   ctakes-covid:
     extends: ctakes-covid-base
     profiles:
-      # chart-review is a deprecated alias for upload-notes since Jan 2024.
-      # Remove when you feel like it.
-      - chart-review
-      - chart-review-gpu
       - covid-symptom
       - covid-symptom-gpu
       - upload-notes
@@ -93,9 +89,6 @@ services:
     extends: common-base
     image: smartonfhir/cnlp-transformers:negation-0.6.1-cpu
     profiles:
-      # chart-review is a deprecated alias for upload-notes since Jan 2024.
-      # Remove when you feel like it.
-      - chart-review
       - covid-symptom
       - upload-notes
     networks:
@@ -105,9 +98,6 @@ services:
     extends: common-base
     image: smartonfhir/cnlp-transformers:negation-0.6.1-gpu
     profiles:
-      # chart-review-gpu is a deprecated alias for upload-notes-gpu since Jan 2024.
-      # Remove when you feel like it.
-      - chart-review-gpu
       - covid-symptom-gpu
       - upload-notes-gpu
     networks:
