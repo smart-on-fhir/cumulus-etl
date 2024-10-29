@@ -19,7 +19,6 @@ class TestCumulusCLI(AsyncTestCase):
 
     @ddt.data(
         ([], "usage: cumulus-etl [OPTION]..."),
-        (["chart-review"], "usage: cumulus-etl upload-notes [OPTION]..."),
         (["convert"], "usage: cumulus-etl convert [OPTION]..."),
         (["etl"], "usage: cumulus-etl etl [OPTION]..."),
         (["upload-notes"], "usage: cumulus-etl upload-notes [OPTION]..."),
@@ -36,7 +35,6 @@ class TestCumulusCLI(AsyncTestCase):
 
     @ddt.data(
         ([], "cumulus_etl.etl.run_etl"),
-        (["chart-review"], "cumulus_etl.upload_notes.run_upload_notes"),
         (["convert"], "cumulus_etl.etl.convert.run_convert"),
         (["etl"], "cumulus_etl.etl.run_etl"),
         (["upload-notes"], "cumulus_etl.upload_notes.run_upload_notes"),

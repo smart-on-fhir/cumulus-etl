@@ -1,0 +1,2 @@
+{"exportId": "testId", "timestamp": "2024-08-06T14:11:57-04:00", "eventId": "kickoff", "eventDetail": {"exportUrl": "https://example.org/fhir/$export"}}
+{"exportId": "testId", "timestamp": "2024-08-06T14:12:57-04:00", "eventId": "status_complete", "eventDetail": {"transactionTime": "2024-08-06T14:00:00-04:00", "outputFileCount": 0, "deletedFileCount": 0, "errorFileCount": 0}}

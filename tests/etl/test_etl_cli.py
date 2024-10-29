@@ -238,27 +238,27 @@ class TestEtlJobFlow(BaseEtlSimple):
         # Second line is what loader will represent as the group/time
         # Third line is what we expect to use as the group/time
         (
-            {"export_group": "CLI", "export_timestamp": "2020-01-02", "write_completion": True},
+            {"export_group": "CLI", "export_timestamp": "2020-01-02"},
             ("Loader", datetime.datetime(2010, 12, 12)),
             ("CLI", datetime.datetime(2020, 1, 2)),
         ),
         (
-            {"export_group": "CLI", "export_timestamp": "2020-01-02", "write_completion": False},
-            ("Loader", datetime.datetime(2010, 12, 12)),
-            (None, None),
-        ),
-        (
-            {"export_group": None, "export_timestamp": None, "write_completion": True},
+            {"export_group": None, "export_timestamp": None},
             ("Loader", datetime.datetime(2010, 12, 12)),
             ("Loader", datetime.datetime(2010, 12, 12)),
         ),
         (
-            {"export_group": "CLI", "export_timestamp": None, "write_completion": True},
+            {"export_group": "CLI", "export_timestamp": None},
             (None, None),
             None,  # errors out
         ),
         (
-            {"export_group": None, "export_timestamp": "2020-01-02", "write_completion": True},
+            {"export_group": None, "export_timestamp": "2020-01-02"},
+            (None, None),
+            None,  # errors out
+        ),
+        (
+            {"export_group": None, "export_timestamp": None},
             (None, None),
             None,  # errors out
         ),
@@ -363,7 +363,7 @@ class TestEtlJobConfig(BaseEtlSimple):
                 "tasks": "patient,condition",
                 "export_group_name": "test-group",
                 "export_timestamp": "2020-10-13T12:00:20-05:00",
-                "export_url": None,
+                "export_url": "https://example.org/fhir/$export",
             },
             config_file,
         )

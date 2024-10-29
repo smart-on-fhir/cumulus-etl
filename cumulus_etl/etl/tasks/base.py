@@ -113,9 +113,6 @@ class EtlTask:
         self.summaries: list[config.JobSummary] = [
             config.JobSummary(output.get_name(self)) for output in self.outputs
         ]
-        self.completion_tracking_enabled = (
-            self.task_config.export_group_name is not None and self.task_config.export_datetime
-        )
 
     async def run(self) -> list[config.JobSummary]:
         """
@@ -260,9 +257,6 @@ class EtlTask:
             self.formatters[index].delete_records(deleted_ids)
 
     def _update_completion_table(self) -> None:
-        if not self.completion_tracking_enabled:
-            return
-
         # Create completion rows
         batch = formats.Batch(
             rows=[

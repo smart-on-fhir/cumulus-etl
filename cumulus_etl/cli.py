@@ -16,10 +16,6 @@ from cumulus_etl.etl import convert, init
 class Command(enum.Enum):
     """Subcommand strings"""
 
-    # chart-review is a deprecated alias of upload-notes since Jan 2024.
-    # Keep as long as you like.
-    # It's a low-usage feature, but it's not a maintenance burden to keep this around.
-    CHART_REVIEW = "chart-review"
     CONVERT = "convert"
     ETL = "etl"
     EXPORT = "export"
@@ -65,7 +61,7 @@ async def main(argv: list[str]) -> None:
         prog += f" {subcommand}"  # to make --help look nicer
     parser = argparse.ArgumentParser(prog=prog)
 
-    if subcommand in {Command.CHART_REVIEW.value, Command.UPLOAD_NOTES.value}:
+    if subcommand == Command.UPLOAD_NOTES.value:
         run_method = upload_notes.run_upload_notes
     elif subcommand == Command.CONVERT.value:
         run_method = convert.run_convert

@@ -903,7 +903,6 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
                     "--task=patient",
                     f"--smart-client-id={self.fhir_client_id}",
                     f"--smart-jwks={self.fhir_jwks_path}",
-                    "--write-completion",
                 ]
             )
 

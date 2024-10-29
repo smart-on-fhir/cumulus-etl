@@ -69,7 +69,10 @@ class FhirAuthMissing(FhirConnectionConfigError):
         )
 
 
-def fatal(message: str, status: int) -> NoReturn:
+def fatal(message: str, status: int, extra: str = "") -> NoReturn:
     """Convenience method to exit the program with a user-friendly error message a test-friendly status code"""
-    rich.console.Console(stderr=True).print(message, style="bold red", highlight=False)
+    stderr = rich.console.Console(stderr=True)
+    stderr.print(message, style="bold red", highlight=False)
+    if extra:
+        stderr.print(rich.padding.Padding.indent(extra, 2), highlight=False)
     sys.exit(status)  # raises a SystemExit exception
