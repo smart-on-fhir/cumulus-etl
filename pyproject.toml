@@ -22,7 +22,7 @@ dependencies = [
     "openai < 2",
     "oracledb < 3",
     "philter-lite < 1",
-    "pyarrow < 18",
+    "pyarrow < 19",
     "rich < 14",
     "s3fs",
 ]
