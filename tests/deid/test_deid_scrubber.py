@@ -96,6 +96,42 @@ class TestScrubber(utils.AsyncTestCase):
         self.assertEqual(fake_id, condition["contained"][0]["id"])
         self.assertEqual(f"#{fake_id}", condition["subject"]["reference"])
 
+    def test_empty_resource(self):
+        """Confirm we skip malformed empty dictionaries"""
+        self.assertFalse(Scrubber().scrub_resource({}))
+
+    def test_cleans_empty_containers(self):
+        """Confirm we delete empty lists and dicts"""
+        patient = {
+            "resourceType": "Patient",
+            "active": True,
+            "link": [],
+            "generalPractitioner": {},
+        }
+        self.assertTrue(Scrubber().scrub_resource(patient))
+        self.assertEqual(patient, {"resourceType": "Patient", "active": True})
+
+    def test_unknown_extension(self):
+        """Confirm we strip out unknown extension values (but leaves the URL)"""
+        patient = i2b2_mock_data.patient()
+        scrubber = Scrubber()
+
+        # Entirely remove extension key if array is empty at end
+        patient["extension"] = [{"url": "http://example.org/unknown-extension"}]
+        self.assertTrue(scrubber.scrub_resource(patient))
+        self.assertNotIn("extension", patient)
+
+        # Just removes the single extension if multiple and some are known
+        patient["extension"] = [
+            {"url": "http://example.org/unknown-extension"},
+            {"url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason"},
+        ]
+        self.assertTrue(scrubber.scrub_resource(patient))
+        self.assertEqual(
+            patient["extension"],
+            [{"url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason"}],
+        )
+
     def test_unknown_modifier_extension(self):
         """Confirm we skip resources with unknown modifier extensions"""
         patient = i2b2_mock_data.patient()

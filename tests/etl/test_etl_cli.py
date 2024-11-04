@@ -1,6 +1,8 @@
 """Tests for etl/cli.py"""
 
+import contextlib
 import datetime
+import io
 import itertools
 import json
 import os
@@ -327,6 +329,26 @@ class TestEtlJobFlow(BaseEtlSimple):
 
         self.assertEqual(
             {"etl__completion", "patient", "JobConfig"}, set(os.listdir(self.output_path))
+        )
+
+    async def test_unknown_extensions_get_printed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            common.write_json(
+                f"{tmpdir}/unknown-extension.ndjson",
+                {"id": "A", "resourceType": "Patient", "extension": [{"url": "unknown"}]},
+            )
+            common.write_json(
+                f"{tmpdir}/unknown-modifier-extension.ndjson",
+                {"id": "B", "resourceType": "Patient", "modifierExtension": [{"url": "unknown"}]},
+            )
+
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                await self.run_etl(input_path=tmpdir)
+
+        self.assertIn("Unrecognized extensions dropped from resources:", stdout.getvalue())
+        self.assertIn(
+            "Resources skipped due to unrecognized modifier extensions:", stdout.getvalue()
         )
 
 

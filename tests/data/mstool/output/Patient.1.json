@@ -21,6 +21,22 @@
   },
   "extension": [
     {
+      "url": "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+      "valueAddress": {
+        "city": "Boston",
+        "state": "Massachusetts",
+        "country": "US"
+      }
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
+      "valueDecimal": 0.30562800211089186
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
+      "valueDecimal": 53.69437199788911
+    },
+    {
       "url": "http://hl7.org/fhir/Profile/us-core#ethnicity",
       "valueString": "kept"
     },
@@ -64,6 +80,21 @@
   "deceasedBoolean": false,
   "address": [
     {
+      "extension": [
+        {
+          "url": "http://hl7.org/fhir/StructureDefinition/geolocation",
+          "extension": [
+            {
+              "url": "latitude",
+              "valueDecimal": 42.26414395224488
+            },
+            {
+              "url": "longitude",
+              "valueDecimal": -72.64290225131757
+            }
+          ]
+        }
+      ],
       "state": "Massachusetts",
       "postalCode": "01000",
       "country": "US"

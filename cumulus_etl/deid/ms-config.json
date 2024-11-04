@@ -20,17 +20,10 @@
   "fhirVersion": "R4",
   "processingErrors": "raise",
   "fhirPathRules": [
-    // Only allow a few known extensions
-    {"path": "Patient.extension('http://hl7.org/fhir/Profile/us-core#ethnicity')", "method": "keep"}, // Old DSTU1 URL, still out there in the wild: https://www.hl7.org/fhir/DSTU1/us-core.html
-    {"path": "Patient.extension('http://hl7.org/fhir/Profile/us-core#race')", "method": "keep"}, // Old DSTU1 URL, still out there in the wild: https://www.hl7.org/fhir/DSTU1/us-core.html
-    {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex')", "method": "keep"},
-    {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity')", "method": "keep"},
-    {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity')", "method": "keep"},
-    {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-race')", "method": "keep"},
-    {"path": "Patient.extension('http://hl7.org/fhir/us/core/StructureDefinition/us-core-sex-for-clinical-use')", "method": "keep"},
-    {"path": "Patient.extension('http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use')", "method": "keep"}, // Epic has used this pre-final-spec URL
-    {"path": "nodesByName('modifierExtension')", "method": "keep"}, // keep these so we can ignore resources with modifiers we don't understand
-    {"path": "nodesByType('Extension')", "method": "redact"}, // drop all unknown extensions
+    // modifierExtension is handled by ETL so that we can skip resources we don't understand
+    {"path": "nodesByName('modifierExtension')", "method": "keep"},
+    // extension is handled by ETL so that we can flag the URLs of extensions we strip
+    {"path": "nodesByName('extension')", "method": "keep"},
 
     // Elements that might be embedded and kept elsewhere -- redact pieces of the whole
     {"path": "nodesByType('Attachment').title", "method": "redact"},
@@ -56,6 +49,7 @@
     {"path": "nodesByType('Dosage').sequence", "method": "keep"},
     // Skip Dosage.text
     {"path": "nodesByType('Dosage').additionalInstruction", "method": "keep"},
+    // Skip Dosage.patientInstruction
     {"path": "nodesByType('Dosage').timing", "method": "keep"},
     {"path": "nodesByType('Dosage').asNeeded", "method": "keep"},
     {"path": "nodesByType('Dosage').site", "method": "keep"},

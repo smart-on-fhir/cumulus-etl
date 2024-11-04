@@ -97,17 +97,24 @@ Zip codes are redacted down to just the first three digits (e.g. `12139` becomes
 Additionally, for certain small-population zip codes where even three digits is too identifying,
 the zip code is entirely redacted to `00000`.
 
-#### Extensions
-
-All extensions are removed, except for:
-- The USCDI patient extensions (birth sex, gender identity, race, and ethnicity)
-- "Modifier" extensions which will flag to the ETL that a resource should be skipped
-
 #### Clinical Notes
 
 Be aware that clinical notes are not removed at this stage.
 They are kept for now, so that Cumulus ETL can run natural language processing on them.
 See below for more information on that.
+
+### Extensions
+
+Extensions are stripped out unless they are on a list of recognized extensions,
+to ensure that PHI doesn't accidentally slip in.
+The allowed extensions include the standard USCDI patient extensions
+(birth sex, gender identity, race, and ethnicity)
+as well as various harmless vendor extensions.
+
+Any unrecognized
+["Modifier" extension](https://www.hl7.org/fhir/R4/extensibility.html#modifierExtension)
+will cause Cumulus ETL to entirely skip the containing resource,
+since the resource can't be properly understood.
 
 ### IDs
 
