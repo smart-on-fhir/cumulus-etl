@@ -23,6 +23,10 @@ class SkipValue(Exception):
     pass
 
 
+class MaskValue(SkipValue):
+    pass
+
+
 class Scrubber:
     """
     Manages de-identification for FHIR resources.
@@ -160,6 +164,9 @@ class Scrubber:
                             inside_extension=inside_extension,
                         )
                     )
+                except MaskValue:
+                    # TODO: (not needed yet) support masking values inside array fields
+                    self._add_data_absent_extension(node, f"_{key}")
                 except SkipValue:
                     pass
 
@@ -223,6 +230,24 @@ class Scrubber:
                 tree.add(f"{url} ({count:,} time{'' if count == 1 else 's'})")
             indented = rich.padding.Padding.indent(tree, 1)
             rich.get_console().print(indented)
+
+    def _add_data_absent_extension(self, node: dict, parent: str) -> None:
+        element = node.setdefault(parent, {})
+        extensions = element.setdefault("extension", [])
+
+        # Check if the value is already marked as absent for any reason - leave it in place.
+        # (though that would be weird, since the field was present or we wouldn't be in this path)
+        for extension in extensions:
+            if extension.get("url") == "http://hl7.org/fhir/StructureDefinition/data-absent-reason":
+                return
+
+        # See https://hl7.org/fhir/extensions/StructureDefinition-data-absent-reason.html
+        extensions.append(
+            {
+                "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                "valueCode": "masked",
+            }
+        )
 
     ###############################################################################
     #
@@ -402,7 +427,7 @@ class Scrubber:
             and node_path == "root.content.attachment"
             and key in {"data", "url"}
         ):
-            raise SkipValue
+            raise MaskValue
 
         return value
 

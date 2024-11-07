@@ -58,13 +58,36 @@ class TestScrubber(utils.AsyncTestCase):
 
     def test_documentreference(self):
         """Test DocumentReference, which is interesting because of its list of encounters and attachments"""
-        docref = i2b2_mock_data.documentreference()
-        self.assertEqual("345", docref["id"])
-        self.assertEqual("Patient/12345", docref["subject"]["reference"])
-        self.assertEqual(1, len(docref["context"]["encounter"]))
-        self.assertEqual("Encounter/67890", docref["context"]["encounter"][0]["reference"])
-        self.assertEqual(1, len(docref["content"]))
-        self.assertIsNotNone(docref["content"][0]["attachment"]["data"])
+        docref = {
+            "resourceType": "DocumentReference",
+            "id": "345",
+            "subject": {"reference": "Patient/12345"},
+            "context": {
+                "encounter": [{"reference": "Encounter/67890"}],
+            },
+            "content": [
+                {
+                    "attachment": {
+                        "data": "aGVsbG8gd29ybGQ=",
+                        "url": "https://example.com/hello-world",
+                    },
+                },
+                {
+                    "attachment": {
+                        "data": "xxx",
+                        "_data": {
+                            "extension": [
+                                {
+                                    "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                                    "valueCode": "error",
+                                }
+                            ],
+                        },
+                        "url": "https://example.com/hello-world",
+                    },
+                },
+            ],
+        }
 
         scrubber = Scrubber()
         self.assertTrue(scrubber.scrub_resource(docref))
@@ -77,7 +100,48 @@ class TestScrubber(utils.AsyncTestCase):
             docref["context"]["encounter"][0]["reference"],
             f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}",
         )
-        self.assertNotIn("data", docref["content"][0]["attachment"])
+        self.assertEqual(
+            docref["content"][0]["attachment"],
+            {
+                "_data": {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                            "valueCode": "masked",
+                        }
+                    ]
+                },
+                "_url": {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                            "valueCode": "masked",
+                        }
+                    ]
+                },
+            },
+        )
+        self.assertEqual(
+            docref["content"][1]["attachment"],
+            {
+                "_data": {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                            "valueCode": "error",  # we left this reason in place
+                        }
+                    ]
+                },
+                "_url": {
+                    "extension": [
+                        {
+                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+                            "valueCode": "masked",
+                        }
+                    ]
+                },
+            },
+        )
 
     def test_contained_reference(self):
         """Verify that we leave contained references contained but scrubbed"""
