@@ -316,13 +316,19 @@ class Scrubber:
                 "http://open.epic.com/FHIR/R4/StructureDefinition/patient-preferred-provider-sex",
                 # A Netherlands extension used by Epic
                 "http://nictiz.nl/fhir/StructureDefinition/BodySite-Qualifier",
+                ### Synthea extensions
+                "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
+                "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
             }
             # Some extensions we know about, but aren't necessary to us (they duplicate standard
             # extensions, contain PHI, or are otherwise not relevant). We don't want to warn
             # the user about them as "unrecognized", so we just ignore them entirely.
             ignored_extensions = {
-                # Base spec extension holding a phone number
+                # Base spec extensions with PHI
+                "http://hl7.org/fhir/StructureDefinition/geolocation",
                 "http://hl7.org/fhir/StructureDefinition/iso21090-TEL-address",
+                "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+                "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName"
                 # Usually harmless, but we ignore it to avoid accidentally leaving in the
                 # rendered value of a PHI element that we removed or didn't allow-list.
                 "http://hl7.org/fhir/StructureDefinition/rendered-value",
