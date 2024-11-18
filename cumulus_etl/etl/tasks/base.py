@@ -276,7 +276,9 @@ class EtlTask:
 
         # Write it out
         formatter = self.task_config.create_formatter(**completion.completion_format_args())
-        formatter.write_records(batch)
+        if not formatter.write_records(batch):
+            # Completion crosses output table boundaries, so just mark the first one as failed
+            self.summaries[0].had_errors = True
         formatter.finalize()
 
     def _get_formatter(self, table_index: int) -> formats.Format:

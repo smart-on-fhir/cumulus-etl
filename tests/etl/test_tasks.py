@@ -317,6 +317,22 @@ class TestTaskCompletion(TaskTestCase):
             comp_format.write_records.call_args[0][0].rows,
         )
 
+    async def test_error_during_write(self):
+        """We should flag the task as failed if we can't write completion"""
+
+        # Change the way we mock formatters to insert an error
+        def make_formatter(dbname: str, **kwargs):
+            mock_formatter = mock.MagicMock(dbname=dbname, **kwargs)
+            if dbname == "etl__completion":
+                mock_formatter.write_records.return_value = False
+            return mock_formatter
+
+        self.job_config.create_formatter = mock.MagicMock(side_effect=make_formatter)
+
+        self.make_json("Device", "A")
+        summaries = await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
+        self.assertTrue(summaries[0].had_errors)
+
 
 @ddt.ddt
 class TestMedicationRequestTask(TaskTestCase):
