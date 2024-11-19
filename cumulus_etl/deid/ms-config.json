@@ -351,7 +351,7 @@
     {"path": "Observation.effective", "method": "keep"},
     {"path": "Observation.issued", "method": "keep"},
     {"path": "Observation.performer", "method": "keep"},
-    {"path": "Observation.value", "method": "keep"}, // should run philter on valueString
+    {"path": "Observation.value", "method": "keep"}, // we drop valueString inside ETL
     {"path": "Observation.dataAbsentReason", "method": "keep"},
     {"path": "Observation.interpretation", "method": "keep"},
     // Skip Observation.note
@@ -363,7 +363,7 @@
     {"path": "Observation.hasMember", "method": "keep"},
     {"path": "Observation.derivedFrom", "method": "keep"},
     {"path": "Observation.component.code", "method": "keep"},
-    {"path": "Observation.component.value", "method": "keep"}, // should run philter on valueString
+    {"path": "Observation.component.value", "method": "keep"}, // we drop valueString inside ETL
     {"path": "Observation.component.dataAbsentReason", "method": "keep"},
     {"path": "Observation.component.interpretation", "method": "keep"},
     // Skip Observation.component.referenceRange

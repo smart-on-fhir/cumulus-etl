@@ -10,6 +10,16 @@ from cumulus_etl.deid import Scrubber
 from cumulus_etl.deid.codebook import CodebookDB
 from tests import i2b2_mock_data, utils
 
+# Used in a few tests - just define once for cleanliness
+MASKED_EXTENSION = {
+    "extension": [
+        {
+            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+            "valueCode": "masked",
+        }
+    ]
+}
+
 
 class TestScrubber(utils.AsyncTestCase):
     """Test case for the Scrubber class"""
@@ -103,22 +113,8 @@ class TestScrubber(utils.AsyncTestCase):
         self.assertEqual(
             docref["content"][0]["attachment"],
             {
-                "_data": {
-                    "extension": [
-                        {
-                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
-                            "valueCode": "masked",
-                        }
-                    ]
-                },
-                "_url": {
-                    "extension": [
-                        {
-                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
-                            "valueCode": "masked",
-                        }
-                    ]
-                },
+                "_data": MASKED_EXTENSION,
+                "_url": MASKED_EXTENSION,
             },
         )
         self.assertEqual(
@@ -132,14 +128,28 @@ class TestScrubber(utils.AsyncTestCase):
                         }
                     ]
                 },
-                "_url": {
-                    "extension": [
-                        {
-                            "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
-                            "valueCode": "masked",
-                        }
-                    ]
+                "_url": MASKED_EXTENSION,
+            },
+        )
+
+    def test_value_string_is_masked(self):
+        """Verify that Observation.*.valueString is masked"""
+        obs = {
+            "resourceType": "Observation",
+            "valueString": "Hello Alice!",
+            "component": [
+                {
+                    "valueString": "Also heyo Bob!",
                 },
+            ],
+        }
+        self.assertTrue(Scrubber().scrub_resource(obs))
+        self.assertEqual(
+            obs,
+            {
+                "resourceType": "Observation",
+                "_valueString": MASKED_EXTENSION,
+                "component": [{"_valueString": MASKED_EXTENSION}],
             },
         )
 

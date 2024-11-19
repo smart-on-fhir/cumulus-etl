@@ -155,7 +155,6 @@ There are some freeform text fields that Cumulus ETS asks the Microsoft Anonymiz
 These fields are useful for presenting or computing a phenotype:
 - `CodeableConcept.text`
 - `Coding.display`
-- `Observation.valueString` and `Observation.component.valueString`
 
 Although Cumulus wants to largely preserve these fields,
 they may contain PHI since they are freeform text fields after all.
