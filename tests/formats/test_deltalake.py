@@ -157,8 +157,8 @@ class TestDeltaLake(utils.AsyncTestCase):
             [
                 {"id": "past", "meta": {"lastUpdated": now}, "value": 2},
                 {"id": "past-with-offset", "meta": {"lastUpdated": now}, "value": 2},
-                {"id": "now", "meta": {"lastUpdated": now}, "value": 1},
-                {"id": "now-without-zed", "meta": {"lastUpdated": now_without_zed}, "value": 1},
+                {"id": "now", "meta": {"lastUpdated": now}, "value": 2},
+                {"id": "now-without-zed", "meta": {"lastUpdated": now}, "value": 2},
                 {"id": "future", "meta": {"lastUpdated": future}, "value": 1},
                 {
                     "id": "future-with-offset",
