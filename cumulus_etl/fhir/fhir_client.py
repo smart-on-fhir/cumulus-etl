@@ -283,8 +283,9 @@ def create_fhir_client_for_cli(
         raise SystemExit(errors.ARGS_INVALID) from exc
 
     client_resources = set(resources)
-    if "DocumentReference" in client_resources:
-        # A DocumentReference scope implies a Binary scope as well, since we'll usually need to download attachments
+    if {"DiagnosticReport", "DocumentReference"} & client_resources:
+        # Resources with attachments imply a Binary scope as well,
+        # since we'll usually need to download the referenced content.
         client_resources.add("Binary")
 
     return FhirClient(

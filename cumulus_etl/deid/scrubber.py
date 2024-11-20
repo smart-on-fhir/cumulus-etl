@@ -436,12 +436,14 @@ class Scrubber:
     @staticmethod
     def _check_attachments(resource_type: str, node_path: str, key: str, value: Any) -> Any:
         """Strip any attachment data"""
-        if (
-            resource_type == "DocumentReference"
-            and node_path == "root.content.attachment"
-            and key in {"data", "url"}
+        if any(
+            (
+                (resource_type == "DiagnosticReport" and node_path == "root.presentedForm"),
+                (resource_type == "DocumentReference" and node_path == "root.content.attachment"),
+            )
         ):
-            raise MaskValue
+            if key in {"data", "url"}:
+                raise MaskValue
 
         return value
 

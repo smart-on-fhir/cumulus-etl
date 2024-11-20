@@ -172,7 +172,7 @@
     {"path": "DiagnosticReport.media.link", "method": "keep"},
     // Skip DiagnosticReport.conclusion
     {"path": "DiagnosticReport.conclusionCode", "method": "keep"},
-    // Skip DiagnosticReport.presentedForm (can add back later when/if we want to run NLP on it)
+    {"path": "DiagnosticReport.presentedForm", "method": "keep"}, // will be dropped later after running NLP on it
 
     // ** DocumentReference: https://www.hl7.org/fhir/R4/documentreference.html **
     // Skip DocumentReference.masterIdentifier
