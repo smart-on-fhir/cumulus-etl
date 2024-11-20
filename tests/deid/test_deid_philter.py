@@ -23,21 +23,6 @@ class TestPhilter(AsyncTestCase):
             {"Coding": {"display": "Patient 012-34-5678"}},
             {"Coding": {"display": "Patient ***-**-****"}},
         ),
-        (
-            # philter catches the month for some reason, but correctly leaves the date numbers alone
-            {"resourceType": "Observation", "valueString": "Born on december 12 2012"},
-            {"resourceType": "Observation", "valueString": "Born on ******** 12 2012"},
-        ),
-        (
-            {
-                "resourceType": "Observation",
-                "component": [{"valueString": "Contact at foo@bar.com"}],
-            },
-            {
-                "resourceType": "Observation",
-                "component": [{"valueString": "Contact at ***@***.***"}],
-            },
-        ),
     )
     @ddt.unpack
     def test_scrub_resource(self, resource, expected):

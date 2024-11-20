@@ -406,22 +406,30 @@ class Scrubber:
         if isinstance(value, str) and any(
             (
                 # Coding.display is clinically unnecessary but is useful for rendering.
-                # Since "code" is always present, downstream consumers can & should provide their own display label.
-                # But we don't remove it entirely, for cases where unexpected codes are used.
-                # Note that this will definitely over-scrub (like scrubbing "White" from the USCDI race extension),
-                # but again -- this display value is redundant and rather than try to be smart, we're safely dumb.
+                # Since "code" is always present, downstream consumers can & should provide their
+                # own display label. But we don't remove it entirely, for cases where unexpected
+                # codes are used. Note that this will definitely over-scrub (like scrubbing "White"
+                # from the USCDI race extension), but again -- this display value is redundant and
+                # rather than try to be smart, we're safely dumb.
                 key == "display",
-                # CodeableConcept.text has clinical value for situations that don't have clear coding yet.
-                # Think early-days Covid day PCRs. Which is why we let it through in the first place.
+                # CodeableConcept.text has clinical value for situations that don't have clear
+                # coding yet, like early-days Covid day PCRs. And text-only codeable concepts show
+                # up a lot when the EHR allows it. Hence why we normally let it through.
                 # But we should still scrub it since it is loose text that could hold PHI.
                 key == "text",
-                # Observation.valueString has clinical value, but could hold PHI.
-                # Similarly, extensions might have valueString members (though the only supported ones don't have
-                # interesting fields there -- race & ethnicity allow for freeform text descriptions).
-                key == "valueString",
             )
         ):
             value = self.scrub_text(value)
+
+        if isinstance(value, str) and any(
+            (
+                # Observation.valueString has some clinical value, but often holds PHI.
+                # If we ever want to use this for clinical purposes, we should process it via NLP
+                # on the ETL side (like we do for DocumentReference attachments).
+                key == "valueString",
+            )
+        ):
+            raise MaskValue
 
         return value
 
