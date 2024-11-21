@@ -66,6 +66,45 @@ class TestScrubber(utils.AsyncTestCase):
             f"Encounter/{scrubber.codebook.fake_id('Encounter', '67890')}",
         )
 
+    def test_diagnosticreport(self):
+        """Verify a basic DiagnosticReport has attachments stripped"""
+        report = {
+            "resourceType": "DiagnosticReport",
+            "id": "dr1",
+            "presentedForm": [
+                {
+                    "data": "blarg",
+                    "language": "en",
+                    "size": 5,
+                },
+                {
+                    "url": "https://example.com/",
+                    "contentType": "text/plain",
+                },
+            ],
+        }
+
+        scrubber = Scrubber()
+        self.assertTrue(scrubber.scrub_resource(report))
+        self.assertEqual(
+            report,
+            {
+                "resourceType": "DiagnosticReport",
+                "id": scrubber.codebook.fake_id("DiagnosticReport", "dr1"),
+                "presentedForm": [
+                    {
+                        "_data": MASKED_EXTENSION,
+                        "language": "en",
+                        "size": 5,
+                    },
+                    {
+                        "_url": MASKED_EXTENSION,
+                        "contentType": "text/plain",
+                    },
+                ],
+            },
+        )
+
     def test_documentreference(self):
         """Test DocumentReference, which is interesting because of its list of encounters and attachments"""
         docref = {

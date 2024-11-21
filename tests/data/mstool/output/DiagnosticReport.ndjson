@@ -23,5 +23,6 @@
   "media" : [{
     "link" : { "reference": "Media/x" }
   }],
-  "conclusionCode" : [{ "text": "kept" }]
+  "conclusionCode" : [{ "text": "kept" }],
+  "presentedForm" : [{ "data": "xxx" }]
 }
