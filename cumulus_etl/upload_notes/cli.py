@@ -7,7 +7,7 @@ import sys
 from collections.abc import Collection
 
 import ctakesclient
-from ctakesclient.typesystem import Polarity
+from ctakesclient.typesystem import Polarity, MatchText
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
 from cumulus_etl.upload_notes import downloader, selector
@@ -23,9 +23,9 @@ def init_checks(args: argparse.Namespace):
     if args.skip_init_checks:
         return
 
-    if args.nlp:
-        nlp.check_ctakes()
-        nlp.check_negation_cnlpt()
+    # if args.nlp:
+    #     nlp.check_ctakes()
+    #     nlp.check_negation_cnlpt()
 
     if not cli_utils.is_url_available(args.label_studio_url, retry=False):
         errors.fatal(
@@ -133,25 +133,55 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
         return
 
     common.print_header("Running notes through cTAKES...")
-    if not nlp.restart_ctakes_with_bsv(args.ctakes_overrides, args.symptoms_bsv):
-        sys.exit(errors.CTAKES_OVERRIDES_INVALID)
+    # if not nlp.restart_ctakes_with_bsv(args.ctakes_overrides, args.symptoms_bsv):
+    #     sys.exit(errors.CTAKES_OVERRIDES_INVALID)
 
     http_client = nlp.ctakes_httpx_client()
 
+    import medspacy
+    import medspacy.section_detection
+
+    med_nlp = medspacy.load()
+    med_nlp.add_pipe("medspacy_sectionizer")
+
     # Run each note through cTAKES then the cNLP transformer for negation
     for note in notes:
-        ctakes_json = await ctakesclient.client.extract(note.text, client=http_client)
-        matches = ctakes_json.list_match(polarity=Polarity.pos)
-        spans = ctakes_json.list_spans(matches)
-        cnlpt_results = await ctakesclient.transformer.list_polarity(
-            note.text,
-            spans,
-            client=http_client,
-            model=nlp.TransformerModel.NEGATION,
-        )
-        note.ctakes_matches = [
-            match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos
-        ]
+        doc = med_nlp(note.text)
+        # doc._.sections *should* have numbered spans for us, but they seem to be bogus?
+        # Or I don't understand what I'm looking at. Instead, calculate spans ourself.
+        start = 0
+        note.ctakes_matches = []
+        for index, title in enumerate(doc._.section_titles):
+            if title.text:
+                note.ctakes_matches.append(
+                    MatchText(
+                        {
+                            "begin": start,
+                            "end": start + len(title.text),
+                            "text": title.text,
+                            "polarity": 0,
+                            "conceptAttributes": [],
+                            "type": "IdentifiedAnnotation",
+                        }
+                    )
+                )
+                start += len(title.text)
+            body = doc._.section_bodies[index]
+            if body.text:
+                start += len(body.text) + 1
+
+        # ctakes_json = await ctakesclient.client.extract(note.text, client=http_client)
+        # matches = ctakes_json.list_match(polarity=Polarity.pos)
+        # spans = ctakes_json.list_spans(matches)
+        # cnlpt_results = await ctakesclient.transformer.list_polarity(
+        #     note.text,
+        #     spans,
+        #     client=http_client,
+        #     model=nlp.TransformerModel.NEGATION,
+        # )
+        # note.ctakes_matches = [
+        #     match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos
+        # ]
 
 
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:

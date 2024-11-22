@@ -142,7 +142,8 @@ class LabelStudioClient:
         count = 0
         for match in note.ctakes_matches:
             matched_labels = {
-                self._cui_labels.get(concept.cui) for concept in match.conceptAttributes
+                # self._cui_labels.get(concept.cui) for concept in match.conceptAttributes
+                "Section Title"
             }
             # drop the result of a concept not being in our bsv label set
             matched_labels.discard(None)
