@@ -3,6 +3,7 @@
 import contextlib
 import datetime
 import io
+import json
 import os
 import tempfile
 from unittest import mock
@@ -141,18 +142,21 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 ],
             },
         )
+        con1 = json.dumps({"resourceType": "Condition", "id": "1"})
         self.respx_mock.get(
             "https://example.com/con1",
             headers={"Accept": "application/fhir+ndjson"},
-        ).respond(json={"resourceType": "Condition", "id": "1"})
+        ).respond(text=con1)
+        con2 = json.dumps({"resourceType": "Condition", "id": "2"})
         self.respx_mock.get(
             "https://example.com/con2",
             headers={"Accept": "application/fhir+ndjson"},
-        ).respond(json={"resourceType": "Condition", "id": "2"})
+        ).respond(text=con2)
+        pat1 = json.dumps({"resourceType": "Patient", "id": "P"})
         self.respx_mock.get(
             "https://example.com/pat1",
             headers={"Accept": "application/fhir+ndjson"},
-        ).respond(json={"resourceType": "Patient", "id": "P"})
+        ).respond(text=pat1)
 
         await self.export()
 
@@ -216,7 +220,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 40, "fileUrl": "https://example.com/con1", "resourceCount": 1},
+                {"fileSize": len(con1), "fileUrl": "https://example.com/con1", "resourceCount": 1},
             ),
             (
                 "download_request",
@@ -228,7 +232,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 40, "fileUrl": "https://example.com/con2", "resourceCount": 1},
+                {"fileSize": len(con2), "fileUrl": "https://example.com/con2", "resourceCount": 1},
             ),
             (
                 "download_request",
@@ -240,11 +244,17 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 38, "fileUrl": "https://example.com/pat1", "resourceCount": 1},
+                {"fileSize": len(pat1), "fileUrl": "https://example.com/pat1", "resourceCount": 1},
             ),
             (
                 "export_complete",
-                {"attachments": None, "bytes": 118, "duration": 0, "files": 3, "resources": 3},
+                {
+                    "attachments": None,
+                    "bytes": len(con1) + len(con2) + len(pat1),
+                    "duration": 0,
+                    "files": 3,
+                    "resources": 3,
+                },
             ),
         )
 
@@ -300,12 +310,11 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             "https://example.com/err2",
             headers={"Accept": "application/fhir+ndjson"},
         ).respond(text=err2)
+        con1 = '{"resourceType": "Condition"}'
         self.respx_mock.get(
             "https://example.com/con1",
             headers={"Accept": "application/fhir+ndjson"},
-        ).respond(
-            json={"resourceType": "Condition"},
-        )
+        ).respond(text=con1)
 
         with self.assertRaisesRegex(
             errors.FatalError, "Errors occurred during export:\n - err1\n - err2\n - err3\n - err4"
@@ -340,7 +349,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 29, "fileUrl": "https://example.com/con1", "resourceCount": 1},
+                {"fileSize": len(con1), "fileUrl": "https://example.com/con1", "resourceCount": 1},
             ),
             (
                 "download_request",
@@ -352,7 +361,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 93, "fileUrl": "https://example.com/err1", "resourceCount": 1},
+                {"fileSize": len(err1), "fileUrl": "https://example.com/err1", "resourceCount": 1},
             ),
             (
                 "download_request",
@@ -364,11 +373,17 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 322, "fileUrl": "https://example.com/err2", "resourceCount": 3},
+                {"fileSize": len(err2), "fileUrl": "https://example.com/err2", "resourceCount": 3},
             ),
             (
                 "export_complete",
-                {"attachments": None, "bytes": 444, "duration": 0, "files": 3, "resources": 5},
+                {
+                    "attachments": None,
+                    "bytes": len(con1) + len(err1) + len(err2),
+                    "duration": 0,
+                    "files": 3,
+                    "resources": 5,
+                },
             ),
         )
 
@@ -408,20 +423,22 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 ],
             },
         )
-        deleted1 = {
-            "resourceType": "Bundle",
-            "type": "transaction",
-            "entry": [
-                {
-                    "request": {"method": "DELETE", "url": "Patient/123"},
-                }
-            ],
-        }
-        self.respx_mock.get("https://example.com/deleted1").respond(json=deleted1)
+        deleted1 = json.dumps(
+            {
+                "resourceType": "Bundle",
+                "type": "transaction",
+                "entry": [
+                    {
+                        "request": {"method": "DELETE", "url": "Patient/123"},
+                    }
+                ],
+            }
+        )
+        self.respx_mock.get("https://example.com/deleted1").respond(text=deleted1)
 
         await self.export()
 
-        bundle = common.read_json(f"{self.tmpdir}/deleted/Bundle.000.ndjson")
+        bundle = common.read_text(f"{self.tmpdir}/deleted/Bundle.000.ndjson")
         self.assertEqual(bundle, deleted1)
 
         self.assert_log_equals(
@@ -437,11 +454,21 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ),
             (
                 "download_complete",
-                {"fileSize": 117, "fileUrl": "https://example.com/deleted1", "resourceCount": 1},
+                {
+                    "fileSize": len(deleted1),
+                    "fileUrl": "https://example.com/deleted1",
+                    "resourceCount": 1,
+                },
             ),
             (
                 "export_complete",
-                {"attachments": None, "bytes": 117, "duration": 0, "files": 1, "resources": 1},
+                {
+                    "attachments": None,
+                    "bytes": len(deleted1),
+                    "duration": 0,
+                    "files": 1,
+                    "resources": 1,
+                },
             ),
         )
 

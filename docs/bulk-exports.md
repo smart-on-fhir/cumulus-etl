@@ -155,10 +155,11 @@ You can generate a JWKS using the RS384 algorithm and a random ID by running the
 (Make sure you have `jose` installed first.)
 
 ```sh
-jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o rsa.jwks
+jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o private.jwks
+jose jwk pub -s -i private.jwks -o public.jwks
 ```
 
-Then give `rsa.jwks` to your FHIR server and to Cumulus ETL (details on that below).
+Then give `public.jwks` to your FHIR server and `private.jwks` to Cumulus ETL (details on that below).
 
 ### SMART Arguments
 
@@ -166,7 +167,7 @@ You'll need to pass two new arguments to Cumulus ETL:
 
 ```sh
 --smart-client-id=YOUR_CLIENT_ID
---smart-jwks=/path/to/rsa.jwks
+--smart-jwks=/path/to/private.jwks
 ```
 
 You can also give `--smart-client-id` a path to a file with your client ID,
