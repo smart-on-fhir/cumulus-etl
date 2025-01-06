@@ -80,19 +80,28 @@ class TestTasks(TaskTestCase):
     async def test_drop_duplicates(self):
         """Verify that we run() will drop duplicate rows inside an input batch."""
         # Two "A" ids and one "B" id
-        self.make_json("Patient", "A")
-        self.make_json("Patient", "A")
+        self.make_json("Patient", "A", birthDate="2020")
+        self.make_json("Patient", "A", birthDate="2021")
         self.make_json("Patient", "B")
 
         await basic_tasks.PatientTask(self.job_config, self.scrubber).run()
 
-        # Confirm that only one version of patient A got stored
+        # Confirm that only the later version of patient A got stored
         self.assertEqual(1, self.format.write_records.call_count)
         batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(2, len(batch.rows))
         self.assertEqual(
-            {self.codebook.db.patient("A"), self.codebook.db.patient("B")},
-            {row["id"] for row in batch.rows},
+            batch.rows,
+            [  # Output ordering is guaranteed to be stable
+                {
+                    "resourceType": "Patient",
+                    "id": self.codebook.db.patient("A"),
+                    "birthDate": "2021",  # the row that came later won
+                },
+                {
+                    "resourceType": "Patient",
+                    "id": self.codebook.db.patient("B"),
+                },
+            ],
         )
 
     async def test_batch_write_errors_saved(self):

@@ -326,7 +326,13 @@ class EtlTask:
             id_set.add(row_id)
             return True
 
-        return [row for row in rows if is_unique(row)]
+        # Uniquify in reverse, so that later rows will be preferred.
+        # This makes it easy to throw updates of source data alongside the originals,
+        # by either appending to an ndjson file or adding new files that sort later.
+        rows = [row for row in reversed(rows) if is_unique(row)]
+        # But keep original row ordering for cleanliness of ndjson output-format ordering.
+        rows.reverse()
+        return rows
 
     def _write_one_table_batch(self, rows: list[dict], table_index: int, batch_index: int) -> bool:
         # Checkpoint scrubber data before writing to the store, because if we get interrupted, it's safer to have an
