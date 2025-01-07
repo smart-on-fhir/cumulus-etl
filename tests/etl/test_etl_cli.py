@@ -455,14 +455,26 @@ class TestEtlFormats(BaseEtlSimple):
             {
                 "_delta_log/00000000000000000000.json",  # create
                 "_delta_log/.00000000000000000000.json.crc",
+                "_delta_log/00000000000000000000.crc",
+                "_delta_log/.00000000000000000000.crc.crc",
                 "_delta_log/00000000000000000001.json",  # merge
                 "_delta_log/.00000000000000000001.json.crc",
+                "_delta_log/00000000000000000001.crc",
+                "_delta_log/.00000000000000000001.crc.crc",
                 "_delta_log/00000000000000000002.json",  # optimize
                 "_delta_log/.00000000000000000002.json.crc",
+                "_delta_log/00000000000000000002.crc",
+                "_delta_log/.00000000000000000002.crc.crc",
                 "_delta_log/00000000000000000003.json",  # vacuum start
                 "_delta_log/.00000000000000000003.json.crc",
+                "_delta_log/00000000000000000003.crc",
+                "_delta_log/.00000000000000000003.crc.crc",
                 "_delta_log/00000000000000000004.json",  # vacuum end
                 "_delta_log/.00000000000000000004.json.crc",
+                "_delta_log/00000000000000000004.crc",
+                "_delta_log/.00000000000000000004.crc.crc",
+                "_delta_log/_last_vacuum_info",
+                "_delta_log/._last_vacuum_info.crc",
                 "_symlink_format_manifest/manifest",
                 "_symlink_format_manifest/.manifest.crc",
             },
