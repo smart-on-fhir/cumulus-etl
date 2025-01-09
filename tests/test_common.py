@@ -14,9 +14,9 @@ from tests import s3mock, utils
 
 
 @ddt.ddt
-class TestLogging(utils.AsyncTestCase):
+class TestHelpers(utils.AsyncTestCase):
     """
-    Test case for common logging methods.
+    Test case for common helper methods.
     """
 
     @ddt.data(
@@ -40,6 +40,11 @@ class TestLogging(utils.AsyncTestCase):
     def test_human_time_offset(self, seconds, expected_str):
         """Verify human_time_offset works correctly"""
         self.assertEqual(expected_str, common.human_time_offset(seconds))
+
+    def test_temp_dir_requires_init(self):
+        common.set_global_temp_dir(None)  # reset the global temp dir
+        with self.assertRaisesRegex(ValueError, "No temporary directory was created yet"):
+            common.get_temp_dir("blarg")
 
 
 @ddt.ddt
