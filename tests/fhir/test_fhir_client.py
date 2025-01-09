@@ -6,6 +6,7 @@ import time
 from unittest import mock
 
 import ddt
+import httpx
 import respx
 from jwcrypto import jwk, jwt
 
@@ -24,6 +25,8 @@ class TestFhirClient(AsyncTestCase):
 
     def setUp(self):
         super().setUp()
+
+        self.sleep_mock = self.patch("asyncio.sleep")
 
         # By default, set up a working server and auth. Tests can break things as needed.
 
@@ -461,22 +464,6 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
 
             self.assertEqual(2, self.respx_mock["token"].call_count)
 
-    async def test_get_error_429(self):
-        """Verify that 429 errors are passed through and not treated as exceptions."""
-        self.respx_mock.get(f"{self.server_url}/retry-me").respond(429)
-        self.respx_mock.get(f"{self.server_url}/nope").respond(430)
-
-        async with fhir.FhirClient(
-            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
-        ) as server:
-            # Confirm 429 passes
-            response = await server.request("GET", "retry-me")
-            self.assertEqual(429, response.status_code)
-
-            # Sanity check that 430 does not
-            with self.assertRaises(errors.FatalError):
-                await server.request("GET", "nope")
-
     @ddt.data(
         # OperationOutcome
         {
@@ -551,6 +538,84 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
             else:
                 fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), [])
                 self.assertLessEqual(expected_result.items(), mock_client.call_args[1].items())
+
+    @ddt.data(
+        (None, 120),  # default to the caller's retry delay
+        ("10", 10),  # accept shorter retry delays if the server lets us
+        ("200", 120),  # but cap server retry delays by the caller's retry delay
+        ("Tue, 14 Sep 2021 21:23:58 GMT", 13),  # parse http-dates too
+        ("abc", 120),  # if parsing fails, use caller's retry delay
+        ("-5", 0),  # floor of zero
+        ("Mon, 13 Sep 2021 21:23:58 GMT", 0),  # floor of zero on dates too
+    )
+    @ddt.unpack
+    async def test_retry_after_parsing(self, retry_after_header, expected_delay):
+        headers = {"Retry-After": retry_after_header} if retry_after_header else {}
+        self.respx_mock.get(f"{self.server_url}/file").respond(headers=headers, status_code=503)
+
+        async with fhir.FhirClient(self.server_url, [], bearer_token="foo") as server:
+            with self.assertRaises(errors.TemporaryNetworkError):
+                await server.request("GET", "file", retry_delays=[2])
+            self.assertEqual(self.sleep_mock.call_count, 1)
+            self.assertEqual(self.sleep_mock.call_args[0][0], expected_delay)
+
+    async def test_callbacks(self):
+        self.respx_mock.get(f"{self.server_url}/file").respond(status_code=503)
+        request_callback = mock.MagicMock()
+        error_callback = mock.MagicMock()
+        retry_callback = mock.MagicMock()
+
+        async with fhir.FhirClient(self.server_url, [], bearer_token="foo") as server:
+            with self.assertRaises(errors.TemporaryNetworkError):
+                await server.request(
+                    "GET",
+                    "file",
+                    retry_delays=[1, 2],
+                    request_callback=request_callback,
+                    error_callback=error_callback,
+                    retry_callback=retry_callback,
+                )
+
+        self.assertEqual(self.sleep_mock.call_count, 2)
+        self.assertEqual(self.sleep_mock.call_args_list[0][0][0], 60)
+        self.assertEqual(self.sleep_mock.call_args_list[1][0][0], 120)
+
+        self.assertEqual(request_callback.call_count, 3)
+        self.assertEqual(request_callback.call_args, mock.call())
+
+        self.assertEqual(error_callback.call_count, 3)
+        self.assertIsInstance(error_callback.call_args[0][0], errors.TemporaryNetworkError)
+
+        self.assertEqual(retry_callback.call_count, 2)
+        self.assertIsInstance(retry_callback.call_args_list[0][0][0], httpx.Response)
+        self.assertEqual(retry_callback.call_args_list[0][0][1], 60)
+        self.assertEqual(retry_callback.call_args_list[1][0][1], 120)
+
+    @ddt.data(
+        # status, expect_retry
+        (300, False),
+        (400, False),
+        (408, True),
+        (429, True),
+        (500, True),
+        (501, False),
+        (502, True),
+        (503, True),
+        (504, True),
+    )
+    @ddt.unpack
+    async def test_retry_codes(self, status_code, expect_retry):
+        self.respx_mock.get(f"{self.server_url}/file").respond(status_code=status_code)
+
+        async with fhir.FhirClient(self.server_url, [], bearer_token="foo") as server:
+            with self.assertRaises(errors.NetworkError) as cm:
+                await server.request("GET", "file", retry_delays=[1])
+
+        self.assertEqual(self.sleep_mock.call_count, 1 if expect_retry else 0)
+        self.assertIsInstance(
+            cm.exception,
+            errors.TemporaryNetworkError if expect_retry else errors.FatalNetworkError,
+        )
 
 
 @ddt.ddt

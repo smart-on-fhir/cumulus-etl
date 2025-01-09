@@ -102,10 +102,6 @@ class Root:
             return
         self.fs.makedirs(path, exist_ok=True)
 
-    def rm(self, path: str, recursive=False) -> None:
-        """Delete a file (alias for fs.rm)"""
-        self.fs.rm(path, recursive=recursive)
-
     def fsspec_options(self) -> dict:
         """Provides a set of storage option kwargs for fsspec calls"""
         return get_fs_options(self.protocol)

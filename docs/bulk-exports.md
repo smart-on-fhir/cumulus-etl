@@ -121,6 +121,63 @@ This is what you may expect to archive:
   (this will hold a list of errors from the FHIR server
   as well as warnings and informational messages, despite the name)
 
+## Downloading Clinical Notes Ahead of Time
+
+If you are interested in running NLP tasks,
+that will usually involve downloading a lot of clinical note attachments found
+in DocumentReferences (and/or DiagnosticReports).
+
+Since EHRs can be a little flaky, old attachment URLs may move,
+and/or in case you later lose access to the EHR,
+it is recommended that you download the attachments ahead of time and only once by _inlining_ them.
+
+### What's Inlining?
+
+Inlining is the process of taking an original NDJSON attachment definition like this:
+```json
+{
+  "url": "https://example.com/Binary/document123",
+  "contentType": "text/html"
+}
+```
+
+Then downloading the referenced URL,
+and stuffing the results back into the NDJSON with some extra metadata like so:
+```json
+{
+  "url": "https://example.com/Binary/document123",
+  "contentType": "text/html; charset=utf8",
+  "data": "aGVsbG8gd29ybGQ=",
+  "size": 11,
+  "hash": "Kq5sNclPz7QV2+lfQIuc6R7oRu0="
+}
+```
+
+Now the data is stored locally in your downloaded NDJSON
+and can be processed independently of the EHR.
+
+### How to Inline
+
+Cumulus ETL has a special inlining mode.
+Simply run the following command,
+pointing at both a source NDJSON folder and your EHR's FHIR URL.
+
+```shell
+cumulus-etl inline ./ndjson-folder FHIR_URL --smart-client-id XXX --smart-key /YYY
+```
+
+{: .note }
+This will modify the data in the input folder!
+
+By default, this will inline text, HTML, and XHTML attachments
+for any DiagnosticReports and DocumentReferences found.
+But there are options to adjust those defaults.
+See `--help` for more information.
+
+If you are using Cumulus ETL to do your bulk exporting,
+you can simply pass `--inline` to the export command (see `--help` for more inlining options)
+in order to inline as part of the bulk export process.
+
 ## Resuming an Interrupted Export
 
 Bulk exports can be brittle.
