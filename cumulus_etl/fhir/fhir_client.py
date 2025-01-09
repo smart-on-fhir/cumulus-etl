@@ -1,8 +1,10 @@
 """HTTP client that talk to a FHIR server"""
 
 import argparse
+import asyncio
+import email
 import enum
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from json import JSONDecodeError
 
 import httpx
@@ -27,6 +29,9 @@ class FhirClient:
 
     See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
     """
+
+    # Limit the number of connections open at once, because EHRs tend to be very busy.
+    MAX_CONNECTIONS = 5
 
     def __init__(
         self,
@@ -71,8 +76,7 @@ class FhirClient:
         self._capabilities: dict = {}
 
     async def __aenter__(self):
-        # Limit the number of connections open at once, because EHRs tend to be very busy.
-        limits = httpx.Limits(max_connections=5)
+        limits = httpx.Limits(max_connections=self.MAX_CONNECTIONS)
         timeout = 300  # five minutes to be generous
         # Follow redirects by default -- some EHRs definitely use them for bulk download files,
         # and might use them in other cases, who knows.
@@ -86,7 +90,15 @@ class FhirClient:
             await self._session.aclose()
 
     async def request(
-        self, method: str, path: str, headers: dict | None = None, stream: bool = False
+        self,
+        method: str,
+        path: str,
+        headers: dict | None = None,
+        stream: bool = False,
+        retry_delays: Iterable[int] | None = None,
+        request_callback: Callable[[], None] = None,
+        error_callback: Callable[[errors.NetworkError], None] = None,
+        retry_callback: Callable[[httpx.Response, int], None] = None,
     ) -> httpx.Response:
         """
         Issues an HTTP request.
@@ -104,62 +116,80 @@ class FhirClient:
         :param path: relative path from the server root to request
         :param headers: optional header dictionary
         :param stream: whether to stream content in or load it all into memory at once
+        :param retry_delays: how many minutes to wait between retries, and how many retries to do
+        :param request_callback: called right before each request
+        :param error_callback: called after each network error
+        :param retry_callback: called right before sleeping
         :returns: The response object
         """
-        url = fhir_auth.urljoin(self._server_root, path)
+        # MIKE: changes from before.
+        # - 429 is handled like a server error, and we don't reset the error count for it
+        #   - We log an error message for it
+        #   - We don't log a progress call for it
+        #   - We use the next delay period rather than 60s for it
+        # - Retry-After header is no longer always fully accepted when retrying errors
+        #   - It's now a capped by the provided retry time
+        #   - i.e. Retry-After can speed us up, but not slow us down
+        # - We now support Retry-After headers that are http-dates
+        # - Instead of retrying on 429 and ALL 5xx errors, only retry a specific list of codes
 
-        final_headers = {
-            "Accept": "application/fhir+json",
-            "Accept-Charset": "UTF-8",
-        }
-        # merge in user headers with defaults
-        final_headers.update(headers or {})
+        retry_delays = [] if retry_delays is None else list(retry_delays)
+        retry_delays.append(None)  # add a final no-delay request
 
-        response = await self._request_with_signed_headers(
-            method, url, final_headers, stream=stream
-        )
+        # Actually loop, attempting the request multiple times as needed
+        for delay in retry_delays:
+            if request_callback:
+                request_callback()
 
-        # Check if our access token expired and thus needs to be refreshed
-        if response.status_code == 401:
-            await self._auth.authorize(self._session, reauthorize=True)
-            if stream:
-                await response.aclose()
-            response = await self._request_with_signed_headers(
-                method, url, final_headers, stream=stream
-            )
+            try:
+                return await self._one_request(method, path, headers=headers, stream=stream)
+            except errors.NetworkError as exc:
+                if error_callback:
+                    error_callback(exc)
+
+                if delay is None or isinstance(exc, errors.FatalNetworkError):
+                    raise
+
+                response = exc.response
+
+            # Respect Retry-After, but only if it lets us request faster than we would have
+            # otherwise. Which is maybe a little hostile, but this assumes that we are using
+            # reasonable delays ourselves (for example, our retry_delay list is in *minutes* not
+            # seconds). The point of this logic is so that the caller can reliably predict that
+            # if they give delays totaling 10 minutes, that's the longest we'll wait.
+            delay *= 60  # switch from minutes to seconds
+            delay = min(self.get_retry_after(response, delay), delay)
+
+            if retry_callback:
+                retry_callback(response, delay)
+
+            # And actually do the waiting
+            await asyncio.sleep(delay)
+
+    def get_retry_after(self, response: httpx.Response, default: int) -> int:
+        """
+        Returns the value of the Retry-After header, in seconds.
+
+        Parsing can be tricky because the header is also allowed to be in http-date format,
+        providing a specific timestamp.
+
+        Since seconds is easier to work with for the ETL, we normalize to seconds.
+
+        See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Retry-After
+        """
+        value = response.headers.get("Retry-After", default)
+        try:
+            return int(value)
+        except ValueError:
+            pass
 
         try:
-            response.raise_for_status()
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 429:
-                # 429 is a special kind of error -- it's not fatal, just a request to wait a bit. So let it pass.
-                return exc.response
+            retry_time = email.utils.parsedate_to_datetime(value)
+        except ValueError:
+            return default
 
-            if stream:
-                await response.aread()
-                await response.aclose()
-
-            # All other 4xx or 5xx codes are treated as fatal errors
-            message = None
-            try:
-                json_response = exc.response.json()
-                if not isinstance(json_response, dict):
-                    message = exc.response.text
-                elif json_response.get("resourceType") == "OperationOutcome":
-                    issue = json_response["issue"][0]  # just grab first issue
-                    message = issue.get("details", {}).get("text")
-                    message = message or issue.get("diagnostics")
-            except JSONDecodeError:
-                message = exc.response.text
-            if not message:
-                message = str(exc)
-
-            raise errors.NetworkError(
-                f'An error occurred when connecting to "{url}": {message}',
-                response,
-            ) from exc
-
-        return response
+        delay = retry_time - common.datetime_now()
+        return max(0, delay.total_seconds())
 
     def get_capabilities(self) -> dict:
         """
@@ -214,6 +244,76 @@ class FhirClient:
             self._server_type = ServerType.EPIC
 
         self._capabilities = capabilities
+
+    async def _one_request(
+        self, method: str, path: str, headers: dict | None = None, stream: bool = False
+    ) -> httpx.Response:
+        url = fhir_auth.urljoin(self._server_root, path)
+
+        final_headers = {
+            "Accept": "application/fhir+json",
+            "Accept-Charset": "UTF-8",
+        }
+        # merge in user headers with defaults
+        final_headers.update(headers or {})
+
+        response = await self._request_with_signed_headers(
+            method, url, final_headers, stream=stream
+        )
+
+        # Check if our access token expired and thus needs to be refreshed
+        if response.status_code == 401:
+            await self._auth.authorize(self._session, reauthorize=True)
+            if stream:
+                await response.aclose()
+            response = await self._request_with_signed_headers(
+                method, url, final_headers, stream=stream
+            )
+
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if stream:
+                await response.aread()
+                await response.aclose()
+
+            # All other 4xx or 5xx codes are treated as fatal errors
+            message = None
+            try:
+                json_response = exc.response.json()
+                if not isinstance(json_response, dict):
+                    message = exc.response.text
+                elif json_response.get("resourceType") == "OperationOutcome":
+                    issue = json_response["issue"][0]  # just grab first issue
+                    message = issue.get("details", {}).get("text")
+                    message = message or issue.get("diagnostics")
+            except JSONDecodeError:
+                message = exc.response.text
+            if not message:
+                message = str(exc)
+
+            if response.status_code in {
+                # https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+                408,  # request timeout
+                429,  # too many requests (server is busy)
+                # 500 is so generic an error that you might think it is worth retrying.
+                # But in my (mterry's) experience, it does not seem to be a fixable error
+                # on Cerner at least. TODO: confirm on Epic
+                # 500,  # internal server error
+                502,  # bad gateway (can be temporary blip)
+                503,  # service unavailable (temporary blip)
+                504,  # gateway timeout (temporary blip)
+            }:
+                error_class = errors.TemporaryNetworkError
+            else:
+                error_class = errors.FatalNetworkError
+
+            raise error_class(
+                f'An error occurred when connecting to "{url}": {message}',
+                response,
+            ) from exc
+
+        return response
 
     async def _request_with_signed_headers(
         self, method: str, url: str, headers: dict, **kwargs
