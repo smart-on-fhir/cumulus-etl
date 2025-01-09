@@ -25,7 +25,7 @@ class BulkExporter:
     - Epic (https://www.epic.com/)
     """
 
-    _TIMEOUT_THRESHOLD = 60 * 60 * 24  # a day, which is probably an overly generous timeout
+    _TIMEOUT_THRESHOLD = 60 * 60 * 24 * 30  # thirty days (we've seen some multi-week Epic waits)
 
     def __init__(
         self,
@@ -280,73 +280,59 @@ class BulkExporter:
         :param retry_errors: if True, server-side errors will be retried a few times
         :returns: the HTTP response
         """
-        # Set up error handling variables.
-        # These times are extremely generous - partly because we can afford to be
-        # as a long-running async task and partly because EHR servers seem prone to
-        # outages that clear up after a bit.
-        error_retry_minutes = [1, 2, 4, 8]  # and then raise
-        max_errors = len(error_retry_minutes)
-        num_errors = 0
+
+        def _add_new_delay(response: httpx.Response, delay: int) -> None:
+            # Print a message to the user, so they don't see us do nothing for a while
+            if rich_text is not None:
+                progress_msg = response.headers.get("X-Progress", "waiting…")
+                formatted_total = common.human_time_offset(self._total_wait_time)
+                formatted_delay = common.human_time_offset(delay)
+                rich_text.plain = (
+                    f"{progress_msg} ({formatted_total} so far, waiting for {formatted_delay} more)"
+                )
+
+            self._total_wait_time += delay
 
         # Actually loop, attempting the request multiple times as needed
         while self._total_wait_time < self._TIMEOUT_THRESHOLD:
-            if log_request:
-                log_request()
-
-            try:
-                response = await self._client.request(method, path, headers=headers, stream=stream)
-            except errors.NetworkError as exc:
-                if log_error:
-                    log_error(exc)
-                if retry_errors and exc.response.is_server_error and num_errors < max_errors:
-                    response = exc.response
-                else:
-                    raise
+            response = await self._client.request(
+                method,
+                path,
+                headers=headers,
+                stream=stream,
+                # These retry times are extremely generous - partly because we can afford to be
+                # as a long-running async task and partly because EHR servers seem prone to
+                # outages that clear up after a bit.
+                retry_delays=[1, 2, 4, 8],  # five tries, 15 minutes total
+                request_callback=log_request,
+                error_callback=log_error,
+                retry_callback=_add_new_delay,
+            )
 
             if response.status_code == target_status_code:
                 return response
 
-            if response.is_server_error:
-                num_errors += 1
-            else:
-                num_errors = 0  # reset count if server is back to normal
-
-            # 202 == server is still working on it, 429 == server is busy,
-            # 5xx == server-side error. In all cases, we wait.
-            if response.status_code in [202, 429] or response.is_server_error:
-                if log_progress and not response.is_server_error:
+            # 202 == server is still working on it.
+            if response.status_code == 202:
+                if log_progress:
                     log_progress(response)
 
-                # Calculate how long to wait, with a basic exponential backoff for errors.
-                if num_errors:
-                    default_delay = error_retry_minutes[num_errors - 1] * 60
-                else:
-                    default_delay = 60  # one minute
-                delay = int(response.headers.get("Retry-After", default_delay))
-                if response.status_code == 202:
-                    # Some servers can request unreasonably long delays (e.g. I've seen Cerner
-                    # ask for five hours), which is... not helpful for our UX and often way
-                    # too long for small exports. So as long as the server isn't telling us
-                    # it's overloaded or erroring out, limit the delay time to 5 minutes.
-                    delay = min(delay, 300)
+                # Some servers can request unreasonably long delays (e.g. I've seen Cerner
+                # ask for five hours), which is... not helpful for our UX and often way
+                # too long for small exports. So limit the delay time to 5 minutes.
+                delay = min(self._client.get_retry_after(response, 60), 300)
 
-                # Print a message to the user, so they don't see us do nothing for a while
-                if rich_text is not None:
-                    progress_msg = response.headers.get("X-Progress", "waiting…")
-                    formatted_total = common.human_time_offset(self._total_wait_time)
-                    formatted_delay = common.human_time_offset(delay)
-                    rich_text.plain = f"{progress_msg} ({formatted_total} so far, waiting for {formatted_delay} more)"
-
-                # And wait as long as the server requests
+                _add_new_delay(response, delay)
                 await asyncio.sleep(delay)
-                self._total_wait_time += delay
 
             else:
-                # It feels silly to abort on an unknown *success* code, but the spec has such clear guidance on
-                # what the expected response codes are, that it's not clear if a code outside those parameters means
-                # we should keep waiting or stop waiting. So let's be strict here for now.
+                # It feels silly to abort on an unknown *success* code, but the spec has such clear
+                # guidance on what the expected response codes are, that it's not clear if a code
+                # outside those parameters means we should keep waiting or stop waiting.
+                # So let's be strict here for now.
                 raise errors.NetworkError(
-                    f"Unexpected status code {response.status_code} from the bulk FHIR export server.",
+                    f"Unexpected status code {response.status_code} "
+                    "from the bulk FHIR export server.",
                     response,
                 )
 
@@ -443,7 +429,6 @@ class BulkExporter:
         lines = common.read_local_line_count(filename)
         self._log.download_complete(url, lines, decompressed_size)
 
-        url_last_part = url.split("/")[-1]
         filename_last_part = filename.split("/")[-1]
         human_size = common.human_file_size(response.num_bytes_downloaded)
-        print(f"  Downloaded {url_last_part} as {filename_last_part} ({human_size})")
+        print(f"  Downloaded {filename_last_part} ({human_size})")

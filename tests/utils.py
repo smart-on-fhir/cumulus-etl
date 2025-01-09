@@ -82,6 +82,13 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(patcher.stop)
         return patcher.start()
 
+    @contextlib.contextmanager
+    def assert_fatal_exit(self, code: int | None = None):
+        with self.assertRaises(SystemExit) as cm:
+            yield
+        if code is not None:
+            self.assertEqual(cm.exception.code, code)
+
     async def _catch_system_exit(self, method):
         try:
             ret = method()

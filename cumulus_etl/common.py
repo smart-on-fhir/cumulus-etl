@@ -232,7 +232,8 @@ class NdjsonWriter:
         # lazily create the file, to avoid 0-line ndjson files (unless created in __init__)
         self._ensure_file()
 
-        json.dump(obj, self._file)
+        # Specify separators for the most compact (no whitespace) representation saves disk space.
+        json.dump(obj, self._file, separators=(",", ":"))
         self._file.write("\n")
 
 
@@ -314,21 +315,6 @@ def human_time_offset(seconds: int) -> str:
 
     hours = minutes / 60
     return f"{_pretty_float(hours)}h"
-
-
-def info_mode():
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.INFO)
-
-
-def debug_mode():
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
-
-
-def warn_mode():
-    logging.basicConfig()
-    logging.getLogger().setLevel(logging.WARN)
 
 
 def print_header(name: str | None = None) -> None:

@@ -1,6 +1,7 @@
 """Helper methods for CLI parsing."""
 
 import argparse
+import itertools
 import os
 import socket
 import tempfile
@@ -61,6 +62,24 @@ def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True
         "--until", metavar="TIMESTAMP", help="end date for export from the FHIR server"
     )
     parser.add_argument("--resume", metavar="URL", help="polling status URL from a previous export")
+    parser.add_argument(
+        "--inline",
+        action="store_true",
+        help="attachments will be inlined after the export",
+    )
+    parser.add_argument(
+        "--inline-resource",
+        metavar="RESOURCES",
+        action="append",
+        help="only consider this resource for inlining (default is all supported inline targets: "
+        "DiagnosticReport and DocumentReference)",
+    )
+    parser.add_argument(
+        "--inline-mimetype",
+        metavar="MIMETYPES",
+        action="append",
+        help="only inline this attachment mimetype (default is text, HTML, and XHTML)",
+    )
     return parser
 
 
@@ -176,3 +195,56 @@ def make_progress_bar() -> rich.progress.Progress:
         rich.progress.TimeElapsedColumn(),
     ]
     return rich.progress.Progress(*columns)
+
+
+def expand_inline_resources(arg: Iterable[str] | None) -> set[str]:
+    """
+    This converts a list of inline resource args into the final properly cased resource names.
+
+    If you have an arg like --inline-resource, this will process that for you.
+    """
+    allowed = {"diagnosticreport": "DiagnosticReport", "documentreference": "DocumentReference"}
+
+    if arg is None:
+        return set(allowed.values())
+
+    resources = set(expand_comma_list_arg(arg))
+    for resource in resources:
+        if resource.casefold() not in allowed:
+            errors.fatal(f"Unsupported resource for inlining: {resource}", errors.ARGS_INVALID)
+
+    return {allowed[resource.casefold()] for resource in resources}
+
+
+def expand_inline_mimetypes(arg: Iterable[str] | None) -> set[str]:
+    """
+    This converts a list of inline mimetype args into a set of normalized mimetypes.
+
+    If you have an arg like --inline-mimetype, this will process that for you.
+    """
+    if arg is None:
+        return {"text/plain", "text/html", "application/xhtml+xml"}
+
+    return set(expand_comma_list_arg(arg, casefold=True))
+
+
+def expand_comma_list_arg(arg: Iterable[str] | None, casefold: bool = False) -> Iterable[str]:
+    """
+    This converts a list of string args, splits any strings on commas, and combines results.
+
+    This is useful for CLI arguments with action="append" but you also want to allow comma
+    separated args. --task does this, as well as others.
+
+    An example CLI:
+      --task=patient --task=condition,procedure
+    Would give:
+      ["patient", "condition,procedure"]
+    And this method would turn that into:
+      ["patient", "condition", procedure"]
+    """
+    if arg is None:
+        return []
+    split_args = itertools.chain.from_iterable(x.split(",") for x in arg)
+    if casefold:
+        return map(str.casefold, split_args)
+    return split_args
