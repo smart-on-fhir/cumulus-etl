@@ -191,7 +191,7 @@ class FhirClientMixin(unittest.TestCase):
         ).export(as_dict=True)
         self.fhir_jwks = {"keys": [jwk_token]}
 
-        self._fhir_jwks_file = tempfile.NamedTemporaryFile()
+        self._fhir_jwks_file = tempfile.NamedTemporaryFile(suffix=".jwks")
         self._fhir_jwks_file.write(json.dumps(self.fhir_jwks).encode("utf8"))
         self._fhir_jwks_file.flush()
         self.addCleanup(self._fhir_jwks_file.close)

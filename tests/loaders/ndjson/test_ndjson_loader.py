@@ -21,7 +21,7 @@ class TestNdjsonLoader(AsyncTestCase):
 
     def setUp(self):
         super().setUp()
-        self.jwks_file = tempfile.NamedTemporaryFile()
+        self.jwks_file = tempfile.NamedTemporaryFile(suffix=".jwks")
         self.jwks_path = self.jwks_file.name
         self.jwks_file.write(b'{"fake":"jwks"}')
         self.jwks_file.flush()
@@ -103,7 +103,7 @@ class TestNdjsonLoader(AsyncTestCase):
                     "--skip-init-checks",
                     "--input-format=ndjson",
                     "--smart-client-id=x",
-                    f"--smart-jwks={self.jwks_path}",
+                    f"--smart-key={self.jwks_path}",
                     "--export-to=/tmp/exported",
                     "--since=2018",
                     "--until=2020",

@@ -16,7 +16,9 @@ from cumulus_etl import common, errors, store
 def add_auth(parser: argparse.ArgumentParser, *, use_fhir_url: bool = True):
     group = parser.add_argument_group("authentication")
     group.add_argument("--smart-client-id", metavar="ID", help="client ID for SMART authentication")
-    group.add_argument("--smart-jwks", metavar="PATH", help="JWKS file for SMART authentication")
+    group.add_argument(
+        "--smart-key", metavar="PATH", help="JWKS or PEM file for SMART authentication"
+    )
     group.add_argument("--basic-user", metavar="USER", help="username for Basic authentication")
     group.add_argument(
         "--basic-passwd", metavar="PATH", help="password file for Basic authentication"
@@ -30,6 +32,10 @@ def add_auth(parser: argparse.ArgumentParser, *, use_fhir_url: bool = True):
             metavar="URL",
             help="FHIR server base URL, only needed if you exported separately",
         )
+
+    # --smart-jwks is a deprecated alias for --smart-key (as of Jan 2025)
+    # Keep it around for a bit, since it was in common use for a couple years.
+    group.add_argument("--smart-jwks", metavar="PATH", help=argparse.SUPPRESS)
 
 
 def add_aws(parser: argparse.ArgumentParser) -> None:

@@ -60,7 +60,7 @@ class TestExportCLI(AsyncTestCase):
             "--since=1920",
             "--until=1923",
             "--smart-client-id=ID",
-            "--smart-jwks=jwks.json",
+            "--smart-key=jwks.json",
             "--basic-user=alice",
             "--basic-passwd=passwd.txt",
             "--bearer-token=token.txt",
@@ -74,7 +74,7 @@ class TestExportCLI(AsyncTestCase):
         self.assertEqual("1923", self.loader_init_mock.call_args.kwargs["until"])
         self.assertEqual("my-url", self.loader_init_mock.call_args.kwargs["resume"])
         self.assertEqual("ID", self.client_mock.call_args.args[0].smart_client_id)
-        self.assertEqual("jwks.json", self.client_mock.call_args.args[0].smart_jwks)
+        self.assertEqual("jwks.json", self.client_mock.call_args.args[0].smart_key)
         self.assertEqual("alice", self.client_mock.call_args.args[0].basic_user)
         self.assertEqual("passwd.txt", self.client_mock.call_args.args[0].basic_passwd)
         self.assertEqual("token.txt", self.client_mock.call_args.args[0].bearer_token)
