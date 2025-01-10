@@ -1,7 +1,6 @@
 """Code for the various ways to authenticate against a FHIR server"""
 
 import base64
-import sys
 import time
 import urllib.parse
 import uuid
@@ -41,14 +40,17 @@ class Auth:
         return headers
 
 
-class JwksAuth(Auth):
-    """Authentication with a JWK Set (typical backend service profile)"""
+class JwtAuth(Auth):
+    """Authentication with a JWT (typical OAuth2 backend service profile)"""
 
-    def __init__(self, server_root: str, client_id: str, jwks: dict, resources: Iterable[str]):
+    def __init__(
+        self, server_root: str, client_id: str, jwks: dict, pem: dict, resources: Iterable[str]
+    ):
         super().__init__()
         self._server_root = server_root
         self._client_id = client_id
         self._jwks = jwks
+        self._pem = pem
         self._resources = list(resources)
         self._token_endpoint = None
         self._access_token = None
@@ -128,6 +130,42 @@ class JwksAuth(Auth):
 
         return config["token_endpoint"]
 
+    def _make_pem_jwk(self) -> tuple[str, jwk.JWK]:
+        try:
+            jwk_key = jwk.JWK.from_pem(self._pem.encode("utf8"))
+        except ValueError:
+            jwk_key = None  # will fail below
+
+        if jwk_key and jwk_key.has_private:
+            # Unfortunately, we can't just ask jcrypto "hey what JWT alg value should I use here?".
+            # So instead, we check for a few common values.
+            if jwk_key.get("kty") == "RSA":
+                # Could pick any RS* value (like RS256, RS384, or RS512), assuming the server
+                # supports it. Since 384 is practically as secure as 512, but more common, we'll
+                # use that.
+                return "RS384", jwk_key
+            elif jwk_key.get("kty") == "EC" and jwk_key.get("crv") == "P-256":
+                return "ES256", jwk_key
+            elif jwk_key.get("kty") == "EC" and jwk_key.get("crv") == "P-384":
+                return "ES384", jwk_key
+            elif jwk_key.get("kty") == "EC" and jwk_key.get("crv") == "P-521":
+                # Yes, P-521 is not a typo, it's what the curve is called.
+                # The curve uses 521 bits, but it's hashed with SHA512, so it's called ES512.
+                return "ES512", jwk_key
+
+        errors.fatal(
+            "No supported private key found in the provided PEM file.", errors.BAD_SMART_CREDENTIAL
+        )
+
+    def _make_jwks_jwk(self) -> tuple[str, jwk.JWK]:
+        # Find a usable signing JWK from JWKS
+        for key in self._jwks.get("keys", []):
+            if "sign" in key.get("key_ops", []) and key.get("kid") and key.get("alg"):
+                return key["alg"], jwk.JWK(**key)
+        errors.fatal(
+            "No valid private key found in the provided JWKS file.", errors.BAD_SMART_CREDENTIAL
+        )
+
     def _make_signed_jwt(self) -> str:
         """
         Creates a signed JWT for use in the client-confidential-asymmetric protocol.
@@ -136,19 +174,19 @@ class JwksAuth(Auth):
 
         :returns: a signed JWT string, ready for authentication with the FHIR server
         """
-        # Find a usable singing JWK from JWKS
-        for key in self._jwks.get("keys", []):
-            if "sign" in key.get("key_ops", []) and key.get("kid") and key.get("alg"):
-                break
-        else:  # no valid private JWK found
-            raise errors.FatalError("No valid private key found in the provided JWKS file.")
+        if self._pem:
+            generator = self._make_pem_jwk
+        else:
+            generator = self._make_jwks_jwk
+        algorithm, jwk_key = generator()
 
         # Now generate a signed JWT based off the given JWK
         header = {
-            "alg": key["alg"],
-            "kid": key["kid"],
+            "alg": algorithm,
             "typ": "JWT",
         }
+        if "kid" in jwk_key:
+            header["kid"] = jwk_key["kid"]
         claims = {
             "iss": self._client_id,
             "sub": self._client_id,
@@ -157,7 +195,7 @@ class JwksAuth(Auth):
             "jti": str(uuid.uuid4()),
         }
         token = jwt.JWT(header=header, claims=claims)
-        token.make_signed_token(key=jwk.JWK(**key))
+        token.make_signed_token(key=jwk_key)
         return token.serialize()
 
 
@@ -202,41 +240,43 @@ def create_auth(
     bearer_token: str | None,
     smart_client_id: str | None,
     smart_jwks: dict | None,
+    smart_pem: str | None,
 ) -> Auth:
     """Determine which auth method to use based on user provided arguments"""
     valid_smart_jwks = smart_jwks is not None
+    valid_smart_pem = smart_pem is not None
 
     # Check if the user tried to specify multiple types of auth, and help them out
     has_basic_args = bool(basic_user or basic_password)
     has_bearer_args = bool(bearer_token)
-    has_smart_args = bool(valid_smart_jwks)
+    has_smart_args = bool(valid_smart_jwks or valid_smart_pem)
     total_auth_types = has_basic_args + has_bearer_args + has_smart_args
     if total_auth_types > 1:
-        print(
-            "Multiple authentication methods have been specified. Double check your arguments to Cumulus ETL.",
-            file=sys.stderr,
+        errors.fatal(
+            "Multiple authentication methods have been specified. "
+            "Double check your arguments to Cumulus ETL.",
+            errors.ARGS_CONFLICT,
         )
-        raise SystemExit(errors.ARGS_CONFLICT)
 
     if basic_user and basic_password:
         return BasicAuth(basic_user, basic_password)
     elif basic_user or basic_password:
-        print(
-            "You must provide both --basic-user and --basic-password to connect to a Basic auth server.",
-            file=sys.stderr,
+        errors.fatal(
+            "You must provide both --basic-user and --basic-password "
+            "to connect to a Basic auth server.",
+            errors.BASIC_CREDENTIALS_MISSING,
         )
-        raise SystemExit(errors.BASIC_CREDENTIALS_MISSING)
 
     if bearer_token:
         return BearerAuth(bearer_token)
 
-    if smart_client_id and valid_smart_jwks:
-        return JwksAuth(server_root, smart_client_id, smart_jwks, resources)
-    elif smart_client_id or valid_smart_jwks:
-        print(
-            "You must provide both --smart-client-id and --smart-jwks to connect to a SMART FHIR server.",
-            file=sys.stderr,
+    if smart_client_id and has_smart_args:
+        return JwtAuth(server_root, smart_client_id, smart_jwks, smart_pem, resources)
+    elif smart_client_id or has_smart_args:
+        errors.fatal(
+            "You must provide both --smart-client-id and --smart-key "
+            "to connect to a SMART FHIR server.",
+            errors.SMART_CREDENTIALS_MISSING,
         )
-        raise SystemExit(errors.SMART_CREDENTIALS_MISSING)
 
     return Auth()

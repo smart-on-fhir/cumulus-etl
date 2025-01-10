@@ -1,6 +1,7 @@
 """Tests for FhirClient and similar"""
 
 import argparse
+import tempfile
 import time
 from unittest import mock
 
@@ -34,23 +35,12 @@ class TestFhirClient(AsyncTestCase):
         self.server_url = "https://example.com/fhir"
         self.token_url = "https://auth.example.com/token"
 
-        # Generate expected JWT
-        token = jwt.JWT(
-            header={
-                "alg": "RS384",
-                "kid": "a",
-                "typ": "JWT",
-            },
-            claims={
-                "iss": self.client_id,
-                "sub": self.client_id,
-                "aud": self.token_url,
-                "exp": int(time.time()) + 299,  # aided by time-machine not changing time under us
-                "jti": "1234",
-            },
-        )
-        token.make_signed_token(key=jwk.JWK(**self.jwk))
-        self.expected_jwt = token.serialize()
+        # Generate an example PEM file too (ES256)
+        self.pem = """-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIBd9Cq6RyRFloYDH5svVm53zSZnWC5VNp7E/ZbZ+17VVoAoGCCqGSM49
+AwEHoUQDQgAE4DGrth4me9cwOxxDEYrWgzfQpdQud0twEz6CdIP0v+uSBeg+RhjF
+4g2BoVmp8TwZoz7myMqTT4tWi+V9i97T7w==
+-----END EC PRIVATE KEY-----"""
 
         # Initialize responses mock
         self.respx_mock = respx.mock(assert_all_called=False)
@@ -105,17 +95,29 @@ class TestFhirClient(AsyncTestCase):
         with self.assertRaises(errors.FhirUrlMissing):
             await use_client(request=True, url=None)
 
-        # No JWKS
+        # No JWKS or PEM
         await use_client(code=errors.SMART_CREDENTIALS_MISSING, smart_client_id="foo")
 
-        # No client ID
+        # No client ID (only JWKS)
         await use_client(code=errors.SMART_CREDENTIALS_MISSING, smart_jwks=self.jwks)
+
+        # No client ID (only PEM)
+        await use_client(code=errors.SMART_CREDENTIALS_MISSING, smart_pem=self.pem)
+
+        # Given both JWKS and PEM
+        await use_client(
+            code=errors.TOO_MANY_SMART_CREDENTIALS,
+            smart_client_id="foo",
+            smart_jwks=self.jwks,
+            smart_pem=self.pem,
+        )
 
         # Works fine if both given
         await use_client(smart_client_id="foo", smart_jwks=self.jwks)
+        await use_client(smart_client_id="foo", smart_pem=self.pem)
 
     async def test_auth_with_jwks(self):
-        """Verify that we authorize correctly upon class initialization"""
+        """Verify that we authorize JWKS correctly upon class initialization"""
         self.respx_mock.get(
             f"{self.server_url}/foo",
             headers={"Authorization": "Bearer 1234"},  # the same access token used in setUp()
@@ -129,6 +131,24 @@ class TestFhirClient(AsyncTestCase):
         ) as client:
             await client.request("GET", "foo")
 
+        # Generate expected JWT
+        token = jwt.JWT(
+            header={
+                "alg": "RS384",
+                "kid": "a",
+                "typ": "JWT",
+            },
+            claims={
+                "iss": self.client_id,
+                "sub": self.client_id,
+                "aud": self.token_url,
+                "exp": int(time.time()) + 299,  # aided by time-machine not changing time under us
+                "jti": "1234",
+            },
+        )
+        token.make_signed_token(key=jwk.JWK(**self.jwk))
+        expected_jwt = token.serialize()
+
         # Check that we asked for a token & we included all the right params
         self.assertEqual(1, self.respx_mock["token"].call_count)
         self.assertEqual(
@@ -136,12 +156,107 @@ class TestFhirClient(AsyncTestCase):
                 [
                     "grant_type=client_credentials",
                     "scope=system%2FCondition.read+system%2FPatient.read",
-                    "client_assertion_type=urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer",
-                    f"client_assertion={self.expected_jwt}",
+                    "client_assertion_type="
+                    "urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer",
+                    f"client_assertion={expected_jwt}",
                 ]
             ),
             self.respx_mock["token"].calls.last.request.content.decode("utf8"),
         )
+
+    async def test_auth_with_pem(self):
+        """Verify that we authorize PEM correctly upon class initialization"""
+        self.respx_mock.get(
+            f"{self.server_url}/foo",
+            headers={"Authorization": "Bearer 1234"},  # the same access token used in setUp()
+        )
+
+        async with fhir.FhirClient(
+            self.server_url,
+            ["Condition", "Patient"],
+            smart_client_id=self.client_id,
+            smart_pem=self.pem,
+        ) as client:
+            await client.request("GET", "foo")
+
+        # Check that we asked for a token
+        self.assertEqual(1, self.respx_mock["token"].call_count)
+
+        # Don't bother checking that the JWT is what we expect, since the JWT changes every time
+        # we generate one, with a curved algorithm.
+
+    async def test_invalid_pem(self):
+        """Verify that a bogus PEM is caught"""
+        with self.assertRaises(SystemExit) as cm:
+            async with fhir.FhirClient(
+                self.server_url,
+                ["Patient"],
+                smart_client_id=self.client_id,
+                smart_pem="hello world!",
+            ) as client:
+                await client.request("GET", "foo")
+        self.assertEqual(cm.exception.code, errors.BAD_SMART_CREDENTIAL)
+
+    @ddt.data(
+        # These private keys are all generated just for this test, they are not production keys.
+        (
+            "RS384",
+            """-----BEGIN PRIVATE KEY-----
+MIIBVAIBADANBgkqhkiG9w0BAQEFAASCAT4wggE6AgEAAkEA4wkL5iXvx5apo/Wk
+8Z5KPfwTYYI6FG+lkjrYdVO+MW6WyEYNV7lx7wvPXXeJxBws/UXbAqo+qMxotIhn
+VyPdrQIDAQABAkEAzlVFbCfkMEcb63fvLOvH22eBkafR8wq4thom6RJvkumRYaow
+6H7hx8A9XLcVdiJUYhZSgd7pRd2MewG5Hr1ZoQIhAPeFUZwiGrLKB62VQtWHgub5
+e16zbwUBAaF+NpjTxYglAiEA6tAToZTvnU+43OaR9IbnygrhO6KLUM9ygIOwZQ6S
+5OkCIE1ZXCdugOleOQgFnN0de8qyK9tsN0VZCylsR6N6ikABAiBIXv9d8tBzVMnu
+U6Yyjo3MKNRIlA2KR5XL5EquqvI9WQIgJiD71zLVteurFGXlMnKVwzGtVugShVHh
+sr/xXbgncyc=
+-----END PRIVATE KEY-----""",
+        ),
+        (
+            "ES256",
+            """-----BEGIN EC PRIVATE KEY-----
+MHcCAQEEIBd9Cq6RyRFloYDH5svVm53zSZnWC5VNp7E/ZbZ+17VVoAoGCCqGSM49
+AwEHoUQDQgAE4DGrth4me9cwOxxDEYrWgzfQpdQud0twEz6CdIP0v+uSBeg+RhjF
+4g2BoVmp8TwZoz7myMqTT4tWi+V9i97T7w==
+-----END EC PRIVATE KEY-----""",
+        ),
+        (
+            "ES384",
+            """-----BEGIN PRIVATE KEY-----
+MIG2AgEAMBAGByqGSM49AgEGBSuBBAAiBIGeMIGbAgEBBDCuAVir5v+2gZv7A3dR
+EKT977pKPY+1S+h58Xbzir2gqdUKLuyCUCYJmQ6/7ac4B4ShZANiAASndkjwMCbG
+fwEnf3fpjkwdEtdMCDpLEI2G4fokES6J66JxRj3CpmTwLrdJkiPiG0B6pKO+zVft
+4j1XajyxhSmyuPpZQo7KaoW2QLEzBZC4M+1ko4cLd9JaSNC9//vcYf4=
+-----END PRIVATE KEY-----""",
+        ),
+        (
+            "ES512",
+            """-----BEGIN EC PRIVATE KEY-----
+MIHcAgEBBEIAH/lTLRHRetOZo+nzJNZmxSPSrfC53q8M8aAwVoWTj6b+6gFUDqC1
++bWoioCDphoT6GgFK3ns/IuXbbDWrtzYafKgBwYFK4EEACOhgYkDgYYABABhNHfr
+CPNIdf9jnnhh1nj6FqqNQ/Q0nbfc/LAi2p6fAmsAUr8lE/TafmAyhgbElFvS6IhF
+ArPf/3aPaI5x73XzTgB0/01Y+2n+Kp6tRwgS08Uvv0AqS5Xw/xAo7fLID5IqoWg5
+IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
+-----END EC PRIVATE KEY-----""",
+        ),
+    )
+    @ddt.unpack
+    @mock.patch("jwcrypto.jwt.JWT")
+    async def test_pem_types(self, expected_alg, pem, mock_jwt):
+        """Verify that support several PEM algorithm types"""
+        mock_jwt.side_effect = ZeroDivisionError
+
+        with self.assertRaises(ZeroDivisionError):
+            async with fhir.FhirClient(
+                self.server_url,
+                ["Condition"],
+                smart_client_id=self.client_id,
+                smart_pem=pem,
+            ) as client:
+                await client.request("GET", "foo")
+
+        self.assertEqual(mock_jwt.call_count, 1)
+        self.assertEqual(mock_jwt.call_args[1]["header"]["alg"], expected_alg)
 
     async def test_auth_with_bearer_token(self):
         """Verify that we pass along the bearer token to the server"""
@@ -166,6 +281,22 @@ class TestFhirClient(AsyncTestCase):
             self.server_url, [], basic_user="User", basic_password="p4ssw0rd"
         ) as server:
             await server.request("GET", "foo")
+
+    async def test_auth_with_partial_basic_auth(self):
+        """Verify that we fail if only some basic auth args are given"""
+        with self.assertRaises(SystemExit) as cm:
+            async with fhir.FhirClient(self.server_url, [], basic_user="User") as server:
+                await server.request("GET", "foo")
+        self.assertEqual(cm.exception.code, errors.BASIC_CREDENTIALS_MISSING)
+
+    async def test_multiple_auth_methods(self):
+        """Verify that we fail if given multiple auth args"""
+        with self.assertRaises(SystemExit) as cm:
+            async with fhir.FhirClient(
+                self.server_url, [], basic_user="User", bearer_token="path"
+            ) as server:
+                await server.request("GET", "foo")
+        self.assertEqual(cm.exception.code, errors.ARGS_CONFLICT)
 
     async def test_get_with_new_header(self):
         """Verify that we can add new headers"""
@@ -207,11 +338,12 @@ class TestFhirClient(AsyncTestCase):
         {"keys": [{"alg": "RS384", "key_ops": ["verify"], "kid": "a"}]},  # bad key op
     )
     async def test_jwks_without_suitable_key(self, bad_jwks):
-        with self.assertRaisesRegex(errors.FatalError, "No valid private key found"):
+        with self.assertRaises(SystemExit) as cm:
             async with fhir.FhirClient(
                 self.server_url, [], smart_client_id=self.client_id, smart_jwks=bad_jwks
             ):
                 pass
+        self.assertEqual(cm.exception.code, errors.BAD_SMART_CREDENTIAL)
 
     @ddt.data(
         {"token_endpoint": None},
@@ -302,6 +434,7 @@ class TestFhirClient(AsyncTestCase):
             fhir_url=None,
             smart_client_id=None,
             smart_jwks=None,
+            smart_key=None,
             basic_user=None,
             basic_passwd=None,
             bearer_token=None,
@@ -389,12 +522,41 @@ class TestFhirClient(AsyncTestCase):
             fhir_url=None,
             smart_client_id=None,
             smart_jwks=None,
+            smart_key=None,
             basic_user=None,
             basic_passwd=None,
             bearer_token=None,
         )
         fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), resources_in)
         self.assertEqual(mock_client.call_args[0][1], expected_resources_out)
+
+    @ddt.data(
+        ('{"testing":"hi"}', ".JwKs", {"smart_jwks": {"testing": "hi"}}),
+        ("hello world", ".PeM", {"smart_pem": "hello world"}),
+        ("hello world", ".TxT", SystemExit),
+    )
+    @ddt.unpack
+    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
+    def test_reads_smart_key(self, contents, suffix, expected_result, mock_client):
+        """Verify that we accept smart PEM args"""
+        with tempfile.NamedTemporaryFile(suffix=suffix) as file:
+            with open(file.name, "w", encoding="utf8") as f:
+                f.write(contents)
+            args = argparse.Namespace(
+                fhir_url=None,
+                smart_client_id=None,
+                smart_jwks=None,
+                smart_key=file.name,
+                basic_user=None,
+                basic_passwd=None,
+                bearer_token=None,
+            )
+            if isinstance(expected_result, type):
+                with self.assertRaises(expected_result):
+                    fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), [])
+            else:
+                fhir.create_fhir_client_for_cli(args, store.Root("/tmp"), [])
+                self.assertLessEqual(expected_result.items(), mock_client.call_args[1].items())
 
 
 @ddt.ddt

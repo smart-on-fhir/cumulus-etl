@@ -140,13 +140,13 @@ but they are also harmless and will be ignored.
 ## Registering an Export Client
 
 On your server, you need to register a new "backend service" client.
-You'll be asked to provide a JWKS (JWK Set) file.
+You'll be asked to provide some sort of private/public key.
 See below for generating that.
 You'll also be asked for a client ID or the server may generate a client ID for you.
 
-### Generating a JWKS
+### Generating a JWK Set
 
-A JWKS is just a file with some cryptographic keys,
+A JWK Set (JWKS) is just a file with some cryptographic keys,
 usually holding a public and private version of the same key.
 FHIR servers use it to grant clients access.
 
@@ -159,15 +159,29 @@ jose jwk gen -s -i "{\"alg\":\"RS384\",\"kid\":\"`uuidgen`\"}" -o private.jwks
 jose jwk pub -s -i private.jwks -o public.jwks
 ```
 
-Then give `public.jwks` to your FHIR server and `private.jwks` to Cumulus ETL (details on that below).
+After giving `public.jwks` to your FHIR server,
+you can pass `private.jwks` to Cumulus ETL with `--smart-key` (example below).
+
+### Generating a PEM key
+
+A PEM key is just a file with a single private cryptographic key.
+Some FHIR servers may use it to grant clients access.
+
+If your FHIR server uses a PEM key,
+it will provide instructions on the kind of key it expects and how to generate it.
+See for example,
+[Epic's documentation](https://vendorservices.epic.com/Article?docId=oauth2&section=Creating-Key-Pair).
+
+After giving the public key to your FHIR server,
+you can pass your `private.pem` file to Cumulus ETL with `--smart-key` (example below).
 
 ### SMART Arguments
 
-You'll need to pass two new arguments to Cumulus ETL: 
+You'll need to pass two arguments to Cumulus ETL:
 
 ```sh
 --smart-client-id=YOUR_CLIENT_ID
---smart-jwks=/path/to/private.jwks
+--smart-key=/path/to/private.jwks
 ```
 
 You can also give `--smart-client-id` a path to a file with your client ID,

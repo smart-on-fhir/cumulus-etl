@@ -39,6 +39,7 @@ class FhirClient:
         bearer_token: str | None = None,
         smart_client_id: str | None = None,
         smart_jwks: dict | None = None,
+        smart_pem: str | None = None,
     ):
         """
         Initialize and authorize a BackendServiceServer context manager.
@@ -66,6 +67,7 @@ class FhirClient:
             bearer_token,
             smart_client_id,
             smart_jwks,
+            smart_pem,
         )
         self._session: httpx.AsyncClient | None = None
         self._capabilities: dict = {}
@@ -275,12 +277,25 @@ def create_fhir_client_for_cli(
         except FileNotFoundError:
             smart_client_id = args.smart_client_id
 
+        # Check deprecated --smart-jwks argument first
         smart_jwks = common.read_json(args.smart_jwks) if args.smart_jwks else None
+        smart_pem = None
+        if args.smart_key:
+            folded = args.smart_key.casefold()
+            if folded.endswith(".jwks"):
+                smart_jwks = common.read_json(args.smart_key)
+            elif folded.endswith(".pem"):
+                smart_pem = common.read_text(args.smart_key).strip()
+            else:
+                raise OSError(
+                    f"Unrecognized private key file '{args.smart_key}'\n"
+                    "(must end in .jwks or .pem)."
+                )
+
         basic_password = common.read_text(args.basic_passwd).strip() if args.basic_passwd else None
         bearer_token = common.read_text(args.bearer_token).strip() if args.bearer_token else None
     except OSError as exc:
-        print(exc, file=sys.stderr)
-        raise SystemExit(errors.ARGS_INVALID) from exc
+        errors.fatal(str(exc), errors.ARGS_INVALID)
 
     client_resources = set(resources)
     if {"DiagnosticReport", "DocumentReference"} & client_resources:
@@ -296,4 +311,5 @@ def create_fhir_client_for_cli(
         bearer_token=bearer_token,
         smart_client_id=smart_client_id,
         smart_jwks=smart_jwks,
+        smart_pem=smart_pem,
     )
