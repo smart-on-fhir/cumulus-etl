@@ -39,7 +39,7 @@ def sql_visit() -> str:
     import_date = format_date("IMPORT_DATE")
 
     cols_dates = f"{start_date}, {end_date}, {import_date}, LENGTH_OF_STAY"
-    cols = "ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, " f"{cols_dates}"
+    cols = f"ENCOUNTER_NUM, PATIENT_NUM, LOCATION_CD, INOUT_CD, {cols_dates}"
     return f"select {cols} \n from {Table.visit.value}"  # noqa: S608
 
 
@@ -97,7 +97,7 @@ def sql_observation_fact(categories: list[str]) -> str:
         f"O.CONCEPT_CD, O.INSTANCE_NUM, {import_date}, O.TVAL_CHAR, "
         f"O.VALTYPE_CD, O.VALUEFLAG_CD, O.NVAL_NUM, O.UNITS_CD, O.OBSERVATION_BLOB"
     )
-    cols = f"{cols_patient_dim}, {cols_provider_dim}, {cols_visit_dim}, " f"{cols_obs_fact}"
+    cols = f"{cols_patient_dim}, {cols_provider_dim}, {cols_visit_dim}, {cols_obs_fact}"
 
     matchers = [f"(concept_cd like '{category}:%')" for category in categories]
 

@@ -397,7 +397,7 @@ class BulkExporter:
         for file in files:
             count = resource_counts.get(file["type"], -1) + 1
             resource_counts[file["type"]] = count
-            filename = f'{file["type"]}.{count:03}.ndjson'
+            filename = f"{file['type']}.{count:03}.ndjson"
             coroutines.append(
                 self._download_ndjson_file(
                     file["url"],

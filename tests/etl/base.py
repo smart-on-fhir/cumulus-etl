@@ -81,9 +81,9 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         if batch_size:
             args.append(f"--batch-size={batch_size}")
         if tasks:
-            args.append(f'--task={",".join(tasks)}')
+            args.append(f"--task={','.join(tasks)}")
         if tags:
-            args.append(f'--task-filter={",".join(tags)}')
+            args.append(f"--task-filter={','.join(tags)}")
         if philter:
             args.append("--philter")
         if export_to:

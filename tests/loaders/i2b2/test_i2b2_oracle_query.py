@@ -28,7 +28,7 @@ def shorten(sql: str) -> str:
 def count_by_date_group(table: schema.Table, column_date="import_date") -> str:
     return shorten(
         f"""
-                    select {count_by_date(column_date, f'{column_date}_cnt')}
+                    select {count_by_date(column_date, f"{column_date}_cnt")}
                     from {table.value}
                     group by {query.cast_date(column_date)}
                     order by {query.cast_date(column_date)} desc
