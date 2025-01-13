@@ -34,7 +34,7 @@ class TestI2b2Loader(AsyncTestCase):
 
             common.write_text(
                 f"{tmpdir}/patient_dimension.csv",
-                "PATIENT_NUM,BIRTH_DATE\n" "123,1982-10-16\n" "123,1983-11-17\n" "456,2000-01-13\n",
+                "PATIENT_NUM,BIRTH_DATE\n123,1982-10-16\n123,1983-11-17\n456,2000-01-13\n",
             )
 
             results = await i2b2_loader.load_resources({"Patient"})

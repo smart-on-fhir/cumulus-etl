@@ -389,7 +389,7 @@ class TestMedicationRequestTask(TaskTestCase):
         self.assertEqual(1, med_req_format.write_records.call_count)
         batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual(
-            f'#{self.codebook.db.resource_hash("123")}',
+            f"#{self.codebook.db.resource_hash('123')}",
             batch.rows[0]["medicationReference"]["reference"],
         )
 
@@ -440,7 +440,7 @@ class TestMedicationRequestTask(TaskTestCase):
         batch = med_req_format.write_records.call_args[0][0]
         self.assertEqual([self.codebook.db.resource_hash("A")], [row["id"] for row in batch.rows])
         self.assertEqual(
-            f'Medication/{self.codebook.db.resource_hash("123")}',
+            f"Medication/{self.codebook.db.resource_hash('123')}",
             batch.rows[0]["medicationReference"]["reference"],
         )
 
