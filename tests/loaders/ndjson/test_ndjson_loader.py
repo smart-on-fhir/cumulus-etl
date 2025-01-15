@@ -207,7 +207,7 @@ class TestNdjsonLoader(AsyncTestCase):
                     "--skip-init-checks",
                 ]
             )
-        self.assertEqual("https://example.com/hello1/", mock_client.call_args[0][0])
+        self.assertEqual("https://example.com/hello1", mock_client.call_args[0][0])
 
         # Confirm that we don't allow conflicting URLs
         with self.assertRaises(SystemExit):

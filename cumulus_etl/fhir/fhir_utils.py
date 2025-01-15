@@ -5,11 +5,14 @@ import datetime
 import email.message
 import re
 import urllib.parse
+from typing import TYPE_CHECKING
 
 import inscriptis
 
-from cumulus_etl import common
-from cumulus_etl.fhir.fhir_client import FhirClient
+from cumulus_etl import common, errors
+
+if TYPE_CHECKING:
+    from cumulus_etl.fhir.fhir_client import FhirClient  # pragma: no cover
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -68,8 +71,6 @@ def unref_resource(ref: dict | None) -> (str | None, str):
     if len(tokens) > 1:
         return tokens[0], tokens[1]
 
-    if not ref.get("type"):
-        raise ValueError(f'Reference does not have a type: "{ref["reference"]}"')
     return ref.get("type"), tokens[0]
 
 
@@ -110,27 +111,43 @@ def parse_datetime(value: str | None) -> datetime.datetime | None:
         return None
 
 
-def parse_group_from_url(url: str) -> str:
+class FhirUrl:
     """
-    Parses the group out of a FHIR URL.
+    Parses a FHIR URL into relevant parts.
 
-    These URLS look something like:
-      - https://hostname/root/Group/my-group  <- group name of `my-group`
-      - https://hostname/root/Group/my-group/$export  <- group name of `my-group`
-      - https://hostname/root <- no group name
+    Example URL parsing:
+      - https://hostname/root/Group/my-group
+        - Group: `my-group`, Base URL: https://hostname/root
+      - https://hostname/root/Group/my-group/$export?_type=Patient
+        - Group: `my-group`, Base URL: https://hostname/root
+      - https://hostname/root
+        - Group: ``, Base URL: https://hostname/root
     """
-    parsed = urllib.parse.urlparse(url)
-    if not parsed.scheme:
-        raise ValueError(f"Could not parse URL '{url}'")
 
-    pieces = parsed.path.split("/Group/", 2)
-    match len(pieces):
-        case 2:
-            return pieces[1].split("/")[0]
-        case _:
-            # Global exports don't seem realistic, but if the user does do them,
-            # we'll use the empty string as the default group name for that.
-            return ""
+    def __init__(self, url: str):
+        parsed = urllib.parse.urlsplit(url)
+        if not parsed.scheme:
+            errors.fatal(f"Could not parse URL '{url}'", errors.ARGS_INVALID)
+
+        # Strip off common bulk-export-suffixes that the user might give us, to get the base path
+        root_path = parsed.path
+        root_path = root_path.removesuffix("/")
+        root_path = root_path.removesuffix("/$export")
+        root_path = root_path.removesuffix("/Patient")  # all-patient export
+        group_pieces = root_path.split("/Group/", 2)
+        root_path = group_pieces[0]
+
+        # Original unmodified URL
+        self.full_url = url
+
+        # The root of the FHIR server (i.e. https://host/api/FHIR/R4/)
+        root_parsed = parsed._replace(path=root_path, query="", fragment="")
+        self.root_url = urllib.parse.urlunsplit(root_parsed)
+
+        # When exporting, the lack of a group means a global (system or all-patient) export,
+        # which doesn't seem super realistic, but is possible for the user to request.
+        # An empty-string group indicates there was no group.
+        self.group = group_pieces[1] if len(group_pieces) == 2 else ""
 
 
 ######################################################################################################################
@@ -140,7 +157,7 @@ def parse_group_from_url(url: str) -> str:
 ######################################################################################################################
 
 
-async def download_reference(client: FhirClient, reference: str) -> dict | None:
+async def download_reference(client: "FhirClient", reference: str) -> dict | None:
     """
     Downloads a resource, given a FHIR reference.
 
@@ -187,7 +204,7 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
-async def _get_docref_note_from_attachment(client: FhirClient, attachment: dict) -> str:
+async def _get_docref_note_from_attachment(client: "FhirClient", attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -232,7 +249,7 @@ def _save_cached_docref_note(docref: dict, note: str) -> None:
     common.write_text(note_path, note)
 
 
-async def get_docref_note(client: FhirClient, docref: dict) -> str:
+async def get_docref_note(client: "FhirClient", docref: dict) -> str:
     """
     Returns the clinical note contained in or referenced by the given docref.
 

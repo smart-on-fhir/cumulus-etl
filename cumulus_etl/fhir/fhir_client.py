@@ -2,15 +2,13 @@
 
 import argparse
 import enum
-import re
-import sys
 from collections.abc import Iterable
 from json import JSONDecodeError
 
 import httpx
 
 from cumulus_etl import common, errors, store
-from cumulus_etl.fhir import fhir_auth
+from cumulus_etl.fhir import fhir_auth, fhir_utils
 
 
 class ServerType(enum.Enum):
@@ -255,18 +253,15 @@ def create_fhir_client_for_cli(
     client_base_url = getattr(args, "fhir_url", None)
     if root_input.protocol in {"http", "https"}:
         if client_base_url and not root_input.path.startswith(client_base_url):
-            print(
-                "You provided both an input FHIR server and a different --fhir-url. Try dropping --fhir-url.",
-                file=sys.stderr,
+            errors.fatal(
+                "You provided both an input FHIR server and a different --fhir-url. "
+                "Try dropping --fhir-url.",
+                errors.ARGS_CONFLICT,
             )
-            raise SystemExit(errors.ARGS_CONFLICT)
         elif not client_base_url:
             # Use the input URL as the base URL. But note that it may not be the server root.
             # For example, it may be a Group export URL. Let's try to find the actual root.
-            client_base_url = root_input.path
-            client_base_url = re.sub(r"/\$export(\?.*)?$", "/", client_base_url)
-            client_base_url = re.sub(r"/Patient/?$", "/", client_base_url)
-            client_base_url = re.sub(r"/Group/[^/]+/?$", "/", client_base_url)
+            client_base_url = fhir_utils.FhirUrl(root_input.path).root_url
 
     try:
         try:

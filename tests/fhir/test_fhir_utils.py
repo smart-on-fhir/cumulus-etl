@@ -50,6 +50,10 @@ class TestReferenceHandlers(utils.AsyncTestCase):
     def test_ref_resource(self, resource_type, resource_id, expected):
         self.assertEqual({"reference": expected}, fhir.ref_resource(resource_type, resource_id))
 
+    def test_ref_resource_no_id(self):
+        with self.assertRaisesRegex(ValueError, "Missing resource ID"):
+            fhir.ref_resource(None, "")
+
 
 @ddt.ddt
 class TestDateParsing(utils.AsyncTestCase):
@@ -93,7 +97,7 @@ class TestUrlParsing(utils.AsyncTestCase):
     """Tests for URL parsing"""
 
     @ddt.data(
-        ("//host", ValueError),
+        ("//host", SystemExit),
         ("https://host", ""),
         ("https://host/root", ""),
         ("https://Group/MyGroup", ""),  # Group is hostname here
@@ -107,11 +111,26 @@ class TestUrlParsing(utils.AsyncTestCase):
     @ddt.unpack
     def test_parse_group_from_url(self, url, expected_group):
         if isinstance(expected_group, str):
-            group = fhir.parse_group_from_url(url)
+            group = fhir.FhirUrl(url).group
             assert expected_group == group
         else:
             with self.assertRaises(expected_group):
-                fhir.parse_group_from_url(url)
+                fhir.FhirUrl(url)
+
+    @ddt.data(
+        "http://host/root/",
+        "http://host/root/$export?",
+        "http://host/root/Group/xxx",
+        "http://host/root/Group/xxx#fragment",
+        "http://host/root/Group/xxx/$export?_type=Patient",
+        "http://host/root/Patient",
+        "http://host/root/Patient/$export",
+    )
+    def test_parse_base_url_from_url(self, url):
+        """Verify that we detect the auth root for an input URL"""
+        parsed = fhir.FhirUrl(url)
+        self.assertEqual(parsed.full_url, url)
+        self.assertEqual(parsed.root_url, "http://host/root")
 
 
 @ddt.ddt
@@ -145,6 +164,16 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
         docref = self.make_docref("1", mimetype, incoming_note)
         resulting_note = await fhir.get_docref_note(None, docref)
         self.assertEqual(resulting_note, expected_note)
+
+    async def test_handles_no_data(self):
+        with self.assertRaisesRegex(ValueError, "No data or url field present"):
+            await fhir.get_docref_note(
+                None,
+                {
+                    "id": "no data",
+                    "content": [{"attachment": {"contentType": "text/plain"}}],
+                },
+            )
 
     async def test_docref_note_caches_results(self):
         """Verify that get_docref_note has internal caching"""

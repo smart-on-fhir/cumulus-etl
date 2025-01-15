@@ -76,7 +76,7 @@ class BulkExportLogParser:
 
     def _parse_kickoff(self, row: dict) -> None:
         details = row["eventDetail"]
-        self.group_name = fhir.parse_group_from_url(details["exportUrl"])
+        self.group_name = fhir.FhirUrl(details["exportUrl"]).group
         self.export_url = details["exportUrl"]
 
     def _parse_status_complete(self, row: dict) -> None:
