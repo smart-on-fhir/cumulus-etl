@@ -181,7 +181,7 @@ async def download_reference(client: "FhirClient", reference: str) -> dict | Non
 ######################################################################################################################
 
 
-def _parse_content_type(content_type: str) -> (str, str):
+def parse_content_type(content_type: str) -> (str, str):
     """Returns (mimetype, encoding)"""
     msg = email.message.EmailMessage()
     msg["content-type"] = content_type
@@ -212,7 +212,7 @@ async def _get_docref_note_from_attachment(client: "FhirClient", attachment: dic
 
     :returns: the attachment's note text
     """
-    mimetype, charset = _parse_content_type(attachment["contentType"])
+    mimetype, charset = parse_content_type(attachment["contentType"])
 
     if "data" in attachment:
         return base64.standard_b64decode(attachment["data"]).decode(charset)
@@ -270,7 +270,7 @@ async def get_docref_note(client: "FhirClient", docref: dict) -> str:
     best_attachment_priority = 0
     for index, attachment in enumerate(attachments):
         if "contentType" in attachment:
-            mimetype, _ = _parse_content_type(attachment["contentType"])
+            mimetype, _ = parse_content_type(attachment["contentType"])
             priority = _mimetype_priority(mimetype)
             if priority > best_attachment_priority:
                 best_attachment_priority = priority

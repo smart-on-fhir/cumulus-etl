@@ -461,21 +461,26 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
 
             self.assertEqual(2, self.respx_mock["token"].call_count)
 
-    async def test_get_error_429(self):
-        """Verify that 429 errors are passed through and not treated as exceptions."""
-        self.respx_mock.get(f"{self.server_url}/retry-me").respond(429)
-        self.respx_mock.get(f"{self.server_url}/nope").respond(430)
+    @ddt.data(
+        (400, errors.FatalError),
+        (408, errors.TemporaryNetworkError),
+        (429, errors.TemporaryNetworkError),
+        (430, errors.FatalError),
+        (500, errors.FatalError),
+        (502, errors.TemporaryNetworkError),
+        (503, errors.TemporaryNetworkError),
+        (504, errors.TemporaryNetworkError),
+    )
+    @ddt.unpack
+    async def test_get_error_types(self, code, exception):
+        """Verify that errors are passed up as the right kind of exception."""
+        self.respx_mock.get(f"{self.server_url}/try-me").respond(code)
 
         async with fhir.FhirClient(
             self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
         ) as server:
-            # Confirm 429 passes
-            response = await server.request("GET", "retry-me")
-            self.assertEqual(429, response.status_code)
-
-            # Sanity check that 430 does not
-            with self.assertRaises(errors.FatalError):
-                await server.request("GET", "nope")
+            with self.assertRaises(exception):
+                await server.request("GET", "try-me")
 
     @ddt.data(
         # OperationOutcome

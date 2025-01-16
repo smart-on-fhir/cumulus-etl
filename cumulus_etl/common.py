@@ -232,7 +232,8 @@ class NdjsonWriter:
         # lazily create the file, to avoid 0-line ndjson files (unless created in __init__)
         self._ensure_file()
 
-        json.dump(obj, self._file)
+        # Specify separators for most compact (no whitespace) representation to save disk space.
+        json.dump(obj, self._file, separators=(",", ":"))
         self._file.write("\n")
 
 
