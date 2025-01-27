@@ -484,7 +484,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             },
         )
         self.respx_mock.get("https://example.com/con1").respond(
-            status_code=501, content=b'["error"]'
+            status_code=502, content=b'["error"]'
         )
 
         with self.assertRaisesRegex(
@@ -510,8 +510,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                 {
                     "fileUrl": "https://example.com/con1",
                     "body": '["error"]',
-                    "code": 501,
-                    "message": 'An error occurred when connecting to "https://example.com/con1": ["error"]',
+                    "code": 502,
+                    "message": 'An error occurred when connecting to "https://example.com/con1": '
+                    '["error"]',
                     "responseHeaders": {"content-length": "9"},
                 },
             ),
@@ -587,54 +588,34 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         """Verify that we wait the amount of time the server asks us to"""
         self.mock_kickoff(
             side_effect=[
-                # Before returning a successful kickoff, pause for an hour
+                # Before returning a successful kickoff, pause for a minute (1h is capped to 1m)
                 respx.MockResponse(status_code=429, headers={"Retry-After": "3600"}),
                 respx.MockResponse(
                     status_code=202, headers={"Content-Location": "https://example.com/poll"}
                 ),
             ]
         )
-        self.respx_mock.get("https://example.com/poll").side_effect = [
-            # default of one minute
-            respx.MockResponse(status_code=429, headers={"X-Progress": "chill"}, content=b"{}"),
+        self.respx_mock.get("https://example.com/poll").respond(
             # five hours (though 202 responses will get limited to five min)
-            respx.MockResponse(status_code=202, headers={"Retry-After": "18000"}, content=b"..."),
-            # 23 hours (putting us over a day)
-            respx.MockResponse(
-                status_code=429, headers={"Retry-After": "82800", "X-Progress": "plz wait"}
-            ),
-        ]
+            status_code=202,
+            headers={"Retry-After": "18000", "X-Progress": "chill"},
+            content=b"...",
+        )
 
         with self.assertRaisesRegex(errors.FatalError, "Timed out waiting"):
             await self.export()
 
-        # 86760 == 24 hours + six minutes
-        self.assertEqual(86760, self.exporter._total_wait_time)
+        # 2592060 == 30 days + one minute
+        self.assertEqual(2592060, self.exporter._total_wait_time)
 
         self.assertListEqual(
             [
-                mock.call(3600),
                 mock.call(60),
                 mock.call(300),
-                mock.call(82800),
+                mock.call(300),
+                mock.call(300),
             ],
-            self.sleep_mock.call_args_list,
-        )
-
-        self.assert_log_equals(
-            ("kickoff", None),
-            ("status_progress", {"body": {}, "xProgress": "chill", "retryAfter": None}),
-            ("status_progress", {"body": "...", "xProgress": None, "retryAfter": "18000"}),
-            ("status_progress", {"body": "", "xProgress": "plz wait", "retryAfter": "82800"}),
-            (
-                "status_error",
-                {
-                    "body": None,
-                    "code": None,
-                    "message": "Timed out waiting for the bulk FHIR export to finish.",
-                    "responseHeaders": None,
-                },
-            ),
+            self.sleep_mock.call_args_list[:4],
         )
 
     async def test_no_delete_if_interrupted(self):
@@ -730,7 +711,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         """Verify that we retry polling the status URL on server errors"""
         self.mock_kickoff()
         self.respx_mock.get("https://example.com/poll").respond(
-            status_code=500,
+            status_code=503,
             content=b"Test Status Call Failed",
         )
 
@@ -756,13 +737,13 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.mock_delete()
         self.respx_mock.get("https://example.com/poll").mock(
             side_effect=[
-                httpx.Response(500),
-                httpx.Response(500),
+                httpx.Response(429),
+                httpx.Response(408),
                 httpx.Response(202, json={}),
-                httpx.Response(500),
-                httpx.Response(500, headers={"Retry-After": "20"}),
-                httpx.Response(500),
-                httpx.Response(500),
+                httpx.Response(504),
+                httpx.Response(502, headers={"Retry-After": "20"}),
+                httpx.Response(503),
+                httpx.Response(504),
                 httpx.Response(200, json={}),
             ],
         )
