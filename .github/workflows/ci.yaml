@@ -113,7 +113,7 @@ jobs:
           # Compare results
           export OUTDIR=$DATADIR/run-output/covid_symptom__nlp_results
           sudo chown -R $(id -u) $OUTDIR
-          sed -i 's/"generated_on": "[^"]*", //g' $OUTDIR/*.ndjson
+          sed -i 's/"generated_on":"[^"]*",//g' $OUTDIR/*.ndjson
           diff -upr $DATADIR/expected-output $OUTDIR
 
           echo "All Good!"
