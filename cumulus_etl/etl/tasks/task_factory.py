@@ -1,11 +1,10 @@
 """Finds and creates ETL tasks"""
 
-import itertools
 import sys
 from collections.abc import Iterable
 from typing import TypeVar
 
-from cumulus_etl import errors
+from cumulus_etl import cli_utils, errors
 from cumulus_etl.etl.studies import covid_symptom, hftest
 from cumulus_etl.etl.tasks import basic_tasks
 
@@ -67,13 +66,11 @@ def get_selected_tasks(
     :param filter_tags: only tasks that have all the listed tags will be eligible for selection
     :returns: a list of selected EtlTask subclasses, to instantiate and run
     """
-    names = names and set(itertools.chain.from_iterable(t.lower().split(",") for t in names))
-    filter_tags = filter_tags and list(
-        itertools.chain.from_iterable(t.lower().split(",") for t in filter_tags)
-    )
-    filter_tag_set = set(filter_tags or [])
+    names = set(cli_utils.expand_comma_list_arg(names, casefold=True))
+    filter_tags = list(cli_utils.expand_comma_list_arg(filter_tags, casefold=True))
+    filter_tag_set = set(filter_tags)
 
-    if names and "help" in names:
+    if "help" in names:
         # OK, we actually are just going to print the list of all task names and be done.
         _print_task_names()
         raise SystemExit(errors.TASK_HELP)  # not an *error* exactly, but not successful ETL either

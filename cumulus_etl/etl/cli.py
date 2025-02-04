@@ -309,6 +309,9 @@ async def etl_main(args: argparse.Namespace) -> None:
     # Grab a list of all required resource types for the tasks we are running
     required_resources = set(t.resource for t in selected_tasks)
 
+    inline_resources = cli_utils.expand_inline_resources(args.inline_resource)
+    inline_mimetypes = cli_utils.expand_inline_mimetypes(args.inline_mimetype)
+
     # Create a client to talk to a FHIR server.
     # This is useful even if we aren't doing a bulk export, because some resources like DocumentReference can still
     # reference external resources on the server (like the document text).
@@ -326,6 +329,9 @@ async def etl_main(args: argparse.Namespace) -> None:
                 since=args.since,
                 until=args.until,
                 resume=args.resume,
+                inline=args.inline,
+                inline_resources=inline_resources,
+                inline_mimetypes=inline_mimetypes,
             )
 
         required_resources = await check_available_resources(

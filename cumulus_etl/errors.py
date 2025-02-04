@@ -37,6 +37,8 @@ TASK_HELP = 35
 MISSING_REQUESTED_RESOURCES = 36
 TOO_MANY_SMART_CREDENTIALS = 37
 BAD_SMART_CREDENTIAL = 38
+INLINE_TASK_FAILED = 39
+INLINE_WITHOUT_FOLDER = 40
 
 
 class FatalError(Exception):
@@ -44,11 +46,19 @@ class FatalError(Exception):
 
 
 class NetworkError(FatalError):
-    """An unrecoverable network error"""
+    """A network error"""
 
     def __init__(self, msg: str, response: httpx.Response):
         super().__init__(msg)
         self.response = response
+
+
+class FatalNetworkError(NetworkError):
+    """An unrecoverable network error that should not be retried"""
+
+
+class TemporaryNetworkError(NetworkError):
+    """An recoverable network error that could be retried"""
 
 
 class FhirConnectionConfigError(FatalError):

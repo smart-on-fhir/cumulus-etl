@@ -7,6 +7,7 @@ import re
 import urllib.parse
 from typing import TYPE_CHECKING
 
+import httpx
 import inscriptis
 
 from cumulus_etl import common, errors
@@ -181,7 +182,7 @@ async def download_reference(client: "FhirClient", reference: str) -> dict | Non
 ######################################################################################################################
 
 
-def _parse_content_type(content_type: str) -> (str, str):
+def parse_content_type(content_type: str) -> (str, str):
     """Returns (mimetype, encoding)"""
     msg = email.message.EmailMessage()
     msg["content-type"] = content_type
@@ -204,6 +205,20 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
+async def request_attachment(client: "FhirClient", attachment: dict) -> httpx.Response:
+    """
+    Download the given attachment by URL.
+    """
+    mimetype, _charset = parse_content_type(attachment["contentType"])
+    return await client.request(
+        "GET",
+        attachment["url"],
+        # We need to pass Accept to get the raw data, not a Binary FHIR object.
+        # See https://www.hl7.org/fhir/binary.html
+        headers={"Accept": mimetype},
+    )
+
+
 async def _get_docref_note_from_attachment(client: "FhirClient", attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
@@ -212,21 +227,18 @@ async def _get_docref_note_from_attachment(client: "FhirClient", attachment: dic
 
     :returns: the attachment's note text
     """
-    mimetype, charset = _parse_content_type(attachment["contentType"])
+    _mimetype, charset = parse_content_type(attachment["contentType"])
 
     if "data" in attachment:
         return base64.standard_b64decode(attachment["data"]).decode(charset)
 
-    # TODO: At some point we should centralize the downloading of attachments -- once we have multiple NLP tasks,
-    #  we may not want to re-download the overlapping notes. When we do that, it should not be part of our bulk
-    #  exporter, since we may be given already-exported ndjson.
-    #
-    # TODO: There are future optimizations to try to use our ctakes cache to avoid downloading in the first place:
-    #   - use attachment["hash"] if available (algorithm mismatch though... maybe we should switch to sha1...)
+    # TODO: There are future optimizations to try to use our ctakes cache to avoid downloading in
+    #  the first place:
+    #   - use attachment["hash"] if available (algorithm mismatch though... maybe we should switch
+    #     to sha1...)
     #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
     if "url" in attachment:
-        # We need to pass Accept to get the raw data, not a Binary object. See https://www.hl7.org/fhir/binary.html
-        response = await client.request("GET", attachment["url"], headers={"Accept": mimetype})
+        response = await request_attachment(client, attachment)
         return response.text
 
     raise ValueError("No data or url field present")
@@ -270,7 +282,7 @@ async def get_docref_note(client: "FhirClient", docref: dict) -> str:
     best_attachment_priority = 0
     for index, attachment in enumerate(attachments):
         if "contentType" in attachment:
-            mimetype, _ = _parse_content_type(attachment["contentType"])
+            mimetype, _ = parse_content_type(attachment["contentType"])
             priority = _mimetype_priority(mimetype)
             if priority > best_attachment_priority:
                 best_attachment_priority = priority
