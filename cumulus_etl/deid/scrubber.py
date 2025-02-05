@@ -328,7 +328,7 @@ class Scrubber:
                 "http://hl7.org/fhir/StructureDefinition/geolocation",
                 "http://hl7.org/fhir/StructureDefinition/iso21090-TEL-address",
                 "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
-                "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName"
+                "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
                 # Usually harmless, but we ignore it to avoid accidentally leaving in the
                 # rendered value of a PHI element that we removed or didn't allow-list.
                 "http://hl7.org/fhir/StructureDefinition/rendered-value",
