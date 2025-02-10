@@ -184,7 +184,18 @@ def read_resource_ndjson(
     Grabs all ndjson files from a folder, of a particular resource type.
     """
     for filename in ls_resources(root, {resource}, warn_if_empty=warn_if_empty):
-        yield from cumulus_fhir_support.read_multiline_json(filename, fsspec_fs=root.fs)
+        for line in cumulus_fhir_support.read_multiline_json(filename, fsspec_fs=root.fs):
+            # Sanity check the incoming NDJSON - who knows what could happen and we should surface
+            # a nice message about it. This *could* be very noisy on the console if there are a lot
+            # of rows, but hopefully this is a very rare occurence and one that should be fixed
+            # quickly.
+            if (
+                not isinstance(line, dict)  # god help us if non-dicts are in the input
+                or line.get("resourceType") != resource  # folks have accidentally combined files
+            ):
+                logging.warning(f"Encountered invalid or unexpected FHIR: `{line}`")
+                continue  # skip it
+            yield line
 
 
 def write_rows_to_ndjson(path: str, rows: list[dict], sparse: bool = False) -> None:
