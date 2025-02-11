@@ -32,6 +32,30 @@ class TestTasks(TaskTestCase):
         resources = basic_tasks.EncounterTask(self.job_config, self.scrubber).read_ndjson()
         self.assertEqual([], list(resources))
 
+    @ddt.data(
+        {"description": "not a FHIR Condition"},  # dict, but not a FHIR object
+        {"resourceType": "Patient", "id": "patient"},  # wrong FHIR type
+        "hello world",  # not even a dict
+    )
+    async def test_read_bogus_ndjson(self, bogus_row):
+        """
+        Verify we complain about invalid JSON found.
+
+        We've seen this situation when folks try to combine NDJSON results themselves.
+        (They got OperationOutcomes mixed into Conditions.)
+        """
+        with common.NdjsonWriter(f"{self.input_dir}/conditions.ndjson") as writer:
+            # First line looks normal, so our sniffer will think this is a Condition file
+            writer.write({"resourceType": "Condition", "id": "normal"})
+            writer.write(bogus_row)
+
+        with self.assertLogs(level="WARNING") as logs:
+            await basic_tasks.ConditionTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(
+            logs.output, [f"WARNING:root:Encountered invalid or unexpected FHIR: `{bogus_row}`"]
+        )
+
     async def test_unknown_modifier_extensions_skipped_for_patients(self):
         """Verify we ignore unknown modifier extensions during a normal task (like patients)"""
         self.make_json("Patient", "0")
