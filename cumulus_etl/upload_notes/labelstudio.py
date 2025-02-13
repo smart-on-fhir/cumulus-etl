@@ -4,10 +4,9 @@ import dataclasses
 import datetime
 from collections.abc import Collection, Iterable
 
-import ctakesclient.typesystem
+import ctakesclient
 import label_studio_sdk
 import label_studio_sdk.data_manager as lsdm
-from ctakesclient.typesystem import MatchText
 
 from cumulus_etl import errors
 
@@ -40,6 +39,11 @@ class LabelStudioNote:
     # Matches found by cTAKES
     ctakes_matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(
         default_factory=list
+    )
+
+    # Matches found by word search, label -> list of found spans
+    highlights: dict[str, list[ctakesclient.typesystem.Span]] = dataclasses.field(
+        default_factory=dict
     )
 
     # Matches found by Philter
@@ -125,9 +129,24 @@ class LabelStudioClient:
         self._update_used_labels(task, [])
 
         self._format_ctakes_predictions(task, note)
+        self._format_highlights_predictions(task, note)
         self._format_philter_predictions(task, note)
 
         return task
+
+    def _format_match(self, begin: int, end: int, text: str, labels: Iterable[str]) -> dict:
+        return {
+            "from_name": self._labels_name,
+            "to_name": self._labels_config["to_name"][0],
+            "type": "labels",
+            "value": {
+                "start": begin,
+                "end": end,
+                "score": 1.0,
+                "text": text,
+                "labels": list(labels),
+            },
+        }
 
     def _format_ctakes_predictions(self, task: dict, note: LabelStudioNote) -> None:
         if not note.ctakes_matches:
@@ -139,7 +158,6 @@ class LabelStudioClient:
 
         used_labels = set()
         results = []
-        count = 0
         for match in note.ctakes_matches:
             matched_labels = {
                 self._cui_labels.get(concept.cui) for concept in match.conceptAttributes
@@ -147,28 +165,35 @@ class LabelStudioClient:
             # drop the result of a concept not being in our bsv label set
             matched_labels.discard(None)
             if matched_labels:
-                results.append(self._format_ctakes_match(count, match, matched_labels))
+                results.append(
+                    self._format_match(match.begin, match.end, match.text, matched_labels)
+                )
                 used_labels.update(matched_labels)
-                count += 1
         prediction["result"] = results
         task["predictions"].append(prediction)
 
         self._update_used_labels(task, used_labels)
 
-    def _format_ctakes_match(self, count: int, match: MatchText, labels: Iterable[str]) -> dict:
-        return {
-            "id": f"ctakes{count}",
-            "from_name": self._labels_name,
-            "to_name": self._labels_config["to_name"][0],
-            "type": "labels",
-            "value": {
-                "start": match.begin,
-                "end": match.end,
-                "score": 1.0,
-                "text": match.text,
-                "labels": list(labels),
-            },
+    def _format_highlights_predictions(self, task: dict, note: LabelStudioNote) -> None:
+        if not note.highlights:
+            return
+
+        prediction = {
+            "model_version": "Cumulus Highlights",
         }
+
+        results = []
+        for label, spans in note.highlights.items():
+            for span in spans:
+                results.append(
+                    self._format_match(
+                        span.begin, span.end, note.text[span.begin : span.end], [label]
+                    )
+                )
+        prediction["result"] = results
+        task["predictions"].append(prediction)
+
+        self._update_used_labels(task, note.highlights.keys())
 
     def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
         """
@@ -187,31 +212,13 @@ class LabelStudioClient:
         }
 
         results = []
-        count = 0
         for start, stop in sorted(note.philter_map.items()):
-            results.append(self._format_philter_span(count, start, stop, note))
-            count += 1
+            # We hardcode the label "_philter" - Label Studio will still highlight unknown labels,
+            # and this is unlikely to collide with existing labels.
+            results.append(self._format_match(start, stop, note.text[start:stop], ["_philter"]))
         prediction["result"] = results
 
         task["predictions"].append(prediction)
-
-    def _format_philter_span(self, count: int, start: int, end: int, note: LabelStudioNote) -> dict:
-        text = note.text[start:end]
-        return {
-            "id": f"philter{count}",
-            "from_name": self._labels_name,
-            "to_name": self._labels_config["to_name"][0],
-            "type": "labels",
-            # We hardcode the label "_philter" - Label Studio will still highlight unknown labels,
-            # and this is unlikely to collide with existing labels.
-            "value": {
-                "start": start,
-                "end": end,
-                "score": 1.0,
-                "text": text,
-                "labels": ["_philter"],
-            },
-        }
 
     def _update_used_labels(self, task: dict, used_labels: Iterable[str]) -> None:
         uses_dynamic_labels = False

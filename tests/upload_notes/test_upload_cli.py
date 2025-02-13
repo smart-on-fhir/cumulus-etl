@@ -72,6 +72,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
     async def run_upload_notes(
         self,
+        *extra_args,
         input_path=None,
         phi_path=None,
         anon_docrefs=None,
@@ -107,7 +108,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             args += ["--no-philter"]
         if overwrite:
             args += ["--overwrite"]
-        await cli.main(args)
+        await cli.main([*args, *extra_args])
 
     @staticmethod
     def make_docref(
@@ -529,3 +530,17 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         # Let the URL pass and confirm we now run successfully
         mock_url.return_value = True
         await self.run_upload_notes(skip_init_checks=False)
+
+    async def test_highlights(self):
+        # Test both commas and multiple args. Add some highlights that are internal words which
+        # won't get found.
+        await self.run_upload_notes("--highlight=Notes,For", "--highlight=Fever,Ever,Or")
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(len(tasks), 2)
+        # Spot check the first task
+        self.assertEqual(set(tasks[0].highlights.keys()), {"Notes", "For", "Fever"})
+        self.assertEqual(tasks[0].highlights["Notes"][0].begin, 106)
+        self.assertEqual(tasks[0].highlights["Notes"][0].end, 111)
+        self.assertEqual(tasks[0].highlights["Fever"][0].begin, 116)
+        self.assertEqual(tasks[0].highlights["Fever"][0].end, 121)
