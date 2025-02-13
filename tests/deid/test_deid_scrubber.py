@@ -275,9 +275,9 @@ class TestScrubber(utils.AsyncTestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Start with one encounter in db
-            db = CodebookDB()
+            db = CodebookDB(tmpdir)
             db.encounter("1")
-            db.save(tmpdir)
+            db.save()
 
             # Confirm we loaded that encounter correctly
             scrubber = Scrubber(tmpdir)
