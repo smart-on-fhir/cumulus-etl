@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import datetime
+import re
 import sys
 from collections.abc import Collection
 
@@ -154,6 +155,22 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
         ]
 
 
+def add_highlights(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
+    highlights = list(cli_utils.expand_comma_list_arg(args.highlight))
+    if not highlights:
+        return
+
+    common.print_header("Highlighting notes...")
+
+    re_terms = [re.compile(rf"\b{term}\b", re.IGNORECASE) for term in highlights]
+    for note in notes:
+        for index, term in enumerate(re_terms):
+            for match in term.finditer(note.text):
+                label = highlights[index]
+                spans = note.highlights.setdefault(label, [])
+                spans.append(ctakesclient.typesystem.Span(match.start(), match.end()))
+
+
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
     if args.philter == PHILTER_DISABLE:
         return
@@ -184,6 +201,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
     for enc_id, enc_notes in by_encounter_id.items():
         grouped_text = ""
         grouped_ctakes_matches = []
+        grouped_highlights = {}
         grouped_philter_map = {}
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
@@ -222,6 +240,12 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 match.end += offset
                 grouped_ctakes_matches.append(match)
 
+            for label, spans in note.highlights.items():
+                grouped_highlights[label] = []
+                for span in spans:
+                    new_span = ctakesclient.typesystem.Span(span.begin + offset, span.end + offset)
+                    grouped_highlights[label].append(new_span)
+
             for start, stop in note.philter_map.items():
                 grouped_philter_map[start + offset] = stop + offset
 
@@ -233,6 +257,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 doc_mappings=grouped_doc_mappings,
                 doc_spans=grouped_doc_spans,
                 ctakes_matches=grouped_ctakes_matches,
+                highlights=grouped_highlights,
                 philter_map=grouped_philter_map,
             )
         )
@@ -272,7 +297,7 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         "--philter",
         choices=[PHILTER_DISABLE, PHILTER_REDACT, PHILTER_LABEL],
         default=PHILTER_REDACT,
-        help="Whether to use philter to redact/tag PHI",
+        help="Whether to use philter to redact/tag PHI (default is redact)",
     )
     # Old, simpler version of the above (feel free to remove after May 2024)
     parser.add_argument(
@@ -281,6 +306,12 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         const=PHILTER_DISABLE,
         dest="philter",
         help=argparse.SUPPRESS,
+    )
+
+    parser.add_argument(
+        "--highlight",
+        action="append",
+        help="Annotate the provided word (can be specified multiple times or comma separated)",
     )
 
     cli_utils.add_aws(parser)
@@ -353,6 +384,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
         notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
 
     await run_nlp(notes, args)
+    add_highlights(notes, args)
     # It's safe to philter notes after NLP because philter does not change character counts
     philter_notes(notes, args)
     notes = group_notes_by_encounter(notes)

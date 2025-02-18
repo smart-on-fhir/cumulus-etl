@@ -2,9 +2,11 @@
 
 from unittest import mock
 
+import ctakesclient
 import ddt
 from ctakesclient.typesystem import Polarity
 
+from cumulus_etl import errors
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 from tests import ctakesmock
 from tests.utils import AsyncTestCase
@@ -85,7 +87,6 @@ class TestUploadLabelStudio(AsyncTestCase):
                             # as it was not in our initial CUI mapping (in push_tasks)
                             {
                                 "from_name": "mylabel",
-                                "id": "ctakes0",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -98,7 +99,6 @@ class TestUploadLabelStudio(AsyncTestCase):
                             },
                             {
                                 "from_name": "mylabel",
-                                "id": "ctakes1",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -116,7 +116,6 @@ class TestUploadLabelStudio(AsyncTestCase):
                         "result": [
                             {
                                 "from_name": "mylabel",
-                                "id": "philter0",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -129,7 +128,6 @@ class TestUploadLabelStudio(AsyncTestCase):
                             },
                             {
                                 "from_name": "mylabel",
-                                "id": "philter1",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -142,7 +140,6 @@ class TestUploadLabelStudio(AsyncTestCase):
                             },
                             {
                                 "from_name": "mylabel",
-                                "id": "philter2",
                                 "to_name": "mytext",
                                 "type": "labels",
                                 "value": {
@@ -237,6 +234,11 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task()["data"],
         )
 
+    def test_no_label_config(self):
+        self.ls_project.parsed_label_config = {}
+        with self.assert_fatal_exit(errors.LABEL_STUDIO_CONFIG_INVALID):
+            self.push_tasks(self.make_note())
+
     def test_overwrite(self):
         self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "enc"}}]
 
@@ -257,3 +259,54 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.push_tasks(self.make_note(), self.make_note(enc_id="enc2"))
         self.assertFalse(self.ls_project.delete_tasks.called)
         self.assertEqual("enc2", self.get_pushed_task()["data"]["enc_id"])
+
+    def test_push_highlights(self):
+        note = self.make_note(philter_label=False, ctakes=False)
+        note.highlights["LabelName"] = [
+            ctakesclient.typesystem.Span(7, 11),
+            ctakesclient.typesystem.Span(12, 16),
+        ]
+        self.push_tasks(note)
+        self.assertEqual(
+            {
+                "data": {
+                    "text": "Normal note text",
+                    "enc_id": "enc",
+                    "anon_id": "enc-anon",
+                    "docref_mappings": {"doc": "doc-anon"},
+                    "docref_spans": {"doc": [0, 16]},
+                },
+                "predictions": [
+                    {
+                        "model_version": "Cumulus Highlights",
+                        "result": [
+                            {
+                                "from_name": "mylabel",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 11,
+                                    "labels": ["LabelName"],
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                            {
+                                "from_name": "mylabel",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 16,
+                                    "labels": ["LabelName"],
+                                    "score": 1.0,
+                                    "start": 12,
+                                    "text": "text",
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            self.get_pushed_task(),
+        )
