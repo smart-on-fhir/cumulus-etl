@@ -1,10 +1,8 @@
-"""Tests for etl/tasks/batching.py"""
-
-from collections.abc import AsyncIterator
+"""Tests for batching.py"""
 
 import ddt
 
-from cumulus_etl.etl.tasks import batching
+from cumulus_etl import batching
 from tests.utils import AsyncTestCase
 
 
@@ -87,16 +85,11 @@ class TestBatching(AsyncTestCase):
         ),
     )
     @ddt.unpack
-    async def test_batch_iterate(self, values, batch_size, expected):
+    async def test_batch_iterate_streams(self, values, batch_size, expected):
         """Check a bunch of edge cases for the batch_iterate helper"""
 
-        # Tiny little convenience method to be turn sync lists into async iterators.
-        async def async_iter() -> AsyncIterator:
-            for x in values:
-                yield x
-
         async def gather_results() -> list:
-            return [x async for x in batching.batch_iterate(async_iter(), batch_size)]
+            return [x async for x in batching.batch_iterate_streams(values, batch_size)]
 
         if isinstance(expected, type) and issubclass(expected, BaseException):
             with self.assertRaises(expected):
@@ -104,3 +97,10 @@ class TestBatching(AsyncTestCase):
         else:
             collected = await gather_results()
             self.assertEqual(expected, collected)
+
+    async def test_batch_iterate(self):
+        """Confirm that the simplified wrapper method does not return tuples"""
+        batches = [batch async for batch in batching.batch_iterate([1, 2, 3], 2)]
+        self.assertEqual(len(batches), 2)
+        self.assertEqual(batches[0], [1, 2])  # a list not a tuple
+        self.assertEqual(batches[1], [3])

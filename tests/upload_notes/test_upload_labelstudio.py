@@ -47,7 +47,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         return note
 
     @staticmethod
-    def push_tasks(*notes, **kwargs) -> None:
+    async def push_tasks(*notes, **kwargs) -> None:
         client = LabelStudioClient(
             "https://localhost/ls",
             "apikey",
@@ -60,7 +60,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                 "C0028081": "Night Sweats",
             },
         )
-        client.push_tasks(notes, **kwargs)
+        await client.push_tasks(notes, **kwargs)
 
     def get_pushed_task(self) -> dict:
         self.assertEqual(1, self.ls_project.import_tasks.call_count)
@@ -68,8 +68,8 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.assertEqual(1, len(imported_tasks))
         return imported_tasks[0]
 
-    def test_basic_push(self):
-        self.push_tasks(self.make_note())
+    async def test_basic_push(self):
+        await self.push_tasks(self.make_note())
         self.assertEqual(
             {
                 "data": {
@@ -157,8 +157,8 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task(),
         )
 
-    def test_no_predictions(self):
-        self.push_tasks(self.make_note(ctakes=False, philter_label=False))
+    async def test_no_predictions(self):
+        await self.push_tasks(self.make_note(ctakes=False, philter_label=False))
         self.assertEqual(
             {
                 "data": {
@@ -174,12 +174,12 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     @ddt.data("Choices", "Labels")
-    def test_dynamic_labels_old(self, label_type):
+    async def test_dynamic_labels_old(self, label_type):
         """Verify old-style dynamic labels config"""
         self.ls_project.parsed_label_config = {
             "mylabel": {"type": label_type, "to_name": ["mytext"], "dynamic_labels": True},
         }
-        self.push_tasks(self.make_note())
+        await self.push_tasks(self.make_note())
         self.assertEqual(
             {
                 "text": "Normal note text",
@@ -196,12 +196,12 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     @ddt.data("Choices", "Labels")
-    def test_dynamic_labels_new(self, label_type):
+    async def test_dynamic_labels_new(self, label_type):
         """Verify new-style dynamic labels config"""
         self.ls_project.parsed_label_config = {
             "mylabel": {"type": label_type, "to_name": ["mytext"], "labels": []},
         }
-        self.push_tasks(self.make_note())
+        await self.push_tasks(self.make_note())
         self.assertEqual(
             {
                 "text": "Normal note text",
@@ -217,11 +217,11 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task()["data"],
         )
 
-    def test_dynamic_labels_no_predictions(self):
+    async def test_dynamic_labels_no_predictions(self):
         self.ls_project.parsed_label_config = {
             "mylabel": {"type": "Labels", "to_name": ["mytext"], "labels": []},
         }
-        self.push_tasks(self.make_note(ctakes=False, philter_label=False))
+        await self.push_tasks(self.make_note(ctakes=False, philter_label=False))
         self.assertEqual(
             {
                 "text": "Normal note text",
@@ -234,39 +234,39 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task()["data"],
         )
 
-    def test_no_label_config(self):
+    async def test_no_label_config(self):
         self.ls_project.parsed_label_config = {}
         with self.assert_fatal_exit(errors.LABEL_STUDIO_CONFIG_INVALID):
-            self.push_tasks(self.make_note())
+            await self.push_tasks(self.make_note())
 
-    def test_overwrite(self):
+    async def test_overwrite(self):
         self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "enc"}}]
 
         # Try once without overwrite
-        self.push_tasks(self.make_note())
+        await self.push_tasks(self.make_note())
         self.assertFalse(self.ls_project.import_tasks.called)
         self.assertFalse(self.ls_project.delete_tasks.called)
 
         # Now overwrite
-        self.push_tasks(self.make_note(), overwrite=True)
+        await self.push_tasks(self.make_note(), overwrite=True)
         self.assertEqual([mock.call([1])], self.ls_project.delete_tasks.call_args_list)
         self.assertTrue(self.ls_project.import_tasks.called)
 
-    def test_overwrite_partial(self):
+    async def test_overwrite_partial(self):
         """Verify that we push what we can and ignore any existing tasks by default"""
         self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "enc"}}]
 
-        self.push_tasks(self.make_note(), self.make_note(enc_id="enc2"))
+        await self.push_tasks(self.make_note(), self.make_note(enc_id="enc2"))
         self.assertFalse(self.ls_project.delete_tasks.called)
         self.assertEqual("enc2", self.get_pushed_task()["data"]["enc_id"])
 
-    def test_push_highlights(self):
+    async def test_push_highlights(self):
         note = self.make_note(philter_label=False, ctakes=False)
         note.highlights["LabelName"] = [
             ctakesclient.typesystem.Span(7, 11),
             ctakesclient.typesystem.Span(12, 16),
         ]
-        self.push_tasks(note)
+        await self.push_tasks(note)
         self.assertEqual(
             {
                 "data": {
@@ -310,3 +310,12 @@ class TestUploadLabelStudio(AsyncTestCase):
             },
             self.get_pushed_task(),
         )
+
+    async def test_push_in_batches(self):
+        notes = [self.make_note(philter_label=False, ctakes=False) for _ in range(301)]
+        await self.push_tasks(*notes)
+        self.assertEqual(2, self.ls_project.import_tasks.call_count)
+        imported_tasks = self.ls_project.import_tasks.call_args_list[0][0][0]
+        self.assertEqual(300, len(imported_tasks))
+        imported_tasks = self.ls_project.import_tasks.call_args_list[1][0][0]
+        self.assertEqual(1, len(imported_tasks))

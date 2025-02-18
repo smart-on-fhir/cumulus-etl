@@ -8,7 +8,7 @@ import ctakesclient
 import label_studio_sdk
 import label_studio_sdk.data_manager as lsdm
 
-from cumulus_etl import errors
+from cumulus_etl import batching, errors
 
 ###############################################################################
 #
@@ -60,7 +60,9 @@ class LabelStudioClient:
         self._labels_name, self._labels_config = self._get_labels_config()
         self._cui_labels = dict(cui_labels)
 
-    def push_tasks(self, notes: Collection[LabelStudioNote], *, overwrite: bool = False) -> None:
+    async def push_tasks(
+        self, notes: Collection[LabelStudioNote], *, overwrite: bool = False
+    ) -> None:
         # Get any existing tasks that we might be updating
         enc_ids = [note.enc_id for note in notes]
         enc_id_filter = lsdm.Filters.create(
@@ -86,7 +88,12 @@ class LabelStudioClient:
 
         # OK, import away!
         if notes:
-            self._project.import_tasks([self._format_task_for_note(note) for note in notes])
+            new_notes = (self._format_task_for_note(note) for note in notes)
+            # Upload notes in batches, to avoid making one giant request that times out.
+            # I've seen batches of 700 fail, but 600 succeed. So we give ourselves plenty of
+            # headroom here and use batches of 300.
+            async for batch in batching.batch_iterate(new_notes, 300):
+                self._project.import_tasks(batch)
             if new_task_count:
                 print(f"  Imported {new_task_count} new tasks")
 

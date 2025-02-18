@@ -265,12 +265,12 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
     return grouped_notes
 
 
-def push_to_label_studio(
+async def push_to_label_studio(
     notes: Collection[LabelStudioNote], access_token: str, labels: dict, args: argparse.Namespace
 ) -> None:
     common.print_header(f"Pushing {len(notes)} charts to Label Studio...")
     ls_client = LabelStudioClient(args.label_studio_url, access_token, args.ls_project, labels)
-    ls_client.push_tasks(notes, overwrite=args.overwrite)
+    await ls_client.push_tasks(notes, overwrite=args.overwrite)
 
 
 #####################################################################################################################
@@ -388,7 +388,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     # It's safe to philter notes after NLP because philter does not change character counts
     philter_notes(notes, args)
     notes = group_notes_by_encounter(notes)
-    push_to_label_studio(notes, access_token, labels, args)
+    await push_to_label_studio(notes, access_token, labels, args)
 
 
 async def run_upload_notes(parser: argparse.ArgumentParser, argv: list[str]) -> None:
