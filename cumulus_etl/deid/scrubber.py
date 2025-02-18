@@ -47,7 +47,6 @@ class Scrubber:
 
     def __init__(self, codebook_dir: str | None = None, use_philter: bool = False):
         self.codebook = codebook.Codebook(codebook_dir)
-        self.codebook_dir = codebook_dir
         self.philter = philter.Philter() if use_philter else None
         # List of ignored extensions (resource -> url -> count)
         self.dropped_extensions: ExtensionCount = {}
@@ -111,8 +110,7 @@ class Scrubber:
 
     def save(self) -> None:
         """Saves any resources used to persist across runs (like the codebook)"""
-        if self.codebook_dir:
-            self.codebook.db.save(self.codebook_dir)
+        self.codebook.save()
 
     def print_extension_report(self) -> None:
         self._print_extension_table(

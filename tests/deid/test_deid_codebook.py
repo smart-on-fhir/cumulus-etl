@@ -49,6 +49,12 @@ class TestCodebook(utils.AsyncTestCase):
         cb = Codebook("/")
         assert_empty_db(cb.db)
 
+    def test_context_manager(self):
+        tmpdir = self.make_tempdir()
+        with Codebook(tmpdir):
+            self.assertFalse(os.path.exists(f"{tmpdir}/codebook.json"))
+        self.assertTrue(os.path.exists(f"{tmpdir}/codebook.json"))
+
 
 @ddt.ddt
 @mock.patch("cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
@@ -92,8 +98,12 @@ class TestCodebookDB(utils.AsyncTestCase):
             self.assertNotIn("42", db.cached_mapping["Encounter"])
             self.assertNotIn("abc", db.cached_mapping["Patient"])
 
+            # Confirm we do inject them into the reverse mapping
+            self.assertEqual(db.get_reverse_mapping("Encounter"), {"yup": "42"})
+
     def test_save_and_load(self):
-        db = CodebookDB()
+        tmpdir = self.make_tempdir()
+        db = CodebookDB(tmpdir)
         p1 = db.patient("1")
         p2 = db.patient("2")
         e1 = db.encounter("1")
@@ -110,19 +120,18 @@ class TestCodebookDB(utils.AsyncTestCase):
             },
         }
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            db.save(tmpdir)
+        db.save()
 
-            # Verify that we saved the cached mapping to disk too
-            self.assertEqual(
-                expected_mapping,
-                common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")),
-            )
+        # Verify that we saved the cached mapping to disk too
+        self.assertEqual(
+            expected_mapping,
+            common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")),
+        )
 
-            db2 = CodebookDB(tmpdir)
+        db2 = CodebookDB(tmpdir)
 
-            # And that we loaded the cached mapping
-            self.assertEqual(expected_mapping, db2.cached_mapping)
+        # And that we loaded the cached mapping
+        self.assertEqual(expected_mapping, db2.cached_mapping)
 
         self.assertEqual(p1, db2.patient("1"))
         self.assertEqual(p2, db2.patient("2"))
@@ -132,33 +141,33 @@ class TestCodebookDB(utils.AsyncTestCase):
     def test_does_not_save_if_not_modified(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # Confirm that an empty book starts modified
-            db = CodebookDB()
-            self.assertTrue(db.save(tmpdir))
+            db = CodebookDB(tmpdir)
+            self.assertTrue(db.save())
             self.assertTrue(os.path.exists(f"{tmpdir}/codebook.json"))
             self.assertFalse(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json"))
             codebook_mtime = os.path.getmtime(f"{tmpdir}/codebook.json")
 
             # But after a save, we are no longer modified
-            self.assertFalse(db.save(tmpdir))
+            self.assertFalse(db.save())
 
             # Resource hashes don't cause modification
             db.resource_hash("1")
-            self.assertFalse(db.save(tmpdir))
+            self.assertFalse(db.save())
 
             # Add a new patient, and we can save (because cached mapping changed)
             db.patient("1")
-            self.assertTrue(db.save(tmpdir))
+            self.assertTrue(db.save())
             self.assertTrue(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json"))
             # main codebook shouldn't be written for just mappings changes
             self.assertEqual(codebook_mtime, os.path.getmtime(f"{tmpdir}/codebook.json"))
 
             # But if we make a call that doesn't modify the db, don't save
             db.patient("1")
-            self.assertFalse(db.save(tmpdir))
+            self.assertFalse(db.save())
 
             # And encounters
             db.encounter("1")
-            self.assertTrue(db.save(tmpdir))
+            self.assertTrue(db.save())
 
     def test_version0(self):
         db_path = os.path.join(self.datadir, "codebook0")

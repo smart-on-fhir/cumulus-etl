@@ -372,7 +372,6 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     store.set_user_fs_options(vars(args))
 
     root_input = store.Root(args.dir_input)
-    codebook = deid.Codebook(args.dir_phi)
 
     # Auth & read files early for quick error feedback
     client = fhir.create_fhir_client_for_cli(args, root_input, ["DocumentReference"])
@@ -380,8 +379,9 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 
     async with client:
-        ndjson_folder = await gather_docrefs(client, root_input, codebook, args)
-        notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
+        with deid.Codebook(args.dir_phi) as codebook:
+            ndjson_folder = await gather_docrefs(client, root_input, codebook, args)
+            notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
 
     await run_nlp(notes, args)
     add_highlights(notes, args)

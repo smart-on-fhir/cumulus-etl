@@ -17,16 +17,34 @@ class Codebook:
     Codebook is saved local to the hospital and NOT shared on public internet.
 
     Some IDs may be cryptographically hashed versions of the real ID, some may be entirely random.
+
+    Example usage as a context manager:
+
+    with Codebook('/path/to/phi/') as codebook:
+        print(codebook.fake_id("Patient", "1234"))
+
+    At the end of the context manager, `save()` is called, which will cache mappings of any new
+    patient/encounter IDs and preserve the hashing salt used to generate anonymized IDs (if given
+    a fresh PHI folder).
+
+    You can also use this class outside of a context manager, just be careful to call `save()`
+    yourself.
     """
 
     def __init__(self, codebook_dir: str | None = None):
         """
         :param codebook_dir: saved codebook path or None (initialize empty)
         """
-        try:
-            self.db = CodebookDB(codebook_dir)
-        except (FileNotFoundError, PermissionError):
-            self.db = CodebookDB()
+        self.db = CodebookDB(codebook_dir)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.save()
+
+    def save(self) -> bool:
+        return self.db.save()
 
     def fake_id(self, resource_type: str | None, real_id: str, caching_allowed: bool = True) -> str:
         """
@@ -104,13 +122,19 @@ class CodebookDB:
             "Patient": {},
             "Encounter": {},
         }
+        self.codebook_dir = codebook_dir
 
         # Tracks whether we need to write out our settings or mappings
         self.settings_modified = False
         self.mappings_modified = False
 
         if codebook_dir:
-            self._load_saved_settings(common.read_json(os.path.join(codebook_dir, "codebook.json")))
+            try:
+                self._load_saved_settings(
+                    common.read_json(os.path.join(codebook_dir, "codebook.json"))
+                )
+            except (FileNotFoundError, PermissionError):
+                pass
             try:
                 self.cached_mapping = common.read_json(
                     os.path.join(codebook_dir, "codebook-cached-mappings.json")
@@ -244,22 +268,24 @@ class CodebookDB:
         """Loads version 1 of the codebook database format"""
         self.settings = saved
 
-    def save(self, codebook_dir: str) -> bool:
+    def save(self) -> bool:
         """
         Save the CodebookDB database as JSON
-        :param codebook_dir: /path/to/phi/
         :returns: whether a save actually happened (if codebook hasn't changed, nothing is written back)
         """
+        if not self.codebook_dir:
+            return False
+
         saved = False
 
         if self.settings_modified:
-            codebook_path = os.path.join(codebook_dir, "codebook.json")
+            codebook_path = os.path.join(self.codebook_dir, "codebook.json")
             common.write_json(codebook_path, self.settings)
             self.settings_modified = False
             saved = True
 
         if self.mappings_modified:
-            cached_mapping_path = os.path.join(codebook_dir, "codebook-cached-mappings.json")
+            cached_mapping_path = os.path.join(self.codebook_dir, "codebook-cached-mappings.json")
             common.write_json(cached_mapping_path, self.cached_mapping)
             self.mappings_modified = False
             saved = True
