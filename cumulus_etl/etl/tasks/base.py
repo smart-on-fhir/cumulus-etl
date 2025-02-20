@@ -14,9 +14,8 @@ import rich.table
 import rich.text
 
 import cumulus_etl
-from cumulus_etl import cli_utils, common, completion, deid, formats, store
+from cumulus_etl import batching, cli_utils, common, completion, deid, formats, store
 from cumulus_etl.etl import config
-from cumulus_etl.etl.tasks import batching
 
 # Defined here, as syntactic sugar for when you subclass your own task and re-define read_entries()
 EntryAtom = dict | list[dict]
@@ -194,7 +193,7 @@ class EtlTask:
         format_progress_task = None
         update_status()
 
-        async for batches in batching.batch_iterate(entries, self.task_config.batch_size):
+        async for batches in batching.batch_iterate_streams(entries, self.task_config.batch_size):
             if format_progress_task is not None:
                 # hide old batches, to save screen space
                 progress.update(format_progress_task, visible=False)

@@ -13,7 +13,7 @@ import ddt
 import respx
 
 from cumulus_etl import cli, common, errors
-from cumulus_etl.upload_notes.labelstudio import LabelStudioNote
+from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
 
@@ -48,7 +48,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.token_path = os.path.join(tmpdir, "ls-token.txt")
         common.write_text(self.token_path, "abc123")
 
-        self.ls_client_mock = self.patch("cumulus_etl.upload_notes.cli.LabelStudioClient")
+        self.ls_client_mock = self.patch(
+            "cumulus_etl.upload_notes.cli.LabelStudioClient", spec=LabelStudioClient
+        )
         self.ls_client = self.ls_client_mock.return_value
 
         # Write some initial cached patient mappings, so we can reverse-engineer them
