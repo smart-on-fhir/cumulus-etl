@@ -95,7 +95,7 @@ We'll also be able to offer recommendations on what sort of hardware you'll need
 (for example, Llama2 works well with two NVIDIA A100 GPUs).
 
 {: .note }
-Only LLama2 is supported right now, because that's the current best-in-class local LLM.
+Only LLama2 is supported right now.
 But Cumulus ETL uses the standard
 [Hugging Face inference interface](https://github.com/huggingface/text-generation-inference)
 as an abstraction layer, so integrating new local LLMs is a lightweight process.
@@ -149,16 +149,16 @@ As an example, let's say you want to run the `covid_symptom` study.
 The command below will launch all the services that study needs.
 In this case, that means cTAKES and two different cNLP transformers.
 ```shell
-docker compose --profile covid-symptom-gpu up -d
+docker compose --profile covid-symptom-gpu up --wait
 ```
 
 That command works because Cumulus ETL ships a Docker Compose file with stanzas like:
 ```yaml
 ctakes-covid:
-  image: smartonfhir/ctakes-covid:1.1.0
+  image: smartonfhir/ctakes-covid:1.1.1
   environment:
     - ctakes_umlsuser=umls_api_key
-    - ctakes_umlspw=$UMLS_API_KEY
+    - ctakes_umlspw=${UMLS_API_KEY:-}
   networks:
     - cumulus-etl
   profiles:
@@ -201,7 +201,7 @@ Usually by study-specific SQL integrated into the
 
 In the `covid_symptom` example we've been using,
 the Athena database row for a `fever` cTAKES match in a clinical note would look something like
-(in json form):
+(in JSON form):
 ```json
 {
   "id": "<anonymized ID>",

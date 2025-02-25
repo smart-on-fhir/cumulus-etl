@@ -42,7 +42,9 @@ def add_auth(parser: argparse.ArgumentParser, *, use_fhir_url: bool = True):
 def add_aws(parser: argparse.ArgumentParser) -> None:
     group = parser.add_argument_group("AWS")
     group.add_argument(
-        "--s3-region", metavar="REGION", help="if using S3 paths (s3://...), this is their region"
+        "--s3-region",
+        metavar="REGION",
+        help="if using S3 paths (s3://...), this is their region (default is us-east-1)",
     )
     group.add_argument(
         "--s3-kms-key",

@@ -26,6 +26,7 @@ services:
   cumulus-etl-base:
     extends: common-base
     image: smartonfhir/cumulus-etl:latest
+    pull_policy: always  # ensure folks are using the lastest release
     build:
       context: .
       target: cumulus-etl
@@ -69,7 +70,11 @@ services:
     image: smartonfhir/ctakes-covid:1.1.1
     environment:
       - ctakes_umlsuser=umls_api_key
-      - ctakes_umlspw=$UMLS_API_KEY
+      - ctakes_umlspw=${UMLS_API_KEY:-}
+    healthcheck:
+      test: echo 'Must set the UMLS_API_KEY environment variable.' && test -n "${UMLS_API_KEY:-}"
+      retries: 1
+      interval: 1s
     networks:
       - cumulus-etl
     profiles:

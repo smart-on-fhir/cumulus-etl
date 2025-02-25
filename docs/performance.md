@@ -52,7 +52,7 @@ or `m5.2xlarge` for 32GB.
 We recommend having about four times the size of your input data.
 Cumulus ETL makes a copy or two of the transformed data as it goes through the pipeline.
 
-Let's say you have a folder of ndjson FHIR files from a bulk export that is altogether 50GB.
+Let's say you have a folder of NDJSON FHIR files from a bulk export that is altogether 50GB.
 You'd want at least 200GB free.
 
 ## Running NLP on a GPU
@@ -84,7 +84,7 @@ for different OS versions.
 If you are running Cumulus ETL on-premises with access to a local machine running a GPU,
 you might as well run all of Cumulus ETL with a GPU.
 
-(In contrast to a hospital that is running Cumulus ETL in the cloud where GPU-hours cost a premium.
+(In contrast to an institution that is running Cumulus ETL in the cloud where GPU-hours cost a premium.
 If that that describes you, there are further instructions below.)
 
 Cumulus ETL is deployed with Docker images.
@@ -97,7 +97,7 @@ Normally, you specify profile & image names in a couple places:
 `docker compose run cumulus-etl`
 
 To work with the GPU version of Cumulus ETL, just add `-gpu` to each of those names
-wherever they appear in [instructions](sample-runs.md):
+wherever they appear in instructions:
 1. <code>docker compose --profile covid-symptom<b>-gpu</b> up</code>
 1. <code>docker compose run cumulus-etl<b>-gpu</b></code>
 

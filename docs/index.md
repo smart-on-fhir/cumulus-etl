@@ -11,7 +11,7 @@ has_children: true
 
 ETL stands for "extract, transform, load."
 
-1. Cumulus ETL first **extracts** data from the hospital servers
+1. Cumulus ETL first **extracts** data from the EHR servers
    (usually in the form of a [bulk FHIR export](bulk-exports.md)).
 1. Then it **transforms** that data by [de-identifying](deid.md) it and converting clinical notes
    into lists of symptoms.
@@ -20,8 +20,11 @@ ETL stands for "extract, transform, load."
 
 ## Installing
 
-Read the [First Time Setup](setup) documentation to learn how to install & prepare Cumulus ETL
-at your institution.
+Read the [Local Test Setup](local-setup.md) documentation to learn how to install & run
+Cumulus ETL on your machine with sample data, as an introduction to the flow.
+
+Then you can move on to the [Production Setup](setup) instructions to set up the AWS infrastructure
+that the full Cumulus pipeline will require.
 
 ## Source Code
 Cumulus ETL is open source.
