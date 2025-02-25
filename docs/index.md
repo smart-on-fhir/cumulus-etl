@@ -11,7 +11,7 @@ has_children: true
 
 ETL stands for "extract, transform, load."
 
-1. Cumulus ETL first **extracts** data from the EHR servers
+1. Cumulus ETL first **extracts** data from EHR servers
    (usually in the form of a [bulk FHIR export](bulk-exports.md)).
 1. Then it **transforms** that data by [de-identifying](deid.md) it and converting clinical notes
    into lists of symptoms.

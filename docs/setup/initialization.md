@@ -46,11 +46,22 @@ Likewise, when you set this up for production use, you can run it on-premises or
 
 ## Installation
 
-Follow the [instructions for a local ETL setup](../local-setup.md#preparations)
-to install Docker and grab the Cumulus ETL `compose.yaml` file,
-this time on your production machine instead of your personal device.
+Cumulus ETL is shipped as a Docker image driven by a Docker Compose file.
 
-You won't need the sample data this time.
+1. Install Docker
+   - Follow the [official instructions](https://docs.docker.com/engine/install/)
+2. Clone the Cumulus ETL repo, with its Docker Compose file
+   - `git clone https://github.com/smart-on-fhir/cumulus-etl.git`
+   - `cd cumulus-etl`
+
+The `compose.yaml` file in that directory is all you'll need.
+Any further Docker images needed by Cumulus ETL commands will be downloaded on the fly.
+
+Whenever you run Cumulus ETL, this `compose.yaml` file will either need to be in your current
+directory, or you'll have to pass Docker Compose the argument `-f /path/to/compose.yaml`.
+
+To keep current with any updates to the Compose file,
+you may want to run `git pull` before running Cumulus ETL.
 
 ## Initialization
 

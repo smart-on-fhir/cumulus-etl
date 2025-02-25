@@ -26,7 +26,7 @@ Let's open a terminal, navigate to a fresh scratch directory, and begin.
 
 ### Install Cumulus ETL
 
-Cumulus ETL is shipped as a Docker image with a supporting Docker Compose file.
+Cumulus ETL is shipped as a Docker image driven by a Docker Compose file.
 
 1. Install Docker
    - Follow the [official instructions](https://docs.docker.com/engine/install/)
