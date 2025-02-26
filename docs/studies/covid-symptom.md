@@ -23,12 +23,17 @@ Read more below about the main approaches (cTAKES and ChatGPT).
 
 ## cTAKES Preparation
 
-Because cTAKES and cNLP transformers are both services separate from the ETL,
+First, you'll want to [register](https://www.nlm.nih.gov/databases/umls.html)
+for a [UMLS](https://www.nlm.nih.gov/research/umls/index.html) API key.
+
+Then because cTAKES and cNLP transformers are both services separate from the ETL,
 you will want to make sure they are ready.
-From your git clone of the `cumulus-etl` repo, you can run the following to run those services:
+
+From your working directory with the Cumulus ETL's `compose.yaml`,
+you can run the following to start those services:
 ```shell
 export UMLS_API_KEY=your-umls-api-key  # don't forget to set this - cTAKES needs it
-docker compose --profile covid-symptom-gpu up -d
+docker compose --profile covid-symptom-gpu up --wait
 ```
 
 You'll notice the `-gpu` suffix there.
@@ -68,7 +73,7 @@ cumulus-etl … --task=covid_symptom__nlp_results
 ### Clinical Notes
 
 All these tasks will need access to clinical notes,
-which are pulled fresh from your EHR (since the ETL doesn't store clinical notes).
+which are pulled fresh from your EHR (unless you [inlined](../bulk-exports.md) your notes).
 This means you will likely have to provide some other FHIR authentication arguments like
 `--smart-client-id` and `--fhir-url`.
 

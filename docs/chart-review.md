@@ -38,7 +38,7 @@ Launch those before you begin:
 
 ```shell
 export UMLS_API_KEY=your-umls-api-key
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml --profile upload-notes up -d
+docker compose --profile upload-notes up --wait
 ```
 
 Or if you have access to a GPU,
@@ -54,7 +54,7 @@ At its core, upload mode is just another ETL (extract, transform, load) operatio
 ### Minimal Command Line
 
 Upload mode takes three main arguments:
-1. Input path (local dir of ndjson or a FHIR server to perform a bulk export on)
+1. Input path (local dir of NDJSON or a FHIR server to perform a bulk export on)
 2. URL for Label Studio
 3. PHI/build path (the same PHI/build path you normally provide to Cumulus ETL)
 
@@ -64,16 +64,15 @@ Additionally, there are two required Label Studio parameters:
 
 Taken altogether, here is an example minimal `upload-notes` command:
 ```sh
-docker compose -f $CUMULUS_REPO_PATH/compose.yaml \
- run --rm \
- --volume /local/path:/in \
- cumulus-etl \
- upload-notes \
-  --ls-token /in/label-studio-token.txt \
+docker compose run --rm \
+ --volume /local/path:/host \
+ cumulus-etl upload-notes \
+  --ls-token /host/label-studio-token.txt \
   --ls-project 3 \
+  --s3-region=us-east-2 \
   https://my-ehr-server/R4/12345/Group/67890 \
   https://my-label-studio-server/ \
-  s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir1/
+  s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir/
 ```
 
 The above command will take all the DocumentReferences in Group `67890` from the EHR,
@@ -92,13 +91,13 @@ to make it easier to reference back to your EHR or Athena data.
 
 ## Bulk Export Options
 
-You can point upload mode at either a folder with DocumentReference ndjson files
+You can point upload mode at either a folder with DocumentReference NDJSON files
 or your EHR server (in which case it will do a bulk export from the target Group).
 
 Upload mode takes all the same [bulk export options](bulk-exports.md) that the normal
 ETL mode supports.
 
-Note that even if you provide a folder of DocumentReference ndjson resources,
+Note that even if you provide a folder of DocumentReference NDJSON resources,
 you will still likely need to pass `--fhir-url` and FHIR authentication options,
 so that upload mode can download the referenced clinical notes _inside_ the DocumentReference,
 which usually hold an external URL rather than inline note data.
@@ -179,11 +178,11 @@ When it sees a match for one of the anonymous docref IDs you gave in the `docref
 ### Saving the Selected Documents
 
 It might be useful to save the exported documents from the EHR
-(or even the smaller selection from a giant ndjson folder),
+(or even the smaller selection from a giant NDJSON folder),
 for faster iterations of the upload mode or
 just confirming the correct documents were chosen.
 
-Pass in an argument like `--export-to /in/export` to save the ndjson for the selected documents
+Pass in an argument like `--export-to /in/export` to save the NDJSON for the selected documents
 in the given folder. (Note this does not save the clinical note text unless it is already inline
 -- this is just saving the DocumentReference resources).
 

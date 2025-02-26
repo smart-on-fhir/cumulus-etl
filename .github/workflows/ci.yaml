@@ -92,7 +92,7 @@ jobs:
       - name: Download NLP images
         run: |
           # Just start the specific services we need, to conserve CI disk space
-          docker compose up -d --quiet-pull cnlpt-negation ctakes-covid
+          docker compose up --wait --quiet-pull cnlpt-negation ctakes-covid
 
       - name: Run NLP
         run: |

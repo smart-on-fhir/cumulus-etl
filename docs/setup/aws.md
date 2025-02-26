@@ -1,6 +1,6 @@
 ---
 title: AWS
-parent: Setup
+parent: Production Setup
 grand_parent: ETL
 nav_order: 1
 # audience: engineer familiar with the project
@@ -49,7 +49,7 @@ output bucket, creating the tables.
 
 After the first crawler run that creates the tables & schemas,
 you'll only need to run it again if new tables get added or schemas change
-(maybe your hospital started adding new metadata to FHIR resources).
+(maybe your institution started adding new metadata to FHIR resources).
 
 We'll set this crawler to run once a month, to pick up the occasional schema changes.
 But it can also be run manually when you know a change occurred, or a new table was added.
@@ -73,8 +73,9 @@ This is provided merely for convenience, but if you want to use one bucket inste
 or change the name of the database, that's totally fine.
 The important thing is that you end up with a crawler that feeds data to a database for Athena.
 
-Though if you do use this template, it takes four parameters:
+Though if you do use this template, note that it takes five parameters:
 1. Bucket prefix
+1. Database prefix
 1. ETL Subdirectory, matching the subdirectory you pass to Cumulus ETL
 1. KMS key ARN for encryption
 1. Upload Role ARN, matching the user that runs Cumulus ETL
