@@ -162,13 +162,20 @@ def add_highlights(notes: Collection[LabelStudioNote], args: argparse.Namespace)
 
     common.print_header("Highlighting notes...")
 
-    re_terms = [re.compile(rf"\b{term}\b", re.IGNORECASE) for term in highlights]
+    # Make a custom version of \b that allows non-word characters to be on edge of the term too.
+    # For example:
+    #   This misses: re.match(r"\ba\+\b", "a+")
+    #   But this hits: re.match(r"\ba\+", "a+")
+    # So to work around that, we look for the word boundary ourselves.
+    edge = r"(\W|$|^)"
+    escaped_terms = [re.escape(term) for term in highlights]
+    re_terms = [re.compile(f"{edge}({term}){edge}", re.IGNORECASE) for term in escaped_terms]
+
     for note in notes:
-        for index, term in enumerate(re_terms):
+        for term in re_terms:
             for match in term.finditer(note.text):
-                label = highlights[index]
-                spans = note.highlights.setdefault(label, [])
-                spans.append(ctakesclient.typesystem.Span(match.start(), match.end()))
+                # Look at group 2 (the middle term group, ignoring the edge groups)
+                note.highlights.append(ctakesclient.typesystem.Span(match.start(2), match.end(2)))
 
 
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
@@ -201,7 +208,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
     for enc_id, enc_notes in by_encounter_id.items():
         grouped_text = ""
         grouped_ctakes_matches = []
-        grouped_highlights = {}
+        grouped_highlights = []
         grouped_philter_map = {}
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
@@ -240,11 +247,9 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 match.end += offset
                 grouped_ctakes_matches.append(match)
 
-            for label, spans in note.highlights.items():
-                grouped_highlights[label] = []
-                for span in spans:
-                    new_span = ctakesclient.typesystem.Span(span.begin + offset, span.end + offset)
-                    grouped_highlights[label].append(new_span)
+            for span in note.highlights:
+                new_span = ctakesclient.typesystem.Span(span.begin + offset, span.end + offset)
+                grouped_highlights.append(new_span)
 
             for start, stop in note.philter_map.items():
                 grouped_philter_map[start + offset] = stop + offset
