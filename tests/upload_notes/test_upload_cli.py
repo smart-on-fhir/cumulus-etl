@@ -535,14 +535,46 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
     async def test_highlights(self):
         # Test both commas and multiple args. Add some highlights that are internal words which
-        # won't get found.
-        await self.run_upload_notes("--highlight=Notes,For", "--highlight=Fever,Ever,Or")
+        # won't get found. Use two identical texts in same encounter to test grouping too.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+                text = "Report of nightmare on Elm St. But 'Freddy' isn't real. A+ Street."
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text=text))
+                writer.write(TestUploadNotes.make_docref("D2", enc_id="E1", text=text))
+            await self.run_upload_notes(
+                "--highlight=Elm", "--highlight=st,FREDDY,a+", input_path=tmpdir, philter="disable"
+            )
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
-        self.assertEqual(len(tasks), 2)
-        # Spot check the first task
-        self.assertEqual(set(tasks[0].highlights.keys()), {"Notes", "For", "Fever"})
-        self.assertEqual(tasks[0].highlights["Notes"][0].begin, 106)
-        self.assertEqual(tasks[0].highlights["Notes"][0].end, 111)
-        self.assertEqual(tasks[0].highlights["Fever"][0].begin, 116)
-        self.assertEqual(tasks[0].highlights["Fever"][0].end, 121)
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(
+            [tasks[0].text[span.begin : span.end] for span in tasks[0].highlights],
+            ["Elm", "St", "Freddy", "A+", "Elm", "St", "Freddy", "A+"],
+        )
+        self.assertEqual(
+            [span.key() for span in tasks[0].highlights],
+            [
+                (129, 132),
+                (133, 135),
+                (142, 148),
+                (162, 164),
+                (386, 389),
+                (390, 392),
+                (399, 405),
+                (419, 421),
+            ],
+        )
+
+    async def test_highlight_boundaries(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+                text = ".A+/x.A+,.A+x..A+.*.A+"  # 1st, 4th, and 5th ".A+" will match
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text=text))
+            await self.run_upload_notes("--highlight=.a+", input_path=tmpdir, philter="disable")
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(
+            [span.key() for span in tasks[0].highlights],
+            [(106, 109), (120, 123), (125, 128)],
+        )

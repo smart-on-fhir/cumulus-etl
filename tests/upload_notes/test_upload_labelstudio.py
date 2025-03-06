@@ -262,7 +262,7 @@ class TestUploadLabelStudio(AsyncTestCase):
 
     async def test_push_highlights(self):
         note = self.make_note(philter_label=False, ctakes=False)
-        note.highlights["LabelName"] = [
+        note.highlights = [
             ctakesclient.typesystem.Span(7, 11),
             ctakesclient.typesystem.Span(12, 16),
         ]
@@ -286,7 +286,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "type": "labels",
                                 "value": {
                                     "end": 11,
-                                    "labels": ["LabelName"],
+                                    "labels": ["Keyword"],
                                     "score": 1.0,
                                     "start": 7,
                                     "text": "note",
@@ -298,7 +298,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "type": "labels",
                                 "value": {
                                     "end": 16,
-                                    "labels": ["LabelName"],
+                                    "labels": ["Keyword"],
                                     "score": 1.0,
                                     "start": 12,
                                     "text": "text",
