@@ -24,16 +24,11 @@ We have a container, `cumulus-etl-test`, which can be leveraged to run tests. To
 
 ## Release management
 
-Cumulus ETL deployments are currently done directly from source control. Currently the etl container is build on demand, but it will be converted to a Docker image as soon as the project is public. Support infrastructure for the etl container is already managed in this way.
+Every commit will kick off a GitHub workflow that builds a multi-platform Docker image
+with a development tag of `main` (the branch name).
 
-We generate cross platform images using [Docker's buildx](https://docs.docker.com/engine/reference/commandline/buildx/). After authing your local Docker with an account connected to the smartonfhir project on dockerhub, you can run a build and release with the following command:
+But users will usually be pulling from the stable `latest` tag.
+In fact, the `compose.yaml` file is set to auto-pull from that tag every run.
 
-docker buildx build \
-	--platform linux/arm64,linux/arm/v7,linux/arm/v8,linux/amd64 \
-	--tag smartonfhir/[IMAGE_NAME]:latest \
-	--tag smartonfhir/[IMAGE_NAME]:[MAJOR].[MINOR].[PATCH] \
-	--tag smartonfhir/[IMAGE_NAME]:[MAJOR].[MINOR] \
-	--tag smartonfhir/[IMAGE_NAME]:[MAJOR] \
-	. --push
-
-It is currently assumed that cumulus will be spun up on premesis from source control using the project compose.yaml every time the pipeline is run, so release management is just a matter of updating the targeted version in the compose file, if required. Sites electing to use a container management/deploy tool may design other workflows leveraging the available containers.
+To mark a `main` Docker build as stable, run `./tag-release.sh`.
+This will add the tags `latest` and the current major version (e.g. `2`).

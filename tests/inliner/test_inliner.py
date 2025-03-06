@@ -107,7 +107,7 @@ class TestInliner(TestInlinerBase):
 
         await self.run_inline()
 
-        self.assertEqual(["docrefs.jsonl", "reports.jsonl"], os.listdir(self.input_dir))
+        self.assertEqual({"docrefs.jsonl", "reports.jsonl"}, set(os.listdir(self.input_dir)))
 
         docref_rows = list(
             cumulus_fhir_support.read_multiline_json(f"{self.input_dir}/docrefs.jsonl")
