@@ -226,24 +226,19 @@ class LabelStudioClient:
         task["predictions"].append(prediction)
 
     def _update_used_labels(self, task: dict, used_labels: Iterable[str]) -> None:
-        uses_dynamic_labels = False
-        if self._labels_config.get("dynamic_labels"):
-            # Old versions of Label Studio set this nice field for us.
-            uses_dynamic_labels = True
-        elif self._labels_config.get("labels") == []:
-            # Newer versions of Label Studio seem to just pass an empty labels list.
-            # (An empty list would not normally be allowed in a static setup.)
-            uses_dynamic_labels = True
-
-        if uses_dynamic_labels:
-            # This path supports configs like <Labels name="label" toName="text" value="$label"/> where the labels
-            # can be dynamically set by us.
-            #
-            # Unfortunately, the variable name for value= (which is what we need to use for the key in data[]) is not
-            # actually kept in the config, so we have to make some assumptions about how the user set up their project.
-            #
-            # The rule that Cumulus uses is that the value= variable must equal the name= of the <Labels> element.
-            existing_labels = task["data"].get(self._labels_name, [])
-            existing_labels = {d["value"] for d in existing_labels}
-            existing_labels.update(used_labels)
-            task["data"][self._labels_name] = [{"value": x} for x in sorted(existing_labels)]
+        # This path supports configs like <Labels name="label" toName="text" value="$label"/> where
+        # the labels can be dynamically set by us. (This is still safe to do even without dynamic
+        # labels - and since we can't really tell from the label config whether there are dynamic
+        # labels, we just always act like there are. If not, these terms will still come in as
+        # highlighted words, just without an official label attached.)
+        #
+        # Unfortunately, the variable name for value= (which is what we need to use for the key in
+        # data[]) is not actually kept in the config, so we have to make some assumptions about how
+        # the user set up their project.
+        #
+        # The rule that Cumulus uses is that the value= variable must equal the name= of the
+        # <Labels> element.
+        existing_labels = task["data"].get(self._labels_name, [])
+        existing_labels = {d["value"] for d in existing_labels}
+        existing_labels.update(used_labels)
+        task["data"][self._labels_name] = [{"value": x} for x in sorted(existing_labels)]

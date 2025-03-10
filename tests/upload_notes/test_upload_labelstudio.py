@@ -79,6 +79,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
+                    "mylabel": [{"value": "Itch"}, {"value": "Nausea"}],
                 },
                 "predictions": [
                     {
@@ -168,6 +169,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
+                    "mylabel": [],
                 },
                 "predictions": [],
             },
@@ -175,32 +177,10 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     @ddt.data("Choices", "Labels")
-    async def test_dynamic_labels_old(self, label_type):
-        """Verify old-style dynamic labels config"""
+    async def test_dynamic_labels(self, label_type):
+        """Verify we send dynamic labels"""
         self.ls_project.parsed_label_config = {
-            "mylabel": {"type": label_type, "to_name": ["mytext"], "dynamic_labels": True},
-        }
-        await self.push_tasks(self.make_note())
-        self.assertEqual(
-            {
-                "text": "Normal note text",
-                "enc_id": "enc",
-                "anon_id": "enc-anon",
-                "docref_mappings": {"doc": "doc-anon"},
-                "docref_spans": {"doc": [0, 16]},
-                "mylabel": [
-                    {"value": "Itch"},
-                    {"value": "Nausea"},
-                ],
-            },
-            self.get_pushed_task()["data"],
-        )
-
-    @ddt.data("Choices", "Labels")
-    async def test_dynamic_labels_new(self, label_type):
-        """Verify new-style dynamic labels config"""
-        self.ls_project.parsed_label_config = {
-            "mylabel": {"type": label_type, "to_name": ["mytext"], "labels": []},
+            "mylabel": {"type": label_type, "to_name": ["mytext"]},
         }
         await self.push_tasks(self.make_note())
         self.assertEqual(
@@ -219,9 +199,6 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_dynamic_labels_no_predictions(self):
-        self.ls_project.parsed_label_config = {
-            "mylabel": {"type": "Labels", "to_name": ["mytext"], "labels": []},
-        }
         await self.push_tasks(self.make_note(ctakes=False, philter_label=False))
         self.assertEqual(
             {
@@ -276,6 +253,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
+                    "mylabel": [{"value": "Keyword"}],
                 },
                 "predictions": [
                     {
