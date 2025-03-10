@@ -31,6 +31,7 @@ class TestUploadLabelStudio(AsyncTestCase):
     ) -> LabelStudioNote:
         text = "Normal note text"
         note = LabelStudioNote(
+            "patient",
             enc_id,
             "enc-anon",
             doc_mappings={"doc": "doc-anon"},

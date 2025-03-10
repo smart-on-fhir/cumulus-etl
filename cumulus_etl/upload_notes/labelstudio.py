@@ -21,6 +21,7 @@ from cumulus_etl import batching, errors
 class LabelStudioNote:
     """Holds all the data that Label Studio will need for a single note (or a single grouped encounter note)"""
 
+    patient_id: str
     enc_id: str  # real Encounter ID
     anon_id: str  # anonymized Encounter ID
     text: str = ""  # text of the note, sent to Label Studio

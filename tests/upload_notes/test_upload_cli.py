@@ -118,6 +118,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         text: str | None = None,
         content: list[dict] | None = None,
         enc_id: str | None = None,
+        patient_id: str | None = None,
         date: str | None = None,
         period_start: str | None = None,
     ) -> dict:
@@ -140,6 +141,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         enc_id = enc_id or f"enc-{doc_id}"
         docref["context"] = {"encounter": [{"reference": f"Encounter/{enc_id}"}]}
+
+        patient_id = patient_id or "P1"
+        docref["subject"] = {"reference": f"Patient/{patient_id}"}
 
         if date:
             docref["date"] = date
@@ -390,7 +394,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     async def test_philter_redact(self, upload_args, expect_redacted):
         notes = [
             LabelStudioNote(
-                "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
+                "Pat", "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
             )
         ]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
@@ -412,7 +416,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     async def test_philter_label(self):
         notes = [
             LabelStudioNote(
-                "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
+                "Pat", "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
             )
         ]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
@@ -577,4 +581,48 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(
             [span.key() for span in tasks[0].highlights],
             [(106, 109), (120, 123), (125, 128)],
+        )
+
+    async def test_sorting(self):
+        tmpdir = self.make_tempdir()
+
+        with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+            writer.write(
+                TestUploadNotes.make_docref(
+                    "D4",
+                    enc_id="E1",
+                    patient_id="P1",
+                    date="2000-01-04",
+                )
+            )
+            writer.write(
+                TestUploadNotes.make_docref(
+                    "D3",
+                    enc_id="E2",
+                    patient_id="P2",
+                    date="2000-01-03",
+                )
+            )
+            writer.write(
+                TestUploadNotes.make_docref(
+                    "D2",
+                    enc_id="E3",
+                    patient_id="P1",
+                    date="2000-01-02",
+                )
+            )
+            writer.write(
+                TestUploadNotes.make_docref(
+                    "D1",
+                    enc_id="E2",
+                    patient_id="P2",
+                    date="2000-01-01",
+                )
+            )
+        await self.run_upload_notes(input_path=tmpdir, philter="disable")
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(
+            [list(task.doc_mappings.keys()) for task in tasks],
+            # Earliest patient first, then earliest encounters, then earliest docs
+            [["D1", "D3"], ["D2"], ["D4"]],
         )

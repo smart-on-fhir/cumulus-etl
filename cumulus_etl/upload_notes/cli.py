@@ -108,6 +108,7 @@ async def read_notes_from_ndjson(
         codings = docrefs[i].get("type", {}).get("coding", [])
         title = codings[0].get("display", default_title) if codings else default_title
 
+        patient_id = docrefs[i].get("subject", {}).get("reference", "").removeprefix("Patient/")
         enc_id = encounter_ids[i]
         anon_enc_id = codebook.fake_id("Encounter", enc_id)
         doc_id = docrefs[i]["id"]
@@ -116,6 +117,7 @@ async def read_notes_from_ndjson(
 
         notes.append(
             LabelStudioNote(
+                patient_id,
                 enc_id,
                 anon_enc_id,
                 doc_mappings=doc_mappings,
@@ -191,6 +193,34 @@ def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
             note.text = philter.scrub_text(note.text)
 
 
+def sort_notes(notes: Collection[LabelStudioNote]) -> Collection[LabelStudioNote]:
+    """Ensure notes are ordered in a convenient way for chart review"""
+    # Sort notes by date (putting Nones last)
+    notes = sorted(notes, key=lambda x: (x.date or datetime.datetime.max).timestamp())
+
+    # Now gather the first time each patient and encounter appear in the date-sorted list.
+    # This will help us sort the groups and patients by time, so that a chart reviewer will
+    # have a more natural reading of encounters.
+    def gather_firsts(field: str) -> dict[str, int]:
+        firsts = {}
+        for index, note in enumerate(notes):
+            value = getattr(note, field)
+            firsts.setdefault(value, index)
+        return firsts
+
+    encounter_firsts = gather_firsts("enc_id")
+    patient_firsts = gather_firsts("patient_id")
+
+    # Group up by encounter (and order groups among themselves by earliest)
+    # (This only matters in case we ever make the later encounter-bundling step optional.)
+    notes = sorted(notes, key=lambda x: (encounter_firsts[x.enc_id], x.enc_id))
+
+    # Group up by patient (and order patients among themselves by earliest)
+    notes = sorted(notes, key=lambda x: (patient_firsts[x.patient_id], x.patient_id))
+
+    return notes
+
+
 def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelStudioNote]:
     """
     Gather all notes with the same encounter ID together into one note.
@@ -212,9 +242,6 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
         grouped_philter_map = {}
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
-
-        # Sort notes by date (putting Nones last)
-        enc_notes = sorted(enc_notes, key=lambda x: (x.date or datetime.datetime.max).timestamp())
 
         for note in enc_notes:
             grouped_doc_mappings.update(note.doc_mappings)
@@ -256,6 +283,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
 
         grouped_notes.append(
             LabelStudioNote(
+                enc_notes[0].patient_id,
                 enc_id,
                 enc_notes[0].anon_id,
                 text=grouped_text,
@@ -392,6 +420,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     add_highlights(notes, args)
     # It's safe to philter notes after NLP because philter does not change character counts
     philter_notes(notes, args)
+    notes = sort_notes(notes)
     notes = group_notes_by_encounter(notes)
     await push_to_label_studio(notes, access_token, labels, args)
 
