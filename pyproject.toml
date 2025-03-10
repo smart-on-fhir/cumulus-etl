@@ -19,7 +19,7 @@ dependencies = [
     "label-studio-sdk < 2",
     "nltk >= 3.9, < 4",
     "openai < 2",
-    "oracledb < 3",
+    "oracledb < 4",
     "philter-lite < 1",
     "pyarrow < 20",
     "rich < 14",
