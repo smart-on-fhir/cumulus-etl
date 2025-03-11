@@ -162,12 +162,12 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
     @ddt.unpack
     async def test_docref_note_conversions(self, mimetype, incoming_note, expected_note):
         docref = self.make_docref("1", mimetype, incoming_note)
-        resulting_note = await fhir.get_docref_note(None, docref)
+        resulting_note = await fhir.get_clinical_note(None, docref)
         self.assertEqual(resulting_note, expected_note)
 
     async def test_handles_no_data(self):
         with self.assertRaisesRegex(ValueError, "No data or url field present"):
-            await fhir.get_docref_note(
+            await fhir.get_clinical_note(
                 None,
                 {
                     "id": "no data",
@@ -176,11 +176,11 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
             )
 
     async def test_docref_note_caches_results(self):
-        """Verify that get_docref_note has internal caching"""
+        """Verify that get_clinical_note has internal caching"""
 
         async def assert_note_is(docref_id, text, expected_text):
             docref = self.make_docref(docref_id, "text/plain", text)
-            note = await fhir.get_docref_note(None, docref)
+            note = await fhir.get_clinical_note(None, docref)
             self.assertEqual(expected_text, note)
 
         # Confirm that we cache

@@ -35,7 +35,7 @@ def init_checks(args: argparse.Namespace):
         )
 
 
-async def gather_docrefs(
+async def gather_resources(
     client: fhir.FhirClient,
     root_input: store.Root,
     codebook: deid.Codebook,
@@ -62,21 +62,29 @@ async def gather_docrefs(
             export_to=args.export_to,
         )
     else:
-        return selector.select_docrefs_from_files(
+        return selector.select_resources_from_files(
             root_input,
             codebook,
-            docrefs=args.docrefs,
-            anon_docrefs=args.anon_docrefs,
+            id_file=args.docrefs,
+            anon_id_file=args.anon_docrefs,
             export_to=args.export_to,
         )
 
 
-def datetime_from_docref(docref: dict) -> datetime.datetime | None:
-    """Returns the date of a docref - preferring `context.period.start`, then `date`"""
-    if start := fhir.parse_datetime(docref.get("context", {}).get("period", {}).get("start")):
-        return start
-    if date := fhir.parse_datetime(docref.get("date")):
-        return date
+def datetime_from_resource(resource: dict) -> datetime.datetime | None:
+    """Returns the date of a resource - preferring clinical dates, then administrative ones"""
+    if resource["resourceType"] == "DiagnosticReport":
+        if time := fhir.parse_datetime(resource.get("effectiveDateTime")):
+            return time
+        if time := fhir.parse_datetime(resource.get("effectivePeriod", {}).get("start")):
+            return time
+        if time := fhir.parse_datetime(resource.get("issued", {}).get("issued")):
+            return time
+    elif resource["resourceType"] == "DocumentReference":
+        if time := fhir.parse_datetime(resource.get("context", {}).get("period", {}).get("start")):
+            return time
+        if time := fhir.parse_datetime(resource.get("date")):
+            return time
     return None
 
 
@@ -87,32 +95,45 @@ async def read_notes_from_ndjson(
 
     # Download all the doc notes (and save some metadata about each)
     encounter_ids = []
-    docrefs = []
+    resources = []
     coroutines = []
+
+    # Grab DxReports
+    for resource in common.read_resource_ndjson(store.Root(dirname), "DiagnosticReport"):
+        encounter_ref = resource.get("encounter")
+        if not encounter_ref:
+            # If a note doesn't have an encounter - we can't group it with other docs
+            print(f"Skipping DiagnosticReport {resource['id']} as it lacks a linked encounter.")
+            continue
+        encounter_ids.append(fhir.unref_resource(encounter_ref)[1])
+        resources.append(resource)
+        coroutines.append(fhir.get_clinical_note(client, resource))
+
+    # Grab DocumentReferences
     for docref in common.read_resource_ndjson(store.Root(dirname), "DocumentReference"):
         encounter_refs = docref.get("context", {}).get("encounter", [])
         if not encounter_refs:
             # If a note doesn't have an encounter - we can't group it with other docs
             print(f"Skipping DocumentReference {docref['id']} as it lacks a linked encounter.")
             continue
-
         encounter_ids.append(fhir.unref_resource(encounter_refs[0])[1])  # just use first encounter
-        docrefs.append(docref)
-        coroutines.append(fhir.get_docref_note(client, docref))
+        resources.append(docref)
+        coroutines.append(fhir.get_clinical_note(client, docref))
+
     note_texts = await asyncio.gather(*coroutines)
 
     # Now bundle each note together with some metadata and ID mappings
     notes = []
     for i, text in enumerate(note_texts):
         default_title = "Document"
-        codings = docrefs[i].get("type", {}).get("coding", [])
+        codings = resources[i].get("type", {}).get("coding", [])
         title = codings[0].get("display", default_title) if codings else default_title
 
-        patient_id = docrefs[i].get("subject", {}).get("reference", "").removeprefix("Patient/")
+        patient_id = resources[i].get("subject", {}).get("reference", "").removeprefix("Patient/")
         enc_id = encounter_ids[i]
         anon_enc_id = codebook.fake_id("Encounter", enc_id)
-        doc_id = docrefs[i]["id"]
-        doc_mappings = {doc_id: codebook.fake_id("DocumentReference", doc_id)}
+        doc_id = resources[i]["id"]
+        doc_mappings = {doc_id: codebook.fake_id(resource["resourceType"], doc_id)}
         doc_spans = {doc_id: (0, len(text))}
 
         notes.append(
@@ -124,7 +145,7 @@ async def read_notes_from_ndjson(
                 doc_spans=doc_spans,
                 title=title,
                 text=text,
-                date=datetime_from_docref(docrefs[i]),
+                date=datetime_from_resource(resources[i]),
             )
         )
 
@@ -394,7 +415,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     Prepare for chart review by uploading some documents to Label Studio.
 
     There are three major steps:
-    1. Gather requested DocumentReference resources, reverse-engineering the original docref IDs if necessary
+    1. Gather requested resources, reverse-engineering the original IDs if necessary
     2. Run NLP
     3. Run Philter
     4. Upload to Label Studio
@@ -407,13 +428,15 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     root_input = store.Root(args.dir_input)
 
     # Auth & read files early for quick error feedback
-    client = fhir.create_fhir_client_for_cli(args, root_input, ["DocumentReference"])
+    client = fhir.create_fhir_client_for_cli(
+        args, root_input, {"DiagnosticReport", "DocumentReference"}
+    )
     access_token = common.read_text(args.ls_token).strip()
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 
     async with client:
         with deid.Codebook(args.dir_phi) as codebook:
-            ndjson_folder = await gather_docrefs(client, root_input, codebook, args)
+            ndjson_folder = await gather_resources(client, root_input, codebook, args)
             notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
 
     await run_nlp(notes, args)

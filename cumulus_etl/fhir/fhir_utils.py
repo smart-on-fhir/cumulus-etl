@@ -177,7 +177,7 @@ async def download_reference(client: "FhirClient", reference: str) -> dict | Non
 
 ######################################################################################################################
 #
-# DocumentReference parsing (downloading notes etc)
+# Clinical note parsing (downloading notes etc)
 #
 ######################################################################################################################
 
@@ -219,7 +219,7 @@ async def request_attachment(client: "FhirClient", attachment: dict) -> httpx.Re
     )
 
 
-async def _get_docref_note_from_attachment(client: "FhirClient", attachment: dict) -> str:
+async def _get_note_from_attachment(client: "FhirClient", attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -244,36 +244,46 @@ async def _get_docref_note_from_attachment(client: "FhirClient", attachment: dic
     raise ValueError("No data or url field present")
 
 
-def _get_cached_docref_note_path(docref: dict) -> str:
-    return f"{common.get_temp_dir('notes')}/{docref['id']}.txt"
+def _get_cached_note_path(resource: dict) -> str:
+    return f"{common.get_temp_dir('notes')}/{resource['resourceType']}.{resource['id']}.txt"
 
 
-def _get_cached_docref_note(docref: dict) -> str | None:
-    note_path = _get_cached_docref_note_path(docref)
+def _get_cached_note(resource: dict) -> str | None:
+    note_path = _get_cached_note_path(resource)
     try:
         return common.read_text(note_path)
     except FileNotFoundError:
         return None
 
 
-def _save_cached_docref_note(docref: dict, note: str) -> None:
-    note_path = _get_cached_docref_note_path(docref)
+def _save_cached_note(resource: dict, note: str) -> None:
+    note_path = _get_cached_note_path(resource)
     common.write_text(note_path, note)
 
 
-async def get_docref_note(client: "FhirClient", docref: dict) -> str:
+async def get_clinical_note(client: "FhirClient", resource: dict) -> str:
     """
-    Returns the clinical note contained in or referenced by the given docref.
+    Returns the clinical note contained in or referenced by the given resource.
 
     It will try to find the simplest version (plain text) or convert html to plain text if needed.
 
     This also caches the note for the duration of the ETL, to avoid redundant downloads.
     """
-    note = _get_cached_docref_note(docref)
+    note = _get_cached_note(resource)
     if note is not None:
         return note
 
-    attachments = [content["attachment"] for content in docref["content"]]
+    match resource["resourceType"]:
+        case "DiagnosticReport":
+            attachments = resource.get("presentedForm", [])
+        case "DocumentReference":
+            attachments = [
+                content["attachment"]
+                for content in resource.get("content", [])
+                if "attachment" in content
+            ]
+        case _:
+            raise ValueError(f"{resource['resourceType']} is not a supported clinical note type.")
 
     # Find the best attachment to use, based on mimetype.
     # We prefer basic text documents, to avoid confusing cTAKES with extra formatting (like <body>).
@@ -297,7 +307,7 @@ async def get_docref_note(client: "FhirClient", docref: dict) -> str:
         # But note that if we do, we'll need to handle downloading Binary FHIR objects, in addition to arbitrary URLs.
         raise ValueError("No textual mimetype found")
 
-    note = await _get_docref_note_from_attachment(client, attachments[best_attachment_index])
+    note = await _get_note_from_attachment(client, attachments[best_attachment_index])
 
     if best_attachment_mimetype in ("text/html", "application/xhtml+xml"):
         # An HTML note can confuse/stall cTAKES and also makes philtering difficult.
@@ -312,5 +322,5 @@ async def get_docref_note(client: "FhirClient", docref: dict) -> str:
     # Hopefully not many notes are using actual Spanish.
     note = note.replace("¿", " ")
 
-    _save_cached_docref_note(docref, note)
+    _save_cached_note(resource, note)
     return note
