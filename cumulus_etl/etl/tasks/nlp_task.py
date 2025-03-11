@@ -84,7 +84,7 @@ class BaseNlpTask(EtlTask):
                 continue
 
             try:
-                clinical_note = await fhir.get_docref_note(self.task_config.client, docref)
+                clinical_note = await fhir.get_clinical_note(self.task_config.client, docref)
             except errors.FhirConnectionConfigError as exc:
                 if not warned_connection_error:
                     # Only warn user about a misconfiguration once per task.

@@ -2,9 +2,11 @@
 name = "cumulus-etl"
 requires-python = ">= 3.10"
 dependencies = [
+    "aiobotocore < 2.22.0",  # FIXME: temp hotfix for dependency version madness - remove later
     "ctakesclient >= 5.1",
     "cumulus-fhir-support >= 1.2",
     "delta-spark >= 3.2.1",
+    "fsspec[http,s3]",
     "httpx",
     "inscriptis",
     "jwcrypto",
@@ -15,7 +17,6 @@ dependencies = [
     "philter-lite",
     "pyarrow",
     "rich",
-    "s3fs",
 ]
 authors = [
   { name="Andy McMurry, PhD", email="andrew.mcmurry@childrens.harvard.edu" },

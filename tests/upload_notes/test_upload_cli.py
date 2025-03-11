@@ -154,19 +154,67 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         return docref
 
     @staticmethod
-    def mock_search_url(respx_mock: respx.MockRouter, patient: str, doc_ids: Iterable[str]) -> None:
+    def make_dxreport(
+        doc_id: str,
+        text: str | None = None,
+        content: list[dict] | None = None,
+        enc_id: str | None = None,
+        patient_id: str | None = None,
+        date: str | None = None,
+        period_start: str | None = None,
+    ) -> dict:
+        dxreport = {
+            "resourceType": "DiagnosticReport",
+            "id": doc_id,
+        }
+
+        if content is None:
+            text = text or "What's up doc?"
+            content = [
+                {
+                    "contentType": "text/plain",
+                    "data": base64.standard_b64encode(text.encode("utf8")).decode("ascii"),
+                },
+            ]
+        dxreport["presentedForm"] = content
+
+        enc_id = enc_id or f"enc-{doc_id}"
+        dxreport["encounter"] = {"reference": f"Encounter/{enc_id}"}
+
+        patient_id = patient_id or "P1"
+        dxreport["subject"] = {"reference": f"Patient/{patient_id}"}
+
+        if date:
+            dxreport["issued"] = date
+
+        if period_start:
+            dxreport["effectivePeriod"] = {"start": period_start}
+
+        return dxreport
+
+    @staticmethod
+    def make_resource(*args, resource_type: str = "DocumentReference", **kwargs) -> dict:
+        if resource_type == "DiagnosticReport":
+            return TestUploadNotes.make_dxreport(*args, **kwargs)
+        else:
+            return TestUploadNotes.make_docref(*args, **kwargs)
+
+    @staticmethod
+    def mock_search_url(
+        respx_mock: respx.MockRouter, patient: str, resource_type: str, doc_ids: Iterable[str]
+    ) -> None:
         bundle = {
             "resourceType": "Bundle",
             "entry": [
                 {
-                    "resource": TestUploadNotes.make_docref(doc_id),
+                    "resource": TestUploadNotes.make_resource(doc_id, resource_type=resource_type),
                 }
                 for doc_id in doc_ids
             ],
         }
 
         respx_mock.get(
-            f"https://localhost/DocumentReference?patient={patient}&_elements=content"
+            f"https://localhost/{resource_type}?patient={patient}&_elements=content"
         ).respond(json=bundle)
 
     @staticmethod
@@ -183,26 +231,24 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         )
 
     @staticmethod
-    def write_anon_docrefs(path: str, ids: list[tuple[str, str]]) -> None:
+    def write_id_file(path: str, header: str, ids: list[tuple | str]) -> None:
         """Fills a file with the provided docref ids of (docref_id, patient_id) tuples"""
-        lines = ["docref_id,patient_id"] + [f"{x[0]},{x[1]}" for x in ids]
+        lines = [header] + [x if isinstance(x, str) else ",".join(x) for x in ids]
         with open(path, "w", encoding="utf8") as f:
             f.write("\n".join(lines))
 
-    @staticmethod
-    def write_real_docrefs(path: str, ids: list[str]) -> None:
-        """Fills a file with the provided docref ids"""
-        lines = ["docref_id", *ids]
-        with open(path, "w", encoding="utf8") as f:
-            f.write("\n".join(lines))
-
-    def get_exported_ids(self) -> set[str]:
-        rows = cumulus_fhir_support.read_multiline_json(
+    def get_exported_refs(self) -> set[str]:
+        dxreports = cumulus_fhir_support.read_multiline_json(
+            f"{self.export_path}/DiagnosticReport.ndjson"
+        )
+        docrefs = cumulus_fhir_support.read_multiline_json(
             f"{self.export_path}/DocumentReference.ndjson"
         )
-        return {row["id"] for row in rows}
+        return {f"DiagnosticReport/{row['id']}" for row in dxreports} | {
+            f"DocumentReference/{row['id']}" for row in docrefs
+        }
 
-    def get_pushed_ids(self) -> set[str]:
+    def get_pushed_refs(self) -> set[str]:
         notes = self.ls_client.push_tasks.call_args[0][0]
         return set(itertools.chain.from_iterable(n.doc_mappings.keys() for n in notes))
 
@@ -229,39 +275,48 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
     @respx.mock(assert_all_mocked=False)
     async def test_gather_anon_docrefs_from_server(self, respx_mock):
-        self.mock_search_url(respx_mock, "P1", ["NotMe", "D1", "NotThis", "D3"])
-        self.mock_search_url(respx_mock, "P2", ["D2"])
+        self.mock_search_url(
+            respx_mock, "P1", "DocumentReference", ["NotMe", "D1", "NotThis", "D3"]
+        )
         respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
         with tempfile.NamedTemporaryFile() as file:
-            self.write_anon_docrefs(
+            self.write_id_file(
                 file.name,
+                "anon_document_ref,anon_subject_id,subject_id",
                 [
-                    (ANON_D1, ANON_P1),
-                    (ANON_D2, ANON_P2),
-                    (ANON_D3, ANON_P1),
-                    ("unknown-doc", "unknown-patient"),  # gracefully ignored
+                    (f"DocumentReference/{ANON_D1}", ANON_P1, "P1"),
+                    (f"DocumentReference/{ANON_D3}", ANON_P1, "P1"),
+                    # unknown stuff is gracefully ignored:
+                    ("DocumentReference/unknown-doc", "unknown-patient", "unknown-patient"),
                 ],
             )
             await self.run_upload_notes(input_path="https://localhost", anon_docrefs=file.name)
 
-        self.assertEqual({"D1", "D2", "D3"}, self.get_exported_ids())
-        self.assertEqual({"D1", "D2", "D3"}, self.get_pushed_ids())
+        self.assertEqual(
+            {"DocumentReference/D1", "DocumentReference/D3"},
+            self.get_exported_refs(),
+        )
+        self.assertEqual(
+            {"DocumentReference/D1", "DocumentReference/D3"},
+            self.get_pushed_refs(),
+        )
 
     @respx.mock(assert_all_mocked=False)
     async def test_gather_real_docrefs_from_server(self, respx_mock):
         self.mock_read_url(respx_mock, "D1")
         self.mock_read_url(respx_mock, "D2")
-        self.mock_read_url(respx_mock, "D3")
-        self.mock_read_url(respx_mock, "unknown-doc", code=404)
+        self.mock_read_url(respx_mock, "D3", code=500)  # confirm failure is graceful
         respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
+        self.patch("asyncio.sleep")  # avoid waiting on the above error
+
         with tempfile.NamedTemporaryFile() as file:
-            self.write_real_docrefs(file.name, ["D1", "D2", "D3", "unknown-doc"])
+            self.write_id_file(file.name, "docref_id", ["D1", "D2", "D3"])
             await self.run_upload_notes(input_path="https://localhost", docrefs=file.name)
 
-        self.assertEqual({"D1", "D2", "D3"}, self.get_exported_ids())
-        self.assertEqual({"D1", "D2", "D3"}, self.get_pushed_ids())
+        self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_exported_refs())
+        self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_pushed_refs())
 
     @mock.patch("cumulus_etl.upload_notes.downloader.loaders.FhirNdjsonLoader")
     async def test_gather_all_docrefs_from_server(self, mock_loader):
@@ -280,37 +335,70 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(1, mock_loader.call_count)
         self.assertEqual("https://localhost", mock_loader.call_args[0][0].path)
         self.assertEqual(self.export_path, mock_loader.call_args[1]["export_to"])
-        self.assertEqual([mock.call({"DocumentReference"})], load_resources_mock.call_args_list)
+        self.assertEqual(
+            [mock.call({"DiagnosticReport", "DocumentReference"})],
+            load_resources_mock.call_args_list,
+        )
 
         # Make sure we do read the result and push the docrefs out
-        self.assertEqual({"43", "44"}, self.get_pushed_ids())
+        self.assertEqual(
+            {
+                "DiagnosticReport/f201",
+                "DiagnosticReport/ultrasound",
+                "DocumentReference/43",
+                "DocumentReference/44",
+            },
+            self.get_pushed_refs(),
+        )
 
     async def test_gather_anon_docrefs_from_folder(self):
         with tempfile.NamedTemporaryFile() as file:
-            self.write_anon_docrefs(
+            self.write_id_file(
                 file.name,
+                "docref_id,patient_id",
                 [
                     (ANON_43, "patient"),  # patient doesn't matter
-                    ("unknown-doc", "unknown-patient"),  # gracefully ignored
                 ],
             )
             await self.run_upload_notes(anon_docrefs=file.name)
 
-        self.assertEqual({"43"}, self.get_exported_ids())
-        self.assertEqual({"43"}, self.get_pushed_ids())
+        self.assertEqual({"DocumentReference/43"}, self.get_exported_refs())
+        self.assertEqual({"DocumentReference/43"}, self.get_pushed_refs())
 
-    async def test_gather_real_docrefs_from_folder(self):
+    @ddt.data(
+        ("DiagnosticReport", "f201", True),
+        ("DocumentReference", "44", False),
+    )
+    @ddt.unpack
+    async def test_gather_real_docrefs_from_folder(self, resource_type, ident, add_unknown):
         with tempfile.NamedTemporaryFile() as file:
-            self.write_real_docrefs(file.name, ["44", "unknown-doc"])
+            ids = [ident, "unknown-doc"] if add_unknown else [ident]
+            self.write_id_file(file.name, f"{resource_type.lower()}_id", ids)
             await self.run_upload_notes(docrefs=file.name)
 
-        self.assertEqual({"44"}, self.get_exported_ids())
-        self.assertEqual({"44"}, self.get_pushed_ids())
+        self.assertEqual({f"{resource_type}/{ident}"}, self.get_exported_refs())
+        self.assertEqual({f"{resource_type}/{ident}"}, self.get_pushed_refs())
 
     async def test_gather_all_docrefs_from_folder(self):
         await self.run_upload_notes()
-        self.assertEqual({"43", "44"}, self.get_exported_ids())
-        self.assertEqual({"43", "44"}, self.get_pushed_ids())
+        self.assertEqual(
+            {
+                "DiagnosticReport/f201",
+                "DiagnosticReport/ultrasound",
+                "DocumentReference/43",
+                "DocumentReference/44",
+            },
+            self.get_exported_refs(),
+        )
+        self.assertEqual(
+            {
+                "DiagnosticReport/f201",
+                "DiagnosticReport/ultrasound",
+                "DocumentReference/43",
+                "DocumentReference/44",
+            },
+            self.get_pushed_refs(),
+        )
 
     async def test_skip_no_attachment_docs(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -319,7 +407,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 writer.write(TestUploadNotes.make_docref("D2"))
             await self.run_upload_notes(input_path=tmpdir, philter="disable")
 
-        self.assertEqual({"D2"}, self.get_pushed_ids())
+        self.assertEqual({"DocumentReference/D2"}, self.get_pushed_refs())
 
     async def test_successful_push_to_label_studio(self):
         await self.run_upload_notes()
@@ -342,22 +430,36 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         )
         self.assertEqual(
             [
-                {"43": "ee448bae9c010410080183e7914151097dd6b927dbd8a58efcf0859fc32907a6"},
-                {"44": "7a1f76190039b872a3016843e1712048cef3787931c000f0ea66b15962ccf65d"},
+                {
+                    "DiagnosticReport/ultrasound": "DiagnosticReport/edd7402c6fb62706e9c67b9f801171b3df597391d04b3afad71d827ec88dea45",
+                    "DocumentReference/43": "DocumentReference/ee448bae9c010410080183e7914151097dd6b927dbd8a58efcf0859fc32907a6",
+                },
+                {
+                    "DiagnosticReport/f201": "DiagnosticReport/ea57c2bd658d69775ef8a58a9233104ec340f5440b5453a8bbb3acff7f186afd",
+                    "DocumentReference/44": "DocumentReference/7a1f76190039b872a3016843e1712048cef3787931c000f0ea66b15962ccf65d",
+                },
             ],
             [t.doc_mappings for t in tasks],
         )
         self.assertEqual(
             [
-                self.wrap_note("Admission MD", "Notes for fever", date="06/23/21"),
-                self.wrap_note("Admission MD", "Notes! for fever", date="06/24/21"),
+                self.wrap_note(
+                    "Ultrasonography of abdomen", "Notes for fever", date="12/01/12 12:00:00"
+                )
+                + self.wrap_note("Admission MD", "Notes for fever", date="06/23/21", first=False),
+                self.wrap_note(
+                    "Computed tomography (CT) of head and neck",
+                    "Notes! for fever",
+                    date="12/01/12 12:00:00",
+                )
+                + self.wrap_note("Admission MD", "Notes! for fever", date="06/24/21", first=False),
             ],
             [t.text for t in tasks],
         )
         self.assertEqual(
             {
-                "begin": 112,
-                "end": 115,
+                "begin": 135,
+                "end": 138,
                 "text": "for",
                 "polarity": 0,
                 "conceptAttributes": [
@@ -466,6 +568,17 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                         period_start="2018",
                     )
                 )
+            with common.NdjsonWriter(f"{tmpdir}/DiagnosticReport.ndjson") as writer:
+                writer.write(
+                    TestUploadNotes.make_dxreport(
+                        "R1", enc_id="E1", text="DxRep 1", date="2018-01-03T13:10:50+01:00"
+                    )
+                )
+                writer.write(
+                    TestUploadNotes.make_dxreport(
+                        "R2", enc_id="E1", text="DxRep 2", period_start="2018-01-03T13:10:51+01:00"
+                    )
+                )
             await self.run_upload_notes(input_path=tmpdir, philter="disable")
 
         notes = self.ls_client.push_tasks.call_args[0][0]
@@ -476,6 +589,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(
             self.wrap_note("Document", "DocRef 3", date="01/01/18")
             + self.wrap_note("Document", "DocRef 2", date="01/03/18 13:10:10", first=False)
+            + self.wrap_note("Document", "DxRep 1", date="01/03/18 13:10:50", first=False)
+            + self.wrap_note("Document", "DxRep 2", date="01/03/18 13:10:51", first=False)
             + self.wrap_note("Document", "DocRef 1", first=False),
             note.text,
         )
@@ -492,14 +607,23 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         note = notes[0]
 
         # Did we mark that both IDs occur in one note correctly?
-        self.assertEqual({"D1": ANON_D1, "D2": ANON_D2}, note.doc_mappings)
+        self.assertEqual(
+            {
+                "DocumentReference/D1": f"DocumentReference/{ANON_D1}",
+                "DocumentReference/D2": f"DocumentReference/{ANON_D2}",
+            },
+            note.doc_mappings,
+        )
 
         # Did we mark the internal docref spans correctly?
         first_span = (106, 120)
         second_span = (311, 325)
         self.assertEqual("What's up doc?", note.text[first_span[0] : first_span[1]])
         self.assertEqual("What's up doc?", note.text[second_span[0] : second_span[1]])
-        self.assertEqual({"D1": first_span, "D2": second_span}, note.doc_spans)
+        self.assertEqual(
+            {"DocumentReference/D1": first_span, "DocumentReference/D2": second_span},
+            note.doc_spans,
+        )
 
         # Did we edit cTAKES results correctly?
         match1a = (106, 112)
@@ -530,8 +654,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
             await self.run_upload_notes(input_path=tmpdir)
 
-        self.assertEqual({"D1", "D2"}, self.get_exported_ids())
-        self.assertEqual({"D2"}, self.get_pushed_ids())
+        self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_exported_refs())
+        self.assertEqual({"DocumentReference/D2"}, self.get_pushed_refs())
 
     @mock.patch("cumulus_etl.nlp.restart_ctakes_with_bsv", new=lambda *_: False)
     async def test_nlp_restart_failure_is_noticed(self):
@@ -643,5 +767,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(
             [list(task.doc_mappings.keys()) for task in tasks],
             # Earliest patient first, then earliest encounters, then earliest docs
-            [["D1", "D3"], ["D2"], ["D4"]],
+            [
+                ["DocumentReference/D1", "DocumentReference/D3"],
+                ["DocumentReference/D2"],
+                ["DocumentReference/D4"],
+            ],
         )

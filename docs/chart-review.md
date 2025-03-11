@@ -47,7 +47,7 @@ you can speed up the NLP by launching the GPU profile instead with `--profile up
 ## Basic Operation
 
 At its core, upload mode is just another ETL (extract, transform, load) operation.
-1. It extracts DocumentReference resources from your EHR.
+1. It extracts DiagnosticReport and/or DocumentReference resources from your EHR.
 2. It transforms the contained notes via NLP & `philter`.
 3. It loads the results into Label Studio.
 
@@ -75,7 +75,8 @@ docker compose run --rm \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir/
 ```
 
-The above command will take all the DocumentReferences in Group `67890` from the EHR,
+The above command will take all the DiagnosticReports and DocumentReferences
+in Group `67890` from the EHR,
 mark the notes with the default NLP dictionary,
 anonymize the notes with `philter`,
 and then push the results to your Label Studio project number `3`.
@@ -86,20 +87,20 @@ Upload mode will group all notes by encounter and present them together as a sin
 Label Studio artifact.
 
 Each clinical note will have a little header describing what type of note it is ("Admission MD"),
-as well as its real & anonymized DocumentReference identifiers,
+as well as its real & anonymized resource identifiers,
 to make it easier to reference back to your EHR or Athena data.
 
 ## Bulk Export Options
 
-You can point upload mode at either a folder with DocumentReference NDJSON files
-or your EHR server (in which case it will do a bulk export from the target Group).
+You can point upload mode at either a folder with DiagnosticReport and/or DocumentReference
+NDJSON files or your EHR server (in which case it will do a bulk export from the target Group).
 
 Upload mode takes all the same [bulk export options](bulk-exports.md) that the normal
 ETL mode supports.
 
-Note that even if you provide a folder of DocumentReference NDJSON resources,
+Note that even if you provide a folder of NDJSON resources,
 you will still likely need to pass `--fhir-url` and FHIR authentication options,
-so that upload mode can download the referenced clinical notes _inside_ the DocumentReference,
+so that upload mode can download the referenced clinical notes _inside_ the resources,
 which usually hold an external URL rather than inline note data.
 
 ## Document Selection Options
@@ -150,7 +151,8 @@ limit 10;
 
 (Obviously, modify as needed to select the documents you care about.)
 
-You'll notice we are defining two columns: patient_id and docref_id (those must be the names).
+You'll notice we are defining two columns: patient_id and docref_id (the tool accepts a variety of
+column names that would make sense - like subject_ref, documentreference_id, etc).
 
 Then, pass in an argument like `--anon-docrefs /in/docrefs.csv`.
 Upload mode will reverse-engineer the original document IDs and export them from your EHR.
