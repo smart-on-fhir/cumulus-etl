@@ -64,7 +64,7 @@ class BulkExporter:
             # that we didn't generate.
             self._resume = urllib.parse.unquote(self._resume)
 
-        self._url = self.format_kickoff_url(
+        self._url = self._format_kickoff_url(
             url,
             resources=resources,
             since=since,
@@ -77,7 +77,7 @@ class BulkExporter:
         self.group_name = fhir.FhirUrl(self._url).group
         self.export_url = self._url
 
-    def format_kickoff_url(
+    def _format_kickoff_url(
         self,
         url: str,
         *,
@@ -114,6 +114,11 @@ class BulkExporter:
         parsed = parsed._replace(query=urllib.parse.urlencode(query, doseq=True))
 
         return urllib.parse.urlunsplit(parsed)
+
+    async def cancel(self) -> bool:
+        if not self._resume:
+            return False
+        return await self._delete_export(self._resume)
 
     async def export(self) -> None:
         """
@@ -225,17 +230,21 @@ class BulkExporter:
 
         return poll_location
 
-    async def _delete_export(self, poll_url: str) -> None:
+    async def _delete_export(self, poll_url: str) -> bool:
         """
-        As a kindness, send a DELETE to the polling location.
+        Send a DELETE to the polling location.
 
-        Then the server knows it can delete the files.
+        This could be a mere kindness, so that the server knows it can delete the files.
+        But it can also be necessary, as some servers (Epic at least) only let you do one export
+        per client/group combo.
         """
         try:
             await self._request_with_delay_status(poll_url, method="DELETE", target_status_code=202)
-        except errors.FatalError:
-            # Ignore any fatal issue with this, since we don't actually need this to succeed
-            pass
+            return True
+        except errors.FatalError as err:
+            # Don't bail on ETL as a whole, this isn't a show stopper error.
+            print(f"Failed to clean up export job on the server side: {err}")
+            return False
 
     async def _request_with_delay_status(self, *args, **kwargs) -> httpx.Response:
         """

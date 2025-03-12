@@ -767,6 +767,11 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             [mock.call(x) for x in (60, 120, 60, 60, 20, 240, 480)], self.sleep_mock.call_args_list
         )
 
+    async def test_cancel_without_resume(self):
+        async with self.fhir_client([]) as client:
+            exporter = BulkExporter(client, set(), self.fhir_url, self.tmpdir)
+            self.assertFalse(await exporter.cancel())
+
 
 class TestBulkExportLogWriter(utils.AsyncTestCase):
     async def test_log_writer_multiple_params(self):

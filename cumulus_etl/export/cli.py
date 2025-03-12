@@ -1,9 +1,11 @@
 """Do a standalone bulk export from an EHR"""
 
 import argparse
+import sys
 
-from cumulus_etl import cli_utils, common, fhir, loaders, store
+from cumulus_etl import cli_utils, common, errors, fhir, loaders, store
 from cumulus_etl.etl.tasks import task_factory
+from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 
 
 def define_export_parser(parser: argparse.ArgumentParser) -> None:
@@ -11,7 +13,10 @@ def define_export_parser(parser: argparse.ArgumentParser) -> None:
 
     parser.add_argument("url_input", metavar="https://fhir.example.com/Group/ABC")
     parser.add_argument("export_to", metavar="/path/to/output")
-    cli_utils.add_bulk_export(parser, as_subgroup=False)
+    group = cli_utils.add_bulk_export(parser, as_subgroup=False)
+    group.add_argument(
+        "--cancel", action="store_true", help="cancel an interrupted export, use with --resume"
+    )
 
     cli_utils.add_auth(parser, use_fhir_url=False)
     cli_utils.add_task_selection(parser)
@@ -35,6 +40,18 @@ async def export_main(args: argparse.Namespace) -> None:
     common.print_header()
 
     async with client:
+        if args.cancel:
+            if not args.resume:
+                errors.fatal(
+                    "You provided --cancel without a --resume URL, but you must provide both.",
+                    errors.ARGS_CONFLICT,
+                )
+            exporter = BulkExporter(client, set(), fhir_root.path, None, resume=args.resume)
+            if not await exporter.cancel():
+                sys.exit(1)
+            print("Export cancelled.")
+            return
+
         loader = loaders.FhirNdjsonLoader(
             fhir_root,
             client=client,
