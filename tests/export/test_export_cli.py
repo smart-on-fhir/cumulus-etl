@@ -4,13 +4,13 @@ from unittest import mock
 
 import ddt
 
-from cumulus_etl import cli
+from cumulus_etl import cli, errors
 from cumulus_etl.etl.tasks.task_factory import get_default_tasks
-from tests.utils import AsyncTestCase
+from tests import utils
 
 
 @ddt.ddt
-class TestExportCLI(AsyncTestCase):
+class TestExportCLI(utils.AsyncTestCase):
     """Tests for high-level export support."""
 
     def setUp(self):
@@ -19,7 +19,10 @@ class TestExportCLI(AsyncTestCase):
         self.loader_init_mock = self.patch(
             "cumulus_etl.loaders.FhirNdjsonLoader", return_value=self.loader_mock
         )
-        self.client_mock = self.patch("cumulus_etl.fhir.create_fhir_client_for_cli")
+        self.client = mock.AsyncMock()
+        self.client_mock = self.patch(
+            "cumulus_etl.fhir.create_fhir_client_for_cli", return_value=self.client
+        )
 
     async def run_export(self, *args) -> None:
         await cli.main(["export", "https://example.com", "fake/path", *args])
@@ -78,3 +81,33 @@ class TestExportCLI(AsyncTestCase):
         self.assertEqual("alice", self.client_mock.call_args.args[0].basic_user)
         self.assertEqual("passwd.txt", self.client_mock.call_args.args[0].basic_passwd)
         self.assertEqual("token.txt", self.client_mock.call_args.args[0].bearer_token)
+
+    async def test_cancel_no_resume(self):
+        with self.assert_fatal_exit(errors.ARGS_CONFLICT):
+            await self.run_export("--cancel")
+
+
+class TestExportCLIWithNetwork(utils.AsyncTestCase, utils.FhirClientMixin):
+    """Tests for high-level export support, but with real networking underneath."""
+
+    async def run_export(self, *args):
+        await cli.main(
+            [
+                "export",
+                self.fhir_url,
+                "fake/path",
+                f"--smart-client-id={self.fhir_client_id}",
+                f"--smart-jwks={self.fhir_jwks_path}",
+                *args,
+            ]
+        )
+
+    async def test_cancel_happy_path(self):
+        self.respx_mock.delete(f"{self.fhir_base}/poll").respond(202)
+        await self.run_export("--cancel", f"--resume={self.fhir_base}/poll")
+
+    async def test_cancel_error(self):
+        self.respx_mock.delete(f"{self.fhir_base}/poll").respond(500, headers={"Retry-After": "0"})
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_export("--cancel", f"--resume={self.fhir_base}/poll")
+        self.assertEqual(cm.exception.code, 1)
