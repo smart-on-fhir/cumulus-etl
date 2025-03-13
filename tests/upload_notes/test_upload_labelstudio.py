@@ -253,7 +253,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
-                    "mylabel": [{"value": "Keyword"}],
+                    "mylabel": [{"value": "Tag"}],
                 },
                 "predictions": [
                     {
@@ -265,7 +265,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "type": "labels",
                                 "value": {
                                     "end": 11,
-                                    "labels": ["Keyword"],
+                                    "labels": ["Tag"],
                                     "score": 1.0,
                                     "start": 7,
                                     "text": "note",
@@ -277,7 +277,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "type": "labels",
                                 "value": {
                                     "end": 16,
-                                    "labels": ["Keyword"],
+                                    "labels": ["Tag"],
                                     "score": 1.0,
                                     "start": 12,
                                     "text": "text",
