@@ -191,14 +191,12 @@ class LabelStudioClient:
         results = []
         for span in note.highlights:
             results.append(
-                self._format_match(
-                    span.begin, span.end, note.text[span.begin : span.end], ["Keyword"]
-                )
+                self._format_match(span.begin, span.end, note.text[span.begin : span.end], ["Tag"])
             )
         prediction["result"] = results
         task["predictions"].append(prediction)
 
-        self._update_used_labels(task, ["Keyword"])
+        self._update_used_labels(task, ["Tag"])
 
     def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
         """
