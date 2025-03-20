@@ -119,11 +119,22 @@ AwEHoUQDQgAE4DGrth4me9cwOxxDEYrWgzfQpdQud0twEz6CdIP0v+uSBeg+RhjF
         await use_client(smart_client_id="foo", smart_jwks=self.jwks)
         await use_client(smart_client_id="foo", smart_pem=self.pem)
 
-    async def test_auth_with_jwks(self):
+    @ddt.data(True, False)
+    async def test_auth_with_jwks(self, scopes_v2):
         """Verify that we authorize JWKS correctly upon class initialization"""
         self.respx_mock.get(
             f"{self.server_url}/foo",
             headers={"Authorization": "Bearer 1234"},  # the same access token used in setUp()
+        )
+
+        # Add test capabilities
+        if scopes_v2:
+            self.smart_configuration["capabilities"].append("permission-v2")
+        self.respx_mock.get(
+            f"{self.server_url}/.well-known/smart-configuration",
+            headers={"Accept": "application/json"},
+        ).respond(
+            json=self.smart_configuration,
         )
 
         async with fhir.FhirClient(
@@ -153,12 +164,13 @@ AwEHoUQDQgAE4DGrth4me9cwOxxDEYrWgzfQpdQud0twEz6CdIP0v+uSBeg+RhjF
         expected_jwt = token.serialize()
 
         # Check that we asked for a token & we included all the right params
+        scope = "rs" if scopes_v2 else "read"
         self.assertEqual(1, self.respx_mock["token"].call_count)
         self.assertEqual(
             "&".join(
                 [
                     "grant_type=client_credentials",
-                    "scope=system%2FCondition.read+system%2FPatient.read",
+                    f"scope=system%2FCondition.{scope}+system%2FPatient.{scope}",
                     "client_assertion_type="
                     "urn%3Aietf%3Aparams%3Aoauth%3Aclient-assertion-type%3Ajwt-bearer",
                     f"client_assertion={expected_jwt}",
