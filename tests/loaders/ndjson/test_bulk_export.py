@@ -204,9 +204,25 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             (
                 "status_complete",
                 {
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
+                },
+            ),
+            (
+                "status_page_complete",
+                {
                     "deletedFileCount": 0,
                     "errorFileCount": 0,
                     "outputFileCount": 3,
+                    "transactionTime": "2015-02-07T13:28:17.239+02:00",
+                },
+            ),
+            (
+                "manifest_complete",
+                {
+                    "totalDeletedFileCount": 0,
+                    "totalErrorFileCount": 0,
+                    "totalOutputFileCount": 3,
+                    "totalManifests": 1,
                     "transactionTime": "2015-02-07T13:28:17.239+02:00",
                 },
             ),
@@ -333,9 +349,25 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             (
                 "status_complete",
                 {
+                    "transactionTime": "bogus-time",
+                },
+            ),
+            (
+                "status_page_complete",
+                {
                     "deletedFileCount": 0,
                     "errorFileCount": 2,
                     "outputFileCount": 1,
+                    "transactionTime": "bogus-time",
+                },
+            ),
+            (
+                "manifest_complete",
+                {
+                    "totalDeletedFileCount": 0,
+                    "totalErrorFileCount": 2,
+                    "totalOutputFileCount": 1,
+                    "totalManifests": 1,
                     "transactionTime": "bogus-time",
                 },
             ),
@@ -444,6 +476,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.assert_log_equals(
             ("kickoff", None),
             ("status_complete", None),
+            ("status_page_complete", None),
+            ("manifest_complete", None),
             (
                 "download_request",
                 {
@@ -496,6 +530,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.assert_log_equals(
             ("kickoff", None),
             ("status_complete", None),
+            ("status_page_complete", None),
+            ("manifest_complete", None),
             ("download_request", None),
             ("download_error", None),
             ("download_request", None),
@@ -544,6 +580,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.assert_log_equals(
             ("kickoff", None),
             ("status_complete", None),
+            ("status_page_complete", None),
+            ("manifest_complete", None),
             ("download_request", None),
             (
                 "download_error",
@@ -676,6 +714,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.assert_log_equals(
             ("kickoff", None),
             ("status_complete", None),
+            ("status_page_complete", None),
+            ("manifest_complete", None),
             (
                 "export_complete",
                 {"attachments": None, "bytes": 0, "duration": 192, "files": 0, "resources": 0},
@@ -703,6 +743,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("kickoff", None),
             ("status_error", None),
             ("status_complete", None),
+            ("status_page_complete", None),
+            ("manifest_complete", None),
             ("export_complete", None),
             num_export_ids=2,
         )
@@ -760,6 +802,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("status_error", None),
             ("status_error", None),
             ("status_complete", None),
+            ("status_page_complete", None),
+            ("manifest_complete", None),
             ("export_complete", None),
         )
 
@@ -965,5 +1009,5 @@ class TestBulkExportEndToEnd(utils.AsyncTestCase, utils.FhirClientMixin):
                 common.read_json(f"{tmpdir}/Patient.000.ndjson"),
             )
 
-            # log should have kickoff, progress, download start, download complete, finished
-            self.assertEqual(5, common.read_local_line_count(f"{tmpdir}/log.ndjson"))
+            # log should have kickoff, 3 completes, download start, download complete, finished
+            self.assertEqual(7, common.read_local_line_count(f"{tmpdir}/log.ndjson"))
