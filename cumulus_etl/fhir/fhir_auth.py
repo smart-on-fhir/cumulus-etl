@@ -44,7 +44,7 @@ class JwtAuth(Auth):
     """Authentication with a JWT (typical OAuth2 backend service profile)"""
 
     def __init__(
-        self, server_root: str, client_id: str, jwks: dict, pem: dict, resources: Iterable[str]
+        self, server_root: str, client_id: str, jwks: dict, pem: str, resources: Iterable[str]
     ):
         super().__init__()
         self._server_root = server_root
@@ -52,7 +52,7 @@ class JwtAuth(Auth):
         self._jwks = jwks
         self._pem = pem
         self._resources = list(resources)
-        self._token_endpoint = None
+        self._config = None
         self._access_token = None
 
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
@@ -61,18 +61,23 @@ class JwtAuth(Auth):
 
         See https://hl7.org/fhir/smart-app-launch/backend-services.html for details.
         """
-        if self._token_endpoint is None:  # grab URL if we haven't before
-            self._token_endpoint = await self._get_token_endpoint(session)
+        await self._ensure_config(session)
+
+        # Use v2 scopes if the server supports them, else fall back to v1
+        if "permission-v2" in self._config.get("capabilities", []):
+            scope = "rs"
+        else:
+            scope = "read"
 
         auth_params = {
             "grant_type": "client_credentials",
-            "scope": " ".join([f"system/{resource}.read" for resource in self._resources]),
+            "scope": " ".join([f"system/{resource}.{scope}" for resource in self._resources]),
             "client_assertion_type": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
             "client_assertion": self._make_signed_jwt(),
         }
 
         try:
-            response = await session.post(self._token_endpoint, data=auth_params)
+            response = await session.post(self._config["token_endpoint"], data=auth_params)
             response.raise_for_status()
             self._access_token = response.json().get("access_token")
         except httpx.HTTPStatusError as exc:
@@ -96,39 +101,30 @@ class JwtAuth(Auth):
         headers["Authorization"] = f"Bearer {self._access_token}"
         return headers
 
-    async def _get_token_endpoint(self, session: httpx.AsyncClient) -> str:
-        """
-        Returns the oauth2 token endpoint for a SMART FHIR server.
+    async def _ensure_config(self, session: httpx.AsyncClient) -> None:
+        """Grabs the SMART configuration, with useful bits like the OAuth endpoint"""
+        if self._config is not None:
+            return
 
-        See https://hl7.org/fhir/smart-app-launch/client-confidential-asymmetric.html for details.
-
-        If the server does not support the client-confidential-asymmetric protocol, an exception will be raised.
-
-        :returns: URL for the server's oauth2 token endpoint
-        """
         response = await session.get(
             urljoin(self._server_root, ".well-known/smart-configuration"),
-            headers={
-                "Accept": "application/json",
-            },
-            timeout=300,  # five minutes
+            headers={"Accept": "application/json"},
         )
         response.raise_for_status()
-        config = response.json()
+        self._config = response.json()
 
-        # We used to validate some other pieces of this response (like support for the 'client-confidential-asymmetric'
-        # capability keyword or 'private_key_jwt' in the 'token_endpoint_auth_methods_supported' field).
-        # But servers rarely advertise correctly (No one seems to use the asymmetric capability keyword and Veradigm
-        # doesn't fill out the endpoint auth methods field with all methods it supports).
-        # So :shrug: we'll just assume things are fine and error out later if they aren't fine.
-        # The only thing we _need_ is the token endpoint.
-        if not config.get("token_endpoint"):
+        # We used to validate some other pieces of this response (like support for the
+        # 'client-confidential-asymmetric' capability keyword or 'private_key_jwt' in the
+        # 'token_endpoint_auth_methods_supported' field). But servers rarely advertise correctly
+        # (No one seems to use the asymmetric capability keyword and Veradigm doesn't fill out the
+        # endpoint auth methods field with all methods it supports). So :shrug: we'll just assume
+        # things are fine and error out later if they aren't fine. The only thing we _need_ is the
+        # token endpoint.
+        if not self._config.get("token_endpoint"):
             errors.fatal(
                 f"Server {self._server_root} does not expose an OAuth token endpoint",
                 errors.FHIR_AUTH_FAILED,
             )
-
-        return config["token_endpoint"]
 
     def _make_pem_jwk(self) -> tuple[str, jwk.JWK]:
         try:
@@ -190,7 +186,7 @@ class JwtAuth(Auth):
         claims = {
             "iss": self._client_id,
             "sub": self._client_id,
-            "aud": self._token_endpoint,
+            "aud": self._config["token_endpoint"],
             "exp": int(time.time()) + 299,  # expires inside five minutes
             "jti": str(uuid.uuid4()),
         }
