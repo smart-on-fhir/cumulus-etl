@@ -237,13 +237,37 @@ class BulkExportLogWriter:
 
     def status_complete(self, response: httpx.Response):
         response_json = response.json()
+        transaction_time = response_json.get("transactionTime")
+        num_output = len(response_json.get("output", []))
+        num_deleted = len(response_json.get("deleted", []))
+        num_errors = len(response_json.get("error", []))
+
+        # The log format makes a distinction between complete manifests and the whole process
+        # being complete. But since we as a client don't yet support manifests, we'll just treat
+        # them the same and mark everything complete all at once here.
         self._event(
             "status_complete",
             {
-                "transactionTime": response_json.get("transactionTime"),
-                "outputFileCount": len(response_json.get("output", [])),
-                "deletedFileCount": len(response_json.get("deleted", [])),
-                "errorFileCount": len(response_json.get("error", [])),
+                "transactionTime": transaction_time,
+            },
+        )
+        self._event(
+            "status_page_complete",
+            {
+                "transactionTime": transaction_time,
+                "outputFileCount": num_output,
+                "deletedFileCount": num_deleted,
+                "errorFileCount": num_errors,
+            },
+        )
+        self._event(
+            "manifest_complete",
+            {
+                "transactionTime": transaction_time,
+                "totalOutputFileCount": num_output,
+                "totalDeletedFileCount": num_deleted,
+                "totalErrorFileCount": num_errors,
+                "totalManifests": 1,
             },
         )
 
