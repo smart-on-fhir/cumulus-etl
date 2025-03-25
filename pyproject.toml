@@ -1,28 +1,20 @@
 [project]
 name = "cumulus-etl"
 requires-python = ">= 3.10"
-# These dependencies are mostly pinned to be under the next major version.
-# That makes particular sense as long as we don't have official releases yet and our docker
-# images are built from main directly every commit.
-#
-# We mitigate the risk of missing a new release by having a bot watch for them.
-#
-# But if we ever start releasing on PyPI, we could switch to open-pinned dependencies to be
-# less annoying to pip users.
 dependencies = [
-    "ctakesclient >= 5.1, < 6",
-    "cumulus-fhir-support >= 1.2, < 2",
-    "delta-spark >= 3.2.1, < 4",
-    "httpx < 1",
-    "inscriptis < 3",
-    "jwcrypto < 2",
-    "label-studio-sdk < 2",
-    "nltk >= 3.9, < 4",
-    "openai < 2",
-    "oracledb < 4",
-    "philter-lite < 1",
-    "pyarrow < 20",
-    "rich < 14",
+    "ctakesclient >= 5.1",
+    "cumulus-fhir-support >= 1.2",
+    "delta-spark >= 3.2.1",
+    "httpx",
+    "inscriptis",
+    "jwcrypto",
+    "label-studio-sdk",
+    "nltk >= 3.9",
+    "openai",
+    "oracledb",
+    "philter-lite",
+    "pyarrow",
+    "rich",
     "s3fs",
 ]
 authors = [
