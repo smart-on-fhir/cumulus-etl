@@ -1,12 +1,8 @@
 name: Docker Hub
 
-# Currently, we publish every commit to main into Docker hub.
-# And then manually tag stable releases.
-# In the future, we may want to trigger off of actual release tags.
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [created]
 
 jobs:
   push_to_docker_hub:
@@ -25,10 +21,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          flavor: latest=false
+          flavor: latest=true
           images: smartonfhir/cumulus-etl
           tags: |
-            type=ref,event=branch
+            type=pep440,pattern={{major}},value=${{ env.ETL_VERSION }}
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
