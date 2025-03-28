@@ -102,6 +102,7 @@ services:
   cnlpt-negation-gpu:
     extends: common-base
     image: smartonfhir/cnlp-transformers:negation-0.6.1-gpu
+    platform: linux/amd64
     profiles:
       - covid-symptom-gpu
       - upload-notes-gpu
@@ -116,6 +117,7 @@ services:
   cnlpt-term-exists:
     extends: common-base
     image: smartonfhir/cnlp-transformers:termexists-0.6.1-cpu
+    platform: linux/amd64
     profiles:
       - covid-symptom
     networks:
@@ -124,6 +126,7 @@ services:
   cnlpt-term-exists-gpu:
     extends: common-base
     image: smartonfhir/cnlp-transformers:termexists-0.6.1-gpu
+    platform: linux/amd64
     profiles:
       - covid-symptom-gpu
     networks:
@@ -218,6 +221,7 @@ services:
   cnlp-transformers-test:
     extends: common-base
     image: smartonfhir/cnlp-transformers:negation-latest-cpu
+    platform: linux/amd64
     #build: 
     #  context: ../cnlp_transformers/docker
     #  dockerfile: Dockerfile.cpu
@@ -231,6 +235,7 @@ services:
   cnlp-transformers-test-gpu:
     extends: common-base
     image: smartonfhir/cnlp-transformers:negation-latest-gpu
+    platform: linux/amd64
     #build: 
     #  context: ../cnlp_transformers/docker
     #  dockerfile: Dockerfile.gpu
