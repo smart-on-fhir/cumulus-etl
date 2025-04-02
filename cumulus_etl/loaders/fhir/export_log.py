@@ -321,7 +321,7 @@ class BulkExportLogWriter:
 
     def export_complete(self):
         timestamp = common.datetime_now(local=True)
-        duration = (timestamp - self._start_time) if self._start_time else 0
+        duration = (timestamp - self._start_time) if self._start_time else None
         self._event(
             "export_complete",
             {
@@ -329,7 +329,7 @@ class BulkExportLogWriter:
                 "resources": self._num_resources,
                 "bytes": self._num_bytes,
                 "attachments": None,
-                "duration": duration.microseconds // 1000,
+                "duration": duration // datetime.timedelta(milliseconds=1) if duration else 0,
             },
             timestamp=timestamp,
         )
