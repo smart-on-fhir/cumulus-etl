@@ -63,7 +63,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             complete_timestamp = found_rows[complete_index]["timestamp"]
             kickoff_datetime = datetime.datetime.fromisoformat(kickoff_timestamp)
             complete_datetime = datetime.datetime.fromisoformat(complete_timestamp)
-            expected_duration = (complete_datetime - kickoff_datetime).microseconds // 1000
+            one_ms = datetime.timedelta(milliseconds=1)
+            expected_duration = (complete_datetime - kickoff_datetime) // one_ms
             found_duration = found_rows[complete_index]["eventDetail"]["duration"]
             self.assertEqual(found_duration, expected_duration)
 
@@ -697,7 +698,9 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
 
         def status_check(request):
             del request
-            future = utils.FROZEN_TIME_UTC + datetime.timedelta(milliseconds=192)
+            future = utils.FROZEN_TIME_UTC + datetime.timedelta(
+                hours=3, milliseconds=192, microseconds=252
+            )
             self.time_machine.move_to(future)
             return respx.MockResponse(
                 json={
@@ -718,7 +721,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("manifest_complete", None),
             (
                 "export_complete",
-                {"attachments": None, "bytes": 0, "duration": 192, "files": 0, "resources": 0},
+                {"attachments": None, "bytes": 0, "duration": 10800192, "files": 0, "resources": 0},
             ),
         )
 
