@@ -14,6 +14,10 @@ def define_export_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("url_input", metavar="https://fhir.example.com/Group/ABC")
     parser.add_argument("export_to", metavar="/path/to/output")
     group = cli_utils.add_bulk_export(parser, as_subgroup=False)
+    group.add_argument("--type", action="append", help="resource types to export (_type)")
+    group.add_argument(
+        "--type-filter", action="append", help="search filters to apply to the export (_typeFilter)"
+    )
     group.add_argument(
         "--cancel", action="store_true", help="cancel an interrupted export, use with --resume"
     )
@@ -30,6 +34,16 @@ async def export_main(args: argparse.Namespace) -> None:
     selected_tasks = task_factory.get_selected_tasks(args.task, args.task_filter)
     required_resources = {t.resource for t in selected_tasks}
     using_default_tasks = not args.task and not args.task_filter
+
+    # Fold in manually specified --type args (very similar to --task, but more familiar to folks
+    # used to the bulk export spec)
+    if args.type:
+        types = set(cli_utils.expand_comma_list_arg(args.type))
+        if using_default_tasks:
+            required_resources = types
+            using_default_tasks = False
+        else:
+            required_resources |= types
 
     inline_resources = cli_utils.expand_inline_resources(args.inline_resource)
     inline_mimetypes = cli_utils.expand_inline_mimetypes(args.inline_mimetype)
@@ -58,6 +72,7 @@ async def export_main(args: argparse.Namespace) -> None:
             export_to=args.export_to,
             since=args.since,
             until=args.until,
+            type_filter=list(cli_utils.expand_comma_list_arg(args.type_filter)),
             resume=args.resume,
             inline=args.inline,
             inline_resources=inline_resources,
