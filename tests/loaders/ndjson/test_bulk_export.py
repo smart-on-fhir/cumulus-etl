@@ -799,7 +799,6 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("kickoff", None),
             ("status_error", None),
             ("status_error", None),
-            ("status_progress", None),
             ("status_error", None),
             ("status_error", None),
             ("status_error", None),
@@ -837,6 +836,20 @@ class TestBulkExportLogWriter(utils.AsyncTestCase):
         self.assertEqual(
             written["eventDetail"]["requestParameters"], {"_type": "Patient,Condition"}
         )
+
+    async def test_log_non_dict_response(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            log = BulkExportLogWriter(store.Root(tmpdir))
+            log.kickoff(
+                "https://localhost/",
+                {},
+                errors.NetworkError(
+                    "whoops",
+                    utils.make_response(status_code=500, json_payload={"msg": "internal error"}),
+                ),
+            )
+            written = common.read_json(f"{tmpdir}/log.ndjson")
+        self.assertEqual(written["eventDetail"]["errorBody"], {"msg": "internal error"})
 
 
 @ddt.ddt
