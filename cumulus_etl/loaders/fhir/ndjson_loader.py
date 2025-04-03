@@ -22,6 +22,7 @@ class FhirNdjsonLoader(base.Loader):
         export_to: str | None = None,
         since: str | None = None,
         until: str | None = None,
+        type_filter: list[str] | None = None,
         resume: str | None = None,
         inline: bool = False,
         inline_resources: set[str] | None = None,
@@ -40,6 +41,7 @@ class FhirNdjsonLoader(base.Loader):
         self.export_to = export_to
         self.since = since
         self.until = until
+        self.type_filter = type_filter
         self.resume = resume
         self.inline = inline
         self.inline_resources = inline_resources
@@ -114,6 +116,7 @@ class FhirNdjsonLoader(base.Loader):
                 target_dir.name,
                 since=self.since,
                 until=self.until,
+                type_filter=self.type_filter,
                 resume=self.resume,
                 prefer_url_resources=prefer_url_resources,
             )

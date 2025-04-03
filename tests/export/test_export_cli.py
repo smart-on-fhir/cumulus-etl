@@ -45,6 +45,8 @@ class TestExportCLI(utils.AsyncTestCase):
         ([], ["*default*"]),  # special value that the test will expand
         (["--task=patient,condition"], ["Condition", "Patient"]),
         (["--task-filter=covid_symptom"], ["DocumentReference"]),
+        (["--type=Patient,Condition"], ["Condition", "Patient"]),
+        (["--type=Patient", "--task=condition"], ["Condition", "Patient"]),
     )
     @ddt.unpack
     async def test_task_selection(self, args, expected_resources):
@@ -62,6 +64,8 @@ class TestExportCLI(utils.AsyncTestCase):
         await self.run_export(
             "--since=1920",
             "--until=1923",
+            "--type-filter=Patient?active=false,Condition?subject=abc",
+            "--type-filter=Patient?active=true",
             "--smart-client-id=ID",
             "--smart-key=jwks.json",
             "--basic-user=alice",
@@ -75,6 +79,10 @@ class TestExportCLI(utils.AsyncTestCase):
         # custom args from above
         self.assertEqual("1920", self.loader_init_mock.call_args.kwargs["since"])
         self.assertEqual("1923", self.loader_init_mock.call_args.kwargs["until"])
+        self.assertEqual(
+            ["Patient?active=false", "Condition?subject=abc", "Patient?active=true"],
+            self.loader_init_mock.call_args.kwargs["type_filter"],
+        )
         self.assertEqual("my-url", self.loader_init_mock.call_args.kwargs["resume"])
         self.assertEqual("ID", self.client_mock.call_args.args[0].smart_client_id)
         self.assertEqual("jwks.json", self.client_mock.call_args.args[0].smart_key)
