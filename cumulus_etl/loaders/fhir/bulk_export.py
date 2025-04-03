@@ -36,6 +36,7 @@ class BulkExporter:
         *,
         since: str | None = None,
         until: str | None = None,
+        type_filter: list[str] | None = None,
         resume: str | None = None,
         prefer_url_resources: bool = False,
     ):
@@ -48,6 +49,7 @@ class BulkExporter:
         :param destination: a local folder to store all the files
         :param since: start date for export
         :param until: end date for export
+        :param type_filter: search filter for export (_typeFilter)
         :param resume: a polling status URL from a previous expor
         :param prefer_url_resources: if the URL includes _type, ignore the provided resources
         """
@@ -69,6 +71,7 @@ class BulkExporter:
             resources=resources,
             since=since,
             until=until,
+            type_filter=type_filter,
             prefer_url_resources=prefer_url_resources,
         )
 
@@ -84,6 +87,7 @@ class BulkExporter:
         resources: set[str],
         since: str | None,
         until: str | None,
+        type_filter: list[str] | None,
         prefer_url_resources: bool,
     ) -> str:
         parsed = urllib.parse.urlsplit(url)
@@ -97,6 +101,8 @@ class BulkExporter:
         ignore_provided_resources = prefer_url_resources and "_type" in query
         if not ignore_provided_resources:
             query.setdefault("_type", []).extend(resources)
+        if type_filter:
+            query.setdefault("_typeFilter", []).extend(type_filter)
         if since:
             query["_since"] = since
         if until:

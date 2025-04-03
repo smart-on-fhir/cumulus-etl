@@ -285,6 +285,16 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         with self.assertRaises(errors.FatalError):
             await self.export(since="2000-01-01T00:00:00+00.00", until="2010")
 
+    async def test_type_filter(self):
+        self.mock_kickoff(
+            params="?_type=Condition%2CPatient&"
+            "_typeFilter=Patient%3Factive%3Dfalse%2CPatient%3Factive%3Dtrue",
+            status_code=500,  # early exit
+        )
+
+        with self.assertRaises(errors.FatalError):
+            await self.export(type_filter=["Patient?active=false", "Patient?active=true"])
+
     async def test_export_error(self):
         """Verify that we download and present any server-reported errors during the bulk export"""
         self.mock_kickoff()
