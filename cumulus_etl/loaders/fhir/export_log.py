@@ -226,14 +226,9 @@ class BulkExportLogWriter:
         )
 
     def status_progress(self, response: httpx.Response):
-        self._event(
-            "status_progress",
-            {
-                "body": self._body(response),
-                "xProgress": response.headers.get("X-Progress"),
-                "retryAfter": response.headers.get("Retry-After"),
-            },
-        )
+        # We no longer log this event because it just clogs up the log file
+        # with thousands of lines that aren't interesting and bloat the size of the logs.
+        pass
 
     def status_complete(self, response: httpx.Response):
         response_json = response.json()
