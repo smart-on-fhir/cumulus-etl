@@ -24,9 +24,10 @@ with the `--export-group` and `--export-timestamp` options. See `--help` for mor
 
 2. Cumulus ETL has an `export` command to perform just a bulk export without an ETL step.
    Run it like so: `cumulus-etl export FHIR_URL ./output` (see `--help` for more options).
-   - You can use all sorts of
-   [interesting FHIR options](https://hl7.org/fhir/uv/bulkdata/export.html#query-parameters)
-   like `_typeFilter` or `_since` in the URL.
+   - You can provide standard
+   [bulk FHIR options](https://hl7.org/fhir/uv/bulkdata/export.html#query-parameters)
+   like `_type` and `_typeFilter` in the URL or via CLI arguments like
+   `--type` and `--type-filter`.
    - This workflow will generate an export log file, from which Cumulus ETL can pull
    some export metadata like the Group name and export timestamp.
 
