@@ -63,8 +63,9 @@ class JwtAuth(Auth):
         """
         await self._ensure_config(session)
 
-        # Use v2 scopes if the server supports them, else fall back to v1
-        if "permission-v2" in self._config.get("capabilities", []):
+        # Use v1 scopes unless the server says is only uses v2
+        capabilities = self._config.get("capabilities", [])
+        if "permission-v2" in capabilities and "permission-v1" not in capabilities:
             scope = "rs"
         else:
             scope = "read"
