@@ -22,8 +22,9 @@ class LabelStudioNote:
     """Holds all the data that Label Studio will need for a single note (or a single grouped encounter note)"""
 
     patient_id: str
-    enc_id: str  # real Encounter ID
-    anon_id: str  # anonymized Encounter ID
+    anon_patient_id: str
+    encounter_id: str  # real Encounter ID
+    anon_encounter_id: str  # anonymized Encounter ID
     text: str = ""  # text of the note, sent to Label Studio
     date: datetime.datetime | None = None  # date of the note
 
@@ -63,7 +64,7 @@ class LabelStudioClient:
         self, notes: Collection[LabelStudioNote], *, overwrite: bool = False
     ) -> None:
         # Get any existing tasks that we might be updating
-        enc_ids = [note.enc_id for note in notes]
+        enc_ids = [note.encounter_id for note in notes]
         enc_id_filter = lsdm.Filters.create(
             lsdm.Filters.AND,
             [
@@ -83,7 +84,7 @@ class LabelStudioClient:
             else:
                 print(f"  Skipping {len(existing_tasks)} existing tasks")
                 existing_enc_ids = {t["data"]["enc_id"] for t in existing_tasks}
-                notes = [note for note in notes if note.enc_id not in existing_enc_ids]
+                notes = [note for note in notes if note.encounter_id not in existing_enc_ids]
 
         # OK, import away!
         if notes:
@@ -121,8 +122,12 @@ class LabelStudioClient:
         task = {
             "data": {
                 "text": note.text,
-                "enc_id": note.enc_id,
-                "anon_id": note.anon_id,
+                "patient_id": note.patient_id,
+                "anon_patient_id": note.anon_patient_id,
+                # Be careful when changing this name. We use this enc_id field to determine which
+                # notes to override during upload, so it's best if it doesn't change.
+                "enc_id": note.encounter_id,
+                "anon_enc_id": note.anon_encounter_id,
                 "docref_mappings": note.doc_mappings,
                 # json doesn't natively have tuples, so convert spans to lists
                 "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},

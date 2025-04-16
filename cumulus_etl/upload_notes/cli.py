@@ -109,8 +109,9 @@ async def read_notes_from_ndjson(
         title = codings[0].get("display", default_title) if codings else default_title
 
         patient_id = docrefs[i].get("subject", {}).get("reference", "").removeprefix("Patient/")
-        enc_id = encounter_ids[i]
-        anon_enc_id = codebook.fake_id("Encounter", enc_id)
+        anon_patient_id = codebook.fake_id("Patient", patient_id)
+        encounter_id = encounter_ids[i]
+        anon_encounter_id = codebook.fake_id("Encounter", encounter_id)
         doc_id = docrefs[i]["id"]
         doc_mappings = {doc_id: codebook.fake_id("DocumentReference", doc_id)}
         doc_spans = {doc_id: (0, len(text))}
@@ -118,8 +119,9 @@ async def read_notes_from_ndjson(
         notes.append(
             LabelStudioNote(
                 patient_id,
-                enc_id,
-                anon_enc_id,
+                anon_patient_id,
+                encounter_id,
+                anon_encounter_id,
                 doc_mappings=doc_mappings,
                 doc_spans=doc_spans,
                 title=title,
@@ -208,12 +210,12 @@ def sort_notes(notes: Collection[LabelStudioNote]) -> Collection[LabelStudioNote
             firsts.setdefault(value, index)
         return firsts
 
-    encounter_firsts = gather_firsts("enc_id")
+    encounter_firsts = gather_firsts("encounter_id")
     patient_firsts = gather_firsts("patient_id")
 
     # Group up by encounter (and order groups among themselves by earliest)
     # (This only matters in case we ever make the later encounter-bundling step optional.)
-    notes = sorted(notes, key=lambda x: (encounter_firsts[x.enc_id], x.enc_id))
+    notes = sorted(notes, key=lambda x: (encounter_firsts[x.encounter_id], x.encounter_id))
 
     # Group up by patient (and order patients among themselves by earliest)
     notes = sorted(notes, key=lambda x: (patient_firsts[x.patient_id], x.patient_id))
@@ -232,7 +234,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
     # Group up docs & notes by encounter
     by_encounter_id = {}
     for note in notes:
-        by_encounter_id.setdefault(note.enc_id, []).append(note)
+        by_encounter_id.setdefault(note.encounter_id, []).append(note)
 
     # Group up the text into one big note
     for enc_id, enc_notes in by_encounter_id.items():
@@ -284,8 +286,9 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
         grouped_notes.append(
             LabelStudioNote(
                 enc_notes[0].patient_id,
+                enc_notes[0].anon_patient_id,
                 enc_id,
-                enc_notes[0].anon_id,
+                enc_notes[0].anon_encounter_id,
                 text=grouped_text,
                 doc_mappings=grouped_doc_mappings,
                 doc_spans=grouped_doc_spans,
