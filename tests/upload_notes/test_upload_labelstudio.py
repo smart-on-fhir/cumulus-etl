@@ -27,12 +27,13 @@ class TestUploadLabelStudio(AsyncTestCase):
 
     @staticmethod
     def make_note(
-        *, enc_id: str = "enc", ctakes: bool = True, philter_label: bool = True
+        *, encounter_id: str = "enc", ctakes: bool = True, philter_label: bool = True
     ) -> LabelStudioNote:
         text = "Normal note text"
         note = LabelStudioNote(
             "patient",
-            enc_id,
+            "patient-anon",
+            encounter_id,
             "enc-anon",
             doc_mappings={"doc": "doc-anon"},
             doc_spans={"doc": (0, len(text))},
@@ -75,8 +76,10 @@ class TestUploadLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
+                    "patient_id": "patient",
+                    "anon_patient_id": "patient-anon",
                     "enc_id": "enc",
-                    "anon_id": "enc-anon",
+                    "anon_enc_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [{"value": "Itch"}, {"value": "Nausea"}],
@@ -165,8 +168,10 @@ class TestUploadLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
+                    "patient_id": "patient",
+                    "anon_patient_id": "patient-anon",
                     "enc_id": "enc",
-                    "anon_id": "enc-anon",
+                    "anon_enc_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [],
@@ -186,8 +191,10 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.assertEqual(
             {
                 "text": "Normal note text",
+                "patient_id": "patient",
+                "anon_patient_id": "patient-anon",
                 "enc_id": "enc",
-                "anon_id": "enc-anon",
+                "anon_enc_id": "enc-anon",
                 "docref_mappings": {"doc": "doc-anon"},
                 "docref_spans": {"doc": [0, 16]},
                 "mylabel": [
@@ -203,8 +210,10 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.assertEqual(
             {
                 "text": "Normal note text",
+                "patient_id": "patient",
+                "anon_patient_id": "patient-anon",
                 "enc_id": "enc",
-                "anon_id": "enc-anon",
+                "anon_enc_id": "enc-anon",
                 "docref_mappings": {"doc": "doc-anon"},
                 "docref_spans": {"doc": [0, 16]},
                 "mylabel": [],  # this needs to be sent, or the server will complain
@@ -234,7 +243,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         """Verify that we push what we can and ignore any existing tasks by default"""
         self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "enc"}}]
 
-        await self.push_tasks(self.make_note(), self.make_note(enc_id="enc2"))
+        await self.push_tasks(self.make_note(), self.make_note(encounter_id="enc2"))
         self.assertFalse(self.ls_project.delete_tasks.called)
         self.assertEqual("enc2", self.get_pushed_task()["data"]["enc_id"])
 
@@ -249,8 +258,10 @@ class TestUploadLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
+                    "patient_id": "patient",
+                    "anon_patient_id": "patient-anon",
                     "enc_id": "enc",
-                    "anon_id": "enc-anon",
+                    "anon_enc_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [{"value": "Tag"}],

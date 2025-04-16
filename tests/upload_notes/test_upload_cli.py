@@ -323,13 +323,13 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         # Confirm we imported tasks formatted with NLP correctly
         tasks = self.ls_client.push_tasks.call_args[0][0]
-        self.assertEqual(["23", "25"], [t.enc_id for t in tasks])
+        self.assertEqual(["23", "25"], [t.encounter_id for t in tasks])
         self.assertEqual(
             [
                 "71b6e68140b2b8dc76a313be69627739573510954ec677d3d503f549673cce97",
                 "44fd65be3e9fee4557a6c12cb40ee0659137b9445a813f87d9950a97534ad353",
             ],
-            [t.anon_id for t in tasks],
+            [t.anon_encounter_id for t in tasks],
         )
         self.assertEqual(
             [
@@ -394,7 +394,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     async def test_philter_redact(self, upload_args, expect_redacted):
         notes = [
             LabelStudioNote(
-                "Pat", "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
+                "Pat",
+                "PatAnon",
+                "EncID",
+                "EncAnon",
+                title="My Title",
+                text="John Smith called on 10/13/2010",
             )
         ]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
@@ -416,7 +421,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     async def test_philter_label(self):
         notes = [
             LabelStudioNote(
-                "Pat", "EncID", "EncAnon", title="My Title", text="John Smith called on 10/13/2010"
+                "Pat",
+                "PatAnon",
+                "EncID",
+                "EncAnon",
+                title="My Title",
+                text="John Smith called on 10/13/2010",
             )
         ]
         with mock.patch("cumulus_etl.upload_notes.cli.read_notes_from_ndjson", return_value=notes):
