@@ -93,17 +93,21 @@ async def read_notes_from_ndjson(
         encounter_refs = docref.get("context", {}).get("encounter", [])
         if not encounter_refs:
             # If a note doesn't have an encounter - we can't group it with other docs
-            print(f"Skipping DocumentReference {docref['id']} as it lacks a linked encounter.")
+            print(f"Skipping DocumentReference/{docref['id']}: No linked encounter")
             continue
 
         encounter_ids.append(fhir.unref_resource(encounter_refs[0])[1])  # just use first encounter
         docrefs.append(docref)
         coroutines.append(fhir.get_docref_note(client, docref))
-    note_texts = await asyncio.gather(*coroutines)
+    note_texts = await asyncio.gather(*coroutines, return_exceptions=True)
 
     # Now bundle each note together with some metadata and ID mappings
     notes = []
     for i, text in enumerate(note_texts):
+        if isinstance(text, Exception):
+            print(f"Skipping DocumentReference/{docrefs[i]['id']}: {text}")
+            continue
+
         default_title = "Document"
         codings = docrefs[i].get("type", {}).get("coding", [])
         title = codings[0].get("display", default_title) if codings else default_title
@@ -347,7 +351,7 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--highlight",
         action="append",
-        help="Annotate the provided word (can be specified multiple times or comma separated)",
+        help="annotate the provided word (can be specified multiple times or comma separated)",
     )
 
     cli_utils.add_aws(parser)
