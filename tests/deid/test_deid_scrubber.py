@@ -192,6 +192,52 @@ class TestScrubber(utils.AsyncTestCase):
             },
         )
 
+    def test_epic_customer_oid_is_stripped(self):
+        """
+        Verify that urn:oid:1.2.840.1.114350.* is stripped.
+        It's a customer extension point that can (and has in the past) contain PHI.
+        """
+        obs = {
+            "resourceType": "Observation",
+            "code": {
+                "coding": [
+                    {
+                        "system": "urn:oid:1.2.840.114350.1.2.3.4.5",
+                        "code": "PHI-Bearing-Code",
+                        "display": "PHI in display form",
+                        "version": "2.0",
+                        "userSelected": True,
+                    },
+                    {
+                        "system": "urn:oid:1.2.840.9.8.7.6.5",
+                        "code": "Safe-Code",
+                        "display": "Safe display",
+                    },
+                ],
+            },
+        }
+        self.assertTrue(Scrubber().scrub_resource(obs))
+        self.assertEqual(
+            obs,
+            {
+                "resourceType": "Observation",
+                "code": {
+                    "coding": [
+                        {
+                            "system": "urn:oid:1.2.840.114350.1.2.3.4.5",
+                            "version": "2.0",
+                            "userSelected": True,
+                        },
+                        {
+                            "system": "urn:oid:1.2.840.9.8.7.6.5",
+                            "code": "Safe-Code",
+                            "display": "Safe display",
+                        },
+                    ],
+                },
+            },
+        )
+
     def test_contained_reference(self):
         """Verify that we leave contained references contained but scrubbed"""
         scrubber = Scrubber()

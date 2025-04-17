@@ -193,6 +193,7 @@ class Scrubber:
         # For now, just manually run each operation. If this grows further, we can abstract it more.
         value = self._check_ids(resource_type, key, value)
         value = self._check_security(node_path, key, value)
+        value = self._check_system(key, value)
         value = self._check_text(key, value)
         if scrub_attachments:
             value = self._check_attachments(resource_type, node_path, key, value)
@@ -455,5 +456,23 @@ class Scrubber:
         if node_path == "root.meta" and key == "security":
             # maybe too aggressive -- is there data we care about in meta.security?
             raise SkipValue
+
+        return value
+
+    @staticmethod
+    def _check_system(key: str, value: Any) -> Any:
+        """
+        Strips any code/display fields that might be sensitive under some systems
+        """
+        # System is used in Quantity, Coding, ContactPoint, and Identifier.
+        # We strip ContactPoint and Identifiers during the ms-config.json step.
+        # Quantity has a 'code' free text property and Coding has both 'code' and 'display'.
+        if isinstance(value, dict) and "system" in value:
+            system = value["system"]
+            if system.startswith("urn:oid:1.2.840.114350."):
+                # OK, this is an Epic customer extension point - we've seen PHI in here.
+                # So remove the dangerous string fields. Leave "system" in place as a marker.
+                value.pop("code", None)
+                value.pop("display", None)
 
         return value
