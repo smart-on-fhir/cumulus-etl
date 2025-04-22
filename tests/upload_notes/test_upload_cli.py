@@ -312,6 +312,15 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual({"43", "44"}, self.get_exported_ids())
         self.assertEqual({"43", "44"}, self.get_pushed_ids())
 
+    async def test_skip_no_attachment_docs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+                writer.write(TestUploadNotes.make_docref("D1", content=[]))
+                writer.write(TestUploadNotes.make_docref("D2"))
+            await self.run_upload_notes(input_path=tmpdir, philter="disable")
+
+        self.assertEqual({"D2"}, self.get_pushed_ids())
+
     async def test_successful_push_to_label_studio(self):
         await self.run_upload_notes()
 
