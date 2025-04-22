@@ -118,7 +118,10 @@ class BulkExportLogWriter:
 
     def __init__(self, root: store.Root):
         self.root = root
-        self._export_id = str(uuid.uuid4())
+        # Start with a random export ID, which will be used if we fail to even kick off an export.
+        # But this will normally be overridden by the poll location for a consistent exportId
+        # across interrupted exports and their restarts.
+        self.export_id = str(uuid.uuid4())
         self._filename = root.joinpath("log.ndjson")
         self._num_files = 0
         self._num_resources = 0
@@ -137,7 +140,7 @@ class BulkExportLogWriter:
         # b) it makes the API of the class easier by avoiding a context manager
         with self.root.fs.open(self._filename, "a", encoding="utf8") as f:
             row = {
-                "exportId": self._export_id,
+                "exportId": self.export_id,
                 "timestamp": timestamp.isoformat(),
                 "eventId": event_id,
                 "eventDetail": detail,

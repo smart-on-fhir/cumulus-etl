@@ -149,6 +149,7 @@ class BulkExporter:
 
         if self._resume:
             poll_location = self._resume
+            self._log.export_id = poll_location
             print("Resuming bulk FHIR export… (all other export arguments ignored)")
         else:
             poll_location = await self._kick_off()
@@ -215,11 +216,12 @@ class BulkExporter:
         except Exception as exc:
             self._log.kickoff(self._url, self._client.get_capabilities(), exc)
             raise
-        else:
-            self._log.kickoff(self._url, self._client.get_capabilities(), response)
 
         # Grab the poll location URL for status updates
         poll_location = response.headers["Content-Location"]
+        self._log.export_id = poll_location
+
+        self._log.kickoff(self._url, self._client.get_capabilities(), response)
 
         print()
         print("If interrupted, try again but add the following argument to resume the export:")

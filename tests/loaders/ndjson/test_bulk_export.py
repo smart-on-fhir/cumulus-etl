@@ -20,6 +20,7 @@ from tests import utils
 
 
 @ddt.ddt
+@mock.patch("cumulus_etl.loaders.fhir.export_log.uuid.uuid4", new=lambda: "12345678")
 class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
     """
     Test case for bulk export logic.
@@ -39,12 +40,15 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             self.exporter = BulkExporter(client, resources, self.fhir_url, self.tmpdir, **kwargs)
             await self.exporter.export()
 
-    def assert_log_equals(self, *rows, num_export_ids: int = 1) -> None:
+    def assert_log_equals(self, *rows, uuid_export_id: bool = False) -> None:
         found_rows = list(cumulus_fhir_support.read_multiline_json(f"{self.tmpdir}/log.ndjson"))
 
         # Do we use the same export ID throughout?
         all_export_ids = {x["exportId"] for x in found_rows}
-        self.assertEqual(num_export_ids, len(all_export_ids))
+        if uuid_export_id:
+            self.assertEqual(all_export_ids, {"12345678"})  # from our uuid4 patch above
+        else:
+            self.assertEqual(all_export_ids, {"https://example.com/poll"})
 
         # Are timestamps increasing?
         all_timestamps = [x["timestamp"] for x in found_rows]
@@ -631,6 +635,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                     },
                 },
             ),
+            uuid_export_id=True,
         )
 
     async def test_delay(self):
@@ -759,7 +764,6 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             ("status_page_complete", None),
             ("manifest_complete", None),
             ("export_complete", None),
-            num_export_ids=2,
         )
 
     async def test_retry_status_poll_then_failure(self):
