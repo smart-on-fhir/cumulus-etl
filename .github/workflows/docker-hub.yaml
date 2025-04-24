@@ -14,8 +14,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Grab version
-        run: echo "ETL_VERSION=$(grep __version__ cumulus_etl/__init__.py | cut -d'"' -f2)" >> $GITHUB_ENV
+      - name: Set version from tag
+        run: |
+          ETL_VERSION=$(echo $GITHUB_REF_NAME | sed 's/^v//')
+          echo "ETL_VERSION=$ETL_VERSION" >> $GITHUB_ENV
+          sed -i "s/0\.0\.0/$ETL_VERSION/" cumulus_etl/__init__.py
 
       - name: Get Docker metadata
         id: meta
