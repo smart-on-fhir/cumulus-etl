@@ -20,6 +20,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install build
 
+    - name: Set version from tag
+      run: |
+        ETL_VERSION=$(echo $GITHUB_REF_NAME | sed 's/^v//')
+        sed -i "s/0\.0\.0/$ETL_VERSION/" cumulus_etl/__init__.py
+
     - name: Build
       run: python -m build
 
