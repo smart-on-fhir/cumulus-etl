@@ -57,7 +57,7 @@ class BaseNlpTask(EtlTask):
             return
         error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
         error_path = error_root.joinpath("nlp-errors.ndjson")
-        with common.NdjsonWriter(error_path, "a") as writer:
+        with common.NdjsonWriter(error_path, append=True) as writer:
             writer.write(docref)
 
     async def read_notes(

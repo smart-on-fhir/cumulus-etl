@@ -3,12 +3,14 @@
 import contextlib
 import csv
 import datetime
+import gzip
 import itertools
 import json
 import logging
 import os
 from collections import defaultdict
 from collections.abc import Iterator
+from functools import partial
 from typing import Any, Protocol, TextIO
 
 import cumulus_fhir_support
@@ -223,9 +225,12 @@ class NdjsonWriter:
     Note that this is not atomic - partial writes will make it to the target file.
     """
 
-    def __init__(self, path: str, mode: str = "w", allow_empty: bool = False):
+    def __init__(
+        self, path: str, append: bool = False, allow_empty: bool = False, compressed: bool = False
+    ):
         self._root = store.Root(path)
-        self._mode = mode
+        self._append = append
+        self._compressed = compressed
         self._file = None
         if allow_empty:
             self._ensure_file()
@@ -240,7 +245,12 @@ class NdjsonWriter:
 
     def _ensure_file(self):
         if not self._file:
-            self._file = self._root.fs.open(self._root.path, self._mode, encoding="utf8")
+            mode = "a" if self._append else "w"
+            if self._compressed:
+                inner_file = self._root.fs.open(self._root.path, mode + "b")
+                self._file = gzip.open(inner_file, mode + "t", encoding="utf8")
+            else:
+                self._file = self._root.fs.open(self._root.path, mode + "t", encoding="utf8")
 
     def write(self, obj: dict) -> None:
         # lazily create the file, to avoid 0-line ndjson files (unless created in __init__)
@@ -257,9 +267,10 @@ def read_local_line_count(path) -> int:
     # Copyright Michael Bacon, licensed CC-BY-SA 3.0
     count = 0
     buf = None
-    with open(path, "rb") as f:
+    open_func = gzip.open if path.casefold().endswith(".gz") else partial(open, buffering=0)
+    with open_func(path, "rb") as f:
         bufgen = itertools.takewhile(
-            lambda x: x, (f.raw.read(1024 * 1024) for _ in itertools.repeat(None))
+            lambda x: x, (f.read(1024 * 1024) for _ in itertools.repeat(None))
         )
         for buf in bufgen:
             count += buf.count(b"\n")

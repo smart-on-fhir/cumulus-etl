@@ -1,5 +1,8 @@
 """Ndjson FHIR loader"""
 
+import gzip
+import os
+import shutil
 import tempfile
 
 import cumulus_fhir_support
@@ -85,8 +88,20 @@ class FhirNdjsonLoader(base.Loader):
         filenames = common.ls_resources(input_root, resources, warn_if_empty=True)
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
+            # Decompress any *.gz files, because the MS tool can't understand them
+            self._decompress_file(f"{tmpdir.name}/{os.path.basename(filename)}")
 
         return self.read_loader_results(input_root, tmpdir)
+
+    @staticmethod
+    def _decompress_file(path: str):
+        if not path.casefold().endswith(".gz"):
+            return
+        target_path = path[:-3]
+        with gzip.open(path, "rb") as f_in:
+            with open(target_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        os.remove(path)
 
     async def load_from_bulk_export(
         self, resources: set[str], prefer_url_resources: bool = False

@@ -12,8 +12,8 @@ class OrderedNdjsonWriter:
     And queued writes may not make it to the target file at all, if interrupted.
     """
 
-    def __init__(self, path: str):
-        self._writer = common.NdjsonWriter(path)
+    def __init__(self, path: str, **kwargs):
+        self._writer = common.NdjsonWriter(path, **kwargs)
         self._queued_rows: dict[int, dict] = {}
         self._current_num: int = 0
 

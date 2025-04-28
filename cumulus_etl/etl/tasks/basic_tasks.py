@@ -166,7 +166,7 @@ class MedicationRequestTask(tasks.EtlTask):
                     os.path.join(self.task_config.dir_errors, self.name), create=True
                 )
                 error_path = error_root.joinpath("medication-fetch-errors.ndjson")
-                with common.NdjsonWriter(error_path, "a") as writer:
+                with common.NdjsonWriter(error_path, append=True) as writer:
                     writer.write(resource)
 
             return None
