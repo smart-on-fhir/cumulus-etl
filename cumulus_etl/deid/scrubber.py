@@ -164,7 +164,8 @@ class Scrubber:
                     )
                 except MaskValue:
                     # TODO: (not needed yet) support masking values inside array fields
-                    self._add_data_absent_extension(node, f"_{key}")
+                    parent = node.setdefault(f"_{key}", {})
+                    self._add_data_absent_extension(parent)
                 except SkipValue:
                     pass
 
@@ -230,9 +231,8 @@ class Scrubber:
             indented = rich.padding.Padding.indent(tree, 1)
             rich.get_console().print(indented)
 
-    def _add_data_absent_extension(self, node: dict, parent: str) -> None:
-        element = node.setdefault(parent, {})
-        extensions = element.setdefault("extension", [])
+    def _add_data_absent_extension(self, parent: dict) -> None:
+        extensions = parent.setdefault("extension", [])
 
         # Check if the value is already marked as absent for any reason - leave it in place.
         # (though that would be weird, since the field was present or we wouldn't be in this path)
@@ -459,8 +459,7 @@ class Scrubber:
 
         return value
 
-    @staticmethod
-    def _check_system(key: str, value: Any) -> Any:
+    def _check_system(self, key: str, value: Any) -> Any:
         """
         Strips any code/display fields that might be sensitive under some systems
         """
@@ -469,10 +468,13 @@ class Scrubber:
         # Quantity has a 'code' free text property and Coding has both 'code' and 'display'.
         if isinstance(value, dict) and "system" in value:
             system = value["system"]
-            if system.startswith("urn:oid:1.2.840.114350."):
+            if system.startswith("urn:oid:1.2.840.114350.") and (
+                "code" in value or "display" in value
+            ):
                 # OK, this is an Epic customer extension point - we've seen PHI in here.
                 # So remove the dangerous string fields. Leave "system" in place as a marker.
                 value.pop("code", None)
                 value.pop("display", None)
+                self._add_data_absent_extension(value)
 
         return value
