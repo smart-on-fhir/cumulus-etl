@@ -227,6 +227,7 @@ class TestScrubber(utils.AsyncTestCase):
                             "system": "urn:oid:1.2.840.114350.1.2.3.4.5",
                             "version": "2.0",
                             "userSelected": True,
+                            **MASKED_EXTENSION,
                         },
                         {
                             "system": "urn:oid:1.2.840.9.8.7.6.5",
