@@ -2,6 +2,7 @@
 
 import contextlib
 import datetime
+import gzip
 import io
 import itertools
 import json
@@ -349,6 +350,20 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertIn("Unrecognized extensions dropped from resources:", stdout.getvalue())
         self.assertIn(
             "Resources skipped due to unrecognized modifier extensions:", stdout.getvalue()
+        )
+
+    async def test_compressed_input(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with gzip.open(f"{tmpdir}/patients.ndjson.gz", "wt", encoding="utf8") as f:
+                json.dump({"resourceType": "Patient", "id": "pat1"}, f)
+            await self.run_etl(tasks=["patient"], input_path=tmpdir)
+
+        self.assertEqual(
+            common.read_json(f"{self.output_path}/patient/patient.000.ndjson"),
+            {
+                "resourceType": "Patient",
+                "id": "50ffe70a1bdf3b6e73adac15e4ab7f9d7e247466d7a6c395c2ae9098741a62bd",
+            },
         )
 
 

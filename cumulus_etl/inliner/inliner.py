@@ -125,10 +125,11 @@ async def _inline_one_file(
     progress: rich.progress.Progress | None,
     progress_task: rich.progress.TaskID | None,
 ) -> None:
+    compressed = path.casefold().endswith(".gz")
     with tempfile.NamedTemporaryFile() as output_file:
         # Use an ordered NDJSON writer to preserve the order of lines in the input file,
         # which preserves the ability for users to append updated row data to files.
-        with writer.OrderedNdjsonWriter(output_file.name) as output:
+        with writer.OrderedNdjsonWriter(output_file.name, compressed=compressed) as output:
             await reader.peek_ahead_processor(
                 cumulus_fhir_support.read_multiline_json(path, fsspec_fs=fs),
                 partial(

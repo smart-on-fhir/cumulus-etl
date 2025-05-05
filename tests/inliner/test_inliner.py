@@ -1,5 +1,7 @@
 """Tests for inliner/inliner.py"""
 
+import gzip
+import json
 import os
 from unittest import mock
 
@@ -211,6 +213,33 @@ class TestInliner(TestInlinerBase):
                     ),
                 ),
             ],
+        )
+
+    async def test_compressed_file(self):
+        """Verify we persist any gzip compression"""
+
+        with common.NdjsonWriter(f"{self.input_dir}/docs.ndjson.gz", compressed=True) as writer:
+            writer.write(
+                self.make_docref(self.make_attachment(url="Binary/p", content_type="text/html")),
+            )
+
+        await self.run_inline()
+
+        # This will fail to read any lines if we didn't write back a real gzip file.
+        with gzip.open(f"{self.input_dir}/docs.ndjson.gz", "rt", encoding="utf8") as f:
+            inlined = json.load(f)
+
+        self.assertEqual(
+            inlined,
+            self.make_docref(
+                self.make_attachment(
+                    url="Binary/p",
+                    content_type="text/html; charset=utf-8",
+                    data="aGVsbG8=",
+                    size=5,
+                    sha1="qvTGHdzF6KLavt4PO0gs2a6pQ00=",
+                ),
+            ),
         )
 
 
