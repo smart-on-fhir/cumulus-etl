@@ -178,12 +178,14 @@ def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
 
 
 def read_resource_ndjson(
-    root: store.Root, resource: str, warn_if_empty: bool = False
+    root: store.Root, resources: str | set[str], warn_if_empty: bool = False
 ) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
     """
-    for filename in ls_resources(root, {resource}, warn_if_empty=warn_if_empty):
+    if isinstance(resources, str):
+        resources = {resources}
+    for filename in ls_resources(root, resources, warn_if_empty=warn_if_empty):
         for line in cumulus_fhir_support.read_multiline_json(filename, fsspec_fs=root.fs):
             # Sanity check the incoming NDJSON - who knows what could happen and we should surface
             # a nice message about it. This *could* be very noisy on the console if there are a lot
@@ -191,7 +193,8 @@ def read_resource_ndjson(
             # quickly.
             if (
                 not isinstance(line, dict)  # god help us if non-dicts are in the input
-                or line.get("resourceType") != resource  # folks have accidentally combined files
+                # folks have accidentally combined files
+                or line.get("resourceType") not in resources
             ):
                 logging.warning(f"Encountered invalid or unexpected FHIR: `{line}`")
                 continue  # skip it
