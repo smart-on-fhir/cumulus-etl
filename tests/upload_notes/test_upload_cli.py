@@ -102,8 +102,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             args += ["--anon-docrefs", anon_docrefs]
         if docrefs:
             args += ["--docrefs", docrefs]
-        if not nlp:
-            args += ["--no-nlp"]
+        if nlp:
+            args += ["--nlp"]
         if philter:
             args += ["--philter", philter]
         if no_philter:

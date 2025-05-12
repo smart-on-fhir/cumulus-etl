@@ -31,24 +31,11 @@ If you haven't set that up yet, go do that and come back.
 The Cumulus team can help you with setting it up if you come talk to us,
 but the rest of this guide will mostly deal with the `upload-notes` mode itself.
 
-### Dependent Services
-
-Some features of upload mode need external services (like cTAKES to run NLP).
-Launch those before you begin:
-
-```shell
-export UMLS_API_KEY=your-umls-api-key
-docker compose --profile upload-notes up --wait
-```
-
-Or if you have access to a GPU,
-you can speed up the NLP by launching the GPU profile instead with `--profile upload-notes-gpu`.
-
 ## Basic Operation
 
 At its core, upload mode is just another ETL (extract, transform, load) operation.
 1. It extracts DiagnosticReport and/or DocumentReference resources from your EHR.
-2. It transforms the contained notes via NLP & `philter`.
+2. It transforms the contained notes via `philter` (and optionally NLP).
 3. It loads the results into Label Studio.
 
 ### Minimal Command Line
@@ -188,7 +175,24 @@ Pass in an argument like `--export-to /in/export` to save the NDJSON for the sel
 in the given folder. (Note this does not save the clinical note text unless it is already inline
 -- this is just saving the DocumentReference resources).
 
-## Custom NLP Dictionaries
+## NLP
+
+To enable NLP tagging via cTAKES, pass `--nlp`.
+This will tag mentions of symptoms it finds, to make chart review easier.
+
+### Dependent Services
+
+NLP needs cTAKES to be available, so you'll need to launch it before you begin:
+
+```shell
+export UMLS_API_KEY=your-umls-api-key
+docker compose --profile upload-notes up --wait
+```
+
+Or if you have access to a GPU,
+you can speed up the NLP by launching the GPU profile instead with `--profile upload-notes-gpu`.
+
+### Custom Dictionaries
 
 If you would like to customize the dictionary terms that are marked up and sent to Label Studio,
 simply pass in a new dictionary like so: `--symptoms-bsv /in/my-symptoms.bsv`.
@@ -232,10 +236,12 @@ But any phrases that cTAKES tags as CUI `C0011991` will be labelled as `Diarrhea
 cTAKES has an internal dictionary and knows some phrases already.
 But you may get better results by adding extra terms and variations in your symptoms file.
 
-## Disabling Features
+## Philter
 
-You may not need NLP or `philter` processing.
-Simply pass `--no-nlp` or `--philter=disable` and those steps will be skipped.
+You may not need `philter` processing.
+Simply pass `--philter=disable` and it will be skipped.
+
+Or alternatively, pass `--philter=label` to highlight rather than redact detected PHI.
 
 ## Label Studio
 
