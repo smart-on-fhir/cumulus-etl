@@ -102,8 +102,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             args += ["--anon-docrefs", anon_docrefs]
         if docrefs:
             args += ["--docrefs", docrefs]
-        if not nlp:
-            args += ["--no-nlp"]
+        if nlp:
+            args += ["--nlp"]
         if philter:
             args += ["--philter", philter]
         if no_philter:
@@ -496,7 +496,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             self.assertEqual([], task.ctakes_matches)
 
     @ddt.data(
-        ({}, True),  # default args
+        ({}, False),  # default args
         ({"philter": "redact"}, True),
         ({"philter": "disable"}, False),
         ({"no_philter": True}, False),
