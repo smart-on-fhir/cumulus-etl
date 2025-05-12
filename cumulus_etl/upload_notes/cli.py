@@ -368,8 +368,8 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--philter",
         choices=[PHILTER_DISABLE, PHILTER_REDACT, PHILTER_LABEL],
-        default=PHILTER_REDACT,
-        help="Whether to use philter to redact/tag PHI (default is redact)",
+        default=PHILTER_DISABLE,
+        help="Whether to use philter to redact/tag PHI (default is disable)",
     )
     # Old, simpler version of the above (feel free to remove after May 2024)
     parser.add_argument(
@@ -407,12 +407,15 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         default=ctakesclient.filesystem.covid_symptoms_path(),
     )
     group.add_argument(
-        "--no-nlp", action="store_false", dest="nlp", default=True, help="Don’t run NLP on notes"
+        "--nlp",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="whether to run NLP on notes (disabled by default)",
     )
 
     group = parser.add_argument_group("Label Studio")
     group.add_argument(
-        "--ls-token", metavar="PATH", help="Token file for Label Studio access", required=True
+        "--ls-token", metavar="PATH", help="token file for Label Studio access", required=True
     )
     group.add_argument(
         "--ls-project",
@@ -422,7 +425,7 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         required=True,
     )
     group.add_argument(
-        "--overwrite", action="store_true", help="Whether to overwrite an existing task for a note"
+        "--overwrite", action="store_true", help="whether to overwrite an existing task for a note"
     )
 
     cli_utils.add_debugging(parser)
