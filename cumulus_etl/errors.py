@@ -46,9 +46,14 @@ class FatalError(Exception):
 
 
 class NetworkError(FatalError):
-    """A network error"""
+    """
+    A network error
 
-    def __init__(self, msg: str, response: httpx.Response):
+    The response field may be None in cases where we failed before we could get a response.
+    Like DNS errors or other transport errors.
+    """
+
+    def __init__(self, msg: str, response: httpx.Response | None):
         super().__init__(msg)
         self.response = response
 

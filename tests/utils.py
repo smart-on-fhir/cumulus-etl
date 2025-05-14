@@ -53,6 +53,9 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         # Lock our version in place (it's referenced in some static files)
         self.patch("cumulus_etl.__version__", new="1.0.0+test")
 
+        # Avoid long delays when testing networking errors
+        self.sleep_mock = self.patch("asyncio.sleep")
+
         # Several tests involve timestamps in some form, so just pick a standard time for all tests.
         traveller = time_machine.travel(_FROZEN_TIME, tick=False)
         self.addCleanup(traveller.stop)

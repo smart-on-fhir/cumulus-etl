@@ -23,7 +23,8 @@ jobs:
     - name: Set version from tag
       run: |
         ETL_VERSION=$(echo $GITHUB_REF_NAME | sed 's/^v//')
-        sed -i "s/0\.0\.0/$ETL_VERSION/" cumulus_etl/__init__.py
+        sed -i "s/1\!0\.0\.0/$ETL_VERSION/w changes.txt" cumulus_etl/__init__.py
+        [ -s changes.txt ] || exit 1  # validate that we successfully set the version
 
     - name: Build
       run: python -m build

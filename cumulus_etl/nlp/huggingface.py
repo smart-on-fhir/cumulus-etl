@@ -5,6 +5,8 @@ import urllib.parse
 
 import httpx
 
+from cumulus_etl import http
+
 
 def get_hugging_face_url() -> str:
     # 8000 and 8080 are both used as defaults in ctakesclient (cnlp & ctakes respectively). So let's use 86 for H.F.
@@ -58,7 +60,9 @@ async def hf_prompt(prompt: str | dict, *, client: httpx.AsyncClient = None) -> 
 
     # Prompt and answer format will be model-specific - don't assume too much here
     client = client or httpx.AsyncClient()
-    response = await client.post(
+    response = await http.request(
+        client,
+        "POST",
         get_hugging_face_url(),
         headers=headers,
         json={
@@ -73,7 +77,6 @@ async def hf_prompt(prompt: str | dict, *, client: httpx.AsyncClient = None) -> 
             },
         },
     )
-    response.raise_for_status()
     return response.json()
 
 
@@ -85,6 +88,5 @@ async def hf_info(*, client: httpx.AsyncClient = None) -> dict:
     """
     url = urllib.parse.urljoin(get_hugging_face_url(), "info")
     client = client or httpx.AsyncClient()
-    response = await client.get(url)
-    response.raise_for_status()
+    response = await http.request(client, "GET", url)
     return response.json()
