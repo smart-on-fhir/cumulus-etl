@@ -182,7 +182,7 @@ class BulkExportLogWriter:
             "responseHeaders": None,
         }
 
-        if isinstance(exc, errors.NetworkError):
+        if isinstance(exc, errors.NetworkError) and exc.response:
             info.update(BulkExportLogWriter._response_info(exc.response))
 
         return info

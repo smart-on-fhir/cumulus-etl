@@ -11,7 +11,7 @@ import httpx
 import rich.live
 import rich.text
 
-from cumulus_etl import common, errors, fhir, store
+from cumulus_etl import common, errors, fhir, http, store
 from cumulus_etl.loaders.fhir import export_log
 
 
@@ -298,10 +298,11 @@ class BulkExporter:
         :returns: the HTTP response
         """
 
-        def _add_new_delay(response: httpx.Response, delay: int) -> None:
+        def _add_new_delay(response: httpx.Response | None, delay: int) -> None:
             # Print a message to the user, so they don't see us do nothing for a while
             if rich_text is not None:
-                progress_msg = response.headers.get("X-Progress", "waiting…")
+                progress_msg = response and response.headers.get("X-Progress")
+                progress_msg = progress_msg or "waiting…"
                 formatted_total = common.human_time_offset(self._total_wait_time)
                 formatted_delay = common.human_time_offset(delay)
                 rich_text.plain = (
@@ -337,7 +338,7 @@ class BulkExporter:
                 # Some servers can request unreasonably long delays (e.g. I've seen Cerner
                 # ask for five hours), which is... not helpful for our UX and often way
                 # too long for small exports. So limit the delay time to 5 minutes.
-                delay = min(self._client.get_retry_after(response, 60), 300)
+                delay = min(http.get_retry_after(response, 60), 300)
 
                 _add_new_delay(response, delay)
                 await asyncio.sleep(delay)

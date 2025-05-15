@@ -309,8 +309,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.mock_read_url(respx_mock, "D3", code=500)  # confirm failure is graceful
         respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
 
-        self.patch("asyncio.sleep")  # avoid waiting on the above error
-
         with tempfile.NamedTemporaryFile() as file:
             self.write_id_file(file.name, "docref_id", ["D1", "D2", "D3"])
             await self.run_upload_notes(input_path="https://localhost", docrefs=file.name)

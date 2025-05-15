@@ -5,12 +5,11 @@ import time
 import urllib.parse
 import uuid
 from collections.abc import Iterable
-from json import JSONDecodeError
 
 import httpx
 from jwcrypto import jwk, jwt
 
-from cumulus_etl import errors
+from cumulus_etl import errors, http
 
 
 def urljoin(base: str, path: str) -> str:
@@ -35,9 +34,9 @@ class Auth:
             # We clearly need auth tokens, but have not been given any parameters for them.
             raise errors.FhirAuthMissing()
 
-    def sign_headers(self, headers: dict) -> dict:
-        """Add signature token to request headers"""
-        return headers
+    def sign_headers(self) -> dict[str, str]:
+        """New headers to add, with the signature token"""
+        return {}
 
 
 class JwtAuth(Auth):
@@ -78,40 +77,28 @@ class JwtAuth(Auth):
         }
 
         try:
-            response = await session.post(self._config["token_endpoint"], data=auth_params)
-            response.raise_for_status()
-            self._access_token = response.json().get("access_token")
-        except httpx.HTTPStatusError as exc:
-            try:
-                response_json = exc.response.json()
-            except JSONDecodeError:
-                response_json = {}
-            message = response_json.get("error_description")  # standard oauth2 error field
-            if not message and "error_uri" in response_json:
-                # Another standard oauth2 error field, which Cerner usually gives back, and it does have helpful info
-                message = f'visit "{response_json.get("error_uri")}" for more details'
-            if not message:
-                message = str(exc)
-
-            errors.fatal(
-                f"Could not authenticate with the FHIR server: {message}", errors.FHIR_AUTH_FAILED
+            response = await http.request(
+                session, "POST", self._config["token_endpoint"], data=auth_params
             )
+            self._access_token = response.json().get("access_token")
+        except errors.NetworkError as exc:
+            errors.fatal(str(exc), errors.FHIR_AUTH_FAILED)
 
-    def sign_headers(self, headers: dict) -> dict:
+    def sign_headers(self) -> dict[str, str]:
         """Add signature token to request headers"""
-        headers["Authorization"] = f"Bearer {self._access_token}"
-        return headers
+        return {"Authorization": f"Bearer {self._access_token}"}
 
     async def _ensure_config(self, session: httpx.AsyncClient) -> None:
         """Grabs the SMART configuration, with useful bits like the OAuth endpoint"""
         if self._config is not None:
             return
 
-        response = await session.get(
+        response = await http.request(
+            session,
+            "GET",
             urljoin(self._server_root, ".well-known/smart-configuration"),
             headers={"Accept": "application/json"},
         )
-        response.raise_for_status()
         self._config = response.json()
 
         # We used to validate some other pieces of this response (like support for the
@@ -209,9 +196,8 @@ class BasicAuth(Auth):
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         pass
 
-    def sign_headers(self, headers: dict) -> dict:
-        headers["Authorization"] = f"Basic {self._basic_token}"
-        return headers
+    def sign_headers(self) -> dict[str, str]:
+        return {"Authorization": f"Basic {self._basic_token}"}
 
 
 class BearerAuth(Auth):
@@ -224,9 +210,8 @@ class BearerAuth(Auth):
     async def authorize(self, session: httpx.AsyncClient, reauthorize=False) -> None:
         pass
 
-    def sign_headers(self, headers: dict) -> dict:
-        headers["Authorization"] = f"Bearer {self._bearer_token}"
-        return headers
+    def sign_headers(self) -> dict[str, str]:
+        return {"Authorization": f"Bearer {self._bearer_token}"}
 
 
 def create_auth(

@@ -26,8 +26,6 @@ class TestFhirClient(AsyncTestCase):
     def setUp(self):
         super().setUp()
 
-        self.sleep_mock = self.patch("asyncio.sleep")
-
         # By default, set up a working server and auth. Tests can break things as needed.
 
         self.client_id = "my-client-id"
@@ -414,7 +412,7 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
 
         self.assertEqual(
             mock.call(
-                f"Could not authenticate with the FHIR server: {expected_error}",
+                f'An error occurred when connecting to "https://auth.example.com/token": {expected_error}',
                 errors.FHIR_AUTH_FAILED,
             ),
             mock_fatal.call_args,
@@ -475,33 +473,6 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
             self.assertEqual(200, response.status_code)
 
             self.assertEqual(2, self.respx_mock["token"].call_count)
-
-    @ddt.data(
-        # OperationOutcome
-        {
-            "json_payload": {
-                "resourceType": "OperationOutcome",
-                "issue": [{"diagnostics": "testmsg"}],
-            }
-        },
-        # non-OperationOutcome json
-        {"json_payload": {"issue": [{"diagnostics": "msg"}]}, "reason": "testmsg"},
-        {"text": "testmsg"},  # just pure text content
-        {"reason": "testmsg"},
-    )
-    async def test_get_error_other(self, response_args):
-        """Verify that other http errors are FatalErrors."""
-        self.respx_mock.get(
-            f"{self.server_url}/foo",
-        ).mock(
-            return_value=make_response(status_code=500, **response_args),
-        )
-
-        async with fhir.FhirClient(
-            self.server_url, [], smart_client_id=self.client_id, smart_jwks=self.jwks
-        ) as server:
-            with self.assertRaisesRegex(errors.FatalError, "testmsg"):
-                await server.request("GET", "foo")
 
     @ddt.data(
         ({"DocumentReference", "Patient"}, {"Binary", "DocumentReference", "Patient"}),
@@ -602,32 +573,6 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
         self.assertIsInstance(retry_callback.call_args_list[0][0][0], httpx.Response)
         self.assertEqual(retry_callback.call_args_list[0][0][1], 60)
         self.assertEqual(retry_callback.call_args_list[1][0][1], 120)
-
-    @ddt.data(
-        # status, expect_retry
-        (300, False),
-        (400, False),
-        (408, True),
-        (429, True),
-        (500, True),
-        (501, False),
-        (502, True),
-        (503, True),
-        (504, True),
-    )
-    @ddt.unpack
-    async def test_retry_codes(self, status_code, expect_retry):
-        self.respx_mock.get(f"{self.server_url}/file").respond(status_code=status_code)
-
-        async with fhir.FhirClient(self.server_url, [], bearer_token="foo") as server:
-            with self.assertRaises(errors.NetworkError) as cm:
-                await server.request("GET", "file", retry_delays=[1])
-
-        self.assertEqual(self.sleep_mock.call_count, 1 if expect_retry else 0)
-        self.assertIsInstance(
-            cm.exception,
-            errors.TemporaryNetworkError if expect_retry else errors.FatalNetworkError,
-        )
 
 
 @ddt.ddt

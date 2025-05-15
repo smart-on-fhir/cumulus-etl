@@ -31,7 +31,7 @@ class HuggingFaceTestTask(tasks.BaseNlpTask):
     async def init_check(cls) -> None:
         try:
             raw_info = await nlp.hf_info()
-        except httpx.HTTPError:
+        except errors.NetworkError:
             errors.fatal(
                 "Llama2 NLP server is unreachable.\n Try running 'docker compose up llama2 --wait'.",
                 errors.SERVICE_MISSING,

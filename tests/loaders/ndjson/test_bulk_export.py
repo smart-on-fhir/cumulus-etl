@@ -30,7 +30,6 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
 
     def setUp(self):
         super().setUp()
-        self.sleep_mock = self.patch("asyncio.sleep")
         self.tmpdir = self.make_tempdir()
         self.exporter = None
 
