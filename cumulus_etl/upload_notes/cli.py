@@ -368,8 +368,8 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--philter",
         choices=[PHILTER_DISABLE, PHILTER_REDACT, PHILTER_LABEL],
-        default=PHILTER_REDACT,
-        help="Whether to use philter to redact/tag PHI (default is redact)",
+        default=PHILTER_DISABLE,
+        help="Whether to use philter to redact/tag PHI (default is disable)",
     )
     # Old, simpler version of the above (feel free to remove after May 2024)
     parser.add_argument(
