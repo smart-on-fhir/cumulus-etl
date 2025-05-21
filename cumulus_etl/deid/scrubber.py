@@ -468,13 +468,49 @@ class Scrubber:
         # Quantity has a 'code' free text property and Coding has both 'code' and 'display'.
         if isinstance(value, dict) and "system" in value:
             system = value["system"]
-            if system.startswith("urn:oid:1.2.840.114350.") and (
-                "code" in value or "display" in value
-            ):
-                # OK, this is an Epic customer extension point - we've seen PHI in here.
-                # So remove the dangerous string fields. Leave "system" in place as a marker.
-                value.pop("code", None)
-                value.pop("display", None)
+            code = value.get("code")
+            display = value.get("display")
+            code_ok, display_ok = self._is_system_allowed(system, code, display)
+            if not code_ok or not display_ok:
+                if not code_ok:
+                    value.pop("code", None)
+                if not display_ok:
+                    value.pop("display", None)
                 self._add_data_absent_extension(value)
 
         return value
+
+    @staticmethod
+    def _is_system_allowed(system: str, code: str | None, display: str | None) -> tuple[bool, bool]:
+        """
+        Checks whether the code and/or display are permissible for the given system.
+
+        This method is primarily to check on an Epic customer extension point system.
+        We've seen PHI in here, in both the code and display value. This happens because Epic
+        custom systems seem to start with a base valueset and then allows site-customizations on
+        top of that. And those customizations are free-form. So we've seen names and other PHI
+        details in there for one-off free-form entries by data entry folks.
+        However, Epic uses these systems in several important places, with no standard code
+        system alongside - notably Encounter.class. So we try to detect signs of custom code
+        values and mask them.
+        """
+
+        # Allow any system that isn't inside the Epic extension point system
+        if not system.startswith("urn:oid:1.2.840.114350."):
+            return True, True
+
+        if not code:  # strip display if it's defined, but no code is present
+            return True, not display
+
+        # For zero codes ("other"), we've seen custom display values.
+        if code == "0" and display:
+            return True, False
+
+        # Epic uses numeric codes for its internal code systems.
+        # Non-numeric codes are custom.
+        try:
+            int(code)
+        except ValueError:
+            return False, False
+
+        return True, True
