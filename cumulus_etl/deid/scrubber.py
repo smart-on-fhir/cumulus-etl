@@ -269,11 +269,15 @@ class Scrubber:
             allowed_extensions = {
                 ### Base spec extensions
                 ### (See https://www.hl7.org/fhir/R4/extensibility-registry.html)
+                "http://hl7.org/fhir/StructureDefinition/condition-assertedDate",
                 "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
                 "http://hl7.org/fhir/StructureDefinition/derivation-reference",
                 "http://hl7.org/fhir/StructureDefinition/event-performerFunction",
+                "http://hl7.org/fhir/StructureDefinition/individual-pronouns",
                 "http://hl7.org/fhir/StructureDefinition/iso21090-PQ-translation",
                 "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+                "http://hl7.org/fhir/StructureDefinition/workflow-supportingInfo",
+                "http://hl7.org/fhir/5.0/StructureDefinition/extension-DocumentReference.attester",
                 ### US Core extensions
                 ### (See https://hl7.org/fhir/us/core/profiles-and-extensions.html)
                 "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex",
@@ -300,19 +304,32 @@ class Scrubber:
                 "http://electronichealth.se/fhir/StructureDefinition/NLLRegistrationBasis",
                 ### Epic extensions
                 "http://open.epic.com/FHIR/StructureDefinition/extension/accidentrelated",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/calculated-pronouns-to-use-for-text",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-attached-media",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-authentication-instant",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-author-provider-type",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-interval-update",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-interval-update-source",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-post-procedure-diagnosis",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-pre-procedure-diagnosis",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-service",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/ip-admit-datetime",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/log-level-procedure-codes",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/observation-datetime",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/patient-type",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/smartdata",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/specialty",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/surgical-history-laterality",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/surgical-history-source",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/template-id",
+                "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-language",
+                "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-sex",
                 "http://open.epic.com/FHIR/STU3/StructureDefinition/temperature-in-fahrenheit",
                 "http://open.epic.com/FHIR/R4/StructureDefinition/patient-preferred-provider-sex",
+                "https://open.epic.com/FHIR/StructureDefinition/patient-merge-target-reference",
+                "https://open.epic.com/FHIR/StructureDefinition/patient-merge-unmerge-instant",
                 # A Netherlands extension used by Epic
                 "http://nictiz.nl/fhir/StructureDefinition/BodySite-Qualifier",
                 ### Synthea extensions
@@ -323,10 +340,12 @@ class Scrubber:
             # extensions, contain PHI, or are otherwise not relevant). We don't want to warn
             # the user about them as "unrecognized", so we just ignore them entirely.
             ignored_extensions = {
-                # Base spec extensions with PHI
+                # Base spec extensions related to PHI
                 "http://hl7.org/fhir/StructureDefinition/geolocation",
+                "http://hl7.org/fhir/StructureDefinition/iso21090-EN-qualifier",
                 "http://hl7.org/fhir/StructureDefinition/iso21090-TEL-address",
                 "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+                "http://hl7.org/fhir/StructureDefinition/patient-birthTime",
                 "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
                 # Usually harmless, but we ignore it to avoid accidentally leaving in the
                 # rendered value of a PHI element that we removed or didn't allow-list.
@@ -343,6 +362,10 @@ class Scrubber:
                 "http://open.epic.com/FHIR/StructureDefinition/extension/birth-location",
                 # Epic extension that points at an Encounter Identifier, the kind we normally strip
                 "http://open.epic.com/FHIR/StructureDefinition/extension/ce-encounter-id",
+                # Epic extension with physician name
+                "http://open.epic.com/FHIR/StructureDefinition/extension/lab-e-signature",
+                # Epic extension with internal team names, low clinical relevance but w/ PHI risk
+                "http://open.epic.com/FHIR/StructureDefinition/extension/team-name",
             }
             url = value.get("url")
             if url not in allowed_extensions:
