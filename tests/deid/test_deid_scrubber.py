@@ -3,6 +3,7 @@
 import tempfile
 from unittest import mock
 
+import ddt
 from ctakesclient import text2fhir, typesystem
 
 from cumulus_etl import common
@@ -21,6 +22,7 @@ MASKED_EXTENSION = {
 }
 
 
+@ddt.ddt
 class TestScrubber(utils.AsyncTestCase):
     """Test case for the Scrubber class"""
 
@@ -192,7 +194,18 @@ class TestScrubber(utils.AsyncTestCase):
             },
         )
 
-    def test_epic_customer_oid_is_stripped(self):
+    @ddt.data(
+        (None, "Bad Display", True, True),
+        (None, None, False, False),
+        ("1234", "Good Display", False, False),
+        ("1234", None, False, False),
+        ("text", "Bad Display", True, False),
+        ("text", None, True, False),
+        ("0", "Bad Display", True, True),
+        ("0", None, False, False),
+    )
+    @ddt.unpack
+    def test_epic_custom_codes_are_stripped(self, code, display, expect_mask, keep_code):
         """
         Verify that urn:oid:1.2.840.1.114350.* is stripped.
         It's a customer extension point that can (and has in the past) contain PHI.
@@ -203,20 +216,21 @@ class TestScrubber(utils.AsyncTestCase):
                 "coding": [
                     {
                         "system": "urn:oid:1.2.840.114350.1.2.3.4.5",
-                        "code": "PHI-Bearing-Code",
-                        "display": "PHI in display form",
+                        "code": code,
+                        "display": display,
                         "version": "2.0",
                         "userSelected": True,
-                    },
-                    {
-                        "system": "urn:oid:1.2.840.9.8.7.6.5",
-                        "code": "Safe-Code",
-                        "display": "Safe display",
                     },
                 ],
             },
         }
         self.assertTrue(Scrubber().scrub_resource(obs))
+        if expect_mask and keep_code:
+            values = {"code": code, **MASKED_EXTENSION}
+        elif expect_mask:
+            values = MASKED_EXTENSION
+        else:
+            values = {"code": code, "display": display}
         self.assertEqual(
             obs,
             {
@@ -227,12 +241,7 @@ class TestScrubber(utils.AsyncTestCase):
                             "system": "urn:oid:1.2.840.114350.1.2.3.4.5",
                             "version": "2.0",
                             "userSelected": True,
-                            **MASKED_EXTENSION,
-                        },
-                        {
-                            "system": "urn:oid:1.2.840.9.8.7.6.5",
-                            "code": "Safe-Code",
-                            "display": "Safe display",
+                            **values,
                         },
                     ],
                 },
