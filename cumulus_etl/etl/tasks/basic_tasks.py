@@ -174,13 +174,21 @@ class MedicationRequestTask(tasks.EtlTask):
         return medication if self.scrub_medication(medication) else None
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
-        for resource in self.read_ndjson(progress=progress):
+        # Load in any local Medication resources first. This lets the user prepare the linked
+        # Medications ahead of time and feed them in alongside the MedicationRequests.
+        # We'll note the IDs and avoid downloading them later when we do the MedicationRequests.
+        resources = ["Medication", self.resource]
+        for resource in self.read_ndjson(progress=progress, resources=resources):
             orig_resource = copy.deepcopy(resource)
             if not self.scrubber.scrub_resource(resource):
                 continue
 
-            medication = await self.fetch_medication(orig_resource)
-            yield medication, resource
+            if resource["resourceType"] == "Medication":
+                self.medication_ids.add(f"Medication/{orig_resource['id']}")
+                yield resource, None
+            else:
+                medication = await self.fetch_medication(orig_resource)
+                yield medication, resource
 
 
 class ObservationTask(tasks.EtlTask):

@@ -367,26 +367,37 @@ class EtlTask:
     #
     ##########################################################################################
 
-    def read_ndjson(self, *, progress: rich.progress.Progress = None) -> Iterator[dict]:
+    def read_ndjson(
+        self, *, progress: rich.progress.Progress | None = None, resources: list[str] | None = None
+    ) -> Iterator[dict]:
         """
-        Grabs all ndjson files from a folder, of a particular resource type.
+        Grabs all ndjson files from a folder, of particular resource types.
+
+        If `resources` is provided, those resources will be read (in the provided order).
+        That is, ["Condition", "Encounter"] will first read all Conditions, then all Encounters.
+        If `resources` is not provided, the task's main resource (self.resource) will be used.
         """
         input_root = store.Root(self.task_config.dir_input)
+        resources = resources or [self.resource]
 
         if progress:
             # Make new task to track processing of rows
             row_task = progress.add_task("Reading", total=None)
 
             # Find total number of lines
-            filenames = common.ls_resources(input_root, {self.resource})
+            filenames = common.ls_resources(input_root, set(resources))
             total = sum(common.read_local_line_count(filename) for filename in filenames)
             progress.update(row_task, total=total, visible=bool(total))
 
-        # Actually read the lines
-        for line in common.read_resource_ndjson(input_root, self.resource):
-            yield line
-            if progress:
-                progress.advance(row_task)
+        # Actually read the lines.
+        # We read in the resources in the provided order, because it can matter to the caller.
+        # You may want to process all linked resources first, and only then the "real" resource
+        # (like we do for Medications and MedicationRequests).
+        for resource in resources:
+            for line in common.read_resource_ndjson(input_root, resource):
+                yield line
+                if progress:
+                    progress.advance(row_task)
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> EntryIterator:
         """

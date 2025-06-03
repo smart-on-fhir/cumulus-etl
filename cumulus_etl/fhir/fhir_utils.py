@@ -5,6 +5,7 @@ import datetime
 import email.message
 import re
 import urllib.parse
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
 import httpx
@@ -156,6 +157,26 @@ class FhirUrl:
 # Resource downloading
 #
 ######################################################################################################################
+
+
+def linked_resources(resources: Iterable[str]) -> set[str]:
+    """
+    Returns all linked resources that we might care about.
+
+    This is used to look for / download related resources as available.
+    For example, we will want to request FhirClient scopes for these resources.
+    Or scoop these resources up from the input folder.
+    """
+    linked = set()
+    for resource in resources:
+        match resource:
+            case "DiagnosticReport":
+                linked.add("Binary")
+            case "DocumentReference":
+                linked.add("Binary")
+            case "MedicationRequest":
+                linked.add("Medication")
+    return linked
 
 
 async def download_reference(client: "FhirClient", reference: str) -> dict | None:

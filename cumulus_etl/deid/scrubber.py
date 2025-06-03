@@ -313,6 +313,7 @@ class Scrubber:
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-post-procedure-diagnosis",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-pre-procedure-diagnosis",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-service",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/edd-at-begin-exam",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/ip-admit-datetime",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/log-level-procedure-codes",

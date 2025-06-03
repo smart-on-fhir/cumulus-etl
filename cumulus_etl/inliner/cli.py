@@ -50,7 +50,7 @@ async def inline_main(args: argparse.Namespace) -> None:
 
     common.print_header()
 
-    async with fhir.create_fhir_client_for_cli(args, fhir_root, {"Binary"} | resources) as client:
+    async with fhir.create_fhir_client_for_cli(args, fhir_root, resources) as client:
         await inliner.inliner(client, src_root, resources, mimetypes)
 
 

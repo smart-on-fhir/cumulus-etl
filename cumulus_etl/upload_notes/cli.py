@@ -452,7 +452,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     client = fhir.create_fhir_client_for_cli(
         args,
         root_input,
-        {"Binary", "DiagnosticReport", "DocumentReference"},
+        {"DiagnosticReport", "DocumentReference"},
     )
     access_token = common.read_text(args.ls_token).strip()
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)

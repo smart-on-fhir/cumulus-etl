@@ -86,6 +86,7 @@ class FhirNdjsonLoader(base.Loader):
         print("Copying ndjson input files…")
         tmpdir = tempfile.TemporaryDirectory()
         filenames = common.ls_resources(input_root, resources, warn_if_empty=True)
+        filenames += common.ls_resources(input_root, fhir.linked_resources(resources))
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
             # Decompress any *.gz files, because the MS tool can't understand them
