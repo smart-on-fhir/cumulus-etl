@@ -5,6 +5,7 @@ from .fhir_utils import (
     FhirUrl,
     download_reference,
     get_clinical_note,
+    linked_resources,
     parse_content_type,
     parse_datetime,
     ref_resource,

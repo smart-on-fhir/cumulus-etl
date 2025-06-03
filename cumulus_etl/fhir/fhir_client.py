@@ -7,7 +7,7 @@ from json import JSONDecodeError
 
 import httpx
 
-from cumulus_etl import common, errors, http, store
+from cumulus_etl import common, errors, fhir, http, store
 from cumulus_etl.fhir import fhir_auth, fhir_utils
 
 
@@ -263,10 +263,10 @@ def create_fhir_client_for_cli(
         errors.fatal(str(exc), errors.ARGS_INVALID)
 
     client_resources = set(resources)
-    if {"DiagnosticReport", "DocumentReference"} & client_resources:
-        # Resources with attachments imply a Binary scope as well,
-        # since we'll usually need to download the referenced content.
-        client_resources.add("Binary")
+
+    # If resources have other linked resources, add them to the scope,
+    # since we'll usually need to download the referenced content.
+    client_resources |= fhir.linked_resources(client_resources)
 
     return FhirClient(
         client_base_url,

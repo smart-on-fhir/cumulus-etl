@@ -643,3 +643,30 @@ class TestMedicationRequestTask(TaskTestCase):
         self.assertEqual(  # no "odd"
             [self.codebook.db.resource_hash("good")], [row["id"] for row in batch.rows]
         )
+
+    async def test_adjacent_medications(self):
+        """Verify that we grab Medication resources that are in same folder"""
+        self.make_json("Medication", "A")
+        self.make_json("Medication", "B")  # a non-referenced Med - will still be pushed up
+        self.make_json("MedicationRequest", "A", medicationReference={"reference": "Medication/A"})
+
+        # Confirm we didn't warn about not being able to download resources
+        with self.assertNoLogs(level="WARNING"):
+            await basic_tasks.MedicationRequestTask(self.job_config, self.scrubber).run()
+
+        med_format = self.format
+        med_req_format = self.format2
+
+        # Confirm we wrote out the Medications
+        self.assertEqual(1, med_format.write_records.call_count)
+        batch = med_format.write_records.call_args[0][0]
+        self.assertEqual(
+            {r["id"] for r in batch.rows},
+            {self.codebook.db.resource_hash("A"), self.codebook.db.resource_hash("B")},
+        )
+
+        # Confirm we wrote the MedicationRequest (and never asked to download it, or we would have
+        # hit an error when making the network request)
+        self.assertEqual(1, med_req_format.write_records.call_count)
+        batch = med_req_format.write_records.call_args[0][0]
+        self.assertEqual(batch.rows[0]["id"], self.codebook.db.resource_hash("A"))

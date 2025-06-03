@@ -476,6 +476,7 @@ IRxyq6i4LnRleQHDKzI0hdZJPEQd3k3RsPC9IsBf0A==
 
     @ddt.data(
         ({"DocumentReference", "Patient"}, {"Binary", "DocumentReference", "Patient"}),
+        ({"MedicationRequest", "Condition"}, {"Medication", "MedicationRequest", "Condition"}),
         ({"Patient"}, {"Patient"}),
     )
     @ddt.unpack
