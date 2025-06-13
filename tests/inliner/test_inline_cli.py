@@ -1,8 +1,9 @@
 """Tests for inliner/cli.py"""
 
+import cumulus_fhir_support as cfs
 import ddt
 
-from cumulus_etl import cli, errors, fhir, store
+from cumulus_etl import cli, errors, store
 from tests import utils
 
 
@@ -33,7 +34,7 @@ class TestInlinerCli(utils.AsyncTestCase, utils.FhirClientMixin):
             "--mimetype=B,C",
         )
         self.assertEqual(self.inliner.call_count, 1)
-        self.assertIsInstance(self.inliner.call_args[0][0], fhir.FhirClient)
+        self.assertIsInstance(self.inliner.call_args[0][0], cfs.FhirClient)
         self.assertEqual(self.inliner.call_args[0][1].path, "/bogus/path")
         self.assertEqual(self.inliner.call_args[0][2], {"DiagnosticReport"})
         self.assertEqual(self.inliner.call_args[0][3], {"a", "b", "c"})

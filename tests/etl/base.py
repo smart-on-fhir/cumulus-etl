@@ -6,9 +6,10 @@ import shutil
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import pytest
 
-from cumulus_etl import cli, common, deid, fhir
+from cumulus_etl import cli, common, deid
 from cumulus_etl.etl.config import JobConfig
 from tests import ctakesmock, utils
 
@@ -111,7 +112,7 @@ class TaskTestCase(utils.AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
 
-        client = fhir.FhirClient("http://localhost/", [])
+        client = cfs.FhirClient("http://localhost/", [])
         self.tmpdir = self.make_tempdir()
         self.input_dir = os.path.join(self.tmpdir, "input")
         self.output_dir = os.path.join(self.tmpdir, "output")

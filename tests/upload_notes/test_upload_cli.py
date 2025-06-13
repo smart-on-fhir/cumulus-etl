@@ -8,7 +8,7 @@ import tempfile
 from collections.abc import Iterable
 from unittest import mock
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import ddt
 import respx
 
@@ -238,12 +238,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             f.write("\n".join(lines))
 
     def get_exported_refs(self) -> set[str]:
-        dxreports = cumulus_fhir_support.read_multiline_json(
-            f"{self.export_path}/DiagnosticReport.ndjson"
-        )
-        docrefs = cumulus_fhir_support.read_multiline_json(
-            f"{self.export_path}/DocumentReference.ndjson"
-        )
+        dxreports = cfs.read_multiline_json(f"{self.export_path}/DiagnosticReport.ndjson")
+        docrefs = cfs.read_multiline_json(f"{self.export_path}/DocumentReference.ndjson")
         return {f"DiagnosticReport/{row['id']}" for row in dxreports} | {
             f"DocumentReference/{row['id']}" for row in docrefs
         }

@@ -1,6 +1,6 @@
 """Tests for inliner/writer.py"""
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 
 from cumulus_etl.inliner import writer
 from tests import utils
@@ -17,7 +17,7 @@ class TestWriter(utils.AsyncTestCase):
             ordered_writer.write(2, {"id": "two"})
             ordered_writer.write(3, {"id": "three"})
 
-        rows = list(cumulus_fhir_support.read_multiline_json(f"{tmpdir}/test.ndjson"))
+        rows = list(cfs.read_multiline_json(f"{tmpdir}/test.ndjson"))
         self.assertEqual(
             rows,
             [

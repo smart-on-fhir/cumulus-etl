@@ -6,15 +6,12 @@ import email.message
 import re
 import urllib.parse
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
 
+import cumulus_fhir_support as cfs
 import httpx
 import inscriptis
 
 from cumulus_etl import common, errors
-
-if TYPE_CHECKING:
-    from cumulus_etl.fhir.fhir_client import FhirClient  # pragma: no cover
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -179,7 +176,7 @@ def linked_resources(resources: Iterable[str]) -> set[str]:
     return linked
 
 
-async def download_reference(client: "FhirClient", reference: str) -> dict | None:
+async def download_reference(client: cfs.FhirClient, reference: str) -> dict | None:
     """
     Downloads a resource, given a FHIR reference.
 
@@ -226,7 +223,7 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
-async def request_attachment(client: "FhirClient", attachment: dict) -> httpx.Response:
+async def request_attachment(client: cfs.FhirClient, attachment: dict) -> httpx.Response:
     """
     Download the given attachment by URL.
     """
@@ -240,7 +237,7 @@ async def request_attachment(client: "FhirClient", attachment: dict) -> httpx.Re
     )
 
 
-async def _get_note_from_attachment(client: "FhirClient", attachment: dict) -> str:
+async def _get_note_from_attachment(client: cfs.FhirClient, attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -282,7 +279,7 @@ def _save_cached_note(resource: dict, note: str) -> None:
     common.write_text(note_path, note)
 
 
-async def get_clinical_note(client: "FhirClient", resource: dict) -> str:
+async def get_clinical_note(client: cfs.FhirClient, resource: dict) -> str:
     """
     Returns the clinical note contained in or referenced by the given resource.
 

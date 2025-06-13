@@ -6,7 +6,7 @@ import os
 from collections.abc import AsyncIterator, Iterator
 from typing import ClassVar
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import pyarrow
 import rich.live
 import rich.progress
@@ -465,5 +465,5 @@ class EtlTask:
         Can be overridden as needed for non-FHIR outputs.
         """
         if resource_type:
-            return cumulus_fhir_support.pyarrow_schema_from_rows(resource_type, rows)
+            return cfs.pyarrow_schema_from_rows(resource_type, rows)
         return None

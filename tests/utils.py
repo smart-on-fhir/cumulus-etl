@@ -13,12 +13,12 @@ import tracemalloc
 import unittest
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import httpx
 import respx
 import time_machine
 from jwcrypto import jwk
 
-from cumulus_etl import fhir
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 # Pass a non-UTC time to time-machine to help notice any bad timezone handling.
@@ -250,8 +250,8 @@ class FhirClientMixin(unittest.TestCase):
             },
         )
 
-    def fhir_client(self, resources: list[str]) -> fhir.FhirClient:
-        return fhir.FhirClient(
+    def fhir_client(self, resources: list[str]) -> cfs.FhirClient:
+        return cfs.FhirClient(
             self.fhir_base,
             resources,
             smart_client_id=self.fhir_client_id,

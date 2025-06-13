@@ -5,7 +5,7 @@ import os
 import shutil
 import tempfile
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 
 from cumulus_etl import cli_utils, common, errors, fhir, inliner, store
 from cumulus_etl.loaders import base
@@ -21,7 +21,7 @@ class FhirNdjsonLoader(base.Loader):
     def __init__(
         self,
         root: store.Root,
-        client: fhir.FhirClient = None,
+        client: cfs.FhirClient = None,
         export_to: str | None = None,
         since: str | None = None,
         until: str | None = None,
@@ -56,9 +56,7 @@ class FhirNdjsonLoader(base.Loader):
             # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
             return None
 
-        found_files = cumulus_fhir_support.list_multiline_json_in_dir(
-            self.root.path, fsspec_fs=self.root.fs
-        )
+        found_files = cfs.list_multiline_json_in_dir(self.root.path, fsspec_fs=self.root.fs)
         return {resource for resource in found_files.values() if resource}
 
     async def load_resources(self, resources: set[str]) -> base.LoaderResults:

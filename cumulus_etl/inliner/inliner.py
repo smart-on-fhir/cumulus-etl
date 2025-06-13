@@ -5,12 +5,12 @@ import tempfile
 from collections.abc import Iterable
 from functools import partial
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import fsspec
 import rich.progress
 import rich.table
 
-from cumulus_etl import cli_utils, common, errors, fhir, store
+from cumulus_etl import cli_utils, common, fhir, store
 from cumulus_etl.inliner import reader, writer
 
 
@@ -47,7 +47,7 @@ class InliningStats:
 
 
 async def inliner(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     in_root: store.Root,
     resources: Iterable[str],
     mimetypes: Iterable[str],
@@ -55,9 +55,7 @@ async def inliner(
     mimetypes = set(mimetypes)
 
     # Grab files to read for the given resources
-    found_files = cumulus_fhir_support.list_multiline_json_in_dir(
-        in_root.path, resources, fsspec_fs=in_root.fs
-    )
+    found_files = cfs.list_multiline_json_in_dir(in_root.path, resources, fsspec_fs=in_root.fs)
 
     # Predict how much work we'll have to do by getting counts of lines and files
     if in_root.protocol == "file":
@@ -116,7 +114,7 @@ async def inliner(
 
 
 async def _inline_one_file(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     path: str,
     fs: fsspec.AbstractFileSystem,
     *,
@@ -131,7 +129,7 @@ async def _inline_one_file(
         # which preserves the ability for users to append updated row data to files.
         with writer.OrderedNdjsonWriter(output_file.name, compressed=compressed) as output:
             await reader.peek_ahead_processor(
-                cumulus_fhir_support.read_multiline_json(path, fsspec_fs=fs),
+                cfs.read_multiline_json(path, fsspec_fs=fs),
                 partial(
                     _inline_one_line,
                     client=client,
@@ -144,7 +142,7 @@ async def _inline_one_file(
                 # Look at twice the allowed connections - downloads will block, but that's OK.
                 # This will allow us to download some attachments while other workers are sleeping
                 # because they are waiting to retry due to an HTTP error.
-                peek_at=fhir.FhirClient.MAX_CONNECTIONS * 2,
+                peek_at=cfs.FhirClient.MAX_CONNECTIONS * 2,
             )
         # Atomically swap out the inlined version with the original
         with fs.transaction:
@@ -155,7 +153,7 @@ async def _inline_one_line(
     index: int,
     resource: dict,
     *,
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     mimetypes: set[str],
     output: writer.OrderedNdjsonWriter,
     stats: InliningStats,
@@ -187,7 +185,7 @@ async def _inline_one_line(
 
 
 async def _inline_one_attachment(
-    client: fhir.FhirClient, attachment: dict, *, mimetypes: set[str], stats: InliningStats
+    client: cfs.FhirClient, attachment: dict, *, mimetypes: set[str], stats: InliningStats
 ) -> None:
     # First, check if we should even examine this attachment
     if "contentType" not in attachment:
@@ -208,10 +206,10 @@ async def _inline_one_attachment(
 
     try:
         response = await fhir.request_attachment(client, attachment)
-    except errors.FatalNetworkError:
+    except cfs.FatalNetworkError:
         stats.fatal_error_attachments += 1
         return
-    except errors.TemporaryNetworkError:
+    except cfs.TemporaryNetworkError:
         stats.fatal_retry_attachments += 1
         return
 

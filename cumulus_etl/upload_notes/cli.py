@@ -8,6 +8,7 @@ import sys
 from collections.abc import Collection
 
 import ctakesclient
+import cumulus_fhir_support as cfs
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
@@ -36,7 +37,7 @@ def init_checks(args: argparse.Namespace):
 
 
 async def gather_resources(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     root_input: store.Root,
     codebook: deid.Codebook,
     args: argparse.Namespace,
@@ -103,7 +104,7 @@ def _get_encounter_id(resource: dict) -> str | None:
 
 
 async def read_notes_from_ndjson(
-    client: fhir.FhirClient, dirname: str, codebook: deid.Codebook
+    client: cfs.FhirClient, dirname: str, codebook: deid.Codebook
 ) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
 

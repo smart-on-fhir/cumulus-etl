@@ -5,10 +5,10 @@ import json
 import os
 from unittest import mock
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import ddt
 
-from cumulus_etl import common, errors, inliner, store
+from cumulus_etl import common, inliner, store
 from tests import s3mock, utils
 
 
@@ -111,9 +111,7 @@ class TestInliner(TestInlinerBase):
 
         self.assertEqual({"docrefs.jsonl", "reports.jsonl"}, set(os.listdir(self.input_dir)))
 
-        docref_rows = list(
-            cumulus_fhir_support.read_multiline_json(f"{self.input_dir}/docrefs.jsonl")
-        )
+        docref_rows = list(cfs.read_multiline_json(f"{self.input_dir}/docrefs.jsonl"))
         self.assertEqual(
             docref_rows,
             [
@@ -146,9 +144,7 @@ class TestInliner(TestInlinerBase):
             ],
         )
 
-        report_rows = list(
-            cumulus_fhir_support.read_multiline_json(f"{self.input_dir}/reports.jsonl")
-        )
+        report_rows = list(cfs.read_multiline_json(f"{self.input_dir}/reports.jsonl"))
         self.assertEqual(
             report_rows,
             [
@@ -177,9 +173,9 @@ class TestInliner(TestInlinerBase):
 
         def requester(_client, attachment):
             if attachment["url"].endswith("/501"):
-                raise errors.FatalNetworkError("fatal", None)
+                raise cfs.FatalNetworkError("fatal", None)
             if attachment["url"].endswith("/502"):
-                raise errors.TemporaryNetworkError("temp", None)
+                raise cfs.TemporaryNetworkError("temp", None)
             return utils.make_response(text="bye")
 
         self.requester.side_effect = requester
@@ -195,9 +191,7 @@ class TestInliner(TestInlinerBase):
 
         await self.run_inline(mimetypes=["text/plain"])
 
-        docref_rows = list(
-            cumulus_fhir_support.read_multiline_json(f"{self.input_dir}/docrefs.ndjson")
-        )
+        docref_rows = list(cfs.read_multiline_json(f"{self.input_dir}/docrefs.ndjson"))
         self.assertEqual(
             docref_rows,
             [
@@ -260,7 +254,7 @@ class TestInlinerOnS3(TestInlinerBase, s3mock.S3Mixin):
         await self.run_inline(mimetypes=["text/custom"])
 
         docref_rows = list(
-            cumulus_fhir_support.read_multiline_json(
+            cfs.read_multiline_json(
                 f"{self.bucket_url}/docrefs.ndjson",
                 fsspec_fs=self.s3fs,
             )

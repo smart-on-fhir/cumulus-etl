@@ -3,7 +3,7 @@
 import os
 from unittest import mock
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import ddt
 import respx
 
@@ -260,7 +260,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
             ["A", "C"],  # pre-scrubbed versions of the docrefs are stored, for easier debugging
             [
                 x["id"]
-                for x in cumulus_fhir_support.read_multiline_json(
+                for x in cfs.read_multiline_json(
                     f"{self.errors_dir}/covid_symptom__nlp_results/nlp-errors.ndjson"
                 )
             ],

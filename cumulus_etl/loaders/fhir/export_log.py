@@ -10,10 +10,11 @@ import os
 import re
 import uuid
 
+import cumulus_fhir_support as cfs
 import httpx
 
 import cumulus_etl
-from cumulus_etl import common, errors, fhir, store
+from cumulus_etl import common, fhir, store
 
 
 class BulkExportLogParser:
@@ -182,7 +183,7 @@ class BulkExportLogWriter:
             "responseHeaders": None,
         }
 
-        if isinstance(exc, errors.NetworkError) and exc.response:
+        if isinstance(exc, cfs.NetworkError) and exc.response:
             info.update(BulkExportLogWriter._response_info(exc.response))
 
         return info

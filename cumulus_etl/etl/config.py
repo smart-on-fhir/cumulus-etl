@@ -4,7 +4,9 @@ import datetime
 import os
 from socket import gethostname
 
-from cumulus_etl import common, fhir, formats, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import common, formats, store
 
 
 class JobConfig:
@@ -24,7 +26,7 @@ class JobConfig:
         dir_phi: str,
         input_format: str,
         output_format: str,
-        client: fhir.FhirClient,
+        client: cfs.FhirClient,
         timestamp: datetime.datetime | None = None,
         comment: str | None = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args

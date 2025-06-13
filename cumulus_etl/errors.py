@@ -3,7 +3,6 @@
 import sys
 from typing import NoReturn
 
-import httpx
 import rich.console
 
 # Error return codes, mostly just distinguished for the benefit of tests.
@@ -45,45 +44,8 @@ class FatalError(Exception):
     """An unrecoverable error"""
 
 
-class NetworkError(FatalError):
-    """
-    A network error
-
-    The response field may be None in cases where we failed before we could get a response.
-    Like DNS errors or other transport errors.
-    """
-
-    def __init__(self, msg: str, response: httpx.Response | None):
-        super().__init__(msg)
-        self.response = response
-
-
-class FatalNetworkError(NetworkError):
-    """An unrecoverable network error that should not be retried"""
-
-
-class TemporaryNetworkError(NetworkError):
-    """An recoverable network error that could be retried"""
-
-
 class FhirConnectionConfigError(FatalError):
     """We needed to connect to a FHIR server but are not configured correctly"""
-
-
-class FhirUrlMissing(FhirConnectionConfigError):
-    """We needed to connect to a FHIR server but no URL was provided"""
-
-    def __init__(self):
-        super().__init__("Could not download some files without a FHIR server URL (use --fhir-url)")
-
-
-class FhirAuthMissing(FhirConnectionConfigError):
-    """We needed to connect to a FHIR server but no authentication config was provided"""
-
-    def __init__(self):
-        super().__init__(
-            "Could not download some files without authentication parameters (see --help)"
-        )
 
 
 def fatal(message: str, status: int, extra: str = "") -> NoReturn:

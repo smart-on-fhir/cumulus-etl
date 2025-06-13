@@ -1,5 +1,6 @@
 """Define tasks for the hftest study"""
 
+import cumulus_fhir_support as cfs
 import httpx
 import pyarrow
 import rich.progress
@@ -31,7 +32,7 @@ class HuggingFaceTestTask(tasks.BaseNlpTask):
     async def init_check(cls) -> None:
         try:
             raw_info = await nlp.hf_info()
-        except errors.NetworkError:
+        except cfs.NetworkError:
             errors.fatal(
                 "Llama2 NLP server is unreachable.\n Try running 'docker compose up llama2 --wait'.",
                 errors.SERVICE_MISSING,
