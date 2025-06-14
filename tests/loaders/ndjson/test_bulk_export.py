@@ -8,7 +8,7 @@ import os
 import tempfile
 from unittest import mock
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import ddt
 import httpx
 import respx
@@ -40,7 +40,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             await self.exporter.export()
 
     def assert_log_equals(self, *rows, uuid_export_id: bool = False) -> None:
-        found_rows = list(cumulus_fhir_support.read_multiline_json(f"{self.tmpdir}/log.ndjson"))
+        found_rows = list(cfs.read_multiline_json(f"{self.tmpdir}/log.ndjson"))
 
         # Do we use the same export ID throughout?
         all_export_ids = {x["exportId"] for x in found_rows}
@@ -285,7 +285,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             status_code=500,  # early exit
         )
 
-        with self.assertRaises(errors.FatalError):
+        with self.assertRaises(cfs.NetworkError):
             await self.export(since="2000-01-01T00:00:00+00.00", until="2010")
 
     async def test_type_filter(self):
@@ -295,7 +295,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             status_code=500,  # early exit
         )
 
-        with self.assertRaises(errors.FatalError):
+        with self.assertRaises(cfs.NetworkError):
             await self.export(type_filter=["Patient?active=false", "Patient?active=true"])
 
     async def test_export_error(self):
@@ -536,7 +536,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         )
 
         with self.assertRaisesRegex(
-            errors.FatalError,
+            cfs.NetworkError,
             r'An error occurred when connecting to "https://example.com/con1": \["error"\]',
         ):
             await self.export()
@@ -586,7 +586,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         self.respx_mock.get("https://example.com/con1").respond(stream=exploding_stream())
 
         with self.assertRaisesRegex(
-            errors.FatalError,
+            cfs.NetworkError,
             "Error downloading 'https://example.com/con1': oops",
         ):
             await self.export()
@@ -613,7 +613,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         """Verify that we bail if we see a successful code we don't understand"""
         self.mock_kickoff(status_code=204)  # "no content"
 
-        with self.assertRaisesRegex(errors.FatalError, "Unexpected status code 204"):
+        with self.assertRaisesRegex(cfs.NetworkError, "Unexpected status code 204"):
             await self.export()
 
         self.assert_log_equals(
@@ -655,7 +655,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             content=b"...",
         )
 
-        with self.assertRaisesRegex(errors.FatalError, "Timed out waiting"):
+        with self.assertRaisesRegex(cfs.NetworkError, "Timed out waiting"):
             await self.export()
 
         # 2592060 == 30 days + one minute
@@ -679,7 +679,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             content=b"Test Status Call Failed",
         )
 
-        with self.assertRaisesRegex(errors.FatalError, "Test Status Call Failed"):
+        with self.assertRaisesRegex(cfs.NetworkError, "Test Status Call Failed"):
             await self.export()
 
         self.assert_log_equals(
@@ -744,7 +744,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
         # Do initial (interrupted by server error) export
         self.mock_kickoff()
         self.respx_mock.get("https://example.com/poll").respond(status_code=400)
-        with self.assertRaises(errors.FatalError):
+        with self.assertRaises(cfs.NetworkError):
             await self.export()
         self.assert_log_equals(
             ("kickoff", None),
@@ -773,7 +773,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             content=b"Test Status Call Failed",
         )
 
-        with self.assertRaisesRegex(errors.FatalError, "Test Status Call Failed"):
+        with self.assertRaisesRegex(cfs.NetworkError, "Test Status Call Failed"):
             await self.export()
 
         self.assert_log_equals(
@@ -856,7 +856,7 @@ class TestBulkExportLogWriter(utils.AsyncTestCase):
             log.kickoff(
                 "https://localhost/",
                 {},
-                errors.NetworkError(
+                cfs.NetworkError(
                     "whoops",
                     utils.make_response(status_code=500, json_payload={"msg": "internal error"}),
                 ),

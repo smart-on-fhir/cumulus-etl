@@ -3,9 +3,8 @@
 import os
 import urllib.parse
 
+import cumulus_fhir_support as cfs
 import httpx
-
-from cumulus_etl import http
 
 
 def get_hugging_face_url() -> str:
@@ -60,7 +59,7 @@ async def hf_prompt(prompt: str | dict, *, client: httpx.AsyncClient = None) -> 
 
     # Prompt and answer format will be model-specific - don't assume too much here
     client = client or httpx.AsyncClient()
-    response = await http.request(
+    response = await cfs.http_request(
         client,
         "POST",
         get_hugging_face_url(),
@@ -88,5 +87,5 @@ async def hf_info(*, client: httpx.AsyncClient = None) -> dict:
     """
     url = urllib.parse.urljoin(get_hugging_face_url(), "info")
     client = client or httpx.AsyncClient()
-    response = await http.request(client, "GET", url)
+    response = await cfs.http_request(client, "GET", url)
     return response.json()

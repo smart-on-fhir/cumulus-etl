@@ -7,11 +7,12 @@ import urllib.parse
 from collections.abc import Callable
 from functools import partial
 
+import cumulus_fhir_support as cfs
 import httpx
 import rich.live
 import rich.text
 
-from cumulus_etl import common, errors, fhir, http, store
+from cumulus_etl import common, errors, fhir, store
 from cumulus_etl.loaders.fhir import export_log
 
 
@@ -29,7 +30,7 @@ class BulkExporter:
 
     def __init__(
         self,
-        client: fhir.FhirClient,
+        client: cfs.FhirClient,
         resources: set[str],
         url: str,
         destination: str,
@@ -214,14 +215,14 @@ class BulkExporter:
                 target_status_code=202,
             )
         except Exception as exc:
-            self._log.kickoff(self._url, self._client.get_capabilities(), exc)
+            self._log.kickoff(self._url, self._client.capabilities, exc)
             raise
 
         # Grab the poll location URL for status updates
         poll_location = response.headers["Content-Location"]
         self._log.export_id = poll_location
 
-        self._log.kickoff(self._url, self._client.get_capabilities(), response)
+        self._log.kickoff(self._url, self._client.capabilities, response)
 
         print()
         print("If interrupted, try again but add the following argument to resume the export:")
@@ -249,7 +250,7 @@ class BulkExporter:
         try:
             await self._request_with_delay_status(poll_url, method="DELETE", target_status_code=202)
             return True
-        except errors.FatalError as err:
+        except cfs.NetworkError as err:
             # Don't bail on ETL as a whole, this isn't a show stopper error.
             print(f"Failed to clean up export job on the server side: {err}")
             return False
@@ -338,7 +339,7 @@ class BulkExporter:
                 # Some servers can request unreasonably long delays (e.g. I've seen Cerner
                 # ask for five hours), which is... not helpful for our UX and often way
                 # too long for small exports. So limit the delay time to 5 minutes.
-                delay = min(http.get_retry_after(response, 60), 300)
+                delay = min(cfs.parse_retry_after(response, 60), 300)
 
                 _add_new_delay(response, delay)
                 await asyncio.sleep(delay)
@@ -348,13 +349,13 @@ class BulkExporter:
                 # guidance on what the expected response codes are, that it's not clear if a code
                 # outside those parameters means we should keep waiting or stop waiting.
                 # So let's be strict here for now.
-                raise errors.NetworkError(
+                raise cfs.NetworkError(
                     f"Unexpected status code {response.status_code} "
                     "from the bulk FHIR export server.",
                     response,
                 )
 
-        exc = errors.FatalError("Timed out waiting for the bulk FHIR export to finish.")
+        exc = cfs.NetworkError("Timed out waiting for the bulk FHIR export to finish.", None)
         if log_error:
             log_error(exc)
         raise exc
@@ -440,7 +441,7 @@ class BulkExporter:
                     decompressed_size += len(block)
         except Exception as exc:
             self._log.download_error(url, exc)
-            raise errors.FatalError(f"Error downloading '{url}': {exc}")
+            raise cfs.NetworkError(f"Error downloading '{url}': {exc}", None)
         finally:
             await response.aclose()
 

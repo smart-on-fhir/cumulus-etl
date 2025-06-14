@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from functools import partial
 from typing import Any, Protocol, TextIO
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import rich
 
 from cumulus_etl import store
@@ -78,9 +78,7 @@ def get_temp_dir(subdir: str) -> str:
 
 
 def ls_resources(root: store.Root, resources: set[str], warn_if_empty: bool = False) -> list[str]:
-    found_files = cumulus_fhir_support.list_multiline_json_in_dir(
-        root.path, resources, fsspec_fs=root.fs
-    )
+    found_files = cfs.list_multiline_json_in_dir(root.path, resources, fsspec_fs=root.fs)
 
     if warn_if_empty:
         # Invert the {path: type} found_files dictionary into {type: [paths...]}
@@ -176,7 +174,7 @@ def read_csv(path: str) -> csv.DictReader:
 
 def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
     """Yields parsed json from the input ndjson file, line-by-line."""
-    yield from cumulus_fhir_support.read_multiline_json(path, fsspec_fs=root.fs)
+    yield from cfs.read_multiline_json(path, fsspec_fs=root.fs)
 
 
 def read_resource_ndjson(
@@ -188,7 +186,7 @@ def read_resource_ndjson(
     if isinstance(resources, str):
         resources = {resources}
     for filename in ls_resources(root, resources, warn_if_empty=warn_if_empty):
-        for line in cumulus_fhir_support.read_multiline_json(filename, fsspec_fs=root.fs):
+        for line in cfs.read_multiline_json(filename, fsspec_fs=root.fs):
             # Sanity check the incoming NDJSON - who knows what could happen and we should surface
             # a nice message about it. This *could* be very noisy on the console if there are a lot
             # of rows, but hopefully this is a very rare occurence and one that should be fixed

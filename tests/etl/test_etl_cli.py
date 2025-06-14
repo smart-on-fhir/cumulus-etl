@@ -11,7 +11,7 @@ import shutil
 import tempfile
 from unittest import mock
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import ddt
 import respx
 from ctakesclient.typesystem import Polarity
@@ -69,9 +69,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             # Run a couple checks to ensure that we do indeed have PHI in this dir
             self.assertIn("Patient.ndjson", os.listdir(phi_dir))
-            patients = list(
-                cumulus_fhir_support.read_multiline_json(os.path.join(phi_dir, "Patient.ndjson"))
-            )
+            patients = list(cfs.read_multiline_json(os.path.join(phi_dir, "Patient.ndjson")))
             first = patients[0]
             self.assertEqual("02139", first["address"][0]["postalCode"])
 
@@ -206,9 +204,8 @@ class TestEtlJobFlow(BaseEtlSimple):
         respx.get("https://localhost:12345/$export?_type=Patient").respond(401)
 
         # Now run the ETL on that new input dir without any server auth config provided
-        with self.assertRaises(SystemExit) as cm:
+        with self.assertRaises(cfs.BadAuthArguments):
             await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
-        self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
     @ddt.data(
         "--export-to=output/dir",

@@ -7,12 +7,14 @@ import os
 import urllib.parse
 from collections.abc import Container, Iterable
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import cli_utils, common, deid, loaders, store
 from cumulus_etl.upload_notes.id_handling import get_ids_from_csv
 
 
 async def download_resources_from_fhir_server(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     root_input: store.Root,
     codebook: deid.Codebook,
     id_file: str | None = None,
@@ -32,7 +34,7 @@ async def download_resources_from_fhir_server(
 
 
 async def _download_resources_from_fake_ids(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     codebook: deid.Codebook,
     docref_csv: str,
     export_to: str | None = None,
@@ -72,7 +74,7 @@ async def _download_resources_from_fake_ids(
 
 
 async def _download_resources_from_real_ids(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     docref_csv: str,
     export_to: str | None = None,
 ) -> common.Directory:
@@ -116,7 +118,7 @@ def _write_resources_to_output_folder(
 
 
 async def _request_resources_for_patient(
-    client: fhir.FhirClient,
+    client: cfs.FhirClient,
     patient_id: str,
     resource_type: str,
     codebook: deid.Codebook,
@@ -144,13 +146,13 @@ async def _request_resources_for_patient(
 
 
 async def _request_resource(
-    client: fhir.FhirClient, resource_type: str, resource_id: str
+    client: cfs.FhirClient, resource_type: str, resource_id: str
 ) -> dict | None:
     """Returns one DocumentReference for a given ID"""
     print(f"  Downloading {resource_type}/{resource_id}.")
     try:
         response = await client.request("GET", f"{resource_type}/{resource_id}")
         return response.json()
-    except errors.FatalError:
+    except cfs.NetworkError:
         logging.warning("Error getting %s/%s", resource_type, resource_id)
         return None

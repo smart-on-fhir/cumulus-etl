@@ -88,7 +88,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.assertIsNone(results.group_name)
         self.assertIsNone(results.export_datetime)
 
-    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
+    @mock.patch("cumulus_fhir_support.FhirClient.create_for_cli")
     @mock.patch("cumulus_etl.etl.cli.loaders.FhirNdjsonLoader")
     async def test_etl_passes_args(self, mock_loader, mock_client):
         """Verify that we are passed the client ID and JWKS from the command line"""
@@ -112,87 +112,13 @@ class TestNdjsonLoader(AsyncTestCase):
 
         self.assertEqual(1, mock_client.call_count)
         self.assertEqual("x", mock_client.call_args[1]["smart_client_id"])
-        self.assertEqual({"fake": "jwks"}, mock_client.call_args[1]["smart_jwks"])
+        self.assertEqual(self.jwks_path, mock_client.call_args[1]["smart_key"])
         self.assertEqual(1, mock_loader.call_count)
         self.assertEqual("/tmp/exported", mock_loader.call_args[1]["export_to"])
         self.assertEqual("2018", mock_loader.call_args[1]["since"])
         self.assertEqual("2020", mock_loader.call_args[1]["until"])
 
-    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
-    async def test_reads_client_id_from_file(self, mock_client):
-        """Verify that we try to read a client ID from a file."""
-        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
-
-        # First, confirm string is used directly if file doesn't exist
-        with self.assertRaises(ValueError):
-            await cli.main(
-                [
-                    "http://localhost:9999",
-                    "/tmp/output",
-                    "/tmp/phi",
-                    "--skip-init-checks",
-                    "--smart-client-id=/direct-string",
-                ]
-            )
-        self.assertEqual("/direct-string", mock_client.call_args[1]["smart_client_id"])
-
-        # Now read from a file that exists
-        with tempfile.NamedTemporaryFile(buffering=0) as file:
-            file.write(b"\ninside-file\n")
-            with self.assertRaises(ValueError):
-                await cli.main(
-                    [
-                        "http://localhost:9999",
-                        "/tmp/output",
-                        "/tmp/phi",
-                        "--skip-init-checks",
-                        f"--smart-client-id={file.name}",
-                    ]
-                )
-            self.assertEqual("inside-file", mock_client.call_args[1]["smart_client_id"])
-
-    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
-    async def test_reads_bearer_token(self, mock_client):
-        """Verify that we read the bearer token file"""
-        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
-
-        with tempfile.NamedTemporaryFile(buffering=0) as file:
-            file.write(b"\ninside-file\n")
-            with self.assertRaises(ValueError):
-                await cli.main(
-                    [
-                        "http://localhost:9999",
-                        "/tmp/output",
-                        "/tmp/phi",
-                        "--skip-init-checks",
-                        f"--bearer-token={file.name}",
-                    ]
-                )
-            self.assertEqual("inside-file", mock_client.call_args[1]["bearer_token"])
-
-    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
-    async def test_reads_basic_auth(self, mock_client):
-        """Verify that we read the basic password file and pass it along"""
-        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
-
-        with tempfile.NamedTemporaryFile(buffering=0) as file:
-            file.write(b"\ninside-file\n")
-            with self.assertRaises(ValueError):
-                await cli.main(
-                    [
-                        "http://localhost:9999",
-                        "/tmp/output",
-                        "/tmp/phi",
-                        "--skip-init-checks",
-                        "--basic-user=UserName",
-                        f"--basic-passwd={file.name}",
-                    ]
-                )
-
-        self.assertEqual("UserName", mock_client.call_args[1]["basic_user"])
-        self.assertEqual("inside-file", mock_client.call_args[1]["basic_password"])
-
-    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
+    @mock.patch("cumulus_fhir_support.FhirClient.create_for_cli")
     async def test_fhir_url(self, mock_client):
         """Verify that we handle the user provided --fhir-client correctly"""
         mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
@@ -248,7 +174,7 @@ class TestNdjsonLoader(AsyncTestCase):
             )
         self.assertEqual("https://example.com/hello4", mock_client.call_args[0][0])
 
-    @mock.patch("cumulus_etl.fhir.fhir_client.FhirClient")
+    @mock.patch("cumulus_fhir_support.FhirClient.create_for_cli")
     async def test_export_flow(self, mock_client):
         """
         Verify that we make the right calls down as far as the bulk export helper classes, with the right resources.

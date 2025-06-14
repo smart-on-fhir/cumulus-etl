@@ -3,7 +3,7 @@
 import os
 from unittest import mock
 
-import cumulus_fhir_support
+import cumulus_fhir_support as cfs
 import ddt
 
 from cumulus_etl import common, errors
@@ -556,9 +556,7 @@ class TestMedicationRequestTask(TaskTestCase):
             ["A", "C"],  # pre-scrubbed versions of the resources are stored, for easier debugging
             [
                 x["id"]
-                for x in cumulus_fhir_support.read_multiline_json(
-                    f"{med_error_dir}/medication-fetch-errors.ndjson"
-                )
+                for x in cfs.read_multiline_json(f"{med_error_dir}/medication-fetch-errors.ndjson")
             ],
         )
 
