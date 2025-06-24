@@ -635,7 +635,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         spans = {x.span().key() for x in note.ctakes_matches}
         self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)
 
-    async def test_docrefs_without_encounters_are_skipped(self):
+    async def test_docrefs_without_encounters_are_included(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
                 # One docref without any context/encounter info
@@ -649,7 +649,15 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             await self.run_upload_notes(input_path=tmpdir)
 
         self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_exported_refs())
-        self.assertEqual({"DocumentReference/D2"}, self.get_pushed_refs())
+        self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_pushed_refs())
+
+        # Confirm we pushed a self-reference up as the encounter ID
+        notes = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual({n.encounter_id for n in notes}, {"enc-D2", "DocumentReference/D1"})
+        self.assertEqual(
+            {n.anon_encounter_id for n in notes},
+            {"1587db29c32f35546ba2f975034bcb9d8cc00871a06e235cb92533b2c3fa0f4b", None},
+        )
 
     @mock.patch("cumulus_etl.nlp.restart_ctakes_with_bsv", new=lambda *_: False)
     async def test_nlp_restart_failure_is_noticed(self):

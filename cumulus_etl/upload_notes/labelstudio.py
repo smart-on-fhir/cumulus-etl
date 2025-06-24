@@ -23,8 +23,8 @@ class LabelStudioNote:
 
     patient_id: str
     anon_patient_id: str
-    encounter_id: str  # real Encounter ID
-    anon_encounter_id: str  # anonymized Encounter ID
+    encounter_id: str  # real Encounter ID (or a self-ref like DocRef/xxx if no encounter is found)
+    anon_encounter_id: str | None  # anonymized Encounter ID
     text: str = ""  # text of the note, sent to Label Studio
     date: datetime.datetime | None = None  # date of the note
 

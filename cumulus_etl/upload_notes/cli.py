@@ -89,7 +89,7 @@ def datetime_from_resource(resource: dict) -> datetime.datetime | None:
     return None
 
 
-def _get_encounter_id(resource: dict) -> str | None:
+def _get_encounter_id(resource: dict) -> str:
     encounter_ref = None
     if resource["resourceType"] == "DiagnosticReport":
         encounter_ref = resource.get("encounter")
@@ -100,7 +100,11 @@ def _get_encounter_id(resource: dict) -> str | None:
     try:
         return fhir.unref_resource(encounter_ref)[1]
     except ValueError:
-        return None
+        # Yes, this isn't an encounter ID, but we will treat it as such throught the upload-notes
+        # flow. We want a unique identifier that can guarantee this is not grouped with other
+        # notes and can be pushed to Label Studio as the "enc_id" field, so we know when we already
+        # pushed this note up, etc. Basically, this is a unique "grouping" ID.
+        return f"{resource['resourceType']}/{resource['id']}"
 
 
 async def read_notes_from_ndjson(
@@ -116,12 +120,7 @@ async def read_notes_from_ndjson(
     # Grab notes
     root = store.Root(dirname)
     for resource in common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"}):
-        encounter_id = _get_encounter_id(resource)
-        if not encounter_id:
-            # If a note doesn't have an encounter - we can't group it with other docs
-            print(f"Skipping {resource['resourceType']}/{resource['id']}: No linked encounter.")
-            continue
-        encounter_ids.append(encounter_id)
+        encounter_ids.append(_get_encounter_id(resource))
         resources.append(resource)
         coroutines.append(fhir.get_clinical_note(client, resource))
 
@@ -148,7 +147,9 @@ async def read_notes_from_ndjson(
         patient_id = resource.get("subject", {}).get("reference", "").removeprefix("Patient/")
         anon_patient_id = codebook.fake_id("Patient", patient_id)
         encounter_id = encounter_ids[i]
-        anon_encounter_id = codebook.fake_id("Encounter", encounter_id)
+        anon_encounter_id = (
+            None if "/" in encounter_id else codebook.fake_id("Encounter", encounter_id)
+        )
         anon_note_id = codebook.fake_id(resource["resourceType"], resource["id"])
         doc_mappings = {note_ref: f"{resource['resourceType']}/{anon_note_id}"}
         doc_spans = {note_ref: (0, len(text))}
