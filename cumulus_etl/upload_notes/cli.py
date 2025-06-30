@@ -5,7 +5,7 @@ import asyncio
 import datetime
 import re
 import sys
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 
 import ctakesclient
 import cumulus_fhir_support as cfs
@@ -89,7 +89,7 @@ def datetime_from_resource(resource: dict) -> datetime.datetime | None:
     return None
 
 
-def _get_encounter_id(resource: dict) -> str:
+def _get_encounter_id(resource: dict) -> str | None:
     encounter_ref = None
     if resource["resourceType"] == "DiagnosticReport":
         encounter_ref = resource.get("encounter")
@@ -100,27 +100,38 @@ def _get_encounter_id(resource: dict) -> str:
     try:
         return fhir.unref_resource(encounter_ref)[1]
     except ValueError:
-        # Yes, this isn't an encounter ID, but we will treat it as such throught the upload-notes
-        # flow. We want a unique identifier that can guarantee this is not grouped with other
-        # notes and can be pushed to Label Studio as the "enc_id" field, so we know when we already
-        # pushed this note up, etc. Basically, this is a unique "grouping" ID.
+        return None
+
+
+def _get_unique_id_for_encounter_grouping(resource: dict) -> str:
+    """Prefers encounter ID, but falls back to resource ref if no encounter"""
+    if encounter_id := _get_encounter_id(resource):
+        return encounter_id
+    else:
         return f"{resource['resourceType']}/{resource['id']}"
 
 
+def _get_unique_id_for_no_grouping(resource: dict) -> str:
+    """Uses resource ref to keep all notes separated"""
+    return f"{resource['resourceType']}/{resource['id']}"
+
+
 async def read_notes_from_ndjson(
-    client: cfs.FhirClient, dirname: str, codebook: deid.Codebook
+    client: cfs.FhirClient,
+    dirname: str,
+    codebook: deid.Codebook,
+    *,
+    unique_method: Callable[[dict], str],
 ) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
 
     # Download all the doc notes (and save some metadata about each)
-    encounter_ids = []
     resources = []
     coroutines = []
 
     # Grab notes
     root = store.Root(dirname)
     for resource in common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"}):
-        encounter_ids.append(_get_encounter_id(resource))
         resources.append(resource)
         coroutines.append(fhir.get_clinical_note(client, resource))
 
@@ -144,18 +155,18 @@ async def read_notes_from_ndjson(
             codings = resource.get("type", {}).get("coding", [])
         title = codings[0].get("display", default_title) if codings else default_title
 
+        unique_id = unique_method(resource)
         patient_id = resource.get("subject", {}).get("reference", "").removeprefix("Patient/")
-        anon_patient_id = codebook.fake_id("Patient", patient_id)
-        encounter_id = encounter_ids[i]
-        anon_encounter_id = (
-            None if "/" in encounter_id else codebook.fake_id("Encounter", encounter_id)
-        )
+        anon_patient_id = patient_id and codebook.fake_id("Patient", patient_id)
+        encounter_id = _get_encounter_id(resource)
+        anon_encounter_id = encounter_id and codebook.fake_id("Encounter", encounter_id)
         anon_note_id = codebook.fake_id(resource["resourceType"], resource["id"])
         doc_mappings = {note_ref: f"{resource['resourceType']}/{anon_note_id}"}
         doc_spans = {note_ref: (0, len(text))}
 
         notes.append(
             LabelStudioNote(
+                unique_id,
                 patient_id,
                 anon_patient_id,
                 encounter_id,
@@ -245,14 +256,15 @@ def sort_notes(notes: Collection[LabelStudioNote]) -> Collection[LabelStudioNote
         firsts = {}
         for index, note in enumerate(notes):
             value = getattr(note, field)
-            firsts.setdefault(value, index)
+            adjusted_index = index if value else len(notes)  # put None values last
+            firsts.setdefault(value, adjusted_index)
         return firsts
 
     encounter_firsts = gather_firsts("encounter_id")
     patient_firsts = gather_firsts("patient_id")
 
     # Group up by encounter (and order groups among themselves by earliest)
-    # (This only matters in case we ever make the later encounter-bundling step optional.)
+    # (This only matters if we aren't merging notes by encounter later down the line.)
     notes = sorted(notes, key=lambda x: (encounter_firsts[x.encounter_id], x.encounter_id))
 
     # Group up by patient (and order patients among themselves by earliest)
@@ -261,21 +273,19 @@ def sort_notes(notes: Collection[LabelStudioNote]) -> Collection[LabelStudioNote
     return notes
 
 
-def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelStudioNote]:
+def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelStudioNote]:
     """
-    Gather all notes with the same encounter ID together into one note.
-
-    Reviewers seem to prefer that.
+    Gather all notes with the same unique ID together into one note.
     """
     grouped_notes = []
 
-    # Group up docs & notes by encounter
-    by_encounter_id = {}
+    # Group up docs & notes by their unique IDs
+    by_unique_id = {}
     for note in notes:
-        by_encounter_id.setdefault(note.encounter_id, []).append(note)
+        by_unique_id.setdefault(note.unique_id, []).append(note)
 
     # Group up the text into one big note
-    for enc_id, enc_notes in by_encounter_id.items():
+    for unique_id, group_notes in by_unique_id.items():
         grouped_text = ""
         grouped_ctakes_matches = []
         grouped_highlights = []
@@ -283,7 +293,7 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
 
-        for note in enc_notes:
+        for note in group_notes:
             grouped_doc_mappings.update(note.doc_mappings)
 
             if not note.date:
@@ -323,10 +333,11 @@ def group_notes_by_encounter(notes: Collection[LabelStudioNote]) -> list[LabelSt
 
         grouped_notes.append(
             LabelStudioNote(
-                enc_notes[0].patient_id,
-                enc_notes[0].anon_patient_id,
-                enc_id,
-                enc_notes[0].anon_encounter_id,
+                unique_id,
+                group_notes[0].patient_id,
+                group_notes[0].anon_patient_id,
+                group_notes[0].encounter_id,
+                group_notes[0].anon_encounter_id,
                 text=grouped_text,
                 doc_mappings=grouped_doc_mappings,
                 doc_spans=grouped_doc_spans,
@@ -386,6 +397,13 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         "--highlight",
         action="append",
         help="annotate the provided word (can be specified multiple times or comma separated)",
+    )
+
+    parser.add_argument(
+        "--grouping",
+        choices=["encounter", "none"],
+        default="encounter",
+        help="how to group together notes into one Label Studio task (default is encounter)",
     )
 
     cli_utils.add_aws(parser)
@@ -459,17 +477,25 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     access_token = common.read_text(args.ls_token).strip()
     labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 
+    match args.grouping:
+        case "encounter":
+            unique_method = _get_unique_id_for_encounter_grouping
+        case _:
+            unique_method = _get_unique_id_for_no_grouping
+
     async with client:
         with deid.Codebook(args.dir_phi) as codebook:
             ndjson_folder = await gather_resources(client, root_input, codebook, args)
-            notes = await read_notes_from_ndjson(client, ndjson_folder.name, codebook)
+            notes = await read_notes_from_ndjson(
+                client, ndjson_folder.name, codebook, unique_method=unique_method
+            )
 
     await run_nlp(notes, args)
     add_highlights(notes, args)
     # It's safe to philter notes after NLP because philter does not change character counts
     philter_notes(notes, args)
     notes = sort_notes(notes)
-    notes = group_notes_by_encounter(notes)
+    notes = group_notes_by_unique_id(notes)
     await push_to_label_studio(notes, access_token, labels, args)
 
 

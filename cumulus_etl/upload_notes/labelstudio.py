@@ -21,9 +21,10 @@ from cumulus_etl import batching, errors
 class LabelStudioNote:
     """Holds all the data that Label Studio will need for a single note (or a single grouped encounter note)"""
 
+    unique_id: str  # used to uniquely identify this note on the server
     patient_id: str
     anon_patient_id: str
-    encounter_id: str  # real Encounter ID (or a self-ref like DocRef/xxx if no encounter is found)
+    encounter_id: str | None  # real Encounter ID
     anon_encounter_id: str | None  # anonymized Encounter ID
     text: str = ""  # text of the note, sent to Label Studio
     date: datetime.datetime | None = None  # date of the note
@@ -64,16 +65,16 @@ class LabelStudioClient:
         self, notes: Collection[LabelStudioNote], *, overwrite: bool = False
     ) -> None:
         # Get any existing tasks that we might be updating
-        enc_ids = [note.encounter_id for note in notes]
-        enc_id_filter = lsdm.Filters.create(
+        unique_ids = [note.unique_id for note in notes]
+        unique_id_filter = lsdm.Filters.create(
             lsdm.Filters.AND,
             [
                 lsdm.Filters.item(
-                    lsdm.Column.data("enc_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, enc_ids
+                    lsdm.Column.data("enc_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, unique_ids
                 )
             ],
         )
-        existing_tasks = self._project.get_tasks(filters=enc_id_filter)
+        existing_tasks = self._project.get_tasks(filters=unique_id_filter)
         new_task_count = len(notes) - len(existing_tasks)
 
         # Should we delete existing entries?
@@ -83,8 +84,8 @@ class LabelStudioClient:
                 self._project.delete_tasks([t["id"] for t in existing_tasks])
             else:
                 print(f"  Skipping {len(existing_tasks)} existing tasks")
-                existing_enc_ids = {t["data"]["enc_id"] for t in existing_tasks}
-                notes = [note for note in notes if note.encounter_id not in existing_enc_ids]
+                existing_unique_ids = {t["data"]["enc_id"] for t in existing_tasks}
+                notes = [note for note in notes if note.unique_id not in existing_unique_ids]
 
         # OK, import away!
         if notes:
@@ -122,12 +123,14 @@ class LabelStudioClient:
         task = {
             "data": {
                 "text": note.text,
+                # This "enc_id" name is historical - a better name is "grouping_id" or "unique_id".
+                # We use this enc_id field to determine which notes to override during upload.
+                # It's based off of whatever note grouping method was used when uploading.
+                "enc_id": note.unique_id,
                 "patient_id": note.patient_id,
                 "anon_patient_id": note.anon_patient_id,
-                # Be careful when changing this name. We use this enc_id field to determine which
-                # notes to override during upload, so it's best if it doesn't change.
-                "enc_id": note.encounter_id,
-                "anon_enc_id": note.anon_encounter_id,
+                "encounter_id": note.encounter_id,
+                "anon_encounter_id": note.anon_encounter_id,
                 "docref_mappings": note.doc_mappings,
                 # json doesn't natively have tuples, so convert spans to lists
                 "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},

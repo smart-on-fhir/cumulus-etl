@@ -71,11 +71,14 @@ and then push the results to your Label Studio project number `3`.
 ### Grouping by Encounter
 
 Upload mode will group all notes by encounter and present them together as a single
-Label Studio artifact.
+Label Studio artifact by default.
 
 Each clinical note will have a little header describing what type of note it is ("Admission MD"),
 as well as its real & anonymized resource identifiers,
 to make it easier to reference back to your EHR or Athena data.
+
+If grouping by encounter doesn't make sense for your task,
+you can turn it off with `--grouping=none`.
 
 ## Bulk Export Options
 
