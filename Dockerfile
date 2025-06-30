@@ -3,7 +3,7 @@
 FROM alpine/git AS ms-tool-src
 RUN git clone https://github.com/microsoft/Tools-for-Health-Data-Anonymization.git /app
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS ms-tool
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS ms-tool
 COPY --from=ms-tool-src /app /app
 # This will force builds to fail if the environment piping breaks for some reason
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]

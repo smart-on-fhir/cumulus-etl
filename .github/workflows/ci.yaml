@@ -16,7 +16,7 @@ concurrency:
 jobs:
   unittest:
     name: unit tests
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         # Don't go crazy with the Python versions as the test suite is a beast.
@@ -45,7 +45,7 @@ jobs:
       - name: Build MS tool
         run: |
           sudo apt-get update
-          sudo apt-get install dotnet6
+          sudo apt-get install dotnet8
           dotnet publish \
             --runtime=linux-x64 \
             --configuration=Release \

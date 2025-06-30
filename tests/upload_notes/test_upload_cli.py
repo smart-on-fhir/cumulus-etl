@@ -499,6 +499,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     async def test_philter_redact(self, upload_args, expect_redacted):
         notes = [
             LabelStudioNote(
+                "Unique",
                 "Pat",
                 "PatAnon",
                 "EncID",
@@ -526,6 +527,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
     async def test_philter_label(self):
         notes = [
             LabelStudioNote(
+                "Unique",
                 "Pat",
                 "PatAnon",
                 "EncID",
@@ -653,10 +655,31 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         # Confirm we pushed a self-reference up as the encounter ID
         notes = self.ls_client.push_tasks.call_args[0][0]
-        self.assertEqual({n.encounter_id for n in notes}, {"enc-D2", "DocumentReference/D1"})
+        self.assertEqual({n.unique_id for n in notes}, {"enc-D2", "DocumentReference/D1"})
+        self.assertEqual({n.encounter_id for n in notes}, {"enc-D2", None})
         self.assertEqual(
             {n.anon_encounter_id for n in notes},
             {"1587db29c32f35546ba2f975034bcb9d8cc00871a06e235cb92533b2c3fa0f4b", None},
+        )
+
+    async def test_no_grouping(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+                writer.write(self.make_docref("D1", enc_id="Enc1", period_start="2021-01-01"))
+                writer.write(self.make_docref("D2", enc_id="Enc1"))
+                writer.write(self.make_docref("D3", enc_id="Enc1", period_start="2020-01-01"))
+                writer.write(self.make_docref("D4", enc_id="Enc2", period_start="2019-01-01"))
+            await self.run_upload_notes("--grouping=none", input_path=tmpdir)
+
+        notes = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(
+            [n.unique_id for n in notes],
+            [  # Each note got separated by itself, ordered by encounter time
+                "DocumentReference/D4",
+                "DocumentReference/D3",
+                "DocumentReference/D1",
+                "DocumentReference/D2",
+            ],
         )
 
     @mock.patch("cumulus_etl.nlp.restart_ctakes_with_bsv", new=lambda *_: False)
