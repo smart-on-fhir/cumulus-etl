@@ -77,7 +77,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
-                    "enc_id": "unique",
+                    "unique_id": "unique",
                     "patient_id": "patient",
                     "anon_patient_id": "patient-anon",
                     "encounter_id": "enc",
@@ -170,7 +170,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
-                    "enc_id": "unique",
+                    "unique_id": "unique",
                     "patient_id": "patient",
                     "anon_patient_id": "patient-anon",
                     "encounter_id": "enc",
@@ -194,7 +194,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.assertEqual(
             {
                 "text": "Normal note text",
-                "enc_id": "unique",
+                "unique_id": "unique",
                 "patient_id": "patient",
                 "anon_patient_id": "patient-anon",
                 "encounter_id": "enc",
@@ -214,7 +214,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.assertEqual(
             {
                 "text": "Normal note text",
-                "enc_id": "unique",
+                "unique_id": "unique",
                 "patient_id": "patient",
                 "anon_patient_id": "patient-anon",
                 "encounter_id": "enc",
@@ -232,7 +232,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             await self.push_tasks(self.make_note())
 
     async def test_overwrite(self):
-        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "unique"}}]
+        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"unique_id": "unique"}}]
 
         # Try once without overwrite
         await self.push_tasks(self.make_note())
@@ -246,11 +246,11 @@ class TestUploadLabelStudio(AsyncTestCase):
 
     async def test_overwrite_partial(self):
         """Verify that we push what we can and ignore any existing tasks by default"""
-        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"enc_id": "unique"}}]
+        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"unique_id": "unique"}}]
 
         await self.push_tasks(self.make_note(), self.make_note(unique_id="unique2"))
         self.assertFalse(self.ls_project.delete_tasks.called)
-        self.assertEqual("unique2", self.get_pushed_task()["data"]["enc_id"])
+        self.assertEqual("unique2", self.get_pushed_task()["data"]["unique_id"])
 
     async def test_push_highlights(self):
         note = self.make_note(philter_label=False, ctakes=False)
@@ -263,7 +263,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             {
                 "data": {
                     "text": "Normal note text",
-                    "enc_id": "unique",
+                    "unique_id": "unique",
                     "patient_id": "patient",
                     "anon_patient_id": "patient-anon",
                     "encounter_id": "enc",

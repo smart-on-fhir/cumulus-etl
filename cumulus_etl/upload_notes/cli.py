@@ -121,7 +121,7 @@ async def read_notes_from_ndjson(
     dirname: str,
     codebook: deid.Codebook,
     *,
-    unique_method: Callable[[dict], str],
+    get_unique_id: Callable[[dict], str],
 ) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
 
@@ -155,7 +155,7 @@ async def read_notes_from_ndjson(
             codings = resource.get("type", {}).get("coding", [])
         title = codings[0].get("display", default_title) if codings else default_title
 
-        unique_id = unique_method(resource)
+        unique_id = get_unique_id(resource)
         patient_id = resource.get("subject", {}).get("reference", "").removeprefix("Patient/")
         anon_patient_id = patient_id and codebook.fake_id("Patient", patient_id)
         encounter_id = _get_encounter_id(resource)
@@ -479,15 +479,15 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
 
     match args.grouping:
         case "encounter":
-            unique_method = _get_unique_id_for_encounter_grouping
+            get_unique_id = _get_unique_id_for_encounter_grouping
         case _:
-            unique_method = _get_unique_id_for_no_grouping
+            get_unique_id = _get_unique_id_for_no_grouping
 
     async with client:
         with deid.Codebook(args.dir_phi) as codebook:
             ndjson_folder = await gather_resources(client, root_input, codebook, args)
             notes = await read_notes_from_ndjson(
-                client, ndjson_folder.name, codebook, unique_method=unique_method
+                client, ndjson_folder.name, codebook, get_unique_id=get_unique_id
             )
 
     await run_nlp(notes, args)

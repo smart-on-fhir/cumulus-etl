@@ -70,7 +70,7 @@ class LabelStudioClient:
             lsdm.Filters.AND,
             [
                 lsdm.Filters.item(
-                    lsdm.Column.data("enc_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, unique_ids
+                    lsdm.Column.data("unique_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, unique_ids
                 )
             ],
         )
@@ -84,7 +84,7 @@ class LabelStudioClient:
                 self._project.delete_tasks([t["id"] for t in existing_tasks])
             else:
                 print(f"  Skipping {len(existing_tasks)} existing tasks")
-                existing_unique_ids = {t["data"]["enc_id"] for t in existing_tasks}
+                existing_unique_ids = {t["data"]["unique_id"] for t in existing_tasks}
                 notes = [note for note in notes if note.unique_id not in existing_unique_ids]
 
         # OK, import away!
@@ -123,10 +123,7 @@ class LabelStudioClient:
         task = {
             "data": {
                 "text": note.text,
-                # This "enc_id" name is historical - a better name is "grouping_id" or "unique_id".
-                # We use this enc_id field to determine which notes to override during upload.
-                # It's based off of whatever note grouping method was used when uploading.
-                "enc_id": note.unique_id,
+                "unique_id": note.unique_id,
                 "patient_id": note.patient_id,
                 "anon_patient_id": note.anon_patient_id,
                 "encounter_id": note.encounter_id,
