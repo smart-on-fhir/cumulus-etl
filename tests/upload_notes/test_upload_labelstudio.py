@@ -308,10 +308,22 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_push_in_batches(self):
-        notes = [self.make_note(philter_label=False, ctakes=False) for _ in range(301)]
+        notes = [
+            self.make_note(philter_label=False, ctakes=False, unique_id=str(num))
+            for num in range(501)
+        ]
         await self.push_tasks(*notes)
+
+        # Confirm we searched in batches
+        self.assertEqual(2, self.ls_project.get_tasks.call_count)
+        filters = self.ls_project.get_tasks.call_args_list[0][1]["filters"]
+        self.assertEqual(500, len(filters["items"][0]["value"]))
+        filters = self.ls_project.get_tasks.call_args_list[1][1]["filters"]
+        self.assertEqual(1, len(filters["items"][0]["value"]))
+
+        # Confirm we imported in batches
         self.assertEqual(2, self.ls_project.import_tasks.call_count)
         imported_tasks = self.ls_project.import_tasks.call_args_list[0][0][0]
         self.assertEqual(300, len(imported_tasks))
         imported_tasks = self.ls_project.import_tasks.call_args_list[1][0][0]
-        self.assertEqual(1, len(imported_tasks))
+        self.assertEqual(201, len(imported_tasks))

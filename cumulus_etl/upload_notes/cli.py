@@ -353,7 +353,7 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
 async def push_to_label_studio(
     notes: Collection[LabelStudioNote], access_token: str, labels: dict, args: argparse.Namespace
 ) -> None:
-    common.print_header(f"Pushing {len(notes)} charts to Label Studio...")
+    common.print_header(f"Pushing {len(notes):,} charts to Label Studio.")
     ls_client = LabelStudioClient(args.label_studio_url, access_token, args.ls_project, labels)
     await ls_client.push_tasks(notes, overwrite=args.overwrite)
 
