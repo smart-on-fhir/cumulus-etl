@@ -2,13 +2,14 @@
 
 import dataclasses
 import datetime
-from collections.abc import Collection, Iterable
+import math
+from collections.abc import AsyncIterator, Collection, Iterable
 
 import ctakesclient
 import label_studio_sdk
 import label_studio_sdk.data_manager as lsdm
 
-from cumulus_etl import batching, errors
+from cumulus_etl import batching, cli_utils, errors
 
 ###############################################################################
 #
@@ -65,38 +66,57 @@ class LabelStudioClient:
         self, notes: Collection[LabelStudioNote], *, overwrite: bool = False
     ) -> None:
         # Get any existing tasks that we might be updating
-        unique_ids = [note.unique_id for note in notes]
-        unique_id_filter = lsdm.Filters.create(
-            lsdm.Filters.AND,
-            [
-                lsdm.Filters.item(
-                    lsdm.Column.data("unique_id"), lsdm.Operator.IN_LIST, lsdm.Type.List, unique_ids
-                )
-            ],
-        )
-        existing_tasks = self._project.get_tasks(filters=unique_id_filter)
+        unique_ids = {note.unique_id for note in notes}
+        existing_tasks = await self._search_for_existing_tasks(unique_ids)
         new_task_count = len(notes) - len(existing_tasks)
 
         # Should we delete existing entries?
         if existing_tasks:
             if overwrite:
-                print(f"  Overwriting {len(existing_tasks)} existing tasks")
+                print(f"Overwriting {len(existing_tasks):,} existing charts.")
                 self._project.delete_tasks([t["id"] for t in existing_tasks])
             else:
-                print(f"  Skipping {len(existing_tasks)} existing tasks")
+                print(f"Skipping {len(existing_tasks):,} existing charts.")
                 existing_unique_ids = {t["data"]["unique_id"] for t in existing_tasks}
                 notes = [note for note in notes if note.unique_id not in existing_unique_ids]
 
         # OK, import away!
         if notes:
-            new_notes = (self._format_task_for_note(note) for note in notes)
+            new_notes = [self._format_task_for_note(note) for note in notes]
             # Upload notes in batches, to avoid making one giant request that times out.
             # I've seen batches of 700 fail, but 600 succeed. So we give ourselves plenty of
             # headroom here and use batches of 300.
-            async for batch in batching.batch_iterate(new_notes, 300):
+            async for batch in self._batch_with_progress("Uploading charts…", new_notes, 300):
                 self._project.import_tasks(batch)
             if new_task_count:
-                print(f"  Imported {new_task_count} new tasks")
+                print(f"Imported {new_task_count:,} new charts.")
+
+    async def _search_for_existing_tasks(self, unique_ids: Collection[str]) -> Collection[dict]:
+        existing_tasks = []
+
+        # Batch our requests, because if there are a lot of notes, a single search with all the
+        # target IDs in it will be too large for a server's URI limits.
+        # I picked 500 because in my testing, we started seeing those errors at around 1000 IDs
+        # of moderate size (DocumentReference/uuid) - so I halved it and that should be safe.
+        async for batch in self._batch_with_progress(
+            "Searching for existing charts…", unique_ids, 500
+        ):
+            col = lsdm.Column.data("unique_id")
+            batch_search = lsdm.Filters.item(col, lsdm.Operator.IN_LIST, lsdm.Type.List, batch)
+            batch_filter = lsdm.Filters.create(lsdm.Filters.AND, [batch_search])
+            existing_tasks.extend(self._project.get_tasks(filters=batch_filter))
+
+        return existing_tasks
+
+    async def _batch_with_progress(
+        self, label: str, collection: Collection, batch_size: int
+    ) -> AsyncIterator[list]:
+        num_batches = math.ceil(len(collection) / batch_size)
+        with cli_utils.make_progress_bar() as progress:
+            progress_task = progress.add_task(label, total=num_batches)
+            async for batch in batching.batch_iterate(collection, batch_size):
+                yield batch
+                progress.advance(progress_task)
 
     def _get_labels_config(self) -> tuple[str, dict]:
         """Finds the first <Labels> tag in the config and returns its name and values, falling back to <Choices>"""
