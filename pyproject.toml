@@ -5,7 +5,7 @@ dependencies = [
     "aiobotocore < 2.22.0",  # FIXME: temp hotfix for dependency version madness - remove later
     "ctakesclient >= 5.1",
     "cumulus-fhir-support >= 1.5",
-    "delta-spark >= 3.2.1, < 4",
+    "delta-spark >= 3.2.1, < 5",
     "fsspec[http,s3]",
     "httpx",
     "inscriptis",
