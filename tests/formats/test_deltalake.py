@@ -425,7 +425,7 @@ class TestDeltaLake(utils.AsyncTestCase):
             [
                 mock.call(
                     "fs.s3a.aws.credentials.provider",
-                    "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+                    "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider",
                 ),
                 mock.call("fs.s3a.endpoint.region", "us-west-1"),
                 mock.call("fs.s3a.server-side-encryption-algorithm", "SSE-KMS"),

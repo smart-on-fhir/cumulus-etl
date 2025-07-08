@@ -18,7 +18,7 @@ RUN arch=$(arch | sed s/aarch64/arm64/ | sed s/x86_64/x64/) && \
   /app/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
 
 FROM python:3.11 AS cumulus-etl-test
-COPY --from=eclipse-temurin:17-jre /opt/java/openjdk /opt/java/openjdk
+COPY --from=eclipse-temurin:21-jre /opt/java/openjdk /opt/java/openjdk
 COPY --from=ms-tool /bin/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool /bin
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache \
@@ -30,7 +30,7 @@ ENV JAVA_HOME=/opt/java/openjdk
 ENTRYPOINT ["cumulus-etl"]
 
 FROM python:3.11 AS cumulus-etl
-COPY --from=eclipse-temurin:17-jre /opt/java/openjdk /opt/java/openjdk
+COPY --from=eclipse-temurin:21-jre /opt/java/openjdk /opt/java/openjdk
 COPY --from=ms-tool /bin/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool /bin
 
 # Ship pre-downloaded nltk files, used by philter

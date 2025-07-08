@@ -19,12 +19,12 @@ from cumulus_etl import store
 from cumulus_etl.formats.base import Format
 from cumulus_etl.formats.batch import Batch
 
-# This class would be a lot simpler if we could use fsspec & pyarrow directly, since that's what the rest of our code
-# uses and expects (in terms of filesystem writing).
+# This class would be a lot simpler if we could use fsspec & pyarrow directly, since that's what
+# the rest of our code uses and expects (in terms of filesystem writing).
 #
-# There is a 1st party Delta Lake implementation (`deltalake`) based off native Rust code and which talks to
-# fsspec & pyarrow by default. But it is missing some critical features as of this writing (mostly merges):
-# - Merge support in deltalake bindings: https://github.com/delta-io/delta-rs/issues/850
+# There is a 1st party Delta Lake implementation (`deltalake`) based off native Rust code and which
+# talks to fsspec & pyarrow by default. But it is missing some critical features as of this writing:
+# - Liquid clustering: https://github.com/delta-io/delta-rs/issues/2043
 
 
 @contextlib.contextmanager
@@ -82,7 +82,7 @@ class DeltaLakeFormat(Format):
                 extra_packages=[
                     # See https://docs.delta.io/latest/delta-storage.html for advice
                     # on which version of hadoop-aws to use.
-                    "org.apache.hadoop:hadoop-aws:3.3.4",
+                    "org.apache.hadoop:hadoop-aws:3.4.0",
                 ],
             ).getOrCreate()
         cls.spark.sparkContext.setLogLevel("ERROR")
@@ -226,12 +226,12 @@ class DeltaLakeFormat(Format):
     def _configure_fs(root: store.Root, spark: pyspark.sql.SparkSession):
         """Tell spark/hadoop how to talk to S3 for us"""
         fsspec_options = root.fsspec_options()
-        # This credentials.provider option enables usage of the AWS credentials default priority list (i.e. it will
-        # cause a check for a ~/.aws/credentials file to happen instead of just looking for env vars).
-        # See http://wrschneider.github.io/2019/02/02/spark-credentials-file.html for details
+        # This credentials.provider option enables usage of the AWS credentials default priority
+        # list (i.e. it will cause a check for a ~/.aws/credentials file to happen instead of just
+        # looking for env vars).
         spark.conf.set(
             "fs.s3a.aws.credentials.provider",
-            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+            "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider",
         )
         spark.conf.set("fs.s3a.sse.enabled", "true")
         spark.conf.set("fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
