@@ -363,6 +363,12 @@ class TestEtlJobFlow(BaseEtlSimple):
             },
         )
 
+    async def test_rejects_new_phi_dir(self):
+        await self.run_etl(tasks=["patient"])
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(tasks=["patient"], phi_path=self.make_tempdir())
+        self.assertEqual(cm.exception.code, errors.WRONG_PHI_FOLDER)
+
 
 class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""

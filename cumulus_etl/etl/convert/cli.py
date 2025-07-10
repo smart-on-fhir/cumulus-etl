@@ -14,7 +14,7 @@ import pyarrow
 import rich.progress
 
 from cumulus_etl import cli_utils, common, completion, errors, formats, store
-from cumulus_etl.etl import tasks
+from cumulus_etl.etl import config, tasks
 from cumulus_etl.etl.tasks import task_factory
 
 
@@ -163,7 +163,8 @@ def walk_tree(
         copy_job_configs(input_root, output_root)
 
 
-def validate_input_dir(input_root: store.Root) -> None:
+def validate_folders(input_root: store.Root, output_root: store.Root) -> None:
+    # First check that the input root looks like an ETL output folder
     if not input_root.exists(input_root.path):
         errors.fatal(f"Original folder '{input_root.path}' does not exist!", errors.ARGS_INVALID)
     if not input_root.exists(input_root.joinpath("JobConfig")):
@@ -172,6 +173,11 @@ def validate_input_dir(input_root: store.Root) -> None:
             f"It is missing the JobConfig folder.",
             errors.ARGS_INVALID,
         )
+
+    # Now confirm that we are using the same PHI & output folder combo as always.
+    input_codebook_id = config.latest_codebook_id_from_configs(input_root)
+    if input_codebook_id:
+        config.validate_output_folder(output_root, input_codebook_id)
 
 
 #####################################################################################################################
@@ -204,9 +210,9 @@ async def convert_main(args: argparse.Namespace) -> None:
     store.set_user_fs_options(vars(args))
 
     input_root = store.Root(args.input_dir)
-    validate_input_dir(input_root)
-
     output_root = store.Root(args.output_dir)
+    validate_folders(input_root, output_root)
+
     formatter_class = formats.get_format_class("deltalake")
     formatter_class.initialize_class(output_root)
 
