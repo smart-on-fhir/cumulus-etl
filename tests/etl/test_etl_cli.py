@@ -382,6 +382,7 @@ class TestEtlJobConfig(BaseEtlSimple):
         with open(full_path, encoding="utf8") as f:
             return json.load(f)
 
+    @mock.patch("uuid.uuid4", new=lambda: "1234")
     async def test_serialization(self):
         """Verify that everything makes it from command line to the log file"""
         await self.run_etl(
@@ -395,6 +396,7 @@ class TestEtlJobConfig(BaseEtlSimple):
                 "dir_input": self.input_path,
                 "dir_output": self.output_path,
                 "dir_phi": self.phi_path,
+                "codebook_id": "1234",
                 "path": f"{self.job_config_path}/job_config.json",
                 "input_format": "ndjson",
                 "output_format": "ndjson",

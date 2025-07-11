@@ -127,15 +127,18 @@ class JobSummary:
         }
 
 
-def latest_codebook_id_from_configs(output_root: store.Root) -> str | None:
+def _latest_config(output_root: store.Root) -> dict:
     try:
         config_root = store.Root(output_root.joinpath("JobConfig"))
         timestamp_dirs = sorted(config_root.ls(), reverse=True)
         config_path = config_root.joinpath(f"{timestamp_dirs[0]}/job_config.json")
-        config = common.read_json(config_path)
-        return config.get("codebook_id")
+        return common.read_json(config_path)
     except Exception:
-        return None
+        return {}
+
+
+def latest_codebook_id_from_configs(output_root: store.Root) -> str | None:
+    return _latest_config(output_root).get("codebook_id")
 
 
 def validate_output_folder(output_root: store.Root, codebook_id: str) -> None:
@@ -154,9 +157,10 @@ def validate_output_folder(output_root: store.Root, codebook_id: str) -> None:
 
     # And compare against the new PHI dir
     if saved_codebook_id != codebook_id:
+        config = _latest_config(output_root)
         errors.fatal(
-            f"The output folder '{output_root.path}' is already connected "
-            "to a different PHI folder. "
+            f"The output folder '{output_root.path}' is already associated "
+            f"with a different PHI folder at '{config.get('dir_phi')}'. "
             "You must always use the same PHI folder for a given output folder.",
             errors.WRONG_PHI_FOLDER,
         )
