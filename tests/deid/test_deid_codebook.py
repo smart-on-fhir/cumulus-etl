@@ -14,12 +14,14 @@ from tests import utils
 def assert_empty_db(db: CodebookDB):
     assert {
         "version": 1,
+        "codebook_id": "1234",
         "id_salt": "31323334",
     } == db.settings
 
 
 @ddt.ddt
-@mock.patch("cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
+@mock.patch("uuid.uuid4", new=lambda: "1234")
+@mock.patch("secrets.token_hex", new=lambda x: "31323334")
 class TestCodebook(utils.AsyncTestCase):
     """Test case for the Codebook class"""
 
@@ -57,7 +59,8 @@ class TestCodebook(utils.AsyncTestCase):
 
 
 @ddt.ddt
-@mock.patch("cumulus_etl.deid.codebook.secrets.token_hex", new=lambda x: "31323334")
+@mock.patch("uuid.uuid4", new=lambda: "1234")
+@mock.patch("secrets.token_hex", new=lambda x: "31323334")
 class TestCodebookDB(utils.AsyncTestCase):
     """Test case for the CodebookDB class"""
 

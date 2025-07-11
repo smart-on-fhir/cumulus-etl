@@ -13,7 +13,7 @@ import rich.table
 import cumulus_etl
 from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
 from cumulus_etl.etl import context, tasks
-from cumulus_etl.etl.config import JobConfig, JobSummary
+from cumulus_etl.etl.config import JobConfig, JobSummary, validate_output_folder
 from cumulus_etl.etl.tasks import task_factory
 
 TaskList = list[type[tasks.EtlTask]]
@@ -287,6 +287,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     store.set_user_fs_options(vars(args))
 
     root_input = store.Root(args.dir_input)
+    root_output = store.Root(args.dir_output)
     root_phi = store.Root(args.dir_phi, create=True)
 
     job_context = context.JobContext(root_phi.joinpath("context.json"))
@@ -356,6 +357,9 @@ async def etl_main(args: argparse.Namespace) -> None:
             print("Skipping bulk de-identification.")
             print("These selected tasks will de-identify resources as they are processed.")
 
+        scrubber = deid.Scrubber(args.dir_phi, use_philter=args.philter)
+        validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
+
         # Prepare config for jobs
         config = JobConfig(
             args.dir_input,
@@ -365,6 +369,7 @@ async def etl_main(args: argparse.Namespace) -> None:
             args.input_format,
             args.output_format,
             client,
+            codebook_id=scrubber.codebook.get_codebook_id(),
             comment=args.comment,
             batch_size=args.batch_size,
             timestamp=job_datetime,
@@ -379,7 +384,6 @@ async def etl_main(args: argparse.Namespace) -> None:
         common.write_json(config.path_config(), config.as_json(), indent=4)
 
         # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-        scrubber = deid.Scrubber(config.dir_phi, use_philter=args.philter)
         summaries = await etl_job(config, selected_tasks, scrubber)
 
     # Update job context for future runs

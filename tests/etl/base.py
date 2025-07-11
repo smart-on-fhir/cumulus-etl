@@ -131,6 +131,7 @@ class TaskTestCase(utils.AsyncTestCase):
             "ndjson",
             "ndjson",
             client,
+            codebook_id="1234",
             timestamp=common.datetime_now(),
             batch_size=5,
             dir_errors=self.errors_dir,

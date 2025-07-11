@@ -57,7 +57,7 @@ class TestConvert(ConvertTestsBase):
         job_timestamp = "2023-02-28__19.53.08"
         config_dir = f"{self.original_path}/JobConfig/{job_timestamp}"
         os.makedirs(config_dir)
-        common.write_json(f"{config_dir}/job_config.json", {"test": True})
+        common.write_json(f"{config_dir}/job_config.json", {"codebook_id": "1234"})
 
         return job_timestamp
 
@@ -78,6 +78,19 @@ class TestConvert(ConvertTestsBase):
         os.makedirs(f"{self.original_path}/JobConfig")
         await self.run_convert()
 
+    async def test_phi_dir_changed(self):
+        """Verify that we complain if the PHI dir changes on us"""
+        self.prepare_original_dir()
+
+        # Fake a previous job in the target folder with a different codebook ID
+        config_dir = f"{self.target_path}/JobConfig/2020-10-16__11.13.00"
+        os.makedirs(config_dir)
+        common.write_json(f"{config_dir}/job_config.json", {"codebook_id": "abcd"})
+
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_convert()
+        self.assertEqual(cm.exception.code, errors.WRONG_PHI_FOLDER)
+
     async def test_happy_path(self):
         """Verify that basic conversions work, first on empty target then updating that now-occupied target"""
         # Do first conversion
@@ -88,7 +101,7 @@ class TestConvert(ConvertTestsBase):
         expected_tables = set(os.listdir(self.original_path)) - {"ignored"}
         self.assertEqual(expected_tables, set(os.listdir(self.target_path)))
         self.assertEqual(
-            {"test": True},
+            {"codebook_id": "1234"},
             common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
         )
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # spot check some patients
@@ -151,7 +164,7 @@ class TestConvert(ConvertTestsBase):
 
         # How did that change the delta lake dir? Hopefully we only interwove the new data
         self.assertEqual(  # confirm this is still here
-            {"test": True},
+            {"codebook_id": "1234"},
             common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
         )
         self.assertEqual(

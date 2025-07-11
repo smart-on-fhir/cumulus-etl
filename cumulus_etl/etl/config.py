@@ -6,7 +6,7 @@ from socket import gethostname
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import common, formats, store
+from cumulus_etl import common, errors, formats, store
 
 
 class JobConfig:
@@ -27,6 +27,8 @@ class JobConfig:
         input_format: str,
         output_format: str,
         client: cfs.FhirClient,
+        *,
+        codebook_id: str,
         timestamp: datetime.datetime | None = None,
         comment: str | None = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
@@ -46,6 +48,7 @@ class JobConfig:
         self._output_format = output_format
         self.dir_errors = dir_errors
         self.client = client
+        self.codebook_id = codebook_id
         self.timestamp = timestamp
         self.hostname = gethostname()
         self.comment = comment or ""
@@ -88,6 +91,7 @@ class JobConfig:
             "export_group_name": self.export_group_name,
             "export_timestamp": self.export_datetime and self.export_datetime.isoformat(),
             "export_url": self.export_url,
+            "codebook_id": self.codebook_id,
         }
 
 
@@ -121,3 +125,42 @@ class JobSummary:
             "timestamp": self.timestamp,
             "hostname": self.hostname,
         }
+
+
+def _latest_config(output_root: store.Root) -> dict:
+    try:
+        config_root = store.Root(output_root.joinpath("JobConfig"))
+        timestamp_dirs = sorted(config_root.ls(), reverse=True)
+        config_path = config_root.joinpath(f"{timestamp_dirs[0]}/job_config.json")
+        return common.read_json(config_path)
+    except Exception:
+        return {}
+
+
+def latest_codebook_id_from_configs(output_root: store.Root) -> str | None:
+    return _latest_config(output_root).get("codebook_id")
+
+
+def validate_output_folder(output_root: store.Root, codebook_id: str) -> None:
+    """
+    Confirm the user isn't trying to use different PHI folders for the same output folder.
+
+    If they did that, they would end up with all new anonymized IDs and could double their resource
+    counts, since nothing would match from the previous run.
+
+    It's safe to have multiple output folders all using the same PHI folder. But not the other way
+    around.
+    """
+    saved_codebook_id = latest_codebook_id_from_configs(output_root)
+    if not saved_codebook_id:
+        return
+
+    # And compare against the new PHI dir
+    if saved_codebook_id != codebook_id:
+        config = _latest_config(output_root)
+        errors.fatal(
+            f"The output folder '{output_root.path}' is already associated "
+            f"with a different PHI folder at '{config.get('dir_phi')}'. "
+            "You must always use the same PHI folder for a given output folder.",
+            errors.WRONG_PHI_FOLDER,
+        )

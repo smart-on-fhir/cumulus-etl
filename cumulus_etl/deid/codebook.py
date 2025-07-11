@@ -5,6 +5,7 @@ import hmac
 import logging
 import os
 import secrets
+import uuid
 from collections.abc import Iterable, Iterator
 
 from cumulus_etl import common
@@ -45,6 +46,9 @@ class Codebook:
 
     def save(self) -> bool:
         return self.db.save()
+
+    def get_codebook_id(self) -> str:
+        return self.db.get_codebook_id()
 
     def fake_id(self, resource_type: str | None, real_id: str, caching_allowed: bool = True) -> str:
         """
@@ -114,7 +118,7 @@ class CodebookDB:
 
         :param codebook_dir: folder to load from (optional)
         """
-        self.settings = {
+        self.settings: dict = {
             # If you change the saved format, bump this number and add your new format loader in _load_saved()
             "version": 1,
         }
@@ -142,6 +146,13 @@ class CodebookDB:
             except (FileNotFoundError, PermissionError):
                 pass
 
+        # Initialize a unique ID for this codebook if we don't have one yet.
+        # This is not a secret ID - it's referenced in the output folders.
+        # It's only used as a fingerprint for a codebook (without actually referencing the salt).
+        if "codebook_id" not in self.settings:
+            self.settings["codebook_id"] = str(uuid.uuid4())
+            self.settings_modified = True
+
         # Initialize salt if we don't have one yet
         if "id_salt" not in self.settings:
             # Create a salt, used when hashing resource IDs.
@@ -152,6 +163,9 @@ class CodebookDB:
             # recommended, so 256 bits seem good (which is 32 bytes).
             self.settings["id_salt"] = secrets.token_hex(32)
             self.settings_modified = True
+
+    def get_codebook_id(self) -> str:
+        return self.settings["codebook_id"]
 
     def patient(self, real_id: str, cache_mapping: bool = True) -> str:
         """
