@@ -40,7 +40,6 @@ services:
       - AZURE_OPENAI_API_KEY
       - AZURE_OPENAI_ENDPOINT
       # Internal environment variobles
-      - CUMULUS_HUGGING_FACE_URL=http://llama2:8086/
       - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
       - URL_CNLP_NEGATION=http://cnlpt-negation:8000/negation/process
       - URL_CNLP_TERM_EXISTS=http://cnlpt-term-exists:8000/termexists/process
@@ -60,6 +59,7 @@ services:
   cumulus-etl-gpu:
     extends: cumulus-etl-base
     environment:
+      - CUMULUS_LLAMA2_URL=http://llama2:8086/v1
       - URL_CNLP_NEGATION=http://cnlpt-negation-gpu:8000/negation/process
       - URL_CNLP_TERM_EXISTS=http://cnlpt-term-exists-gpu:8000/termexists/process
     profiles:
@@ -140,21 +140,23 @@ services:
   # This is a WIP llama2 setup, currently suitable for running in a g5.xlarge AWS instance.
   llama2:
     extends: common-base
-    image: ghcr.io/huggingface/text-generation-inference:1.0.1
+    image: vllm/vllm-openai:v0.10.0
     environment:
+      - HF_TOKEN
+      - HUGGING_FACE_HUB_TOKEN
+    command:
       # If you update anything here that could affect NLP results, consider updating the
       # task_version of any tasks that use this docker.
-      - HUGGING_FACE_HUB_TOKEN
-      - MODEL_ID=meta-llama/Llama-2-13b-chat-hf
-      - QUANTIZE=bitsandbytes-nf4  # 4bit
-      - PORT=8086
-      - REVISION=0ba94ac9b9e1d5a0037780667e8b219adde1908c
+      - --download-dir=/data
+      - --model=meta-llama/Llama-2-13b-chat-hf
+      - --port=8086
+      - --quantization=bitsandbytes  # 4bit
+      - --revision=a2cb7a712bb6e5e736ca7f8cd98167f81a0b5bd8
     healthcheck:
-      # There's no curl or wget inside this container, but there is python3!
-      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 8086))"]
+      test: ["CMD", "wget", "localhost:8086/health", "--output-document=/dev/null"]
       start_period: 20m  # give plenty of time for startup, since we may be downloading a model
     volumes:
-      - hf-data:/data
+      - vllm-data:/data
     profiles:
       - hf-test
     networks:
@@ -257,4 +259,4 @@ networks:
 
 volumes:
   ctakes-overrides:
-  hf-data:
+  vllm-data:

@@ -1,11 +1,9 @@
 """Define tasks for the hftest study"""
 
-import cumulus_fhir_support as cfs
-import httpx
 import pyarrow
 import rich.progress
 
-from cumulus_etl import common, errors, nlp
+from cumulus_etl import common, nlp
 from cumulus_etl.etl import tasks
 
 
@@ -17,48 +15,35 @@ class HuggingFaceTestTask(tasks.BaseNlpTask):
     task_version = 0
     # Task Version History:
     # ** 0 **
-    #   This is fluid until we actually promote this to a real task - feel free to update without bumping the version.
-    #   container: ghcr.io/huggingface/text-generation-inference
-    #   container reversion: 09eca6422788b1710c54ee0d05dd6746f16bb681
+    #   This is fluid until we actually promote this to a real task - feel free to update without
+    #   bumping the version.
+    #   container: vllm/vllm-openai
+    #   container revision: v0.10.0
     #   container properties:
-    #     QUANTIZE=bitsandbytes-nf4
+    #     QUANTIZE=bitsandbytes
     #   model: meta-llama/Llama-2-13b-chat-hf
-    #   model revision: 0ba94ac9b9e1d5a0037780667e8b219adde1908c
+    #   model revision: a2cb7a712bb6e5e736ca7f8cd98167f81a0b5bd8
     #   system prompt:
-    #     "You will be given a clinical note, and you should reply with a short summary of that note."
+    #     "You will be given a clinical note, and you should reply with a short summary of that
+    #     note."
     #   user prompt: a clinical note
 
     @classmethod
     async def init_check(cls) -> None:
-        try:
-            raw_info = await nlp.hf_info()
-        except cfs.NetworkError:
-            errors.fatal(
-                "Llama2 NLP server is unreachable.\n Try running 'docker compose up llama2 --wait'.",
-                errors.SERVICE_MISSING,
-            )
-
-        # Sanity check a few of the properties, to make sure we don't accidentally get pointed at an unexpected model.
-        expected_info_present = (
-            raw_info.get("model_id") == "meta-llama/Llama-2-13b-chat-hf"
-            and raw_info.get("model_sha") == "0ba94ac9b9e1d5a0037780667e8b219adde1908c"
-            and raw_info.get("sha") == "09eca6422788b1710c54ee0d05dd6746f16bb681"
-        )
-        if not expected_info_present:
-            errors.fatal(
-                "LLama2 NLP server is using an unexpected model setup.",
-                errors.SERVICE_MISSING,
-            )
+        await nlp.Llama2Model().check()
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through HF and returns any symptoms found"""
-        http_client = httpx.AsyncClient(timeout=300)
+        client = nlp.Llama2Model()
 
         async for _, docref, clinical_note in self.read_notes(progress=progress):
             timestamp = common.datetime_now().isoformat()
 
             # If you change this prompt, consider updating task_version.
-            system_prompt = "You will be given a clinical note, and you should reply with a short summary of that note."
+            system_prompt = (
+                "You will be given a clinical note, "
+                "and you should reply with a short summary of that note."
+            )
             user_prompt = clinical_note
 
             summary = await nlp.cache_wrapper(
@@ -67,18 +52,17 @@ class HuggingFaceTestTask(tasks.BaseNlpTask):
                 clinical_note,
                 lambda x: x,  # from file: just store the string
                 lambda x: x,  # to file: just read it back
-                nlp.llama2_prompt,
+                client.prompt,
                 system_prompt,
                 user_prompt,
-                client=http_client,
             )
 
             # Debugging
-            # logging.warning("\n\n\n\n" "**********************************************************")
+            # logging.warning("\n\n\n\n" "********************************************************")
             # logging.warning(user_prompt)
-            # logging.warning("==========================================================")
+            # logging.warning("========================================================")
             # logging.warning(summary)
-            # logging.warning("**********************************************************")
+            # logging.warning("********************************************************")
 
             yield {
                 "id": docref["id"],  # just copy the docref

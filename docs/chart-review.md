@@ -64,7 +64,6 @@ docker compose run --rm \
 
 The above command will take all the DiagnosticReports and DocumentReferences
 in Group `67890` from the EHR,
-mark the notes with the default NLP dictionary,
 anonymize the notes with `philter`,
 and then push the results to your Label Studio project number `3`.
 
