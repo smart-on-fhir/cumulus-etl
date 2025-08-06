@@ -1,5 +1,5 @@
 ---
-title: Covid Symptom
+title: Infectious Respiratory Symptoms
 parent: Studies
 grand_parent: ETL
 nav_order: 1
@@ -7,9 +7,10 @@ nav_order: 1
 # type: howto
 ---
 
-# The Covid Symptom Study
+# The Infectious Respiratory Symptoms Study
 
-This study uses NLP to identify symptoms of COVID-19 in clinical notes.
+This study uses NLP to identify symptoms of respiratory infections in clinical notes.
+Read the [published results in JMIR](https://www.jmir.org/2025/1/e72984).
 
 It allows for running different NLP strategies and comparing them:
 1. [cTAKES](https://ctakes.apache.org/) and the `negation`
@@ -20,6 +21,10 @@ It allows for running different NLP strategies and comparing them:
 
 Each can be run separately, and may require different preparation.
 Read more below about the main approaches (cTAKES and ChatGPT).
+
+{: .note }
+This study started with an investigation of COVID-19 symptoms,
+so the ETL study identifier is `covid_symptom`.
 
 ## cTAKES Preparation
 
@@ -81,7 +86,7 @@ See `--help` for more authentication options.
 
 ## Evaluating the Results
 
-See the [Cumulus Library Covid study repository](https://github.com/smart-on-fhir/cumulus-library-covid)
+See the [Cumulus Library study repository](https://github.com/smart-on-fhir/cumulus-library-covid)
 for more information about processing the raw NLP results that the ETL generates.
 
 Those instructions will help you set up Label Studio so that you can compare the
