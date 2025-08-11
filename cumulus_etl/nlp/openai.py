@@ -4,62 +4,100 @@ import abc
 import os
 
 import openai
+from openai.types import chat
+from pydantic import BaseModel
 
 from cumulus_etl import errors
 
 
 class OpenAIModel(abc.ABC):
-    COMPOSE_ID = None
-    MODEL_NAME = None
+    USER_ID = None  # name in compose file or brand name
+    MODEL_NAME = None  # which model to request via the API
 
-    @property
     @abc.abstractmethod
-    def url(self) -> str:
-        """The OpenAI compatible URL to talk to (where's the server?)"""
-
-    @property
-    @abc.abstractmethod
-    def api_key(self) -> str:
-        """The API key to use (empty string for local servers)"""
+    def make_client(self) -> openai.AsyncClient:
+        """Creates an NLP client"""
 
     def __init__(self):
-        self.client = openai.AsyncClient(base_url=self.url, api_key=self.api_key)
+        self.client = self.make_client()
 
-    async def check(self) -> None:
+    # override to add your own checks
+    @classmethod
+    async def pre_init_check(cls) -> None:
+        pass
+
+    # override to add your own checks
+    async def post_init_check(self) -> None:
         try:
             models = self.client.models.list()
             names = {model.id async for model in models}
         except openai.APIError:
             errors.fatal(
-                f"NLP server '{self.COMPOSE_ID}' is unreachable.\n"
-                f"Try running 'docker compose up {self.COMPOSE_ID} --wait'.",
+                f"NLP server '{self.USER_ID}' is unreachable.\n"
+                f"If it's a local server, try running 'docker compose up {self.USER_ID} --wait'.",
                 errors.SERVICE_MISSING,
             )
 
         if self.MODEL_NAME not in names:
             errors.fatal(
-                f"NLP server '{self.COMPOSE_ID}' is using an unexpected model setup.",
+                f"NLP server '{self.USER_ID}' is using an unexpected model setup.",
                 errors.SERVICE_MISSING,
             )
 
-    async def prompt(self, system: str, user: str) -> str:
-        response = await self.client.responses.create(
+    async def prompt(self, system: str, user: str, schema: BaseModel) -> chat.ParsedChatCompletion:
+        return await self.client.chat.completions.parse(
             model=self.MODEL_NAME,
-            instructions=system,
-            input=user,
-            temperature=0,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            seed=12345,  # arbitrary, just specifying it for reproducibility
+            temperature=0,  # minimize temp, also for reproducibility
+            timeout=60,  # in seconds
+            response_format=schema,
         )
-        return response.output_text.strip()
+
+
+class AzureModel(OpenAIModel):
+    USER_ID = "Azure"
+
+    @classmethod
+    async def pre_init_check(cls) -> None:
+        await super().pre_init_check()
+
+        messages = []
+        if not os.environ.get("AZURE_OPENAI_API_KEY"):
+            messages.append("The AZURE_OPENAI_API_KEY environment variable is not set.")
+        if not os.environ.get("AZURE_OPENAI_ENDPOINT"):
+            messages.append("The AZURE_OPENAI_ENDPOINT environment variable is not set.")
+
+        if messages:
+            errors.fatal("\n".join(messages), errors.ARGS_INVALID)
+
+    def make_client(self) -> openai.AsyncClient:
+        return openai.AsyncAzureOpenAI(api_version="2024-06-01")
+
+
+class Gpt35Model(AzureModel):
+    MODEL_NAME = "gpt-35-turbo-0125"
+
+
+class Gpt4Model(AzureModel):
+    MODEL_NAME = "gpt-4"
 
 
 class LocalModel(OpenAIModel, abc.ABC):
     @property
-    def api_key(self) -> str:
-        return ""
+    @abc.abstractmethod
+    def url(self) -> str:
+        """The OpenAI compatible URL to talk to (where's the server?)"""
+
+    def make_client(self) -> openai.AsyncClient:
+        return openai.AsyncOpenAI(base_url=self.url, api_key="")
 
 
 class Llama2Model(LocalModel):
-    COMPOSE_ID = "llama2"
+    USER_ID = "llama2"
     MODEL_NAME = "meta-llama/Llama-2-13b-chat-hf"
 
     @property

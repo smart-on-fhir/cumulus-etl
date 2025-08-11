@@ -15,6 +15,7 @@ dependencies = [
     "oracledb",
     "philter-lite",
     "pyarrow",
+    "pydantic",
     "rich",
 ]
 authors = [

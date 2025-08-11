@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, errors
-from cumulus_etl.etl.studies import covid_symptom, hftest
+from cumulus_etl.etl.studies import covid_symptom, irae
 from cumulus_etl.etl.tasks import basic_tasks
 
 AnyTask = TypeVar("AnyTask", bound="EtlTask")  # noqa: F821
@@ -25,7 +25,7 @@ def get_all_tasks() -> list[type[AnyTask]]:
         covid_symptom.CovidSymptomNlpResultsGpt4Task,
         covid_symptom.CovidSymptomNlpResultsTask,
         covid_symptom.CovidSymptomNlpResultsTermExistsTask,
-        hftest.HuggingFaceTestTask,
+        irae.IraeLlama2Task,
     ]
 
 

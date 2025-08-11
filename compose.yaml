@@ -158,7 +158,7 @@ services:
     volumes:
       - vllm-data:/data
     profiles:
-      - hf-test
+      - irae-gpu
     networks:
       - cumulus-etl
     ports:

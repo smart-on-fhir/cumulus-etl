@@ -1,19 +1,15 @@
 """Define tasks for the covid_symptom study"""
 
 import itertools
-import json
-import logging
-import os
 from typing import ClassVar
 
 import ctakesclient
-import openai
 import pyarrow
+import pydantic
 import rich.progress
 from ctakesclient.transformer import TransformerModel
-from openai.types import chat
 
-from cumulus_etl import common, nlp, store
+from cumulus_etl import nlp, store
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
@@ -228,152 +224,94 @@ class CovidSymptomNlpResultsTermExistsTask(BaseCovidCtakesTask):
         nlp.check_term_exists_cnlpt()
 
 
-class BaseCovidGptTask(tasks.BaseNlpTask):
+class CovidSymptoms(pydantic.BaseModel):
+    congestion_or_runny_nose: bool = pydantic.Field(alias="Congestion or runny nose")
+    cough: bool = pydantic.Field(alias="Cough")
+    diarrhea: bool = pydantic.Field(alias="Diarrhea")
+    dyspnea: bool = pydantic.Field(alias="Dyspnea")
+    fatigue: bool = pydantic.Field(alias="Fatigue")
+    fever_or_chills: bool = pydantic.Field(alias="Fever or chills")
+    headache: bool = pydantic.Field(alias="Headache")
+    loss_of_taste_or_smell: bool = pydantic.Field(alias="Loss of taste or smell")
+    muscle_or_body_aches: bool = pydantic.Field(alias="Muscle or body aches")
+    nausea_or_vomiting: bool = pydantic.Field(alias="Nausea or vomiting")
+    sore_throat: bool = pydantic.Field(alias="Sore throat")
+
+
+class BaseCovidGptTask(tasks.BaseOpenAiTask):
     """Covid Symptom study task, using GPT"""
 
-    tags: ClassVar = {"covid_symptom", "cpu"}
     outputs: ClassVar = [tasks.OutputTable(resource_type=None)]
-
-    # Overridden by child classes
-    model_id: ClassVar = None
-
-    async def prepare_task(self) -> bool:
-        api_key = os.environ.get("AZURE_OPENAI_API_KEY")
-        endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
-        if not api_key or not endpoint:
-            if not api_key:
-                print("  The AZURE_OPENAI_API_KEY environment variable is not set.")
-            if not endpoint:
-                print("  The AZURE_OPENAI_ENDPOINT environment variable is not set.")
-            print("  Skipping.")
-            self.summaries[0].had_errors = True
-            return False
-        return True
+    tags: ClassVar = {"covid_symptom", "cpu"}
+    system_prompt = "You are a helpful assistant."
+    user_prompt = (
+        "### Instructions ###\n"
+        "You are a helpful assistant identifying symptoms from emergency "
+        "department notes that could relate to infectious respiratory diseases.\n"
+        "Output positively documented symptoms, looking out specifically for the "
+        "following: Congestion or runny nose, Cough, Diarrhea, Dyspnea, Fatigue, "
+        "Fever or chills, Headache, Loss of taste or smell, Muscle or body aches, "
+        "Nausea or vomiting, Sore throat.\nSymptoms only need to be positively "
+        "mentioned once to be included.\nDo not mention symptoms that are not "
+        "present in the note.\n\nFollow these rules:\nRule (1): Symptoms must be "
+        "positively documented and relevant to the presenting illness or reason "
+        "for visit.\nRule (2): Medical section headings must be specific to the "
+        "present emergency department encounter.\nInclude positive symptoms from "
+        'these medical section headings: "Chief Complaint", "History of '
+        'Present Illness", "HPI", "Review of Systems", "Physical Exam", '
+        '"Vital Signs", "Assessment and Plan", "Medical Decision Making".\n'
+        "Rule (3): Positive symptom mentions must be a definite medical synonym.\n"
+        'Include positive mentions of: "anosmia", "loss of taste", "loss of '
+        'smell", "rhinorrhea", "congestion", "discharge", "nose is '
+        'dripping", "runny nose", "stuffy nose", "cough", "tussive or '
+        'post-tussive", "cough is unproductive", "productive cough", "dry '
+        'cough", "wet cough", "producing sputum", "diarrhea", "watery '
+        'stool", "fatigue", "tired", "exhausted", "weary", "malaise", '
+        '"feeling generally unwell", "fever", "pyrexia", "chills", '
+        '"temperature greater than or equal 100.4 Fahrenheit or 38 celsius", '
+        '"Temperature >= 100.4F", "Temperature >= 38C", "headache", "HA", '
+        '"migraine", "cephalgia", "head pain", "muscle or body aches", '
+        '"muscle aches", "generalized aches and pains", "body aches", '
+        '"myalgias", "myoneuralgia", "soreness", "generalized aches and '
+        'pains", "nausea or vomiting", "Nausea", "vomiting", "emesis", '
+        '"throwing up", "queasy", "regurgitated", "shortness of breath", '
+        '"difficulty breathing", "SOB", "Dyspnea", "breathing is short", '
+        '"increased breathing", "labored breathing", "distressed '
+        'breathing", "sore throat", "throat pain", "pharyngeal pain", '
+        '"pharyngitis", "odynophagia".\nYour reply must be parsable as JSON.\n'
+        'Format your response using only the following JSON schema: {"Congestion '
+        'or runny nose": boolean, "Cough": boolean, "Diarrhea": boolean, '
+        '"Dyspnea": boolean, "Fatigue": boolean, "Fever or chills": '
+        'boolean, "Headache": boolean, "Loss of taste or smell": boolean, '
+        '"Muscle or body aches": boolean, "Nausea or vomiting": boolean, '
+        '"Sore throat": boolean}. Each JSON key should correspond to a symptom, '
+        "and each value should be true if that symptom is indicated in the "
+        "clinical note; false otherwise.\nNever explain yourself, and only reply "
+        "with JSON.\n"
+        "### Text ###\n"
+        "%CLINICAL-NOTE%"
+    )
+    response_format = CovidSymptoms
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
-        async for orig_docref, docref, clinical_note in self.read_notes(
-            progress=progress, doc_check=is_ed_docref
-        ):
-            try:
-                docref_id, encounter_id, subject_id = nlp.get_docref_info(docref)
-            except KeyError as exc:
-                logging.warning(exc)
-                self.add_error(orig_docref)
-                continue
-
-            client = openai.AsyncAzureOpenAI(api_version="2024-06-01")
-            try:
-                response = await nlp.cache_wrapper(
-                    self.task_config.dir_phi,
-                    f"{self.name}_v{self.task_version}",
-                    clinical_note,
-                    lambda x: chat.ChatCompletion.model_validate_json(x),
-                    lambda x: x.model_dump_json(
-                        indent=None, round_trip=True, exclude_unset=True, by_alias=True
-                    ),
-                    client.chat.completions.create,
-                    messages=[
-                        {"role": "system", "content": "You are a helpful assistant."},
-                        {"role": "user", "content": self.get_prompt(clinical_note)},
-                    ],
-                    model=self.model_id,
-                    seed=12345,  # arbitrary, only specified to improve reproducibility
-                    response_format={"type": "json_object"},
-                )
-            except openai.APIError as exc:
-                logging.warning(f"Could not connect to GPT for DocRef {docref['id']}: {exc}")
-                self.add_error(orig_docref)
-                continue
-
-            if response.choices[0].finish_reason != "stop":
-                logging.warning(
-                    f"GPT response didn't complete for DocRef {docref['id']}: "
-                    f"{response.choices[0].finish_reason}"
-                )
-                self.add_error(orig_docref)
-                continue
-
-            try:
-                symptoms = json.loads(response.choices[0].message.content)
-            except json.JSONDecodeError as exc:
-                logging.warning(f"Could not parse GPT results for DocRef {docref['id']}: {exc}")
-                self.add_error(orig_docref)
-                continue
-
+        # This class predates some of the unified NLP code, so it uses an older format.
+        # Convert from new format to the older new one here.
+        async for entry in super().read_entries(progress=progress):
             yield {
-                "id": docref_id,  # keep one results entry per docref
-                "docref_id": docref_id,
-                "encounter_id": encounter_id,
-                "subject_id": subject_id,
-                "generated_on": common.datetime_now().isoformat(),
-                "task_version": self.task_version,
-                "system_fingerprint": response.system_fingerprint,
-                "symptoms": {
-                    "congestion_or_runny_nose": bool(symptoms.get("Congestion or runny nose")),
-                    "cough": bool(symptoms.get("Cough")),
-                    "diarrhea": bool(symptoms.get("Diarrhea")),
-                    "dyspnea": bool(symptoms.get("Dyspnea")),
-                    "fatigue": bool(symptoms.get("Fatigue")),
-                    "fever_or_chills": bool(symptoms.get("Fever or chills")),
-                    "headache": bool(symptoms.get("Headache")),
-                    "loss_of_taste_or_smell": bool(symptoms.get("Loss of taste or smell")),
-                    "muscle_or_body_aches": bool(symptoms.get("Muscle or body aches")),
-                    "nausea_or_vomiting": bool(symptoms.get("Nausea or vomiting")),
-                    "sore_throat": bool(symptoms.get("Sore throat")),
-                },
+                "id": entry["note_ref"].removeprefix("DocumentReference/"),
+                "docref_id": entry["note_ref"].removeprefix("DocumentReference/"),
+                "encounter_id": entry["encounter_ref"].removeprefix("Encounter/"),
+                "subject_id": entry["subject_ref"].removeprefix("Patient/"),
+                "generated_on": entry["generated_on"],
+                "task_version": entry["task_version"],
+                "system_fingerprint": entry["system_fingerprint"],
+                "symptoms": entry["result"],
             }
-
-    @staticmethod
-    def get_prompt(clinical_note: str) -> str:
-        instructions = (
-            "You are a helpful assistant identifying symptoms from emergency "
-            "department notes that could relate to infectious respiratory diseases.\n"
-            "Output positively documented symptoms, looking out specifically for the "
-            "following: Congestion or runny nose, Cough, Diarrhea, Dyspnea, Fatigue, "
-            "Fever or chills, Headache, Loss of taste or smell, Muscle or body aches, "
-            "Nausea or vomiting, Sore throat.\nSymptoms only need to be positively "
-            "mentioned once to be included.\nDo not mention symptoms that are not "
-            "present in the note.\n\nFollow these rules:\nRule (1): Symptoms must be "
-            "positively documented and relevant to the presenting illness or reason "
-            "for visit.\nRule (2): Medical section headings must be specific to the "
-            "present emergency department encounter.\nInclude positive symptoms from "
-            'these medical section headings: "Chief Complaint", "History of '
-            'Present Illness", "HPI", "Review of Systems", "Physical Exam", '
-            '"Vital Signs", "Assessment and Plan", "Medical Decision Making".\n'
-            "Rule (3): Positive symptom mentions must be a definite medical synonym.\n"
-            'Include positive mentions of: "anosmia", "loss of taste", "loss of '
-            'smell", "rhinorrhea", "congestion", "discharge", "nose is '
-            'dripping", "runny nose", "stuffy nose", "cough", "tussive or '
-            'post-tussive", "cough is unproductive", "productive cough", "dry '
-            'cough", "wet cough", "producing sputum", "diarrhea", "watery '
-            'stool", "fatigue", "tired", "exhausted", "weary", "malaise", '
-            '"feeling generally unwell", "fever", "pyrexia", "chills", '
-            '"temperature greater than or equal 100.4 Fahrenheit or 38 celsius", '
-            '"Temperature >= 100.4F", "Temperature >= 38C", "headache", "HA", '
-            '"migraine", "cephalgia", "head pain", "muscle or body aches", '
-            '"muscle aches", "generalized aches and pains", "body aches", '
-            '"myalgias", "myoneuralgia", "soreness", "generalized aches and '
-            'pains", "nausea or vomiting", "Nausea", "vomiting", "emesis", '
-            '"throwing up", "queasy", "regurgitated", "shortness of breath", '
-            '"difficulty breathing", "SOB", "Dyspnea", "breathing is short", '
-            '"increased breathing", "labored breathing", "distressed '
-            'breathing", "sore throat", "throat pain", "pharyngeal pain", '
-            '"pharyngitis", "odynophagia".\nYour reply must be parsable as JSON.\n'
-            'Format your response using only the following JSON schema: {"Congestion '
-            'or runny nose": boolean, "Cough": boolean, "Diarrhea": boolean, '
-            '"Dyspnea": boolean, "Fatigue": boolean, "Fever or chills": '
-            'boolean, "Headache": boolean, "Loss of taste or smell": boolean, '
-            '"Muscle or body aches": boolean, "Nausea or vomiting": boolean, '
-            '"Sore throat": boolean}. Each JSON key should correspond to a symptom, '
-            "and each value should be true if that symptom is indicated in the "
-            "clinical note; false otherwise.\nNever explain yourself, and only reply "
-            "with JSON."
-        )
-        return f"### Instructions ###\n{instructions}\n### Text ###\n{clinical_note}"
 
     @classmethod
     def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema:
+        result_schema = cls.convert_pydantic_fields_to_pyarrow(cls.response_format.model_fields)
         return pyarrow.schema(
             [
                 pyarrow.field("id", pyarrow.string()),
@@ -383,24 +321,7 @@ class BaseCovidGptTask(tasks.BaseNlpTask):
                 pyarrow.field("generated_on", pyarrow.string()),
                 pyarrow.field("task_version", pyarrow.int32()),
                 pyarrow.field("system_fingerprint", pyarrow.string()),
-                pyarrow.field(
-                    "symptoms",
-                    pyarrow.struct(
-                        [
-                            pyarrow.field("congestion_or_runny_nose", pyarrow.bool_()),
-                            pyarrow.field("cough", pyarrow.bool_()),
-                            pyarrow.field("diarrhea", pyarrow.bool_()),
-                            pyarrow.field("dyspnea", pyarrow.bool_()),
-                            pyarrow.field("fatigue", pyarrow.bool_()),
-                            pyarrow.field("fever_or_chills", pyarrow.bool_()),
-                            pyarrow.field("headache", pyarrow.bool_()),
-                            pyarrow.field("loss_of_taste_or_smell", pyarrow.bool_()),
-                            pyarrow.field("muscle_or_body_aches", pyarrow.bool_()),
-                            pyarrow.field("nausea_or_vomiting", pyarrow.bool_()),
-                            pyarrow.field("sore_throat", pyarrow.bool_()),
-                        ],
-                    ),
-                ),
+                pyarrow.field("symptoms", result_schema),
             ]
         )
 
@@ -409,10 +330,13 @@ class CovidSymptomNlpResultsGpt35Task(BaseCovidGptTask):
     """Covid Symptom study task, using GPT3.5"""
 
     name: ClassVar = "covid_symptom__nlp_results_gpt35"
-    model_id: ClassVar = "gpt-35-turbo-0125"
+    client_class: ClassVar = nlp.Gpt35Model
 
-    task_version: ClassVar = 1
+    task_version: ClassVar = 2
     # Task Version History:
+    # ** 2 (2025-08): Refactor with some changed params **
+    #   Sending pydantic class instead of just asking for JSON
+    #   temperature: 0
     # ** 1 (2024-08): Initial version **
     #   model: gpt-35-turbo-0125
     #   seed: 12345
@@ -422,10 +346,13 @@ class CovidSymptomNlpResultsGpt4Task(BaseCovidGptTask):
     """Covid Symptom study task, using GPT4"""
 
     name: ClassVar = "covid_symptom__nlp_results_gpt4"
-    model_id: ClassVar = "gpt-4"
+    client_class: ClassVar = nlp.Gpt4Model
 
-    task_version: ClassVar = 1
+    task_version: ClassVar = 2
     # Task Version History:
+    # ** 2 (2025-08): Refactor with some changed params **
+    #   Sending pydantic class instead of just asking for JSON
+    #   temperature: 0
     # ** 1 (2024-08): Initial version **
     #   model: gpt-4
     #   seed: 12345
