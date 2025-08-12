@@ -38,7 +38,7 @@ From your working directory with the Cumulus ETL's `compose.yaml`,
 you can run the following to start those services:
 ```shell
 export UMLS_API_KEY=your-umls-api-key  # don't forget to set this - cTAKES needs it
-docker compose --profile covid-symptom-gpu up --wait
+docker compose up --wait --profile covid-symptom-gpu
 ```
 
 You'll notice the `-gpu` suffix there.

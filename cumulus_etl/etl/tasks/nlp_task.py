@@ -175,16 +175,17 @@ class BaseOpenAiTask(BaseNlpTask):
                 self.add_error(orig_docref)
                 continue
 
-            if response.choices[0].finish_reason != "stop":
+            choice = response.choices[0]
+
+            if choice.finish_reason != "stop" or not choice.message.parsed:
                 logging.warning(
                     f"NLP server response didn't complete for DocRef {orig_docref['id']}: "
-                    f"{response.choices[0].finish_reason}"
+                    f"{choice.finish_reason}"
                 )
                 self.add_error(orig_docref)
                 continue
 
-            parsed = response.choices[0].message.parsed.model_dump(mode="json")
-
+            parsed = choice.message.parsed.model_dump(mode="json")
             self.post_process(parsed, orig_clinical_note, orig_docref)
 
             yield {

@@ -25,7 +25,10 @@ def get_all_tasks() -> list[type[AnyTask]]:
         covid_symptom.CovidSymptomNlpResultsGpt4Task,
         covid_symptom.CovidSymptomNlpResultsTask,
         covid_symptom.CovidSymptomNlpResultsTermExistsTask,
-        irae.IraeLlama2Task,
+        irae.IraeGptOss120bTask,
+        irae.IraeGpt4oTask,
+        irae.IraeGpt5Task,
+        irae.IraeLlama4ScoutTask,
     ]
 
 

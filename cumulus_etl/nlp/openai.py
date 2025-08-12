@@ -15,7 +15,7 @@ class OpenAIModel(abc.ABC):
     MODEL_NAME = None  # which model to request via the API
 
     @abc.abstractmethod
-    def make_client(self) -> openai.AsyncClient:
+    def make_client(self) -> openai.AsyncOpenAI:
         """Creates an NLP client"""
 
     def __init__(self):
@@ -53,7 +53,7 @@ class OpenAIModel(abc.ABC):
             ],
             seed=12345,  # arbitrary, just specifying it for reproducibility
             temperature=0,  # minimize temp, also for reproducibility
-            timeout=60,  # in seconds
+            timeout=120,  # in seconds
             response_format=schema,
         )
 
@@ -74,7 +74,7 @@ class AzureModel(OpenAIModel):
         if messages:
             errors.fatal("\n".join(messages), errors.ARGS_INVALID)
 
-    def make_client(self) -> openai.AsyncClient:
+    def make_client(self) -> openai.AsyncOpenAI:
         return openai.AsyncAzureOpenAI(api_version="2024-06-01")
 
 
@@ -86,22 +86,37 @@ class Gpt4Model(AzureModel):
     MODEL_NAME = "gpt-4"
 
 
+class Gpt4oModel(AzureModel):
+    MODEL_NAME = "gpt-4o"
+
+
+class Gpt5Model(AzureModel):
+    MODEL_NAME = "gpt-5"
+
+
 class LocalModel(OpenAIModel, abc.ABC):
     @property
     @abc.abstractmethod
     def url(self) -> str:
         """The OpenAI compatible URL to talk to (where's the server?)"""
 
-    def make_client(self) -> openai.AsyncClient:
+    def make_client(self) -> openai.AsyncOpenAI:
         return openai.AsyncOpenAI(base_url=self.url, api_key="")
 
 
-class Llama2Model(LocalModel):
-    USER_ID = "llama2"
-    MODEL_NAME = "meta-llama/Llama-2-13b-chat-hf"
+class GptOss120bModel(LocalModel):
+    USER_ID = "gpt-oss-120b"
+    MODEL_NAME = "openai/gpt-oss-120b"
 
     @property
     def url(self) -> str:
-        # 8000 and 8080 are both used as defaults in ctakesclient (cnlp & ctakes respectively).
-        # 8086 is used as a joking reference to Hugging Face (HF = 86).
-        return os.environ.get("CUMULUS_LLAMA2_URL") or "http://localhost:8086/v1"
+        return os.environ.get("CUMULUS_GPT_OSS_120B_URL") or "http://localhost:8086/v1"
+
+
+class Llama4ScoutModel(LocalModel):
+    USER_ID = "llama4-scout"
+    MODEL_NAME = "nvidia/Llama-4-Scout-17B-16E-Instruct-FP8"
+
+    @property
+    def url(self) -> str:
+        return os.environ.get("CUMULUS_LLAMA4_SCOUT_URL") or "http://localhost:8087/v1"

@@ -65,6 +65,21 @@ class BaseIraeTask(tasks.BaseOpenAiTaskWithSpans):
     response_format = DSAMention
 
 
-class IraeLlama2Task(BaseIraeTask):
-    name = "irae__nlp_llama2"
-    client_class = nlp.Llama2Model
+class IraeGpt4oTask(BaseIraeTask):
+    name = "irae__nlp_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
+class IraeGpt5Task(BaseIraeTask):
+    name = "irae__nlp_gpt5"
+    client_class = nlp.Gpt5Model
+
+
+class IraeGptOss120bTask(BaseIraeTask):
+    name = "irae__nlp_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
+class IraeLlama4ScoutTask(BaseIraeTask):
+    name = "irae__nlp_llama4_scout"
+    client_class = nlp.Llama4ScoutModel

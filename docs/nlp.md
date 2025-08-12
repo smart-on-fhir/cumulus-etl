@@ -149,7 +149,7 @@ As an example, let's say you want to run the `covid_symptom` study.
 The command below will launch all the services that study needs.
 In this case, that means cTAKES and two different cNLP transformers.
 ```shell
-docker compose --profile covid-symptom-gpu up --wait
+docker compose up --wait --profile covid-symptom-gpu
 ```
 
 That command works because Cumulus ETL ships a Docker Compose file with stanzas like:
