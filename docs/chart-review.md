@@ -188,7 +188,7 @@ NLP needs cTAKES to be available, so you'll need to launch it before you begin:
 
 ```shell
 export UMLS_API_KEY=your-umls-api-key
-docker compose --profile upload-notes up --wait
+docker compose up --wait --profile upload-notes
 ```
 
 Or if you have access to a GPU,

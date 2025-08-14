@@ -1,9 +1,7 @@
 """Tests for GPT covid symptom tasks"""
 
 import hashlib
-import os
 from typing import ClassVar
-from unittest import mock
 
 import ddt
 
@@ -14,14 +12,10 @@ from tests.nlp.utils import OpenAITestCase
 
 
 @ddt.ddt
-@mock.patch.dict(
-    os.environ, {"AZURE_OPENAI_API_KEY": "test-key", "AZURE_OPENAI_ENDPOINT": "test-endpoint"}
-)
 class TestCovidSymptomGptResultsTask(OpenAITestCase):
     """Test case for CovidSymptomNlpResultsGpt*Task"""
 
     MODEL_ID: ClassVar = ["gpt-35-turbo-0125", "gpt-4"]
-    CLIENT_CALL = "openai.AsyncAzureOpenAI"
 
     def default_content(self):
         return CovidSymptoms.model_validate(
@@ -80,7 +74,7 @@ class TestCovidSymptomGptResultsTask(OpenAITestCase):
                 "model": "gpt-35-turbo-0125",
                 "seed": 12345,
                 "temperature": 0,
-                "timeout": 60,
+                "timeout": 120,
                 "response_format": CovidSymptoms,
             },
             self.mock_create.call_args_list[0][1],

@@ -24,7 +24,7 @@ from tests.nlp.utils import OpenAITestCase
 class TestWithSpansNLPTasks(OpenAITestCase):
     """Tests local NLP with spans and similar shared/generic code"""
 
-    MODEL_ID = "meta-llama/Llama-2-13b-chat-hf"
+    MODEL_ID = "openai/gpt-oss-120b"
 
     def default_content(self) -> pydantic.BaseModel:
         return DSAMention(
@@ -40,7 +40,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         self.make_json("DocumentReference", "2", **i2b2_mock_data.documentreference("bar"))
 
     async def assert_failed_doc(self, msg: str):
-        task = irae.IraeLlama2Task(self.job_config, self.scrubber)
+        task = irae.IraeGptOss120bTask(self.job_config, self.scrubber)
         with self.assertLogs(level="WARN") as cm:
             await task.run()
 
@@ -64,13 +64,21 @@ class TestWithSpansNLPTasks(OpenAITestCase):
             batch.rows[0]["note_ref"], f"DocumentReference/{self.codebook.db.resource_hash('2')}"
         )
 
-    async def test_llama2_env_url_override(self):
+    async def test_gpt_oss_120_env_url_override(self):
         """Verify we can override the default URL."""
-        self.patch_dict(os.environ, {"CUMULUS_LLAMA2_URL": ""})
-        self.assertEqual(nlp.Llama2Model().url, "http://localhost:8086/v1")
+        self.patch_dict(os.environ, {"CUMULUS_GPT_OSS_120B_URL": ""})
+        self.assertEqual(nlp.GptOss120bModel().url, "http://localhost:8086/v1")
 
-        self.patch_dict(os.environ, {"CUMULUS_LLAMA2_URL": "https://blarg/"})
-        self.assertEqual(nlp.Llama2Model().url, "https://blarg/")
+        self.patch_dict(os.environ, {"CUMULUS_GPT_OSS_120B_URL": "https://blarg/"})
+        self.assertEqual(nlp.GptOss120bModel().url, "https://blarg/")
+
+    async def test_llama4_scout_env_url_override(self):
+        """Verify we can override the default URL."""
+        self.patch_dict(os.environ, {"CUMULUS_LLAMA4_SCOUT_URL": ""})
+        self.assertEqual(nlp.Llama4ScoutModel().url, "http://localhost:8087/v1")
+
+        self.patch_dict(os.environ, {"CUMULUS_LLAMA4_SCOUT_URL": "https://blarg/"})
+        self.assertEqual(nlp.Llama4ScoutModel().url, "https://blarg/")
 
     async def test_caching(self):
         """Verify we cache results"""
@@ -79,10 +87,10 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         self.assertFalse(os.path.exists(f"{self.phi_dir}/nlp-cache"))
 
         self.mock_response()
-        await irae.IraeLlama2Task(self.job_config, self.scrubber).run()
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_llama2_v0/06ee/"
+        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v0/06ee/"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
             common.read_json(cache_file),
@@ -109,13 +117,13 @@ class TestWithSpansNLPTasks(OpenAITestCase):
             },
         )
 
-        await irae.IraeLlama2Task(self.job_config, self.scrubber).run()
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
         self.assertEqual(self.mock_create.call_count, 1)
 
         # Confirm that if we remove the cache file, we call the endpoint again
         self.mock_response()
         os.remove(cache_file)
-        await irae.IraeLlama2Task(self.job_config, self.scrubber).run()
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
         self.assertEqual(self.mock_create.call_count, 2)
 
     async def test_init_check_unreachable(self):
@@ -123,18 +131,18 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         self.mock_client.models.list = self.mock_model_list(error=True)
 
         with self.assertRaises(SystemExit) as cm:
-            await irae.IraeLlama2Task.init_check()
+            await irae.IraeGptOss120bTask.init_check()
         self.assertEqual(errors.SERVICE_MISSING, cm.exception.code)
 
     async def test_init_check_config(self):
         """Verify we check the server properties"""
         # Happy path
-        await irae.IraeLlama2Task.init_check()
+        await irae.IraeGptOss120bTask.init_check()
 
         # Bad model ID
         self.mock_client.models.list = self.mock_model_list("bogus-model")
         with self.assertRaises(SystemExit) as cm:
-            await irae.IraeLlama2Task.init_check()
+            await irae.IraeGptOss120bTask.init_check()
         self.assertEqual(errors.SERVICE_MISSING, cm.exception.code)
 
     async def test_output_fields(self):
@@ -147,7 +155,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
                 dsa_present=DSAPresent("None of the above"),
             )
         )
-        await irae.IraeLlama2Task(self.job_config, self.scrubber).run()
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -180,7 +188,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
             **i2b2_mock_data.documentreference("Test   \n  lines  "),
         )
         self.mock_response()
-        await irae.IraeLlama2Task(self.job_config, self.scrubber).run()
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
         kwargs = self.mock_create.call_args.kwargs
@@ -206,7 +214,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
                 dsa_mentioned=True,
             )
         )
-        await irae.IraeLlama2Task(self.job_config, self.scrubber).run()
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -214,7 +222,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         self.assertEqual(batch.rows[0]["result"]["spans"], [(0, 4), (0, 11), (14, 19)])
 
     async def test_span_conversion_in_schema(self):
-        schema = irae.IraeLlama2Task.get_schema(None, [])
+        schema = irae.IraeGptOss120bTask.get_schema(None, [])
         result_index = schema.get_field_index("result")
         result_type = schema.field(result_index).type
         spans_index = result_type.get_field_index("spans")
@@ -255,7 +263,6 @@ class TestAzureNLPTasks(OpenAITestCase):
     """Tests the Azure specific code"""
 
     MODEL_ID = "gpt-35-turbo-0125"
-    CLIENT_CALL = "openai.AsyncAzureOpenAI"
 
     @ddt.data(
         # env vars to set, success

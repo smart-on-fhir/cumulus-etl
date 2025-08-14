@@ -1,3 +1,6 @@
 """The irae study"""
 
-from .irae_tasks import IraeLlama2Task as IraeLlama2Task
+from .irae_tasks import IraeGpt4oTask as IraeGpt4oTask
+from .irae_tasks import IraeGpt5Task as IraeGpt5Task
+from .irae_tasks import IraeGptOss120bTask as IraeGptOss120bTask
+from .irae_tasks import IraeLlama4ScoutTask as IraeLlama4ScoutTask

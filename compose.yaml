@@ -59,7 +59,8 @@ services:
   cumulus-etl-gpu:
     extends: cumulus-etl-base
     environment:
-      - CUMULUS_LLAMA2_URL=http://llama2:8086/v1
+      - CUMULUS_GPT_OSS_120B_URL=http://gpt-oss-120b:8086/v1
+      - CUMULUS_LLAMA4_SCOUT_URL=http://llama4-scout:8087/v1
       - URL_CNLP_NEGATION=http://cnlpt-negation-gpu:8000/negation/process
       - URL_CNLP_TERM_EXISTS=http://cnlpt-term-exists-gpu:8000/termexists/process
     profiles:
@@ -137,24 +138,25 @@ services:
           devices:
             - capabilities: [gpu]
 
-  # This is a WIP llama2 setup, currently suitable for running in a g5.xlarge AWS instance.
-  llama2:
+  gpt-oss-120b:
+    # Needs 80GB of GPU memory. A g6.12xlarge EC2 instance should work.
+    # Docs: https://docs.vllm.ai/projects/recipes/en/latest/OpenAI/GPT-OSS.html
     extends: common-base
-    image: vllm/vllm-openai:v0.10.0
+    image: vllm/vllm-openai:gptoss  # TODO: once stabilized, revert to main releases
     environment:
-      - HF_TOKEN
-      - HUGGING_FACE_HUB_TOKEN
+      - VLLM_ATTENTION_BACKEND=TRITON_ATTN_VLLM_V1  # needed for NVIDIA A10 and A100 chips
     command:
+      - --download-dir=/data
+      - --port=8086
       # If you update anything here that could affect NLP results, consider updating the
       # task_version of any tasks that use this docker.
-      - --download-dir=/data
-      - --model=meta-llama/Llama-2-13b-chat-hf
-      - --port=8086
-      - --quantization=bitsandbytes  # 4bit
-      - --revision=a2cb7a712bb6e5e736ca7f8cd98167f81a0b5bd8
+      - --model=openai/gpt-oss-120b
+      - --revision=bc75b44b8a2a116a0e4c6659bcd1b7969885f423
+      - --tensor-parallel-size=4
+    shm_size: 32G
     healthcheck:
       test: ["CMD", "wget", "localhost:8086/health", "--output-document=/dev/null"]
-      start_period: 20m  # give plenty of time for startup, since we may be downloading a model
+      start_period: 40m  # give plenty of time for startup, loading is slow
     volumes:
       - vllm-data:/data
     profiles:
@@ -163,6 +165,41 @@ services:
       - cumulus-etl
     ports:
       - 8086:8086
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+  llama4-scout:  # WIP, have not gotten it to run successfully yet
+    # Needs 80GB of GPU memory. A g6.12xlarge EC2 instance should work.
+    # Docs: https://docs.vllm.ai/projects/recipes/en/latest/Llama/Llama4-Scout.html
+    extends: common-base
+    image: vllm/vllm-openai:v0.10.0
+    environment:
+      - HF_TOKEN
+      - HUGGING_FACE_HUB_TOKEN
+      - VLLM_ATTENTION_BACKEND=TRITON_ATTN_VLLM_V1  # needed for NVIDIA A10 and A100 chips
+    command:
+      - --download-dir=/data
+      - --port=8087
+      # If you update anything here that could affect NLP results, consider updating the
+      # task_version of any tasks that use this docker.
+      - --model=nvidia/Llama-4-Scout-17B-16E-Instruct-FP8
+      - --revision=d1cf1e9db03b67e10422f97f38c8b546dec14789
+      - --tensor-parallel-size=4
+    shm_size: 32G
+    healthcheck:
+      test: ["CMD", "wget", "localhost:8087/health", "--output-document=/dev/null"]
+      start_period: 40m  # give plenty of time for startup, loading is slow
+    volumes:
+      - vllm-data:/data
+    profiles:
+      - irae-gpu
+    networks:
+      - cumulus-etl
+    ports:
+      - 8087:8087
     deploy:
       resources:
         reservations:
