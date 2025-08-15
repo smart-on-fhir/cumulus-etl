@@ -48,7 +48,7 @@ so we strongly recommend you run this on GPU-enabled hardware.
 And since we _are_ running the GPU profile, when you do run the ETL,
 you'll want to launch the GPU mode instead of the default `cumulus-etl` CPU mode:
 ```shell
-docker compose run cumulus-etl-gpu …
+docker compose run cumulus-etl-gpu nlp …
 ```
 
 But if you can't use a GPU or you just want to test things out,
@@ -63,7 +63,7 @@ you can use `--profile covid-symptom` above and the normal `cumulus-etl` run lin
 
 ## Running the Tasks
 
-To run any of these individual tasks, use the following names:
+To run any of these individual tasks, use the following task names and use the `nlp` subcommand:
 
 - cTAKES + negation: `covid_symptom__nlp_results`
 - cTAKES + termexists: `covid_symptom__nlp_results_term_exists`
@@ -72,7 +72,7 @@ To run any of these individual tasks, use the following names:
 
 For example, your Cumulus ETL command might look like:
 ```sh
-cumulus-etl … --task=covid_symptom__nlp_results
+cumulus-etl nlp … --task=covid_symptom__nlp_results
 ```
 
 ### Clinical Notes

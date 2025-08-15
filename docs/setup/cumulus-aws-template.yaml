@@ -196,12 +196,19 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/procedure"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/servicerequest"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion_encounters"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_gpt35"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_gpt4"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/covid_symptom__nlp_results_term_exists"
-              - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion"
-              - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion_encounters"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_llama4_scout"
             CreateNativeDeltaTable: True
             WriteManifest: False
 

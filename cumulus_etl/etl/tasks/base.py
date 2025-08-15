@@ -256,6 +256,9 @@ class EtlTask:
             self.formatters[index].delete_records(deleted_ids)
 
     def _update_completion_table(self) -> None:
+        if not self.task_config.export_datetime:
+            return  # likely an NLP task which doesn't need completion tracking
+
         # Create completion rows
         batch = formats.Batch(
             rows=[

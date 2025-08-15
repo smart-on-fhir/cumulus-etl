@@ -30,7 +30,7 @@ class TestExportCLI(utils.AsyncTestCase):
     @ddt.data(
         ([], True),
         (["--task=patient"], False),
-        (["--task-filter=gpu"], False),
+        (["--task-filter=cpu"], False),
     )
     @ddt.unpack
     async def test_prefer_url_resources(self, args, expected_prefer):
@@ -44,7 +44,6 @@ class TestExportCLI(utils.AsyncTestCase):
     @ddt.data(
         ([], ["*default*"]),  # special value that the test will expand
         (["--task=patient,condition"], ["Condition", "Patient"]),
-        (["--task-filter=covid_symptom"], ["DocumentReference"]),
         (["--type=Patient,Condition"], ["Condition", "Patient"]),
         (["--type=Patient", "--task=condition"], ["Condition", "Patient"]),
     )

@@ -117,7 +117,7 @@ def add_task_selection(parser: argparse.ArgumentParser):
     task.add_argument(
         "--task-filter",
         action="append",
-        choices=["covid_symptom", "cpu", "gpu"],
+        choices=["covid_symptom", "irae", "cpu", "gpu"],
         help="restrict tasks to only the given sets (comma separated)",
     )
 

@@ -42,8 +42,6 @@ class DSAMention(pydantic.BaseModel):
 
 
 class BaseIraeTask(tasks.BaseOpenAiTaskWithSpans):
-    tags: ClassVar = {"irae", "gpu"}
-
     task_version = 0
     # Task Version History:
     # ** 0 (2025-08): Initial work, still in flux **
@@ -68,18 +66,22 @@ class BaseIraeTask(tasks.BaseOpenAiTaskWithSpans):
 class IraeGpt4oTask(BaseIraeTask):
     name = "irae__nlp_gpt4o"
     client_class = nlp.Gpt4oModel
+    tags: ClassVar = {"irae", "cpu"}
 
 
 class IraeGpt5Task(BaseIraeTask):
     name = "irae__nlp_gpt5"
     client_class = nlp.Gpt5Model
+    tags: ClassVar = {"irae", "cpu"}
 
 
 class IraeGptOss120bTask(BaseIraeTask):
     name = "irae__nlp_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
+    tags: ClassVar = {"irae", "gpu"}
 
 
 class IraeLlama4ScoutTask(BaseIraeTask):
     name = "irae__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
+    tags: ClassVar = {"irae", "gpu"}
