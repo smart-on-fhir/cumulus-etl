@@ -48,13 +48,12 @@ class TestEtlJobFlow(BaseEtlSimple):
     @ddt.data(
         (["covid_symptom__nlp_results"], False),
         (["patient"], True),
-        (["covid_symptom__nlp_results", "patient"], True),
     )
     @ddt.unpack
     async def test_ms_deid_skipped_if_not_needed(self, tasks: list[str], expected_ms_deid: bool):
         with self.assertRaises(SystemExit):
             with mock.patch("cumulus_etl.deid.Scrubber.scrub_bulk_data") as mock_deid:
-                with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit):
+                with mock.patch("cumulus_etl.etl.pipeline.etl_job", side_effect=SystemExit):
                     await self.run_etl(tasks=tasks)
         self.assertEqual(1 if expected_ms_deid else 0, mock_deid.call_count)
 
@@ -152,6 +151,16 @@ class TestEtlJobFlow(BaseEtlSimple):
             ["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient"))
         )
 
+    async def test_cannot_mix_nlp_and_fhir_tasks(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(tasks=["covid_symptom__nlp_results", "patient"])
+        self.assertEqual(cm.exception.code, errors.TASK_MISMATCH)
+
+    async def test_nlp_needs_task_arg(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(nlp=True)
+        self.assertEqual(cm.exception.code, errors.TASK_NOT_PROVIDED)
+
     async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
         # Clear out the saved test codebook first
@@ -185,7 +194,9 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_errors_to_passed_to_tasks(self):
         with self.assertRaises(SystemExit):
-            with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job:
+            with mock.patch(
+                "cumulus_etl.etl.pipeline.etl_job", side_effect=SystemExit
+            ) as mock_etl_job:
                 await self.run_etl(errors_to=f"{self.tmpdir}/errors")
         self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.tmpdir}/errors")
 
@@ -275,7 +286,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
         with (
             self.assertRaises(SystemExit) as cm,
-            mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
+            mock.patch("cumulus_etl.etl.pipeline.etl_job", side_effect=SystemExit) as mock_etl_job,
             mock.patch.object(
                 loaders.FhirNdjsonLoader, "load_resources", return_value=observations
             ),
@@ -298,7 +309,9 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             with (
                 self.assertRaises(SystemExit),
-                mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=SystemExit) as mock_etl_job,
+                mock.patch(
+                    "cumulus_etl.etl.pipeline.etl_job", side_effect=SystemExit
+                ) as mock_etl_job,
                 mock.patch.object(loaders.FhirNdjsonLoader, "load_resources", return_value=results),
             ):
                 await self.run_etl(tasks=["observation"])
@@ -435,7 +448,7 @@ class TestEtlJobContext(BaseEtlSimple):
         }
         common.write_json(self.context_path, input_context)
 
-        with mock.patch("cumulus_etl.etl.cli.etl_job", side_effect=ZeroDivisionError):
+        with mock.patch("cumulus_etl.etl.pipeline.etl_job", side_effect=ZeroDivisionError):
             with self.assertRaises(ZeroDivisionError):
                 await self.run_etl()
 

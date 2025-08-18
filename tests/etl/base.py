@@ -60,20 +60,25 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         export_group: str = "test-group",
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
         skip_init_checks: bool = True,
+        nlp: bool | None = None,
     ) -> None:
+        if nlp is None:
+            nlp = tasks and any("__" in task for task in tasks)
         args = [
+            "nlp" if nlp else "etl",
             input_path or self.input_path,
             output_path or self.output_path,
             phi_path or self.phi_path,
             f"--input-format={input_format}",
-            f"--ctakes-overrides={self.ctakes_overrides.name}",
             *args,
         ]
+        if nlp:
+            args.append(f"--ctakes-overrides={self.ctakes_overrides.name}")
         if skip_init_checks:
             args.append("--skip-init-checks")
-        if export_group is not None:
+        if not nlp and export_group is not None:
             args.append(f"--export-group={export_group}")
-        if export_timestamp:
+        if not nlp and export_timestamp:
             args.append(f"--export-timestamp={export_timestamp}")
         if output_format:
             args.append(f"--output-format={output_format}")
@@ -85,9 +90,9 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             args.append(f"--task={','.join(tasks)}")
         if tags:
             args.append(f"--task-filter={','.join(tags)}")
-        if philter:
+        if not nlp and philter:
             args.append("--philter")
-        if export_to:
+        if not nlp and export_to:
             args.append(f"--export-to={export_to}")
         if errors_to:
             args.append(f"--errors-to={errors_to}")
