@@ -1,5 +1,11 @@
 """
 Similar to a normal ETL task, but with an extra NLP focus.
+
+Some differences:
+- Runs only the NLP targeted tasks
+- No completion tracking
+- No bulk de-identification (i.e. no MS tool)
+- Has NLP specific arguments
 """
 
 import argparse
