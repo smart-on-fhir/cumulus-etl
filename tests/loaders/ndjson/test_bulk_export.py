@@ -537,7 +537,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
 
         with self.assertRaisesRegex(
             cfs.NetworkError,
-            r'An error occurred when connecting to "https://example.com/con1": \["error"\]',
+            r'An error occurred when connecting to "https://example.com/con1": \[502] \["error"\]',
         ):
             await self.export()
 
@@ -562,7 +562,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                     "body": '["error"]',
                     "code": 502,
                     "message": 'An error occurred when connecting to "https://example.com/con1": '
-                    '["error"]',
+                    '[502] ["error"]',
                     "responseHeaders": {"content-length": "9"},
                 },
             ),
@@ -691,7 +691,7 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
                     "code": 400,
                     "message": (
                         'An error occurred when connecting to "https://example.com/poll": '
-                        "Test Status Call Failed"
+                        "[400] Test Status Call Failed"
                     ),
                     "responseHeaders": {"content-length": "23"},
                 },

@@ -2,11 +2,12 @@
 
 import datetime
 import os
+from collections.abc import Callable
 from socket import gethostname
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import common, errors, formats, store
+from cumulus_etl import common, deid, errors, formats, store
 
 
 class JobConfig:
@@ -39,6 +40,7 @@ class JobConfig:
         export_datetime: datetime.datetime | None = None,
         export_url: str | None = None,
         deleted_ids: dict[str, set[str]] | None = None,
+        resource_filter: Callable[[deid.Codebook, dict], bool] | None = None,
     ):
         self._dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid
@@ -59,6 +61,7 @@ class JobConfig:
         self.export_datetime = export_datetime
         self.export_url = export_url
         self.deleted_ids = deleted_ids or {}
+        self.resource_filter = resource_filter
 
         # initialize format class
         self._output_root = store.Root(self._dir_output, create=True)

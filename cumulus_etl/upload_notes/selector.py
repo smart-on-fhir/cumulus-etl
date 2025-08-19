@@ -4,8 +4,7 @@ import functools
 import os
 from collections.abc import Callable, Iterable, Iterator
 
-from cumulus_etl import cli_utils, common, deid, store
-from cumulus_etl.upload_notes.id_handling import get_ids_from_csv
+from cumulus_etl import cli_utils, common, deid, id_handling, store
 
 
 def select_resources_from_files(
@@ -64,7 +63,7 @@ def _create_resource_filter(
 
 def _filter_real_ids(resource_type: str, id_file: str, resources: Iterable[dict]) -> Iterator[dict]:
     """Keeps any resources that match the csv list"""
-    real_resource_ids = get_ids_from_csv(id_file, resource_type)
+    real_resource_ids = id_handling.get_ids_from_csv(id_file, resource_type)
 
     for resource in resources:
         if resource["id"] in real_resource_ids:
@@ -79,7 +78,7 @@ def _filter_fake_ids(
     codebook: deid.Codebook, resource_type: str, anon_id_file: str, resources: Iterable[dict]
 ) -> Iterator[dict]:
     """Keeps any resources that match the anonymized csv list"""
-    fake_resource_ids = get_ids_from_csv(anon_id_file, resource_type, is_anon=True)
+    fake_resource_ids = id_handling.get_ids_from_csv(anon_id_file, resource_type, is_anon=True)
 
     for resource in resources:
         fake_id = codebook.fake_id(resource_type, resource["id"], caching_allowed=False)

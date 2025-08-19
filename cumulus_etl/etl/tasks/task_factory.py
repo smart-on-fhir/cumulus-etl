@@ -67,7 +67,6 @@ def get_default_tasks() -> list[type[AnyTask]]:
 
 def get_selected_tasks(
     names: Iterable[str] | None = None,
-    filter_tags: Iterable[str] | None = None,
     *,
     nlp: bool = False,
 ) -> list[type[AnyTask]]:
@@ -75,13 +74,10 @@ def get_selected_tasks(
     Returns classes for every selected task.
 
     :param names: an exact list of which tasks to select
-    :param filter_tags: only tasks that have all the listed tags will be eligible for selection
     :param nlp: whether we are selecting from NLP or normal tasks
     :returns: a list of selected EtlTask subclasses, to instantiate and run
     """
     names = set(cli_utils.expand_comma_list_arg(names, casefold=True))
-    filter_tags = list(cli_utils.expand_comma_list_arg(filter_tags, casefold=True))
-    filter_tag_set = set(filter_tags)
 
     # If we are in NLP mode, we can only select NLP tasks and vice versa.
     all_tasks = get_nlp_tasks() if nlp else get_default_tasks()
@@ -93,24 +89,8 @@ def get_selected_tasks(
         raise SystemExit(errors.TASK_HELP)  # not an *error* exactly, but not successful ETL either
 
     # What to do if user didn't provide any constraints?
-    if not names and not filter_tag_set:
-        if nlp:
-            print("Must provide an NLP task with --task.", file=sys.stderr)
-            _print_task_names(all_tasks, file=sys.stderr)
-            raise SystemExit(errors.TASK_NOT_PROVIDED)
-        else:
-            return get_default_tasks()
-
-    # Filter out any tasks that don't have every required tag
-    filtered_tasks = list(filter(lambda x: filter_tag_set.issubset(x.tags), all_tasks))
-
-    # If the user didn't list any names, great! We're done.
     if not names:
-        if not filtered_tasks:
-            print_filter_tags = ", ".join(sorted(filter_tag_set))
-            print(f"No tasks left after filtering for '{print_filter_tags}'.", file=sys.stderr)
-            raise SystemExit(errors.TASK_SET_EMPTY)
-        return filtered_tasks
+        return get_default_tasks()
 
     # They did list names, so now we validate those names and select those tasks.
 
@@ -129,17 +109,7 @@ def get_selected_tasks(
         )
         raise SystemExit(errors.TASK_MISMATCH)
 
-    # Check for names that conflict with the chosen filters
-    filtered_task_names = {t.name for t in filtered_tasks}
-    if unfiltered_names := names - filtered_task_names:
-        print_filter_tags = ", ".join(sorted(filter_tag_set))
-        print(
-            f"Task '{unfiltered_names.pop()}' requested but it does not match the task filter '{print_filter_tags}'.",
-            file=sys.stderr,
-        )
-        raise SystemExit(errors.TASK_FILTERED_OUT)
-
-    return [task for task in filtered_tasks if task.name in names]
+    return [task for task in all_tasks if task.name in names]
 
 
 def _print_task_names(all_tasks: list[type[AnyTask]], *, file=sys.stdout) -> None:

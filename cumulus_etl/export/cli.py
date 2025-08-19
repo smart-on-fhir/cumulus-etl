@@ -23,7 +23,7 @@ def define_export_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     cli_utils.add_auth(parser, use_fhir_url=False)
-    cli_utils.add_task_selection(parser)
+    cli_utils.add_task_selection(parser, etl_mode=True)
 
 
 async def export_main(args: argparse.Namespace) -> None:
@@ -31,9 +31,9 @@ async def export_main(args: argparse.Namespace) -> None:
     # record filesystem options before creating Roots
     store.set_user_fs_options(vars(args))
 
-    selected_tasks = task_factory.get_selected_tasks(args.task, args.task_filter)
+    selected_tasks = task_factory.get_selected_tasks(args.task)
     required_resources = {t.resource for t in selected_tasks}
-    using_default_tasks = not args.task and not args.task_filter
+    using_default_tasks = not args.task
 
     # Fold in manually specified --type args (very similar to --task, but more familiar to folks
     # used to the bulk export spec)

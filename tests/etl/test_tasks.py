@@ -73,17 +73,6 @@ class TestTasks(TaskTestCase):
             task_factory.get_selected_tasks(names=["blarg"])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
-    def test_over_filtered(self):
-        """Verify that we catch when the user filters out all tasks for themselves"""
-        with self.assertRaises(SystemExit) as cm:
-            task_factory.get_selected_tasks(filter_tags=["cpu", "gpu"])
-        self.assertEqual(errors.TASK_SET_EMPTY, cm.exception.code)
-
-    def test_filtered_but_named_task(self):
-        with self.assertRaises(SystemExit) as cm:
-            task_factory.get_selected_tasks(names=["condition"], filter_tags=["gpu"])
-        self.assertEqual(errors.TASK_FILTERED_OUT, cm.exception.code)
-
     @ddt.data(
         (None, "default"),
         ([], "default"),

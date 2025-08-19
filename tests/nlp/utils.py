@@ -47,7 +47,10 @@ class OpenAITestCase(TaskTestCase):
         return async_list
 
     def default_content(self) -> pydantic.BaseModel:
-        return pydantic.BaseModel()
+        class EmptyModel(pydantic.BaseModel):
+            pass
+
+        return EmptyModel()
 
     def mock_response(
         self, *, finish_reason: str = "stop", content: pydantic.BaseModel | None = None

@@ -5,20 +5,21 @@ import os
 from collections.abc import Callable
 from typing import TypeVar
 
-from cumulus_etl import common, fhir, store
+from cumulus_etl import common, deid, fhir, store
 
 Obj = TypeVar("Obj")
 
 
-def is_docref_valid(docref: dict) -> bool:
+def is_docref_valid(codebook: deid.Codebook, docref: dict) -> bool:
     """Returns True if this docref is not a draft or entered-in-error resource and could be considered for NLP"""
+    del codebook  # only passed in to look like a "resource_filter" callback
     good_status = docref.get("status") in {"current", None}  # status of DocRef itself
     # docStatus is status of clinical note attachments
     good_doc_status = docref.get("docStatus") in {"final", "amended", None}
     return good_status and good_doc_status
 
 
-def get_docref_info(docref: dict) -> (str, str, str):
+def get_docref_info(docref: dict) -> tuple[str, str, str]:
     """
     Returns docref_id, encounter_id, subject_id for the given DocRef.
 

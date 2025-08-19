@@ -48,6 +48,14 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--philter", action="store_true", help="run philter on all freeform text fields"
     )
+    parser.add_argument(
+        "--allow-missing-resources",
+        action="store_true",
+        help="run tasks even if their resources are not present",
+    )
+    cli_utils.add_task_selection(parser, etl_mode=True)
+
+    cli_utils.add_aws(parser)
 
     export = cli_utils.add_bulk_export(parser)
     export.add_argument(

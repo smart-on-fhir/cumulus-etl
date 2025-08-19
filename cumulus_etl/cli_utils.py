@@ -39,7 +39,7 @@ def add_auth(parser: argparse.ArgumentParser, *, use_fhir_url: bool = True):
     group.add_argument("--smart-jwks", metavar="PATH", help=argparse.SUPPRESS)
 
 
-def add_aws(parser: argparse.ArgumentParser) -> None:
+def add_aws(parser: argparse.ArgumentParser, athena: bool = False) -> None:
     group = parser.add_argument_group("AWS")
     group.add_argument(
         "--s3-region",
@@ -51,6 +51,22 @@ def add_aws(parser: argparse.ArgumentParser) -> None:
         metavar="KEY",
         help="if using S3 paths (s3://...), this is the KMS key ID to use",
     )
+    if athena:
+        group.add_argument(
+            "--athena-region",
+            metavar="REGION",
+            help="the region of your Athena workgroup (default is us-east-1)",
+        )
+        group.add_argument(
+            "--athena-workgroup",
+            metavar="GROUP",
+            help="the name of your Athena workgroup",
+        )
+        group.add_argument(
+            "--athena-database",
+            metavar="DB",
+            help="the name of your Athena database",
+        )
 
 
 def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True):
@@ -85,15 +101,13 @@ def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True
     return parser
 
 
-def add_nlp(parser: argparse.ArgumentParser):
-    group = parser.add_argument_group("NLP")
-    group.add_argument(
+def add_ctakes_override(parser: argparse.ArgumentParser):
+    parser.add_argument(
         "--ctakes-overrides",
         metavar="DIR",
         default="/ctakes-overrides",
         help="path to cTAKES overrides dir (default is /ctakes-overrides)",
     )
-    return group
 
 
 def add_output_format(parser: argparse.ArgumentParser) -> None:
@@ -105,20 +119,14 @@ def add_output_format(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_task_selection(parser: argparse.ArgumentParser):
-    task = parser.add_argument_group("task selection")
-    task.add_argument(
+def add_task_selection(parser: argparse.ArgumentParser, *, etl_mode: bool):
+    default = ", default is all supported FHIR resources" if etl_mode else ""
+    required = not etl_mode
+    parser.add_argument(
         "--task",
         action="append",
-        help="only consider these tasks (comma separated, "
-        "default is all supported FHIR resources, "
-        "use '--task help' to see full list)",
-    )
-    task.add_argument(
-        "--task-filter",
-        action="append",
-        choices=["covid_symptom", "irae", "cpu", "gpu"],
-        help="restrict tasks to only the given sets (comma separated)",
+        help=f"only run these tasks (comma separated{default}, use '--task help' to see full list)",
+        required=required,
     )
 
 

@@ -9,8 +9,7 @@ from collections.abc import Container, Iterable
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import cli_utils, common, deid, loaders, store
-from cumulus_etl.upload_notes.id_handling import get_ids_from_csv
+from cumulus_etl import cli_utils, common, deid, id_handling, loaders, store
 
 
 async def download_resources_from_fhir_server(
@@ -43,9 +42,9 @@ async def _download_resources_from_fake_ids(
     output_folder = cli_utils.make_export_dir(export_to)
 
     # Grab identifiers for which specific docrefs & patients we need
-    fake_dxreport_ids = get_ids_from_csv(docref_csv, "DiagnosticReport", is_anon=True)
-    fake_docref_ids = get_ids_from_csv(docref_csv, "DocumentReference", is_anon=True)
-    fake_patient_ids = get_ids_from_csv(docref_csv, "Patient", is_anon=True)
+    fake_dxreport_ids = id_handling.get_ids_from_csv(docref_csv, "DiagnosticReport", is_anon=True)
+    fake_docref_ids = id_handling.get_ids_from_csv(docref_csv, "DocumentReference", is_anon=True)
+    fake_patient_ids = id_handling.get_ids_from_csv(docref_csv, "Patient", is_anon=True)
 
     # We know how to reverse-map the patient identifiers, so do that up front
     patient_ids = list(codebook.real_ids("Patient", fake_patient_ids))
@@ -82,8 +81,8 @@ async def _download_resources_from_real_ids(
     output_folder = cli_utils.make_export_dir(export_to)
 
     # Grab identifiers for which specific docrefs we need
-    dxreport_ids = get_ids_from_csv(docref_csv, "DiagnosticReport")
-    docref_ids = get_ids_from_csv(docref_csv, "DocumentReference")
+    dxreport_ids = id_handling.get_ids_from_csv(docref_csv, "DiagnosticReport")
+    docref_ids = id_handling.get_ids_from_csv(docref_csv, "DocumentReference")
 
     async def handle_resource(resource_type: str, id_list: set[str]):
         if not id_list:

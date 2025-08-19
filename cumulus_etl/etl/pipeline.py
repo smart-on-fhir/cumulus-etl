@@ -63,15 +63,8 @@ def add_common_etl_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--errors-to", metavar="DIR", help="where to put resources that could not be processed"
     )
-    parser.add_argument(
-        "--allow-missing-resources",
-        action="store_true",
-        help="run tasks even if their resources are not present",
-    )
 
-    cli_utils.add_aws(parser)
     cli_utils.add_auth(parser)
-    cli_utils.add_task_selection(parser)
     cli_utils.add_debugging(parser)
 
 
@@ -137,7 +130,8 @@ async def check_available_resources(
     # Reconciling is helpful for performance reasons (don't need to finalize untouched tables),
     # UX reasons (can tell user if they made a CLI mistake), and completion tracking (don't
     # mark a resource as complete if we didn't even export it)
-    if args.allow_missing_resources:
+    has_allow_missing = hasattr(args, "allow_missing_resources")
+    if has_allow_missing and args.allow_missing_resources:
         return requested_resources
 
     detected = await loader.detect_resources()
@@ -158,7 +152,8 @@ async def check_available_resources(
                 )
         else:
             msg = "Required resources not found.\n"
-            msg += "Add --allow-missing-resources to run related tasks anyway with no input."
+            if has_allow_missing:
+                msg += "Add --allow-missing-resources to run related tasks anyway with no input."
             errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
     return requested_resources
@@ -182,8 +177,8 @@ async def run_pipeline(
     job_context = context.JobContext(root_phi.joinpath("context.json"))
     job_datetime = common.datetime_now()  # grab timestamp before we do anything
 
-    selected_tasks = task_factory.get_selected_tasks(args.task, args.task_filter, nlp=nlp)
-    is_default_tasks = not args.task and not args.task_filter
+    selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp)
+    is_default_tasks = not args.task
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)

@@ -416,8 +416,10 @@ class EtlTask:
         Something like "yield x, y" or "yield x, [y, z]" - these streams of entries will be kept
         separated into two different DataFrames.
         """
+        resource_filter = self.task_config.resource_filter
         for x in filter(self.scrubber.scrub_resource, self.read_ndjson(progress=progress)):
-            yield x
+            if not resource_filter or resource_filter(self.scrubber.codebook, x):
+                yield x
 
     def table_batch_cleanup(self, table_index: int, batch_index: int) -> None:
         """Override to add any necessary cleanup from writing a batch out (releasing memory etc)"""

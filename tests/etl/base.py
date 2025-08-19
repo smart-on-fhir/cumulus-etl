@@ -88,8 +88,6 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             args.append(f"--batch-size={batch_size}")
         if tasks:
             args.append(f"--task={','.join(tasks)}")
-        if tags:
-            args.append(f"--task-filter={','.join(tags)}")
         if not nlp and philter:
             args.append("--philter")
         if not nlp and export_to:
