@@ -419,7 +419,8 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         "--docrefs", metavar="PATH", help="CSV file with a docref_id column of original IDs"
     )
 
-    group = cli_utils.add_nlp(parser)
+    group = parser.add_argument_group("NLP")
+    cli_utils.add_ctakes_override(group)
     group.add_argument(
         "--symptoms-bsv",
         metavar="PATH",

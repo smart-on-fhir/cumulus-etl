@@ -105,35 +105,10 @@ wherever they appear in instructions:
 
 Because GPU compute time costs significantly more money than a CPU compute time,
 you may want to set up two different runs of Cumulus ETL for any given input data:
-- Run all the NLP tasks on a GPU instance
+- Run all the local NLP tasks on a GPU instance
 - Run everything else on a CPU instance
 
-See the above on-premises instructions for how to switch between running the CPU vs the GPU profiles of Cumulus ETL.
+See the above on-premises instructions for how to switch between running the CPU vs the GPU
+profiles of Cumulus ETL.
 
-For each run, you'll want to only select the ETL tasks that are suitable for the machine you are on,
-so that you don't duplicate effort.
-To do that, pass `--task-filter=cpu` or `--task-filter=gpu` options to Cumulus ETL.
-
-If you are running in AWS, we recommend the `g4dn.xlarge` instance type for GPU access.
-
-#### CPU-Only Example
-
-<pre>
-docker compose \
- run --rm \
- cumulus-etl \
- <b>--task-filter=cpu</b> \
- s3://input s3://output s3://phi
-</pre>
-
-#### GPU-Only Example
-
-Notice both the docker name change (`-gpu`) and the different filter option.
-
-<pre>
-docker compose \
- run --rm \
- cumulus-etl<b>-gpu</b> \
- <b>--task-filter=gpu</b> \
- s3://input s3://output s3://phi
-</pre>
+For each run, you'll want to only select the ETL tasks that are suitable for the machine you are on.

@@ -15,6 +15,7 @@ dependencies = [
     "oracledb",
     "philter-lite",
     "pyarrow",
+    "pyathena",
     "pydantic",
     "rich",
 ]

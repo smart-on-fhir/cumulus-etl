@@ -84,10 +84,12 @@ class BaseNlpTask(tasks.EtlTask):
         """
         warned_connection_error = False
 
+        note_filter = self.task_config.resource_filter or nlp.is_docref_valid
+
         for docref in self.read_ndjson(progress=progress):
             orig_docref = copy.deepcopy(docref)
             can_process = (
-                nlp.is_docref_valid(docref)
+                note_filter(self.scrubber.codebook, docref)
                 and (doc_check is None or doc_check(docref))
                 and self.scrubber.scrub_resource(docref, scrub_attachments=False, keep_stats=False)
             )

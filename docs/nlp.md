@@ -29,7 +29,7 @@ so Cumulus ETL supports multiple approaches.
 {: .note }
 Example: The `covid_symptom` study uses cTAKES and a negation transformer working together to tag
 COVID-19 symptoms in clinical notes.
-But another study might use the Llama2 large language model,
+But another study might use the Llama large language model,
 with a prompt like "Does this patient have a nosebleed?"
 
 ### But With Re-Usable Code
@@ -51,12 +51,12 @@ or configuring cTAKES with a custom dictionary),
 the study-specific Python code can focus on the clinical logic.
 
 #### Example Code
-In pseudocode, here's the Python code for a task that talks to an LLM like Llama2 might look like:
+In pseudocode, here's the Python code for a task that talks to an LLM like Llama might look like:
 
 ```python
 for clinical_note in etl.read_notes():
     prompt = "Does the patient in this clinical note have a nosebleed?"
-    yield etl.ask_llama2(prompt, clinical_note)
+    yield etl.ask_llama(prompt, clinical_note)
 ```
 
 Those calls to `etl.*` are calls to the internal NLP support code that the task does not have to
@@ -72,7 +72,7 @@ you've got a study task that you can run over all your institution's clinical no
 Cumulus ETL makes it easy to pass clinical notes to an LLM,
 which are often difficult to set up yourself.
 
-Some LLMs are freely-distributable like Meta's [Llama2](https://ai.meta.com/llama/),
+Some LLMs are freely-distributable like Meta's [Llama](https://ai.meta.com/llama/),
 and thus can be run locally.
 While others are cloud-based proprietary LLMs like OpenAI's [ChatGPT](https://openai.com/chatgpt),
 which your institution may have a HIPAA Business Associate Agreement (BAA) with.
@@ -91,13 +91,11 @@ That's where Cumulus ETL can help by shipping turnkey configurations for these L
 See full details [below](#docker-integration),
 but the basic idea is that Cumulus ETL will download the LLM for you,
 configure it for study needs, and launch it.
-We'll also be able to offer recommendations on what sort of hardware you'll need
-(for example, Llama2 works well with two NVIDIA A100 GPUs).
+We'll also be able to offer recommendations on what sort of hardware you'll need.
 
 {: .note }
-Only LLama2 is supported right now.
-But Cumulus ETL uses the standard
-[Hugging Face inference interface](https://github.com/huggingface/text-generation-inference)
+Cumulus ETL uses the standard
+[vLLM inference interface](https://github.com/vllm-project/vllm)
 as an abstraction layer, so integrating new local LLMs is a lightweight process.
 
 #### Cloud LLMs
@@ -138,7 +136,7 @@ Be warned that this next section will get a little technical.
 
 ### Docker Integration
 
-Services like cTAKES and Llama2 can be launched with a single command,
+Services like cTAKES and Llama can be launched with a single command,
 because we ship Docker definitions for them.
 
 All _you_ have to bring to the table is your own GPU hardware.

@@ -30,7 +30,6 @@ class TestExportCLI(utils.AsyncTestCase):
     @ddt.data(
         ([], True),
         (["--task=patient"], False),
-        (["--task-filter=cpu"], False),
     )
     @ddt.unpack
     async def test_prefer_url_resources(self, args, expected_prefer):
