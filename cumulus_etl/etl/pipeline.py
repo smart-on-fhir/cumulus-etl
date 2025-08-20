@@ -120,6 +120,7 @@ async def check_available_resources(
     requested_resources: set[str],
     args: argparse.Namespace,
     is_default_tasks: bool,
+    nlp: bool,
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
     # available in the input root.
@@ -138,25 +139,28 @@ async def check_available_resources(
     if detected is None:
         return requested_resources  # likely we haven't run bulk export yet
 
-    if missing_resources := requested_resources - detected:
+    missing_resources = requested_resources - detected
+    available_resources = requested_resources & detected
+
+    if nlp and available_resources:
+        # As long as there is any resource for NLP to read from, we'll take it
+        return available_resources
+
+    if missing_resources:
         for resource in sorted(missing_resources):
             # Log the same message we would print if in common.py if we ran tasks anyway
             logging.warning("No %s files found in %s", resource, loader.root.path)
 
         if is_default_tasks:
-            requested_resources -= missing_resources  # scope down to detected resources
-            if not requested_resources:
-                errors.fatal(
-                    "No supported resources found.",
-                    errors.MISSING_REQUESTED_RESOURCES,
-                )
+            if not available_resources:
+                errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
         else:
             msg = "Required resources not found.\n"
             if has_allow_missing:
                 msg += "Add --allow-missing-resources to run related tasks anyway with no input."
             errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
-    return requested_resources
+    return available_resources
 
 
 async def run_pipeline(
@@ -191,8 +195,8 @@ async def run_pipeline(
         for task in selected_tasks:
             await task.init_check()
 
-    # Grab a list of all required resource types for the tasks we are running
-    required_resources = set(t.resource for t in selected_tasks)
+    # Combine all task resource sets into one big set of required resources
+    required_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
 
     # Create a client to talk to a FHIR server.
     # This is useful even if we aren't doing a bulk export, because some resources like
@@ -214,9 +218,10 @@ async def run_pipeline(
             args=args,
             is_default_tasks=is_default_tasks,
             requested_resources=required_resources,
+            nlp=nlp,
         )
         # Drop any tasks that we didn't find resources for
-        selected_tasks = [t for t in selected_tasks if t.resource in required_resources]
+        selected_tasks = [t for t in selected_tasks if t.get_resource_types() & required_resources]
 
         # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
         loader_results = await config_loader.load_resources(required_resources)
