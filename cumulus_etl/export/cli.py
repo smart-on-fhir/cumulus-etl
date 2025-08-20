@@ -32,7 +32,8 @@ async def export_main(args: argparse.Namespace) -> None:
     store.set_user_fs_options(vars(args))
 
     selected_tasks = task_factory.get_selected_tasks(args.task)
-    required_resources = {t.resource for t in selected_tasks}
+    # Combine all task resource sets into one big set of required resources
+    required_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
     using_default_tasks = not args.task
 
     # Fold in manually specified --type args (very similar to --task, but more familiar to folks

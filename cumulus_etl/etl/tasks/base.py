@@ -89,7 +89,7 @@ class EtlTask:
     # Properties:
     name: ClassVar[str] = None  # task & table name
     # incoming resource that this task operates on (will be included in bulk exports etc)
-    resource: ClassVar[str] = None
+    resource: ClassVar[str | set[str]] = None
     tags: ClassVar[set[str]] = []
     # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
     needs_bulk_deid: ClassVar[bool] = True
@@ -378,10 +378,11 @@ class EtlTask:
 
         If `resources` is provided, those resources will be read (in the provided order).
         That is, ["Condition", "Encounter"] will first read all Conditions, then all Encounters.
-        If `resources` is not provided, the task's main resource (self.resource) will be used.
+        If `resources` is not provided, the task's main resources (via self.get_resource_types())
+        will be used.
         """
         input_root = store.Root(self.task_config.dir_input)
-        resources = resources or [self.resource]
+        resources = resources or sorted(self.get_resource_types())
 
         if progress:
             # Make new task to track processing of rows
@@ -472,3 +473,10 @@ class EtlTask:
         if resource_type:
             return cfs.pyarrow_schema_from_rows(resource_type, rows)
         return None
+
+    @classmethod
+    def get_resource_types(cls) -> set[str]:
+        """Abstracts whether the class's resource field is a str or a set of strings."""
+        if isinstance(cls.resource, str):
+            return {cls.resource}
+        return set(cls.resource)

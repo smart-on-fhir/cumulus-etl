@@ -32,7 +32,7 @@ async def covid_symptoms_extract(
     :return: list of NLP results encoded as FHIR observations
     """
     try:
-        docref_id, encounter_id, subject_id = nlp.get_docref_info(docref)
+        note_ref, encounter_id, subject_id = nlp.get_note_info(docref)
     except KeyError as exc:
         logging.warning(exc)
         return None
@@ -62,7 +62,7 @@ async def covid_symptoms_extract(
         )
     except Exception as exc:
         logging.warning(
-            "Could not extract symptoms for docref %s (%s): %s", docref_id, type(exc).__name__, exc
+            "Could not extract symptoms for %s (%s): %s", note_ref, type(exc).__name__, exc
         )
         return None
 
@@ -95,9 +95,12 @@ async def covid_symptoms_extract(
         )
     except Exception as exc:
         logging.warning(
-            "Could not check polarity for docref %s (%s): %s", docref_id, type(exc).__name__, exc
+            "Could not check polarity for %s (%s): %s", note_ref, type(exc).__name__, exc
         )
         return None
+
+    # We only look at docrefs - get just the ID for use in the symptom fields
+    docref_id = note_ref.removeprefix("DocumentReference/")
 
     # Helper to make a single row (match_value is None if there were no found symptoms at all)
     def _make_covid_symptom_row(row_id: str, match: dict | None) -> dict:

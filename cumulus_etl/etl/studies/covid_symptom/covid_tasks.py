@@ -65,8 +65,11 @@ def is_ed_coding(coding):
     return coding.get("code") in ED_CODES.get(coding.get("system"), {})
 
 
-def is_ed_docref(docref):
+def is_ed_docref(docref) -> bool:
     """Returns true if this is a coding for an emergency department note"""
+    if docref["resourceType"] != "DocumentReference":
+        return False
+
     # We check both type and category for safety -- we aren't sure yet how EHRs are using these fields.
     codings = list(
         itertools.chain.from_iterable([cat.get("coding", []) for cat in docref.get("category", [])])

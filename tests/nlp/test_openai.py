@@ -234,27 +234,26 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         del docref["context"]
         self.prep_docs(docref)
         self.mock_response()
-        await self.assert_failed_doc("No encounters for docref")
+        await self.assert_failed_doc("No encounters for ")
 
     async def test_network_error(self):
         self.prep_docs()
         self.responses.append(openai.APIError("oops", mock.MagicMock(), body=None))
         self.mock_response()
-        await self.assert_failed_doc("Could not connect to NLP server for DocRef .*: oops")
+        await self.assert_failed_doc("NLP failed for .*: oops")
 
     async def test_incomplete_response_error(self):
         self.prep_docs()
         self.mock_response(finish_reason="length")
         self.mock_response()
-        await self.assert_failed_doc("NLP server response didn't complete for DocRef .*: length")
+        await self.assert_failed_doc("NLP server response didn't complete for .*: length")
 
     async def test_bad_json_error(self):
         self.prep_docs()
         self.responses.append(pydantic.ValidationError.from_exception_data("Fake error", []))
         self.mock_response()
         await self.assert_failed_doc(
-            "Could not process answer from NLP server for DocRef 1: "
-            "0 validation errors for Fake error"
+            "NLP failed for DocumentReference/1: 0 validation errors for Fake error"
         )
 
 

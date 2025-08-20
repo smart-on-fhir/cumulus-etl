@@ -112,10 +112,9 @@ def get_cohort_filter(args: argparse.Namespace) -> Callable[[deid.Codebook, dict
 
     def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
         match resource["resourceType"]:
-            # TODO: uncomment once we support DxReport NLP (coming soon)
-            # case "DiagnosticReport":
-            #     id_pool = dxreport_ids
-            #     patient_ref = resource.get("subject", {}).get("reference")
+            case "DiagnosticReport":
+                id_pool = dxreport_ids
+                patient_ref = resource.get("subject", {}).get("reference")
             case "DocumentReference":
                 id_pool = docref_ids
                 patient_ref = resource.get("subject", {}).get("reference")

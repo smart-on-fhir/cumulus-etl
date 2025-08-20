@@ -52,9 +52,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
             await task.run()
 
         self.assertEqual(len(cm.output), 1)
-        self.assertRegex(
-            cm.output[0], r"Could not extract symptoms for docref .* \(ValueError\): oops"
-        )
+        self.assertRegex(cm.output[0], r"Could not extract symptoms for .* \(ValueError\): oops")
 
         # Confirm that we skipped the doc
         self.assertEqual(self.format.write_records.call_count, 1)
@@ -71,9 +69,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
             await task.run()
 
         self.assertEqual(len(cm.output), 1)
-        self.assertRegex(
-            cm.output[0], r"Could not check polarity for docref .* \(ValueError\): oops"
-        )
+        self.assertRegex(cm.output[0], r"Could not check polarity for .* \(ValueError\): oops")
 
         # Confirm that we skipped the doc
         self.assertEqual(self.format.write_records.call_count, 1)

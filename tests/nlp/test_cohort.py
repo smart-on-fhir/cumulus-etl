@@ -18,7 +18,12 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
 
     def setUp(self):
         super().setUp()
-        self.make_docs([("doc1.1", "pat1"), ("doc1.2", "pat1"), ("doc2.1", "pat2")])
+        self.make_docs(
+            [("doc1.1", "pat1"), ("doc1.2", "pat1"), ("doc2.1", "pat2")], "DocumentReference"
+        )
+        self.make_docs(
+            [("dx3.1", "pat3"), ("dx3.1", "pat3"), ("dx4.1", "pat4")], "DiagnosticReport"
+        )
 
     def default_content(self) -> pydantic.BaseModel:
         return DSAMention(
@@ -27,11 +32,11 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
             dsa_present=DSAPresent("None of the above"),
         )
 
-    def make_docs(self, docs: list[tuple[str, str]], res_type: str = "DocumentReference") -> None:
-        with common.NdjsonWriter(f"{self.tmpdir}/docs.ndjson") as writer:
+    def make_docs(self, docs: list[tuple[str, str]], res_type: str) -> None:
+        with common.NdjsonWriter(f"{self.tmpdir}/{res_type}.ndjson") as writer:
             for doc in docs:
-                writer.write(
-                    {
+                if res_type == "DocumentReference":
+                    note = {
                         "resourceType": res_type,
                         "id": doc[0],
                         "subject": {"reference": f"Patient/{doc[1]}"},
@@ -45,7 +50,20 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
                             }
                         ],
                     }
-                )
+                else:
+                    note = {
+                        "resourceType": res_type,
+                        "id": doc[0],
+                        "subject": {"reference": f"Patient/{doc[1]}"},
+                        "encounter": {"reference": f"Encounter/enc-{doc[0]}"},
+                        "presentedForm": [
+                            {
+                                "contentType": "text/plain",
+                                "data": base64.standard_b64encode(doc[0].encode()).decode(),
+                            },
+                        ],
+                    }
+                writer.write(note)
 
     def make_cohort_csv(self, rows: list[str]) -> str:
         common.write_text(f"{self.tmpdir}/cohort.csv", "\n".join(rows))
@@ -90,15 +108,20 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
             *args, input_path=self.tmpdir, tasks=["irae__nlp_gpt_oss_120b"], nlp=True
         )
 
-    async def test_uses_doc_ids(self):
-        """Confirm we ignore patient IDs if we have a subset already chosen for doc IDs"""
-        path = self.make_cohort_csv(["patient_id,docref_id", "pat1,doc1.1"])
+    async def test_uses_note_ids(self):
+        """Confirm we ignore patient IDs if we have a subset already chosen for note IDs"""
+        path = self.make_cohort_csv(
+            ["patient_id,docref_id,diagnosticreport_id", "pat1,doc1.1,dx3.1"]
+        )
 
+        self.mock_response()
         self.mock_response()
         await self.run_etl(f"--cohort-csv={path}")
 
-        self.assertEqual(self.mock_create.call_count, 1)
+        self.assertEqual(self.mock_create.call_count, 2)
         model_args = self.mock_create.call_args_list[0][1]
+        self.assertIn("dx3.1", model_args["messages"][1]["content"])
+        model_args = self.mock_create.call_args_list[1][1]
         self.assertIn("doc1.1", model_args["messages"][1]["content"])
 
     async def test_uses_patient_ids(self):
