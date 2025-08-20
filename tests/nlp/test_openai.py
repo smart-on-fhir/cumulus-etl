@@ -90,7 +90,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v0/06ee/"
+        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v1/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
             common.read_json(cache_file),
@@ -171,7 +171,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
                 "6beb306dc5b91513f353ecdb6aaedee8a9864b3a2f20d91f0d5b27510152acf2",
                 "generated_on": "2021-09-14T21:23:45+00:00",
                 "system_fingerprint": "test-fp",
-                "task_version": 0,
+                "task_version": 1,
                 "result": {
                     "spans": [(1, 3)],
                     "dsa_history": False,
@@ -194,7 +194,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         kwargs = self.mock_create.call_args.kwargs
         for message in kwargs["messages"]:
             if message["role"] == "user":
-                self.assertIn("\nTest\n  lines\n", message["content"])
+                self.assertIn("\nTest\n  lines", message["content"])
                 break
         else:
             assert False, "No user message found"

@@ -1,5 +1,7 @@
 """Tests for etl/studies/irae/"""
 
+import json
+
 import ddt
 
 from cumulus_etl.etl.studies.irae.irae_tasks import DSAMention, DSAPresent
@@ -43,21 +45,26 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are a helpful assistant reviewing kidney-transplant notes "
-                        "for donor-specific antibody (DSA) information. Return *only* valid JSON.",
+                        "content": "You are a clinical chart reviewer for a kidney transplant outcomes study.\n"
+                        "Your task is to extract patient-specific information from an unstructured clinical "
+                        "document and map it into a predefined Pydantic schema.\n"
+                        "\n"
+                        "Core Rules:\n"
+                        "1. Base all assertions ONLY on patient-specific information in the clinical document.\n"
+                        "   - Never negate or exclude information just because it is not mentioned.\n"
+                        "   - Never conflate family history or population-level risk with patient findings.\n"
+                        "2. Do not invent or infer facts beyond what is documented.\n"
+                        "3. Maintain high fidelity to the clinical document language when citing spans.\n"
+                        "4. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
+                        "\n"
+                        "Pydantic Schema:\n" + json.dumps(DSAMention.model_json_schema()),
                     },
                     {
                         "role": "user",
-                        "content": "Evaluate the following chart for donor-specific antibody (DSA) "
-                        "information.\n"
-                        "Here is the chart for you to analyze:\n"
-                        "Test note 1\n"
-                        "Keep the pydantic structure previously provided in mind when structuring "
-                        "your output.\n"
-                        "Finally, ensure that your final assertions are based on Patient-specific "
-                        "information only.\n"
-                        "For example, we should never deny the presence of an observation because "
-                        "of a lack of family history.",
+                        "content": "Evaluate the following clinical document for kidney "
+                        "transplant variables and outcomes.\n"
+                        "Here is the clinical document for you to analyze:\n\n"
+                        "Test note 1",
                     },
                 ],
                 "model": model_id,
