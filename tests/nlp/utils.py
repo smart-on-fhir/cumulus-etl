@@ -53,20 +53,22 @@ class OpenAITestCase(TaskTestCase):
         return EmptyModel()
 
     def mock_response(
-        self, *, finish_reason: str = "stop", content: pydantic.BaseModel | None = None
+        self,
+        *,
+        finish_reason: str = "stop",
+        content: pydantic.BaseModel | None = None,
+        parsed: bool = True,
     ) -> None:
         content = content or self.default_content()
+        message_args = (
+            {"parsed": content} if parsed else {"content": content.model_dump_json(by_alias=True)}
+        )
+        message = chat.ParsedChatCompletionMessage(**message_args, role="assistant")
 
         self.responses.append(
             chat.ParsedChatCompletion(
                 id="test-id",
-                choices=[
-                    chat.ParsedChoice(
-                        finish_reason=finish_reason,
-                        index=0,
-                        message=chat.ParsedChatCompletionMessage(parsed=content, role="assistant"),
-                    ),
-                ],
+                choices=[chat.ParsedChoice(finish_reason=finish_reason, index=0, message=message)],
                 created=1723143708,
                 model="test-model",
                 object="chat.completion",

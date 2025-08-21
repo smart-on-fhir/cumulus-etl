@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, errors
-from cumulus_etl.etl.studies import covid_symptom, irae
+from cumulus_etl.etl.studies import covid_symptom, example, irae
 from cumulus_etl.etl.tasks import basic_tasks
 
 AnyTask = TypeVar("AnyTask", bound="EtlTask")  # noqa: F821
@@ -31,6 +31,11 @@ def get_nlp_tasks() -> list[type[AnyTask]]:
         covid_symptom.CovidSymptomNlpResultsGpt4Task,
         covid_symptom.CovidSymptomNlpResultsTask,
         covid_symptom.CovidSymptomNlpResultsTermExistsTask,
+        example.ExampleGpt4Task,
+        example.ExampleGpt4oTask,
+        example.ExampleGpt5Task,
+        example.ExampleGptOss120bTask,
+        example.ExampleLlama4ScoutTask,
         irae.IraeGptOss120bTask,
         irae.IraeGpt4oTask,
         irae.IraeGpt5Task,
