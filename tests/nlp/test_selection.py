@@ -1,4 +1,4 @@
-"""Tests for cohort filtering in NLP tasks."""
+"""Tests for selection filtering in NLP tasks."""
 
 import base64
 from unittest import mock
@@ -13,7 +13,7 @@ from tests.nlp.utils import OpenAITestCase
 
 
 @ddt.ddt
-class TestCohorts(OpenAITestCase, BaseEtlSimple):
+class TestSelection(OpenAITestCase, BaseEtlSimple):
     MODEL_ID = "openai/gpt-oss-120b"
 
     def setUp(self):
@@ -116,7 +116,7 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
 
         self.mock_response()
         self.mock_response()
-        await self.run_etl(f"--cohort-csv={path}")
+        await self.run_etl(f"--select-by-csv={path}")
 
         self.assertEqual(self.mock_create.call_count, 2)
         model_args = self.mock_create.call_args_list[0][1]
@@ -130,7 +130,7 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
 
         self.mock_response()
         self.mock_response()
-        await self.run_etl(f"--cohort-csv={path}")
+        await self.run_etl(f"--select-by-csv={path}")
 
         self.assertEqual(self.mock_create.call_count, 2)
         model_args = self.mock_create.call_args_list[0][1]
@@ -149,7 +149,7 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
         )
 
         self.mock_response()
-        await self.run_etl(f"--cohort-anon-csv={path}")
+        await self.run_etl(f"--select-by-anon-csv={path}")
 
         self.assertEqual(self.mock_create.call_count, 1)
         model_args = self.mock_create.call_args_list[0][1]
@@ -162,7 +162,7 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
         )
 
         self.mock_response()
-        await self.run_etl(f"--cohort-anon-csv={path}")
+        await self.run_etl(f"--select-by-anon-csv={path}")
 
         self.assertEqual(self.mock_create.call_count, 1)
         model_args = self.mock_create.call_args_list[0][1]
@@ -176,9 +176,9 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
 
         self.mock_response()
         if inline_db:
-            args = ["--cohort-athena-table=db.cohort__test"]
+            args = ["--select-by-athena-table=db.cohort__test"]
         else:
-            args = ["--cohort-athena-table=cohort__test", "--athena-database=db"]
+            args = ["--select-by-athena-table=cohort__test", "--athena-database=db"]
         await self.run_etl(*args)
 
         self.assertEqual(self.mock_create.call_count, 1)
@@ -190,41 +190,45 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
         self.mock_athena(["patient_id", "abcd"])
 
         with self.assertRaisesRegex(ValueError, "bad database"):
-            await self.run_etl("--cohort-athena-table=bogus.cohort__test")
+            await self.run_etl("--select-by-athena-table=bogus.cohort__test")
 
         with self.assertRaisesRegex(ValueError, "bad table"):
-            await self.run_etl("--cohort-athena-table=db.bogus")
+            await self.run_etl("--select-by-athena-table=db.bogus")
 
-    async def test_too_many_cohort_args(self):
+    async def test_too_many_selection_args(self):
         with self.assert_fatal_exit(errors.MULTIPLE_COHORT_ARGS):
-            await self.run_etl("--cohort-athena-table=db.cohort__test", "--cohort-csv=hello.txt")
+            await self.run_etl(
+                "--select-by-athena-table=db.cohort__test", "--select-by-csv=hello.txt"
+            )
 
     async def test_csv_not_found(self):
         with self.assertRaises(FileNotFoundError):
-            await self.run_etl(f"--cohort-csv={self.tmpdir}/nope.csv")
+            await self.run_etl(f"--select-by-csv={self.tmpdir}/nope.csv")
 
     async def test_missing_athena_db(self):
         with self.assert_fatal_exit(errors.ATHENA_DATABASE_MISSING):
-            await self.run_etl("--cohort-athena-table=nope")
+            await self.run_etl("--select-by-athena-table=nope")
 
     async def test_invalid_athena_table_name(self):
         with self.assert_fatal_exit(errors.ATHENA_TABLE_NAME_INVALID):
-            await self.run_etl("--cohort-athena-table=db.hell;o")
+            await self.run_etl("--select-by-athena-table=db.hell;o")
 
     async def test_no_ref_id_columns(self):
         self.mock_athena(["condition_id", "abc"])
         with self.assert_fatal_exit(errors.COHORT_NOT_FOUND):
-            await self.run_etl("--cohort-athena-table=db.cohort__test")
+            await self.run_etl("--select-by-athena-table=db.cohort__test")
 
     async def test_athena_table_too_large(self):
         self.mock_athena(["a"] * 20_002)  # one extra for header, one extra to cross threshold
         with self.assert_fatal_exit(errors.ATHENA_TABLE_TOO_BIG):
-            await self.run_etl("--cohort-athena-table=db.cohort__test")
+            await self.run_etl("--select-by-athena-table=db.cohort__test")
 
         # Do it again with the allow arg
         self.mock_athena(["a"] * 20_002)
         with self.assert_fatal_exit(errors.COHORT_NOT_FOUND):  # different error now
-            await self.run_etl("--cohort-athena-table=db.cohort__test", "--allow-large-cohort")
+            await self.run_etl(
+                "--select-by-athena-table=db.cohort__test", "--allow-large-selection"
+            )
 
     async def test_no_patient_defined(self):
         with common.NdjsonWriter(f"{self.tmpdir}/docs.ndjson") as writer:
@@ -245,5 +249,26 @@ class TestCohorts(OpenAITestCase, BaseEtlSimple):
             )
 
         path = self.make_cohort_csv(["patient_id", "a"])
-        await self.run_etl(f"--cohort-csv={path}")
+        await self.run_etl(f"--select-by-csv={path}")
+        self.assertEqual(self.mock_create.call_count, 0)
+
+    async def test_selection_by_search(self):
+        self.mock_response()
+        self.mock_response()
+        await self.run_etl(
+            "--select-by-word=doc2",  # hits one docref
+            "--select-by-word=do",  # hits none
+            "--select-by-regex=d.4",  # hits one dxreport
+        )
+
+        self.assertEqual(self.mock_create.call_count, 2)
+        model_args = self.mock_create.call_args_list[0][1]
+        self.assertIn("dx4.1", model_args["messages"][1]["content"])
+        model_args = self.mock_create.call_args_list[1][1]
+        self.assertIn("doc2.1", model_args["messages"][1]["content"])
+
+    @mock.patch("cumulus_etl.fhir.get_clinical_note")
+    async def test_search_error_ignored(self, mock_get):
+        mock_get.side_effect = ValueError
+        await self.run_etl("--select-by-word=doc2")
         self.assertEqual(self.mock_create.call_count, 0)

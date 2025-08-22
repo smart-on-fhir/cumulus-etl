@@ -84,7 +84,7 @@ docker compose run --rm \
 (If this were a real study, you'd probably do this a bit differently.
 You'd point at your real DocumentReference resources for example.
 And you'd probably restrict the set of documents you run NLP on with an argument
-like `--cohort-athena-table study__my_cohort`.
+like `--select-by-athena-table study__my_cohort`.
 But for this run-through, we're going to hand-wave all the document selection pieces.)
 
 ### Running the Crawler

@@ -3,6 +3,7 @@
 import argparse
 import itertools
 import os
+import re
 import socket
 import tempfile
 import time
@@ -258,3 +259,19 @@ def expand_comma_list_arg(arg: Iterable[str] | None, casefold: bool = False) -> 
     if casefold:
         return map(str.casefold, split_args)
     return split_args
+
+
+def user_regex_to_pattern(term: str) -> re.Pattern:
+    """Takes a user search regex and adds some boundaries to it"""
+    # Make a custom version of \b that allows non-word characters to be on edge of the term too.
+    # For example:
+    #   This misses: re.match(r"\ba\+\b", "a+")
+    #   But this hits: re.match(r"\ba\+", "a+")
+    # So to work around that, we look for the word boundary ourselves.
+    edge = r"(\W|$|^)"
+    return re.compile(f"{edge}({term}){edge}", re.IGNORECASE)
+
+
+def user_term_to_pattern(term: str) -> re.Pattern:
+    """Takes a user search term and turns it into a clinical-note-appropriate regex"""
+    return user_regex_to_pattern(re.escape(term))

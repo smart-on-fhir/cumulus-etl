@@ -9,13 +9,14 @@ Some differences:
 """
 
 import argparse
+import re
 import string
-from collections.abc import Callable
 
+import cumulus_fhir_support as cfs
 import pyathena
 
-from cumulus_etl import cli_utils, deid, errors, id_handling, loaders
-from cumulus_etl.etl import pipeline
+from cumulus_etl import cli_utils, deid, errors, fhir, id_handling, loaders
+from cumulus_etl.etl import config, pipeline
 
 
 def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
@@ -30,79 +31,73 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
 
     group = parser.add_argument_group("cohort selection")
     group.add_argument(
-        "--cohort-csv",
+        "--select-by-csv",
         metavar="FILE",
         help="path to a .csv file with original patient and/or note IDs",
     )
     group.add_argument(
-        "--cohort-anon-csv",
+        "--select-by-anon-csv",
         metavar="FILE",
         help="path to a .csv file with anonymized patient and/or note IDs",
     )
     group.add_argument(
-        "--cohort-athena-table",
+        "--select-by-word",
+        metavar="WORD",
+        action="append",
+        help="only select notes that match the given word (can specify multiple times)",
+    )
+    group.add_argument(
+        "--select-by-regex",
+        metavar="REGEX",
+        action="append",
+        help="only select notes that match the given word regex (can specify multiple times)",
+    )
+    group.add_argument(
+        "--select-by-athena-table",
         metavar="DB.TABLE",
         help="name of an Athena table with patient and/or note IDs",
     )
     group.add_argument(
-        "--allow-large-cohort",
+        "--allow-large-selection",
         action="store_true",
-        help="allow a larger-than-normal cohort",
+        help="allow a larger-than-normal selection",
     )
 
 
-def get_cohort_filter(args: argparse.Namespace) -> Callable[[deid.Codebook, dict], bool] | None:
-    """Returns (patient refs to match, resource refs to match)"""
-    # Poor man's add_mutually_exclusive_group(), which we don't use because we have additional
-    # flags for the group, like "--allow-large-cohort".
-    has_csv = bool(args.cohort_csv)
-    has_anon_csv = bool(args.cohort_anon_csv)
-    has_athena_table = bool(args.cohort_athena_table)
-    arg_count = int(has_csv) + int(has_anon_csv) + int(has_athena_table)
-    if not arg_count:
-        return None
-    elif arg_count > 1:
-        errors.fatal(
-            "Multiple cohort arguments provided. Please specify just one.",
-            errors.MULTIPLE_COHORT_ARGS,
-        )
-
-    if has_athena_table:
-        if "." in args.cohort_athena_table:
-            parts = args.cohort_athena_table.split(".", 1)
-            database = parts[0]
-            table = parts[-1]
-        else:
-            database = args.athena_database
-            table = args.cohort_athena_table
-        if not database:
-            errors.fatal(
-                "You must provide an Athena database with --athena-database.",
-                errors.ATHENA_DATABASE_MISSING,
-            )
-        if set(table) - set(string.ascii_letters + string.digits + "-_"):
-            errors.fatal(
-                f"Athena table name '{table}' has invalid characters.",
-                errors.ATHENA_TABLE_NAME_INVALID,
-            )
-        cursor = pyathena.connect(
-            region_name=args.athena_region,
-            work_group=args.athena_workgroup,
-            schema_name=database,
-        ).cursor()
-        count = cursor.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]  # noqa: S608
-        if int(count) > 20_000 and not args.allow_large_cohort:
-            errors.fatal(
-                f"Athena cohort in '{table}' is very large ({int(count):,} rows).\n"
-                "If you want to use it anyway, pass --allow-large-cohort",
-                errors.ATHENA_TABLE_TOO_BIG,
-            )
-        csv_file = cursor.execute(f'SELECT * FROM "{table}"').output_location  # noqa: S608
+def query_athena_table(args) -> str:
+    if "." in args.select_by_athena_table:
+        parts = args.select_by_athena_table.split(".", 1)
+        database = parts[0]
+        table = parts[-1]
     else:
-        csv_file = args.cohort_anon_csv or args.cohort_csv
+        database = args.athena_database
+        table = args.select_by_athena_table
+    if not database:
+        errors.fatal(
+            "You must provide an Athena database with --athena-database.",
+            errors.ATHENA_DATABASE_MISSING,
+        )
+    if set(table) - set(string.ascii_letters + string.digits + "-_"):
+        errors.fatal(
+            f"Athena table name '{table}' has invalid characters.",
+            errors.ATHENA_TABLE_NAME_INVALID,
+        )
+    cursor = pyathena.connect(
+        region_name=args.athena_region,
+        work_group=args.athena_workgroup,
+        schema_name=database,
+    ).cursor()
+    count = cursor.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]  # noqa: S608
+    if int(count) > 20_000 and not args.allow_large_selection:
+        errors.fatal(
+            f"Athena cohort in '{table}' is very large ({int(count):,} rows).\n"
+            "If you want to use it anyway, pass --allow-large-selection",
+            errors.ATHENA_TABLE_TOO_BIG,
+        )
+    return cursor.execute(f'SELECT * FROM "{table}"').output_location  # noqa: S608
 
-    is_anon = has_anon_csv or has_athena_table
 
+def define_csv_filter(csv_file: str, is_anon: bool) -> config.FilterFunc:
     dxreport_ids = id_handling.get_ids_from_csv(csv_file, "DiagnosticReport", is_anon=is_anon)
     docref_ids = id_handling.get_ids_from_csv(csv_file, "DocumentReference", is_anon=is_anon)
     patient_ids = id_handling.get_ids_from_csv(csv_file, "Patient", is_anon=is_anon)
@@ -110,7 +105,7 @@ def get_cohort_filter(args: argparse.Namespace) -> Callable[[deid.Codebook, dict
     if not dxreport_ids and not docref_ids and not patient_ids:
         errors.fatal("No patient or note IDs found in cohort.", errors.COHORT_NOT_FOUND)
 
-    def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
+    async def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
         match resource["resourceType"]:
             case "DiagnosticReport":
                 id_pool = dxreport_ids
@@ -141,10 +136,63 @@ def get_cohort_filter(args: argparse.Namespace) -> Callable[[deid.Codebook, dict
     return res_filter
 
 
-async def nlp_main(args: argparse.Namespace) -> None:
-    res_filter = get_cohort_filter(args)
+def define_regex_filter(
+    client: cfs.FhirClient, words: list[str] | None, regexes: list[str] | None
+) -> config.FilterFunc:
+    patterns = []
+    if regexes:
+        patterns.extend(cli_utils.user_regex_to_pattern(regex).pattern for regex in regexes)
+    if words:
+        patterns.extend(cli_utils.user_term_to_pattern(word).pattern for word in words)
 
-    async def prep_scrubber(_results: loaders.LoaderResults) -> tuple[deid.Scrubber, dict]:
+    # combine into one big compiled pattern
+    patterns = re.compile("|".join(patterns))
+
+    async def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
+        try:
+            note_text = await fhir.get_clinical_note(client, resource)
+            return patterns.search(note_text) is not None
+        except Exception:
+            return False
+
+    return res_filter
+
+
+def get_cohort_filter(client: cfs.FhirClient, args: argparse.Namespace) -> config.FilterFunc:
+    """Returns (patient refs to match, resource refs to match)"""
+    # Poor man's add_mutually_exclusive_group(), which we don't use because we have additional
+    # flags for the group, like "--allow-large-selection".
+    has_csv = bool(args.select_by_csv)
+    has_anon_csv = bool(args.select_by_anon_csv)
+    has_word = bool(args.select_by_word)
+    has_regex = bool(args.select_by_regex)
+    has_athena_table = bool(args.select_by_athena_table)
+    arg_count = (
+        int(has_csv) + int(has_anon_csv) + int(has_word or has_regex) + int(has_athena_table)
+    )
+    if arg_count > 1:
+        errors.fatal(
+            "Multiple selection arguments provided. Please specify just one.",
+            errors.MULTIPLE_COHORT_ARGS,
+        )
+
+    if has_athena_table:
+        return define_csv_filter(query_athena_table(args), True)
+    elif has_anon_csv:
+        return define_csv_filter(args.select_by_anon_csv, True)
+    elif has_csv:
+        return define_csv_filter(args.select_by_csv, False)
+    elif has_word or has_regex:
+        return define_regex_filter(client, args.select_by_word, args.select_by_regex)
+    else:
+        return None
+
+
+async def nlp_main(args: argparse.Namespace) -> None:
+    async def prep_scrubber(
+        client: cfs.FhirClient, _results: loaders.LoaderResults
+    ) -> tuple[deid.Scrubber, dict]:
+        res_filter = get_cohort_filter(client, args)
         config_args = {"ctakes_overrides": args.ctakes_overrides, "resource_filter": res_filter}
         return deid.Scrubber(args.dir_phi), config_args
 

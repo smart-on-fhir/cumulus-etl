@@ -419,7 +419,7 @@ class EtlTask:
         """
         resource_filter = self.task_config.resource_filter
         for x in filter(self.scrubber.scrub_resource, self.read_ndjson(progress=progress)):
-            if not resource_filter or resource_filter(self.scrubber.codebook, x):
+            if not resource_filter or await resource_filter(self.scrubber.codebook, x):
                 yield x
 
     def table_batch_cleanup(self, table_index: int, batch_index: int) -> None:

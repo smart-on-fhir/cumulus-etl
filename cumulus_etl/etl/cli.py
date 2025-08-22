@@ -5,6 +5,8 @@ import datetime
 import shutil
 import sys
 
+import cumulus_fhir_support as cfs
+
 import cumulus_etl
 from cumulus_etl import cli_utils, deid, errors, loaders
 from cumulus_etl.etl import pipeline
@@ -134,7 +136,9 @@ async def etl_main(args: argparse.Namespace) -> None:
         "inline_mimetypes": inline_mimetypes,
     }
 
-    async def prep_scrubber(results: loaders.LoaderResults) -> tuple[deid.Scrubber, dict]:
+    async def prep_scrubber(
+        _client: cfs.FhirClient, results: loaders.LoaderResults
+    ) -> tuple[deid.Scrubber, dict]:
         # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
         export_group, export_datetime = handle_completion_args(args, results)
 
