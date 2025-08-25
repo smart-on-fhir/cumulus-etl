@@ -3,7 +3,6 @@
 import argparse
 import asyncio
 import datetime
-import re
 import sys
 from collections.abc import Callable, Collection
 
@@ -215,14 +214,7 @@ def add_highlights(notes: Collection[LabelStudioNote], args: argparse.Namespace)
 
     common.print_header("Highlighting notes...")
 
-    # Make a custom version of \b that allows non-word characters to be on edge of the term too.
-    # For example:
-    #   This misses: re.match(r"\ba\+\b", "a+")
-    #   But this hits: re.match(r"\ba\+", "a+")
-    # So to work around that, we look for the word boundary ourselves.
-    edge = r"(\W|$|^)"
-    escaped_terms = [re.escape(term) for term in highlights]
-    re_terms = [re.compile(f"{edge}({term}){edge}", re.IGNORECASE) for term in escaped_terms]
+    re_terms = [cli_utils.user_term_to_pattern(term) for term in highlights]
 
     for note in notes:
         for term in re_terms:

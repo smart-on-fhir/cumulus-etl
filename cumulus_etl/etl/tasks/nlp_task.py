@@ -89,7 +89,7 @@ class BaseNlpTask(tasks.EtlTask):
         for note in self.read_ndjson(progress=progress):
             orig_note = copy.deepcopy(note)
             can_process = (
-                note_filter(self.scrubber.codebook, note)
+                await note_filter(self.scrubber.codebook, note)
                 and (doc_check is None or doc_check(note))
                 and self.scrubber.scrub_resource(note, scrub_attachments=False, keep_stats=False)
             )

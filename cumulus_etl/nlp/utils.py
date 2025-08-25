@@ -10,7 +10,7 @@ from cumulus_etl import common, deid, fhir, store
 Obj = TypeVar("Obj")
 
 
-def is_note_valid(codebook: deid.Codebook, note: dict) -> bool:
+async def is_note_valid(codebook: deid.Codebook, note: dict) -> bool:
     """
     Returns True if this note is not a draft or entered-in-error resource
 

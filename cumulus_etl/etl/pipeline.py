@@ -5,6 +5,7 @@ import os
 import sys
 from collections.abc import Awaitable, Callable
 
+import cumulus_fhir_support as cfs
 import rich
 import rich.table
 
@@ -169,7 +170,9 @@ async def run_pipeline(
     nlp: bool = False,
     ndjson_args: dict | None = None,
     i2b2_args: dict | None = None,
-    prep_scrubber: Callable[[loaders.LoaderResults], Awaitable[tuple[deid.Scrubber, dict]]],
+    prep_scrubber: Callable[
+        [cfs.FhirClient, loaders.LoaderResults], Awaitable[tuple[deid.Scrubber, dict]]
+    ],
 ) -> None:
     # record filesystem options like --s3-region before creating Roots
     store.set_user_fs_options(vars(args))
@@ -229,7 +232,7 @@ async def run_pipeline(
         # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
         loader_results = await config_loader.load_resources(required_resources)
 
-        scrubber, config_args = await prep_scrubber(loader_results)
+        scrubber, config_args = await prep_scrubber(client, loader_results)
         validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
 
         # Prepare config for jobs
