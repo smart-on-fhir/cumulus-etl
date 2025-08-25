@@ -46,6 +46,9 @@ Task names:
 - GPT4o: `example__nlp_gpt4o`
 - GPT5: `example__nlp_gpt5`
 
+This should cost you less than 15 cents to run and could be much less depending on the model.
+We'll use less than five thousand tokens.
+
 #### Local (On-Prem) Options
 For these, you'll need to start up the appropriate model on your machine:
 ```sh
