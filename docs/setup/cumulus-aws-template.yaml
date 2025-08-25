@@ -211,6 +211,14 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_llama4_scout"
             CreateNativeDeltaTable: True
             WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/example__nlp_gpt4"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/example__nlp_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/example__nlp_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/example__nlp_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/example__nlp_llama4_scout"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
 
   ####################################################
   # Athena queries and where to store them

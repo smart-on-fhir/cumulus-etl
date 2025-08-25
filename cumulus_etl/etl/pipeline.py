@@ -174,6 +174,9 @@ async def run_pipeline(
     # record filesystem options like --s3-region before creating Roots
     store.set_user_fs_options(vars(args))
 
+    if args.dir_input == "%EXAMPLE%" and not os.path.exists(args.dir_input):
+        args.dir_input = os.path.join(os.path.dirname(__file__), "studies/example/ndjson")
+
     root_input = store.Root(args.dir_input)
     root_output = store.Root(args.dir_output)
     root_phi = store.Root(args.dir_phi, create=True)

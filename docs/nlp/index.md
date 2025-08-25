@@ -2,6 +2,7 @@
 title: NLP
 parent: ETL
 nav_order: 5
+has_children: true
 # audience: non-programmers, conversational tone, selling a bit
 # type: explanation
 ---

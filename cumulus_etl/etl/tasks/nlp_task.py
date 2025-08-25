@@ -6,6 +6,7 @@ import os
 import re
 import string
 import sys
+import types
 import typing
 from collections.abc import AsyncIterator, Callable
 from typing import ClassVar
@@ -223,7 +224,7 @@ class BaseOpenAiTask(BaseNlpTask):
     ) -> pyarrow.DataType:
         return pyarrow.struct(
             [
-                pyarrow.field(name, cls._convert_type_to_pyarrow(info.annotation))
+                pyarrow.field(name, cls._convert_type_to_pyarrow(info.annotation), nullable=True)
                 for name, info in fields.items()
             ]
         )
@@ -232,16 +233,23 @@ class BaseOpenAiTask(BaseNlpTask):
     def _convert_type_to_pyarrow(cls, annotation) -> pyarrow.DataType:
         # Since we only need to handle a small amount of possible types, we just do this ourselves
         # rather than relying on an external library.
-        if issubclass(annotation, str):
+        if origin := typing.get_origin(annotation):  # e.g. "UnionType" or "list"
+            sub_type = typing.get_args(annotation)[0]
+            if issubclass(origin, types.UnionType):
+                # This is gonna be something like "str | None" so just grab first arg.
+                # We mark all our fields are nullable at the pyarrow layer.
+                return cls._convert_type_to_pyarrow(sub_type)
+            elif issubclass(origin, list):
+                # Note: does not handle struct types underneath yet
+                return pyarrow.list_(cls._convert_type_to_pyarrow(sub_type))
+        elif issubclass(annotation, str):
             return pyarrow.string()
         elif issubclass(annotation, bool):
             return pyarrow.bool_()
-        elif issubclass(typing.get_origin(annotation), list):
-            sub_type = typing.get_args(annotation)[0]
-            # Note: does not handle struct types underneath yet
-            return pyarrow.list_(cls._convert_type_to_pyarrow(sub_type))
-        else:
-            raise ValueError(f"Unsupported type {annotation}")  # pragma: no cover
+        elif issubclass(annotation, int):
+            return pyarrow.int32()
+
+        raise ValueError(f"Unsupported type {annotation}")  # pragma: no cover
 
 
 class BaseOpenAiTaskWithSpans(BaseOpenAiTask):

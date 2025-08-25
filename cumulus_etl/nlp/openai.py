@@ -31,9 +31,9 @@ class OpenAIModel(abc.ABC):
         try:
             models = self.client.models.list()
             names = {model.id async for model in models}
-        except openai.APIError:
+        except openai.APIError as exc:
             errors.fatal(
-                f"NLP server '{self.USER_ID}' is unreachable.\n"
+                f"NLP server '{self.USER_ID}' is unreachable: {exc}.\n"
                 f"If it's a local server, try running 'docker compose up {self.USER_ID} --wait'.",
                 errors.SERVICE_MISSING,
             )
@@ -45,6 +45,9 @@ class OpenAIModel(abc.ABC):
             )
 
     async def prompt(self, system: str, user: str, schema: BaseModel) -> chat.ParsedChatCompletion:
+        return await self._parse_prompt(system, user, schema)
+
+    async def _parse_prompt(self, system: str, user: str, schema) -> chat.ParsedChatCompletion:
         return await self.client.chat.completions.parse(
             model=self.MODEL_NAME,
             messages=[
@@ -75,11 +78,19 @@ class AzureModel(OpenAIModel):
             errors.fatal("\n".join(messages), errors.ARGS_INVALID)
 
     def make_client(self) -> openai.AsyncOpenAI:
-        return openai.AsyncAzureOpenAI(api_version="2024-06-01")
+        return openai.AsyncAzureOpenAI(api_version="2024-10-21")
 
 
-class Gpt35Model(AzureModel):
+class Gpt35Model(AzureModel):  # deprecated, do not use in new code (doesn't support JSON schemas)
     MODEL_NAME = "gpt-35-turbo-0125"
+
+    # 3.5 doesn't support a pydantic JSON schema, so we do some work to keep it using the same API
+    # as the rest of our code.
+    async def prompt(self, system: str, user: str, schema: BaseModel) -> chat.ParsedChatCompletion:
+        response = await self._parse_prompt(system, user, {"type": "json_object"})
+        parsed = schema.model_validate_json(response.choices[0].message.content)
+        response.choices[0].message.parsed = parsed
+        return response
 
 
 class Gpt4Model(AzureModel):
