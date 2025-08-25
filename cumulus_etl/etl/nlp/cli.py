@@ -29,7 +29,21 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
 
     cli_utils.add_aws(parser, athena=True)
 
-    group = parser.add_argument_group("cohort selection")
+    group = parser.add_argument_group("document selection")
+    group.add_argument(
+        "--select-by-word",
+        metavar="WORD",
+        action="append",
+        help="only select notes that match the given word (can specify multiple times, "
+        "will only match whole words/phrases)",
+    )
+    group.add_argument(
+        "--select-by-regex",
+        metavar="REGEX",
+        action="append",
+        help="only select notes that match the given word regex (can specify multiple times, "
+        "will only match whole words/phrases)",
+    )
     group.add_argument(
         "--select-by-csv",
         metavar="FILE",
@@ -39,18 +53,6 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
         "--select-by-anon-csv",
         metavar="FILE",
         help="path to a .csv file with anonymized patient and/or note IDs",
-    )
-    group.add_argument(
-        "--select-by-word",
-        metavar="WORD",
-        action="append",
-        help="only select notes that match the given word (can specify multiple times)",
-    )
-    group.add_argument(
-        "--select-by-regex",
-        metavar="REGEX",
-        action="append",
-        help="only select notes that match the given word regex (can specify multiple times)",
     )
     group.add_argument(
         "--select-by-athena-table",
