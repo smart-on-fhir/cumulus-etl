@@ -11,7 +11,7 @@ import cumulus_fhir_support as cfs
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
-from cumulus_etl.upload_notes import downloader, selector
+from cumulus_etl.upload_notes import downloader, labeling, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
 PHILTER_DISABLE = "disable"
@@ -207,22 +207,6 @@ async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) 
         ]
 
 
-def add_highlights(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
-    highlights = list(cli_utils.expand_comma_list_arg(args.highlight))
-    if not highlights:
-        return
-
-    common.print_header("Highlighting notes...")
-
-    re_terms = [cli_utils.user_term_to_pattern(term) for term in highlights]
-
-    for note in notes:
-        for term in re_terms:
-            for match in term.finditer(note.text):
-                # Look at group 2 (the middle term group, ignoring the edge groups)
-                note.highlights.append(ctakesclient.typesystem.Span(match.start(2), match.end(2)))
-
-
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
     if args.philter == PHILTER_DISABLE:
         return
@@ -280,7 +264,7 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
     for unique_id, group_notes in by_unique_id.items():
         grouped_text = ""
         grouped_ctakes_matches = []
-        grouped_highlights = []
+        grouped_highlights = {}
         grouped_philter_map = {}
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
@@ -316,9 +300,10 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 match.end += offset
                 grouped_ctakes_matches.append(match)
 
-            for span in note.highlights:
-                new_span = ctakesclient.typesystem.Span(span.begin + offset, span.end + offset)
-                grouped_highlights.append(new_span)
+            for label, spans in note.highlights.items():
+                for span in spans:
+                    new_span = ctakesclient.typesystem.Span(span.begin + offset, span.end + offset)
+                    grouped_highlights.setdefault(label, []).append(new_span)
 
             for start, stop in note.philter_map.items():
                 grouped_philter_map[start + offset] = stop + offset
@@ -386,22 +371,50 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     parser.add_argument(
-        "--highlight",
-        action="append",
-        help="annotate the provided word (can be specified multiple times or comma separated)",
-    )
-
-    parser.add_argument(
         "--grouping",
         choices=["encounter", "none"],
         default="encounter",
         help="how to group together notes into one Label Studio task (default is encounter)",
     )
 
-    cli_utils.add_aws(parser)
+    cli_utils.add_aws(parser, athena=True)
     cli_utils.add_auth(parser)
 
-    docs = parser.add_argument_group("document selection")
+    group = parser.add_argument_group("labeling")
+    group.add_argument(
+        "--highlight-by-word",
+        "--highlight",  # old alias, let's keep around whynot
+        action="append",
+        metavar="WORD",
+        help="annotate the provided word (can be specified multiple times or comma separated, "
+        "will only match whole words/phrases)",
+    )
+    group.add_argument(
+        "--highlight-by-regex",
+        action="append",
+        metavar="REGEX",
+        help="annotate the provided word regex (can be specified multiple times, "
+        "will only match whole words/phrases)",
+    )
+    group.add_argument(
+        "--label-by-csv",
+        metavar="FILE",
+        help="path to a .csv file with annotations (must have note ID, label, and span columns)",
+    )
+    group.add_argument(
+        "--label-by-anon-csv",
+        metavar="FILE",
+        help="path to a .csv file with annotations "
+        "(must have anonymized note ID, label, and span columns)",
+    )
+    group.add_argument(
+        "--label-by-athena-table",
+        metavar="DB.TABLE",
+        help="name of an Athena table with annotations "
+        "(must have note ID, label, and span columns)",
+    )
+
+    docs = parser.add_argument_group("note selection")
     docs.add_argument(
         "--anon-docrefs",
         metavar="PATH",
@@ -483,8 +496,9 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
                 client, ndjson_folder.name, codebook, get_unique_id=get_unique_id
             )
 
-    await run_nlp(notes, args)
-    add_highlights(notes, args)
+            await run_nlp(notes, args)
+            await labeling.add_labels(codebook, notes, args)
+
     # It's safe to philter notes after NLP because philter does not change character counts
     philter_notes(notes, args)
     notes = sort_notes(notes)

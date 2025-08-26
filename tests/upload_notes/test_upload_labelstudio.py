@@ -254,10 +254,10 @@ class TestUploadLabelStudio(AsyncTestCase):
 
     async def test_push_highlights(self):
         note = self.make_note(philter_label=False, ctakes=False)
-        note.highlights = [
-            ctakesclient.typesystem.Span(7, 11),
-            ctakesclient.typesystem.Span(12, 16),
-        ]
+        note.highlights = {
+            "Label1": [ctakesclient.typesystem.Span(7, 11), ctakesclient.typesystem.Span(12, 16)],
+            "Label2": [ctakesclient.typesystem.Span(7, 11)],
+        }
         await self.push_tasks(note)
         self.assertEqual(
             {
@@ -270,11 +270,11 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_encounter_id": "enc-anon",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
-                    "mylabel": [{"value": "Tag"}],
+                    "mylabel": [{"value": "Label1"}, {"value": "Label2"}],
                 },
                 "predictions": [
                     {
-                        "model_version": "Cumulus Highlights",
+                        "model_version": "Cumulus Labels",
                         "result": [
                             {
                                 "from_name": "mylabel",
@@ -282,7 +282,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "type": "labels",
                                 "value": {
                                     "end": 11,
-                                    "labels": ["Tag"],
+                                    "labels": ["Label1"],
                                     "score": 1.0,
                                     "start": 7,
                                     "text": "note",
@@ -294,10 +294,22 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "type": "labels",
                                 "value": {
                                     "end": 16,
-                                    "labels": ["Tag"],
+                                    "labels": ["Label1"],
                                     "score": 1.0,
                                     "start": 12,
                                     "text": "text",
+                                },
+                            },
+                            {
+                                "from_name": "mylabel",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 11,
+                                    "labels": ["Label2"],
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
                                 },
                             },
                         ],

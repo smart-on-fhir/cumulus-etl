@@ -3,12 +3,20 @@ from collections.abc import Callable, Collection
 from cumulus_etl import common
 
 
-def get_ids_from_csv(path: str, resource_type: str, is_anon: bool = False) -> set[str]:
+def get_ids_from_csv(
+    path: str, resource_type: str, is_anon: bool = False, extra_fields: list[str] | None = None
+) -> dict[str, set[tuple[str, str]]]:
+    """Returns ID -> {(value, value, ...)} for any extra fields"""
     with common.read_csv(path) as reader:
         get_value = _find_header(reader.fieldnames, resource_type, is_anon=is_anon)
         if get_value is None:
-            return set()
-        return set(filter(None, (get_value(row) for row in iter(reader))))
+            return {}
+        extra_fields = extra_fields or []
+        result = {}
+        for row in reader:
+            if value := get_value(row):
+                result.setdefault(value, set()).add(tuple(row[field] for field in extra_fields))
+        return result
 
 
 def _find_header(

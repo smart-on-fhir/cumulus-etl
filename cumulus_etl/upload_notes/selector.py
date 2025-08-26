@@ -69,7 +69,7 @@ def _filter_real_ids(resource_type: str, id_file: str, resources: Iterable[dict]
         if resource["id"] in real_resource_ids:
             yield resource
 
-            real_resource_ids.remove(resource["id"])
+            del real_resource_ids[resource["id"]]
             if not real_resource_ids:
                 break
 
@@ -85,6 +85,6 @@ def _filter_fake_ids(
         if fake_id in fake_resource_ids:
             yield resource
 
-            fake_resource_ids.remove(fake_id)
+            del fake_resource_ids[fake_id]
             if not fake_resource_ids:
                 break

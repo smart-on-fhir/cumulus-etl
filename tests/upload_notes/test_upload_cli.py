@@ -263,6 +263,36 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         finalized += text.strip()
         return finalized
 
+    def mock_athena(self, rows: list[str]):
+        tmpdir = self.make_tempdir()
+        results = mock.MagicMock()
+        results.output_location = f"{tmpdir}/cohort.csv"
+        common.write_text(results.output_location, "\n".join(rows))
+
+        # cursor()
+        cursor = mock.MagicMock()
+
+        def fake_execute(query):
+            if not query.endswith('FROM "cohort__test"'):
+                raise ValueError("bad table")
+            return results
+
+        cursor.execute.side_effect = fake_execute
+
+        # connection
+        conn = mock.MagicMock()
+        conn.cursor.return_value = cursor
+
+        # connect()
+        connect = self.patch("pyathena.connect")
+
+        def fake_connect(**kwargs):
+            if kwargs.get("schema_name") != "db":
+                raise ValueError("bad database")
+            return conn
+
+        connect.side_effect = fake_connect
+
     async def test_real_and_fake_docrefs_conflict(self):
         """Verify that you can't pass in both real and fake docrefs"""
         with self.assertRaises(SystemExit) as cm:
@@ -714,26 +744,32 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text=text))
                 writer.write(TestUploadNotes.make_docref("D2", enc_id="E1", text=text))
             await self.run_upload_notes(
-                "--highlight=Elm", "--highlight=st,FREDDY,a+", input_path=tmpdir, philter="disable"
+                "--highlight-by-word=Elm",
+                "--highlight=st,FREDDY,a+",
+                "--highlight-by-regex=st...t",
+                input_path=tmpdir,
+                philter="disable",
             )
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
         self.assertEqual(
-            [tasks[0].text[span.begin : span.end] for span in tasks[0].highlights],
-            ["Elm", "St", "Freddy", "A+", "Elm", "St", "Freddy", "A+"],
+            [tasks[0].text[span.begin : span.end] for span in tasks[0].highlights["Tag"]],
+            ["Elm", "St", "Freddy", "A+", "Street", "Elm", "St", "Freddy", "A+", "Street"],
         )
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights],
+            [span.key() for span in tasks[0].highlights["Tag"]],
             [
                 (129, 132),
                 (133, 135),
                 (142, 148),
                 (162, 164),
+                (165, 171),
                 (386, 389),
                 (390, 392),
                 (399, 405),
                 (419, 421),
+                (422, 428),
             ],
         )
 
@@ -747,9 +783,77 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights],
+            [span.key() for span in tasks[0].highlights["Tag"]],
             [(106, 109), (120, 123), (125, 128)],
         )
+
+    async def test_label_by_csv(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="one two"))
+                writer.write(TestUploadNotes.make_docref("D2", enc_id="E2", text="three"))
+            csv_file = f"{tmpdir}/labels.csv"
+            with open(csv_file, "w", newline="", encoding="utf8") as f:
+                f.write("documentreference_id,label,span\n")
+                f.write("D1,number,0:3\n")
+                f.write("D1,number,4:7\n")
+                f.write("D2,number,0:5\n")
+                f.write("D1,single,0:3\n")
+            await self.run_upload_notes(
+                f"--label-by-csv={csv_file}", input_path=tmpdir, philter="disable"
+            )
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(len(tasks), 2)
+        self.assertEqual({"number", "single"}, set(tasks[0].highlights))
+        self.assertEqual(
+            [span.key() for span in tasks[0].highlights["number"]],
+            [(106, 109), (110, 113)],
+        )
+        self.assertEqual([span.key() for span in tasks[0].highlights["single"]], [(106, 109)])
+        self.assertEqual({"number"}, set(tasks[1].highlights))
+        self.assertEqual([span.key() for span in tasks[1].highlights["number"]], [(106, 111)])
+
+    async def test_label_by_anon_csv(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/dxreport.ndjson") as writer:
+                writer.write(TestUploadNotes.make_dxreport("D2", enc_id="E2"))
+            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1"))
+            csv_file = f"{tmpdir}/labels.csv"
+            with open(csv_file, "w", newline="", encoding="utf8") as f:
+                f.write("note_ref,label,span\n")
+                f.write(f"DocumentReference/{ANON_D1},test,0:3\n")
+                f.write(f"DiagnosticReport/{ANON_D2},test,4:7\n")
+            await self.run_upload_notes(
+                f"--label-by-anon-csv={csv_file}", input_path=tmpdir, philter="disable"
+            )
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(len(tasks), 2)
+        self.assertEqual([span.key() for span in tasks[0].highlights["test"]], [(110, 113)])
+        self.assertEqual([span.key() for span in tasks[1].highlights["test"]], [(106, 109)])
+
+    async def test_label_by_athena_table(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/dxreport.ndjson") as writer:
+                writer.write(TestUploadNotes.make_dxreport("D1"))
+
+            self.mock_athena(["patient_id,label,span", f"{ANON_P1},my-label,0:5"])
+            await self.run_upload_notes(
+                "--label-by-athena-table=db.cohort__test", input_path=tmpdir, philter="disable"
+            )
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual([span.key() for span in tasks[0].highlights["my-label"]], [(106, 111)])
+
+    async def test_label_by_multiple(self):
+        with self.assert_fatal_exit(errors.MULTIPLE_LABELING_ARGS):
+            await self.run_upload_notes(
+                "--label-by-athena-table=db.cohort__test",
+                "--label-by-csv=hello.txt",
+            )
 
     async def test_sorting(self):
         tmpdir = self.make_tempdir()
