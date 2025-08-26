@@ -16,14 +16,14 @@ class TestExampleTask(OpenAITestCase, BaseEtlSimple):
         return AgeMention(has_mention=True, spans=["year-old"], age=20)
 
     @ddt.data(
-        "example__nlp_gpt_oss_120b",
-        "example__nlp_gpt4",
-        "example__nlp_gpt4o",
-        "example__nlp_gpt5",
-        "example__nlp_llama4_scout",
+        "example_nlp__nlp_gpt_oss_120b",
+        "example_nlp__nlp_gpt4",
+        "example_nlp__nlp_gpt4o",
+        "example_nlp__nlp_gpt5",
+        "example_nlp__nlp_llama4_scout",
     )
     async def test_basic_etl(self, task_name):
         for _ in range(8):
             self.mock_response()
-        await self.run_etl(tasks=[task_name], input_path="%EXAMPLE%")
+        await self.run_etl(tasks=[task_name], input_path="%EXAMPLE-NLP%")
         self.assertEqual(self.mock_create.call_count, 8)

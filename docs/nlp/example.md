@@ -42,9 +42,9 @@ export AZURE_OPENAI_ENDPOINT=https://xxx.openai.azure.com/
 ```
 
 Task names:
-- GPT4: `example__nlp_gpt4`
-- GPT4o: `example__nlp_gpt4o`
-- GPT5: `example__nlp_gpt5`
+- GPT4: `example_nlp__nlp_gpt4`
+- GPT4o: `example_nlp__nlp_gpt4o`
+- GPT5: `example_nlp__nlp_gpt5`
 
 This should cost you less than 15 cents to run and could be much less depending on the model.
 We'll use less than five thousand tokens.
@@ -56,7 +56,7 @@ docker compose up --wait gpt-oss-120b
 ```
 
 Task names:
-- GPT-OSS 120B (needs 80GB of GPU memory): `example__nlp_gpt_oss_120b`
+- GPT-OSS 120B (needs 80GB of GPU memory): `example_nlp__nlp_gpt_oss_120b`
 
 ### Running the ETL
 
@@ -65,7 +65,7 @@ Now that your model is ready, let's run the ETL on some notes!
 Below is the command line to use.
 You'll need to change the bucket names and paths to wherever you set up your AWS infrastructure.
 And you'll want to change the task name as appropriate for your model.
-Leave the odd looking `%EXAMPLE%` bit in place;
+Leave the odd looking `%EXAMPLE-NLP%` bit in place;
 that just tells Cumulus ETL to use its built-in example documents as the input.
 
 The output and PHI bucket locations should be the same as your normal ETL runs on raw FHIR data.
@@ -75,10 +75,10 @@ but normally there is, and that PHI bucket is where Cumulus ETL keeps caches of 
 ```sh
 docker compose run --rm \
   cumulus-etl nlp \
-  %EXAMPLE% \
+  %EXAMPLE-NLP% \
   s3://my-output-bucket/ \
   s3://my-phi-bucket/ \
-  --task example__nlp_gpt4
+  --task example_nlp__nlp_gpt4
 ```
 
 (If this were a real study, you'd probably do this a bit differently.
@@ -92,7 +92,7 @@ But for this run-through, we're going to hand-wave all the document selection pi
 Whenever you write a new table to S3, you'll want to run your AWS Glue crawler again,
 so that the table's schema gets set correctly in Athena.
 
-First, confirm that your AWS Cloud Formation templates have the `example__nlp_*` tables
+First, confirm that your AWS Cloud Formation templates have the `example_nlp__nlp_*` tables
 configured in them. If not, try copying the Glue crawler definition from
 [the sample template we provide](../setup/aws.md).
 
@@ -108,7 +108,7 @@ Cumulus workgroup and database.
 Then if you make a query like below (assuming you used the GPT4 model),
 you should see eight results with extracted ages.
 ```sql
-select * from example__nlp_gpt4
+select * from example_nlp__nlp_gpt4
 ```
 
 **Congratulations!**

@@ -41,25 +41,25 @@ class BaseExampleTask(tasks.BaseOpenAiTaskWithSpans):
 
 
 class ExampleGpt4Task(BaseExampleTask):
-    name = "example__nlp_gpt4"
+    name = "example_nlp__nlp_gpt4"
     client_class = nlp.Gpt4Model
 
 
 class ExampleGpt4oTask(BaseExampleTask):
-    name = "example__nlp_gpt4o"
+    name = "example_nlp__nlp_gpt4o"
     client_class = nlp.Gpt4oModel
 
 
 class ExampleGpt5Task(BaseExampleTask):
-    name = "example__nlp_gpt5"
+    name = "example_nlp__nlp_gpt5"
     client_class = nlp.Gpt5Model
 
 
 class ExampleGptOss120bTask(BaseExampleTask):
-    name = "example__nlp_gpt_oss_120b"
+    name = "example_nlp__nlp_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
 
 
 class ExampleLlama4ScoutTask(BaseExampleTask):
-    name = "example__nlp_llama4_scout"
+    name = "example_nlp__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
