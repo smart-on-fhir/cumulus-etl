@@ -45,8 +45,10 @@ class LabelStudioNote:
         default_factory=list
     )
 
-    # Matches found by word search, list of found spans
-    highlights: list[ctakesclient.typesystem.Span] = dataclasses.field(default_factory=list)
+    # Matches found by word search, dict of labels to found spans
+    highlights: dict[str | None, list[ctakesclient.typesystem.Span]] = dataclasses.field(
+        default_factory=dict
+    )
 
     # Matches found by Philter
     philter_map: dict[int, int] = dataclasses.field(default_factory=dict)
@@ -210,18 +212,21 @@ class LabelStudioClient:
             return
 
         prediction = {
-            "model_version": "Cumulus Highlights",
+            "model_version": "Cumulus Labels",
         }
 
         results = []
-        for span in note.highlights:
-            results.append(
-                self._format_match(span.begin, span.end, note.text[span.begin : span.end], ["Tag"])
-            )
+        for label, spans in note.highlights.items():
+            for span in spans:
+                results.append(
+                    self._format_match(
+                        span.begin, span.end, note.text[span.begin : span.end], [label]
+                    )
+                )
         prediction["result"] = results
         task["predictions"].append(prediction)
 
-        self._update_used_labels(task, ["Tag"])
+        self._update_used_labels(task, note.highlights.keys())
 
     def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
         """

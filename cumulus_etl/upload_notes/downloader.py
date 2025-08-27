@@ -84,7 +84,7 @@ async def _download_resources_from_real_ids(
     dxreport_ids = id_handling.get_ids_from_csv(docref_csv, "DiagnosticReport")
     docref_ids = id_handling.get_ids_from_csv(docref_csv, "DocumentReference")
 
-    async def handle_resource(resource_type: str, id_list: set[str]):
+    async def handle_resource(resource_type: str, id_list: Container[str]):
         if not id_list:
             return
 
