@@ -8,6 +8,9 @@ import ctakesclient
 from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.upload_notes import labelstudio
 
+DEFAULT_ORIGIN = "Cumulus"
+DEFAULT_LABEL = "Tag"
+
 
 async def add_labels(
     codebook: deid.Codebook,
@@ -53,7 +56,7 @@ def _label_by_csv(
     *,
     is_anon: bool,
 ) -> None:
-    matcher = nlp.CsvMatcher(csv_file, is_anon=is_anon, extra_fields=["label", "span"])
+    matcher = nlp.CsvMatcher(csv_file, is_anon=is_anon, extra_fields=["label", "span", "origin"])
 
     for note in notes:
         for ref, doc_span in note.doc_spans.items():
@@ -62,12 +65,15 @@ def _label_by_csv(
                 for match in sorted(matches):
                     label = match[0]
                     span = match[1]
+                    origin = match[2] or DEFAULT_ORIGIN
+                    if "__" in origin:  # if it looks like a table name, chop it down
+                        origin = origin.split("__", 1)[-1].removeprefix("nlp_")
                     if label and span and ":" in span:
                         begin, end = span.split(":", 1)
                         span = ctakesclient.typesystem.Span(
                             int(begin) + doc_span[0], int(end) + doc_span[0]
                         )
-                        note.highlights.setdefault(label, []).append(span)
+                        note.highlights.setdefault(origin, {}).setdefault(label, []).append(span)
 
 
 def _highlight_words(
@@ -87,5 +93,6 @@ def _highlight_words(
             for match in pattern.finditer(note.text):
                 # Look at group 2 (the middle term group, ignoring the edge groups)
                 span = ctakesclient.typesystem.Span(match.start(2), match.end(2))
-                # We use a generic default label of "Tag" to cause Label Studio to highlight it
-                note.highlights.setdefault("Tag", []).append(span)
+                labels = note.highlights.setdefault(DEFAULT_ORIGIN, {})
+                # We use a generic default label to cause Label Studio to highlight it
+                labels.setdefault(DEFAULT_LABEL, []).append(span)

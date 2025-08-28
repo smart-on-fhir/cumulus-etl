@@ -88,7 +88,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                 },
                 "predictions": [
                     {
-                        "model_version": "Cumulus cTAKES",
+                        "model_version": "cTAKES",
                         "result": [
                             # Note that fever does not show up,
                             # as it was not in our initial CUI mapping (in push_tasks)
@@ -119,7 +119,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                         ],
                     },
                     {
-                        "model_version": "Cumulus Philter",
+                        "model_version": "Philter",
                         "result": [
                             {
                                 "from_name": "mylabel",
@@ -255,8 +255,16 @@ class TestUploadLabelStudio(AsyncTestCase):
     async def test_push_highlights(self):
         note = self.make_note(philter_label=False, ctakes=False)
         note.highlights = {
-            "Label1": [ctakesclient.typesystem.Span(7, 11), ctakesclient.typesystem.Span(12, 16)],
-            "Label2": [ctakesclient.typesystem.Span(7, 11)],
+            "First Source": {
+                "Label1": [
+                    ctakesclient.typesystem.Span(7, 11),
+                    ctakesclient.typesystem.Span(12, 16),
+                ],
+                "Label2": [ctakesclient.typesystem.Span(7, 11)],
+            },
+            "Second Source": {
+                "Label1": [ctakesclient.typesystem.Span(7, 11)],
+            },
         }
         await self.push_tasks(note)
         self.assertEqual(
@@ -274,7 +282,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                 },
                 "predictions": [
                     {
-                        "model_version": "Cumulus Labels",
+                        "model_version": "First Source",
                         "result": [
                             {
                                 "from_name": "mylabel",
@@ -307,6 +315,23 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "value": {
                                     "end": 11,
                                     "labels": ["Label2"],
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        "model_version": "Second Source",
+                        "result": [
+                            {
+                                "from_name": "mylabel",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 11,
+                                    "labels": ["Label1"],
                                     "score": 1.0,
                                     "start": 7,
                                     "text": "note",

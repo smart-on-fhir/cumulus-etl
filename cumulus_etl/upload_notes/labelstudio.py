@@ -45,8 +45,8 @@ class LabelStudioNote:
         default_factory=list
     )
 
-    # Matches found by word search, dict of labels to found spans
-    highlights: dict[str | None, list[ctakesclient.typesystem.Span]] = dataclasses.field(
+    # Matches found by word search or csv, as a dict of origins -> labels -> found spans
+    highlights: dict[str, dict[str | None, list[ctakesclient.typesystem.Span]]] = dataclasses.field(
         default_factory=dict
     )
 
@@ -186,7 +186,7 @@ class LabelStudioClient:
             return
 
         prediction = {
-            "model_version": "Cumulus cTAKES",
+            "model_version": "cTAKES",
         }
 
         used_labels = set()
@@ -208,25 +208,20 @@ class LabelStudioClient:
         self._update_used_labels(task, used_labels)
 
     def _format_highlights_predictions(self, task: dict, note: LabelStudioNote) -> None:
-        if not note.highlights:
-            return
-
-        prediction = {
-            "model_version": "Cumulus Labels",
-        }
-
-        results = []
-        for label, spans in note.highlights.items():
-            for span in spans:
-                results.append(
-                    self._format_match(
-                        span.begin, span.end, note.text[span.begin : span.end], [label]
+        for source, labels in note.highlights.items():
+            prediction = {"model_version": source}
+            results = []
+            for label, spans in labels.items():
+                for span in spans:
+                    results.append(
+                        self._format_match(
+                            span.begin, span.end, note.text[span.begin : span.end], [label]
+                        )
                     )
-                )
-        prediction["result"] = results
-        task["predictions"].append(prediction)
+            prediction["result"] = results
+            task["predictions"].append(prediction)
 
-        self._update_used_labels(task, note.highlights.keys())
+            self._update_used_labels(task, labels.keys())
 
     def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
         """
@@ -241,7 +236,7 @@ class LabelStudioClient:
             return
 
         prediction = {
-            "model_version": "Cumulus Philter",
+            "model_version": "Philter",
         }
 
         results = []

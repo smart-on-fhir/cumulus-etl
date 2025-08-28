@@ -275,3 +275,9 @@ def user_regex_to_pattern(term: str) -> re.Pattern:
 def user_term_to_pattern(term: str) -> re.Pattern:
     """Takes a user search term and turns it into a clinical-note-appropriate regex"""
     return user_regex_to_pattern(re.escape(term))
+
+
+def process_input_dir(folder: str) -> str:
+    if folder == "%EXAMPLE-NLP%" and not os.path.exists(folder):
+        return os.path.join(os.path.dirname(__file__), "etl/studies/example/ndjson")
+    return folder
