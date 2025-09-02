@@ -41,7 +41,7 @@ At its core, upload mode is just another ETL (extract, transform, load) operatio
 ### Minimal Command Line
 
 Upload mode takes three main arguments:
-1. Input path (local dir of NDJSON or a FHIR server to perform a bulk export on)
+1. Input path (local dir of NDJSON)
 2. URL for Label Studio
 3. PHI/build path (the same PHI/build path you normally provide to Cumulus ETL)
 
@@ -57,13 +57,12 @@ docker compose run --rm \
   --ls-token /host/label-studio-token.txt \
   --ls-project 3 \
   --s3-region=us-east-2 \
-  https://my-ehr-server/R4/12345/Group/67890 \
+  /host/my-input-folder/ \
   https://my-label-studio-server/ \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir/
 ```
 
-The above command will take all the DiagnosticReports and DocumentReferences
-in Group `67890` from the EHR,
+The above command will read all the DiagnosticReports and DocumentReferences in the input folder,
 anonymize the notes with `philter`,
 and then push the results to your Label Studio project number `3`.
 
@@ -79,101 +78,63 @@ to make it easier to reference back to your EHR or Athena data.
 If grouping by encounter doesn't make sense for your task,
 you can turn it off with `--grouping=none`.
 
-## Bulk Export Options
+## Downloading Notes
 
-You can point upload mode at either a folder with DiagnosticReport and/or DocumentReference
-NDJSON files or your EHR server (in which case it will do a bulk export from the target Group).
+Ideally your notes are already downloaded and inlined into your DiagnosticReport or
+DocumentReference NDJSON files.
 
-Upload mode takes all the same [bulk export options](bulk-exports.md) that the normal
-ETL mode supports.
-
-Note that even if you provide a folder of NDJSON resources,
-you will still likely need to pass `--fhir-url` and FHIR authentication options,
-so that upload mode can download the referenced clinical notes _inside_ the resources,
-which usually hold an external URL rather than inline note data.
+But if they aren't, you can pass all the normal FHIR server authentication options and
+the clinical notes will be downloaded on the fly.
 
 ## Document Selection Options
 
-By default, upload mode will grab _all documents_ in the target Group or folder.
+By default, upload mode will grab _all documents_ in the target folder.
 But usually you will probably want to only select a few documents for testing purposes.
 More in the realm of 10-100 specific documents.
 
-You have two options here:
-selection by either the original EHR IDs or by the anonymized Cumulus IDs.
+You have a few options here, very similar to the options for selecting notes for NLP or
+labeling notes during upload:
+- Select by .csv file (anonymous or not)
+- Select by Athena table
+- Select by word search
 
-### By Original ID
+Use `--help` to see all the options, but we'll explore a couple below in more detail.
+
+### By Note ID
 If you happen to know the original (pre-anonymized) IDs for the documents you want, that's easy!
 
-Make a csv file that has a `docref_id` column, with those docrefs.
+Make a csv file that has a `note_ref` column, with those note IDs.
 For example:
 ```
-docref_id
-123
-6972
-1D3D
+note_ref
+DocumentReference/123
+DocumentReference/6972
+DiagnosticReport/1D3D
 ```
 
-Then pass in an argument like `--docrefs /in/docrefs.csv`.
+Then pass in an argument like `--select-by-csv /host/docrefs.csv`.
 
 Upload mode will only export & process the specified documents, saving a lot of time.
 
-### By Anonymized ID
+### By Athena Table
 If you are working with your existing de-identified limited data set in Athena,
 you will only have references to the anonymized document IDs and no direct clinical notes.
 
 But that's fine!
-Upload mode can use the PHI folder to grab the cached mappings of patient IDs
-and then work to reverse-engineer the correct document IDs (to then download from the EHR).
+Upload mode can detect which notes match which anonymous IDs because it can use the same
+anonymization approach on each source note and see which IDs match the requested set.
 
-For this to work, you will need to provide both the anonymized docref ID **and**
-the anonymized patient ID.
-
-Back in Athena, run a query like this and download the result as a csv file:
-```sql
-select
-  replace(subject_ref, 'Patient/', '') as patient_id,
-  doc_id as docref_id
-from
-  core__documentreference
-limit 10;
-```
-
-(Obviously, modify as needed to select the documents you care about.)
-
-You'll notice we are defining two columns: patient_id and docref_id (the tool accepts a variety of
-column names that would make sense - like subject_ref, documentreference_id, etc).
-
-Then, pass in an argument like `--anon-docrefs /in/docrefs.csv`.
-Upload mode will reverse-engineer the original document IDs and export them from your EHR.
-
-#### I Thought the Anonymized IDs Could Not Be Reversed?
-
-True!
-But Cumulus ETL saves a cache of all the IDs it makes for your patients (and encounters).
-You can see this cache in your PHI folder, named `codebook-cached-mappings.json`.
-
-(It's worth emphasizing that the contents of this file are never moved outside the PHI folder,
-and are only used for upload mode.)
-
-By using this mapping file,
-Upload mode can find all the original patient IDs using the `patient_id` column you gave it.
-
-Once it has the original patients, it will ask the EHR for all of those patients' documents.
-And it will anonymize each document ID it sees.
-This anonymization step is stable over time, because it always uses the same cryptographic salt
-(stored in your PHI folder).
-
-When it sees a match for one of the anonymous docref IDs you gave in the `docref_id` column
-(among all the patient's documents), it will download that document.
+Simply pass in an argument like `--select-by-athena-table my_database_name.my_table_name`.
+(And `--athena-workgroup my_workgroup`.)
+Upload mode will search the table and match its anonymous IDs to the notes in your input folder.
 
 ### Saving the Selected Documents
 
-It might be useful to save the exported documents from the EHR
-(or even the smaller selection from a giant NDJSON folder),
+It might be useful to save the smaller selection from a giant input folder,
 for faster iterations of the upload mode or
 just confirming the correct documents were chosen.
 
-Pass in an argument like `--export-to /in/export` to save the NDJSON for the selected documents
+Pass in an argument like `--export-to /host/export` to save the NDJSON for the selected documents
 in the given folder. (Note this does not save the clinical note text unless it is already inline
 -- this is just saving the DocumentReference resources).
 
@@ -197,7 +158,7 @@ you can speed up the NLP by launching the GPU profile instead with `--profile up
 ### Custom Dictionaries
 
 If you would like to customize the dictionary terms that are marked up and sent to Label Studio,
-simply pass in a new dictionary like so: `--symptoms-bsv /in/my-symptoms.bsv`.
+simply pass in a new dictionary like so: `--symptoms-bsv /host/my-symptoms.bsv`.
 
 This file should look like (this is a portion of the default Covid dictionary):
 ```

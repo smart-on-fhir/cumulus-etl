@@ -8,10 +8,9 @@ import cumulus_fhir_support as cfs
 import pyathena
 
 from cumulus_etl import cli_utils, deid, errors, fhir, id_handling
-from cumulus_etl.etl import config
 
 
-def add_note_selection(parser: argparse.ArgumentParser) -> None:
+def add_note_selection(parser: argparse.ArgumentParser):
     group = parser.add_argument_group("note selection")
     group.add_argument(
         "--select-by-word",
@@ -47,6 +46,7 @@ def add_note_selection(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="allow a larger-than-normal selection",
     )
+    return group
 
 
 def query_athena_table(table: str, args) -> str:
@@ -134,7 +134,7 @@ class CsvMatcher:
         return self._id_pools[res_type].get(res_id)
 
 
-def _define_csv_filter(csv_file: str, is_anon: bool) -> config.FilterFunc:
+def _define_csv_filter(csv_file: str, is_anon: bool) -> deid.FilterFunc:
     matcher = CsvMatcher(csv_file, is_anon=is_anon)
 
     async def check_match(codebook, res):
@@ -145,7 +145,7 @@ def _define_csv_filter(csv_file: str, is_anon: bool) -> config.FilterFunc:
 
 def _define_regex_filter(
     client: cfs.FhirClient, words: list[str] | None, regexes: list[str] | None
-) -> config.FilterFunc:
+) -> deid.FilterFunc:
     patterns = []
     if regexes:
         patterns.extend(cli_utils.user_regex_to_pattern(regex).pattern for regex in regexes)
@@ -165,7 +165,7 @@ def _define_regex_filter(
     return res_filter
 
 
-def get_note_filter(client: cfs.FhirClient, args: argparse.Namespace) -> config.FilterFunc:
+def get_note_filter(client: cfs.FhirClient, args: argparse.Namespace) -> deid.FilterFunc:
     """Returns (patient refs to match, resource refs to match)"""
     # Confirm we don't have conflicting arguments. Which we could maybe combine, as a future
     # improvement, but is too much hassle right now)
