@@ -2,14 +2,11 @@
 
 import datetime
 import os
-from collections.abc import Awaitable, Callable
 from socket import gethostname
 
 import cumulus_fhir_support as cfs
 
 from cumulus_etl import common, deid, errors, formats, store
-
-FilterFunc = Callable[[deid.Codebook, dict], Awaitable[bool]] | None
 
 
 class JobConfig:
@@ -42,7 +39,7 @@ class JobConfig:
         export_datetime: datetime.datetime | None = None,
         export_url: str | None = None,
         deleted_ids: dict[str, set[str]] | None = None,
-        resource_filter: FilterFunc = None,
+        resource_filter: deid.FilterFunc = None,
     ):
         self._dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid

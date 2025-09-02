@@ -101,9 +101,6 @@ class TestCodebookDB(utils.AsyncTestCase):
             self.assertNotIn("42", db.cached_mapping["Encounter"])
             self.assertNotIn("abc", db.cached_mapping["Patient"])
 
-            # Confirm we do inject them into the reverse mapping
-            self.assertEqual(db.get_reverse_mapping("Encounter"), {"yup": "42"})
-
     def test_save_and_load(self):
         tmpdir = self.make_tempdir()
         db = CodebookDB(tmpdir)

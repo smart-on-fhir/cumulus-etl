@@ -2,11 +2,10 @@
 
 import binascii
 import hmac
-import logging
 import os
 import secrets
 import uuid
-from collections.abc import Iterable, Iterator
+from collections.abc import Awaitable, Callable
 
 from cumulus_etl import common
 
@@ -79,22 +78,6 @@ class Codebook:
             return self.db.encounter(real_id, cache_mapping=caching_allowed)
         else:
             return self.db.resource_hash(real_id)
-
-    def real_ids(self, resource_type: str, fake_ids: Iterable[str]) -> Iterator[str]:
-        """
-        Reverse-maps a list of fake IDs into real IDs.
-
-        This is an expensive operation, so only a bulk API is provided.
-        """
-        mapping = self.db.get_reverse_mapping(resource_type)
-        for fake_id in fake_ids:
-            real_id = mapping.get(fake_id)
-            if real_id:
-                yield real_id
-            else:
-                logging.warning(
-                    "Real ID not found for anonymous %s ID %s. Ignoring.", resource_type, fake_id
-                )
 
 
 ###############################################################################
@@ -225,21 +208,6 @@ class CodebookDB:
 
         return fake_id
 
-    def get_reverse_mapping(self, resource_type: str) -> dict[str, str]:
-        """
-        Returns reversed cached mappings for a given resource.
-
-        This is used for reverse-engineering anonymous IDs to the original real IDs, for the resources we cache.
-        """
-        mapping = self.cached_mapping.get(resource_type, {})
-        reverse_mapping = {v: k for k, v in mapping.items()}
-
-        # Add any legacy mappings from settings (iteratively, to avoid a spare version in memory)
-        for k, v in self.settings.get(resource_type, {}).items():
-            reverse_mapping[v] = k
-
-        return reverse_mapping
-
     def resource_hash(self, real_id: str) -> str:
         """
         Get a fake ID for an arbitrary FHIR resource ID
@@ -305,3 +273,7 @@ class CodebookDB:
             saved = True
 
         return saved
+
+
+# Used for filtering note resource types (like DocRefs or DxReports)
+FilterFunc = Callable[[Codebook, dict], Awaitable[bool]] | None

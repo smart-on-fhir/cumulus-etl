@@ -11,7 +11,7 @@ import cumulus_fhir_support as cfs
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
-from cumulus_etl.upload_notes import downloader, labeling, selector
+from cumulus_etl.upload_notes import labeling, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
 PHILTER_DISABLE = "disable"
@@ -44,31 +44,14 @@ async def gather_resources(
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
 
-    # There are three possibilities: we have real IDs, fake IDs, or neither.
-    # Note that we don't support providing both real & fake IDs right now. It's not clear that would be useful.
-    if args.docrefs and args.anon_docrefs:
-        errors.fatal(
-            "You cannot use both --docrefs and --anon-docrefs at the same time.",
-            errors.ARGS_CONFLICT,
-        )
+    note_filter = nlp.get_note_filter(client, args)
 
-    if root_input.protocol == "https":  # is this a FHIR server?
-        return await downloader.download_resources_from_fhir_server(
-            client,
-            root_input,
-            codebook,
-            id_file=args.docrefs,
-            anon_id_file=args.anon_docrefs,
-            export_to=args.export_to,
-        )
-    else:
-        return selector.select_resources_from_files(
-            root_input,
-            codebook,
-            id_file=args.docrefs,
-            anon_id_file=args.anon_docrefs,
-            export_to=args.export_to,
-        )
+    return await selector.select_resources_from_files(
+        root_input,
+        codebook,
+        note_filter=note_filter,
+        export_to=args.export_to,
+    )
 
 
 def datetime_from_resource(resource: dict) -> datetime.datetime | None:
@@ -418,15 +401,10 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         "(must have note ID, label, and span columns)",
     )
 
-    docs = parser.add_argument_group("note selection")
-    docs.add_argument(
-        "--anon-docrefs",
-        metavar="PATH",
-        help="CSV file with anonymized patient_id,docref_id columns",
-    )
-    docs.add_argument(
-        "--docrefs", metavar="PATH", help="CSV file with a docref_id column of original IDs"
-    )
+    group = nlp.add_note_selection(parser)
+    # Add some deprecated aliases for some note selection options. Deprecated since Sep 2025.
+    group.add_argument("--anon-docrefs", dest="select_by_anon_csv", help=argparse.SUPPRESS)
+    group.add_argument("--docrefs", dest="select_by_csv", help=argparse.SUPPRESS)
 
     group = parser.add_argument_group("NLP")
     cli_utils.add_ctakes_override(group)
@@ -478,6 +456,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
 
     args.dir_input = cli_utils.process_input_dir(args.dir_input)
     root_input = store.Root(args.dir_input)
+    store.Root(args.dir_phi, create=True)  # create PHI if needed (very edge case)
 
     # Auth & read files early for quick error feedback
     client = fhir.create_fhir_client_for_cli(

@@ -5,12 +5,10 @@ import itertools
 import os
 import shutil
 import tempfile
-from collections.abc import Iterable
 from unittest import mock
 
 import cumulus_fhir_support as cfs
 import ddt
-import respx
 
 from cumulus_etl import cli, common, errors
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
@@ -99,9 +97,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         if skip_init_checks:
             args += ["--skip-init-checks"]
         if anon_docrefs:
-            args += ["--anon-docrefs", anon_docrefs]
+            args += ["--select-by-anon-csv", anon_docrefs]
         if docrefs:
-            args += ["--docrefs", docrefs]
+            args += ["--select-by-csv", docrefs]
         if nlp:
             args += ["--nlp"]
         if philter:
@@ -200,37 +198,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             return TestUploadNotes.make_docref(*args, **kwargs)
 
     @staticmethod
-    def mock_search_url(
-        respx_mock: respx.MockRouter, patient: str, resource_type: str, doc_ids: Iterable[str]
-    ) -> None:
-        bundle = {
-            "resourceType": "Bundle",
-            "entry": [
-                {
-                    "resource": TestUploadNotes.make_resource(doc_id, resource_type=resource_type),
-                }
-                for doc_id in doc_ids
-            ],
-        }
-
-        respx_mock.get(
-            f"https://localhost/{resource_type}?patient={patient}&_elements=content"
-        ).respond(json=bundle)
-
-    @staticmethod
-    def mock_read_url(
-        respx_mock: respx.MockRouter,
-        doc_id: str,
-        code: int = 200,
-        docref: dict | None = None,
-        **kwargs,
-    ) -> None:
-        docref = docref or TestUploadNotes.make_docref(doc_id, **kwargs)
-        respx_mock.get(f"https://localhost/DocumentReference/{doc_id}").respond(
-            status_code=code, json=docref
-        )
-
-    @staticmethod
     def write_id_file(path: str, header: str, ids: list[tuple | str]) -> None:
         """Fills a file with the provided docref ids of (docref_id, patient_id) tuples"""
         lines = [header] + [x if isinstance(x, str) else ",".join(x) for x in ids]
@@ -297,83 +264,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         """Verify that you can't pass in both real and fake docrefs"""
         with self.assertRaises(SystemExit) as cm:
             await self.run_upload_notes(anon_docrefs="foo", docrefs="bar")
-        self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
-
-    @respx.mock(assert_all_mocked=False)
-    async def test_gather_anon_docrefs_from_server(self, respx_mock):
-        self.mock_search_url(
-            respx_mock, "P1", "DocumentReference", ["NotMe", "D1", "NotThis", "D3"]
-        )
-        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
-
-        with tempfile.NamedTemporaryFile() as file:
-            self.write_id_file(
-                file.name,
-                "anon_document_ref,anon_subject_id,subject_id",
-                [
-                    (f"DocumentReference/{ANON_D1}", ANON_P1, "P1"),
-                    (f"DocumentReference/{ANON_D3}", ANON_P1, "P1"),
-                    # unknown stuff is gracefully ignored:
-                    ("DocumentReference/unknown-doc", "unknown-patient", "unknown-patient"),
-                ],
-            )
-            await self.run_upload_notes(input_path="https://localhost", anon_docrefs=file.name)
-
-        self.assertEqual(
-            {"DocumentReference/D1", "DocumentReference/D3"},
-            self.get_exported_refs(),
-        )
-        self.assertEqual(
-            {"DocumentReference/D1", "DocumentReference/D3"},
-            self.get_pushed_refs(),
-        )
-
-    @respx.mock(assert_all_mocked=False)
-    async def test_gather_real_docrefs_from_server(self, respx_mock):
-        self.mock_read_url(respx_mock, "D1")
-        self.mock_read_url(respx_mock, "D2")
-        self.mock_read_url(respx_mock, "D3", code=500)  # confirm failure is graceful
-        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
-
-        with tempfile.NamedTemporaryFile() as file:
-            self.write_id_file(file.name, "docref_id", ["D1", "D2", "D3"])
-            await self.run_upload_notes(input_path="https://localhost", docrefs=file.name)
-
-        self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_exported_refs())
-        self.assertEqual({"DocumentReference/D1", "DocumentReference/D2"}, self.get_pushed_refs())
-
-    @mock.patch("cumulus_etl.upload_notes.downloader.loaders.FhirNdjsonLoader")
-    async def test_gather_all_docrefs_from_server(self, mock_loader):
-        # Mock out the bulk export loading, as that's well tested elsewhere
-        async def load_resources(*args):
-            del args
-            return common.RealDirectory(self.input_path)
-
-        load_resources_mock = mock_loader.return_value.load_resources
-        load_resources_mock.side_effect = load_resources
-
-        # Do the actual upload-notes push
-        await self.run_upload_notes(input_path="https://localhost")
-
-        # Make sure we drive the bulk export correctly
-        self.assertEqual(1, mock_loader.call_count)
-        self.assertEqual("https://localhost", mock_loader.call_args[0][0].path)
-        self.assertEqual(self.export_path, mock_loader.call_args[1]["export_to"])
-        self.assertEqual(
-            [mock.call({"DiagnosticReport", "DocumentReference"})],
-            load_resources_mock.call_args_list,
-        )
-
-        # Make sure we do read the result and push the docrefs out
-        self.assertEqual(
-            {
-                "DiagnosticReport/f201",
-                "DiagnosticReport/ultrasound",
-                "DocumentReference/43",
-                "DocumentReference/44",
-            },
-            self.get_pushed_refs(),
-        )
+        self.assertEqual(errors.MULTIPLE_COHORT_ARGS, cm.exception.code)
 
     async def test_gather_anon_docrefs_from_folder(self):
         with tempfile.NamedTemporaryFile() as file:
