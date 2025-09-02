@@ -134,7 +134,6 @@ class BaseOpenAiTask(BaseNlpTask):
 
     @classmethod
     async def init_check(cls) -> None:
-        await cls.client_class.pre_init_check()
         await cls.client_class().post_init_check()
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:

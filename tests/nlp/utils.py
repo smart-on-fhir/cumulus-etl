@@ -20,15 +20,18 @@ class OpenAITestCase(TaskTestCase):
         self.mock_create = mock.AsyncMock()
         self.mock_client.chat.completions.parse = self.mock_create
         self.mock_client.models.list = self.mock_model_list(self.MODEL_ID)
-        mock_client_factory = self.patch("openai.AsyncOpenAI")
-        mock_client_factory.return_value = self.mock_client
-
-        # Also set up azure mocks, which have a different entry point
-        self.patch_dict(os.environ, {"AZURE_OPENAI_API_KEY": "?", "AZURE_OPENAI_ENDPOINT": "?"})
-        mock_azure_factory = self.patch("openai.AsyncAzureOpenAI")
-        mock_azure_factory.return_value = self.mock_client
+        self.mock_client_factory = self.patch("openai.AsyncOpenAI")
+        self.mock_client_factory.return_value = self.mock_client
 
         self.responses = []
+
+    def mock_azure(self):
+        self.patch_dict(os.environ, {"AZURE_OPENAI_API_KEY": "?", "AZURE_OPENAI_ENDPOINT": "?"})
+        self.mock_azure_factory = self.patch("openai.AsyncAzureOpenAI")
+        self.mock_azure_factory.return_value = self.mock_client
+
+    def mock_bedrock(self):
+        self.patch_dict(os.environ, {"BEDROCK_OPENAI_API_KEY": "?", "BEDROCK_OPENAI_ENDPOINT": "?"})
 
     @staticmethod
     def mock_model_list(models: str | list[str] = "", *, error: bool = False):

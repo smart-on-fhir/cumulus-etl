@@ -67,18 +67,26 @@ class TestWithSpansNLPTasks(OpenAITestCase):
     async def test_gpt_oss_120_env_url_override(self):
         """Verify we can override the default URL."""
         self.patch_dict(os.environ, {"CUMULUS_GPT_OSS_120B_URL": ""})
-        self.assertEqual(nlp.GptOss120bModel().url, "http://localhost:8086/v1")
+        nlp.GptOss120bModel()
+        self.assertEqual(
+            self.mock_client_factory.call_args[1]["base_url"], "http://localhost:8086/v1"
+        )
 
         self.patch_dict(os.environ, {"CUMULUS_GPT_OSS_120B_URL": "https://blarg/"})
-        self.assertEqual(nlp.GptOss120bModel().url, "https://blarg/")
+        nlp.GptOss120bModel()
+        self.assertEqual(self.mock_client_factory.call_args[1]["base_url"], "https://blarg/")
 
     async def test_llama4_scout_env_url_override(self):
         """Verify we can override the default URL."""
         self.patch_dict(os.environ, {"CUMULUS_LLAMA4_SCOUT_URL": ""})
-        self.assertEqual(nlp.Llama4ScoutModel().url, "http://localhost:8087/v1")
+        nlp.Llama4ScoutModel()
+        self.assertEqual(
+            self.mock_client_factory.call_args[1]["base_url"], "http://localhost:8087/v1"
+        )
 
         self.patch_dict(os.environ, {"CUMULUS_LLAMA4_SCOUT_URL": "https://blarg/"})
-        self.assertEqual(nlp.Llama4ScoutModel().url, "https://blarg/")
+        nlp.Llama4ScoutModel()
+        self.assertEqual(self.mock_client_factory.call_args[1]["base_url"], "https://blarg/")
 
     async def test_caching(self):
         """Verify we cache results"""
@@ -141,9 +149,8 @@ class TestWithSpansNLPTasks(OpenAITestCase):
 
         # Bad model ID
         self.mock_client.models.list = self.mock_model_list("bogus-model")
-        with self.assertRaises(SystemExit) as cm:
+        with self.assert_fatal_exit(errors.SERVICE_MISSING):
             await irae.IraeGptOss120bTask.init_check()
-        self.assertEqual(errors.SERVICE_MISSING, cm.exception.code)
 
     async def test_output_fields(self):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
@@ -271,7 +278,32 @@ class TestAzureNLPTasks(OpenAITestCase):
     )
     @ddt.unpack
     async def test_requires_env(self, names, success):
+        self.mock_azure()
         task = covid_symptom.CovidSymptomNlpResultsGpt35Task(self.job_config, self.scrubber)
+        env = {name: "content" for name in names}
+        self.patch_dict(os.environ, env, clear=True)
+        if success:
+            await task.init_check()
+        else:
+            with self.assertRaises(SystemExit):
+                await task.init_check()
+
+
+@ddt.ddt
+class TestBedrockNLPTasks(OpenAITestCase):
+    """Tests the Bedrock specific code"""
+
+    MODEL_ID = "meta.llama4-scout-17b-instruct-v1:0"
+
+    @ddt.data(
+        # env vars to set, success
+        (["BEDROCK_OPENAI_API_KEY", "BEDROCK_OPENAI_ENDPOINT"], True),
+        (["BEDROCK_OPENAI_API_KEY"], False),
+        (["BEDROCK_OPENAI_ENDPOINT"], False),
+    )
+    @ddt.unpack
+    async def test_requires_env(self, names, success):
+        task = irae.IraeLlama4ScoutTask(self.job_config, self.scrubber)
         env = {name: "content" for name in names}
         self.patch_dict(os.environ, env, clear=True)
         if success:

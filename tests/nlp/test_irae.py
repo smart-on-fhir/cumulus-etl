@@ -16,13 +16,14 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
     DATA_ROOT = "irae"
 
     @ddt.data(
-        ("irae__nlp_gpt_oss_120b", "openai/gpt-oss-120b"),
+        ("irae__nlp_gpt_oss_120b", "gpt-oss-120b"),
         ("irae__nlp_gpt4o", "gpt-4o"),
         ("irae__nlp_gpt5", "gpt-5"),
-        ("irae__nlp_llama4_scout", "nvidia/Llama-4-Scout-17B-16E-Instruct-FP8"),
+        ("irae__nlp_llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack
     async def test_basic_etl(self, task_name, model_id):
+        self.mock_azure()
         self.mock_response(
             content=DSAMention(
                 spans=["note"],
