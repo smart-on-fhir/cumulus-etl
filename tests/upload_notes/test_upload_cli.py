@@ -754,11 +754,14 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
         self.assertEqual(
-            [tasks[0].text[span.begin : span.end] for span in tasks[0].highlights["Tag"]],
+            [
+                tasks[0].text[span.begin : span.end]
+                for span in tasks[0].highlights["Cumulus"]["Tag"]
+            ],
             ["Elm", "St", "Freddy", "A+", "Street", "Elm", "St", "Freddy", "A+", "Street"],
         )
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["Tag"]],
+            [span.key() for span in tasks[0].highlights["Cumulus"]["Tag"]],
             [
                 (129, 132),
                 (133, 135),
@@ -783,7 +786,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["Tag"]],
+            [span.key() for span in tasks[0].highlights["Cumulus"]["Tag"]],
             [(106, 109), (120, 123), (125, 128)],
         )
 
@@ -794,25 +797,31 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 writer.write(TestUploadNotes.make_docref("D2", enc_id="E2", text="three"))
             csv_file = f"{tmpdir}/labels.csv"
             with open(csv_file, "w", newline="", encoding="utf8") as f:
-                f.write("documentreference_id,label,span\n")
-                f.write("D1,number,0:3\n")
-                f.write("D1,number,4:7\n")
-                f.write("D2,number,0:5\n")
-                f.write("D1,single,0:3\n")
+                f.write("documentreference_id,label,span,origin\n")
+                f.write("D1,number,0:3,test_study__nlp_me\n")
+                f.write("D1,number,4:7,test_study__nlp_you\n")
+                f.write("D2,number,0:5,test_study__nlp_you\n")
+                f.write("D1,single,0:3,test_study__nlp_you\n")
             await self.run_upload_notes(
                 f"--label-by-csv={csv_file}", input_path=tmpdir, philter="disable"
             )
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 2)
-        self.assertEqual({"number", "single"}, set(tasks[0].highlights))
+        self.assertEqual({"number"}, set(tasks[0].highlights["me"]))
+        self.assertEqual({"number", "single"}, set(tasks[0].highlights["you"]))
+        self.assertEqual([span.key() for span in tasks[0].highlights["me"]["number"]], [(106, 109)])
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["number"]],
-            [(106, 109), (110, 113)],
+            [span.key() for span in tasks[0].highlights["you"]["number"]],
+            [(110, 113)],
         )
-        self.assertEqual([span.key() for span in tasks[0].highlights["single"]], [(106, 109)])
-        self.assertEqual({"number"}, set(tasks[1].highlights))
-        self.assertEqual([span.key() for span in tasks[1].highlights["number"]], [(106, 111)])
+        self.assertEqual(
+            [span.key() for span in tasks[0].highlights["you"]["single"]], [(106, 109)]
+        )
+        self.assertEqual({"number"}, set(tasks[1].highlights["you"]))
+        self.assertEqual(
+            [span.key() for span in tasks[1].highlights["you"]["number"]], [(106, 111)]
+        )
 
     async def test_label_by_anon_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -831,8 +840,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 2)
-        self.assertEqual([span.key() for span in tasks[0].highlights["test"]], [(110, 113)])
-        self.assertEqual([span.key() for span in tasks[1].highlights["test"]], [(106, 109)])
+        self.assertEqual(
+            [span.key() for span in tasks[0].highlights["Cumulus"]["test"]], [(110, 113)]
+        )
+        self.assertEqual(
+            [span.key() for span in tasks[1].highlights["Cumulus"]["test"]], [(106, 109)]
+        )
 
     async def test_label_by_athena_table(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -846,7 +859,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
-        self.assertEqual([span.key() for span in tasks[0].highlights["my-label"]], [(106, 111)])
+        self.assertEqual(
+            [span.key() for span in tasks[0].highlights["Cumulus"]["my-label"]], [(106, 111)]
+        )
 
     async def test_label_by_multiple(self):
         with self.assert_fatal_exit(errors.MULTIPLE_LABELING_ARGS):

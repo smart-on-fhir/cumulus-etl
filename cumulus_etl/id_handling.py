@@ -15,7 +15,7 @@ def get_ids_from_csv(
         result = {}
         for row in reader:
             if value := get_value(row):
-                result.setdefault(value, set()).add(tuple(row[field] for field in extra_fields))
+                result.setdefault(value, set()).add(tuple(row.get(field) for field in extra_fields))
         return result
 
 

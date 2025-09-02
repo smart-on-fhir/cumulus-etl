@@ -300,10 +300,14 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 match.end += offset
                 grouped_ctakes_matches.append(match)
 
-            for label, spans in note.highlights.items():
-                for span in spans:
-                    new_span = ctakesclient.typesystem.Span(span.begin + offset, span.end + offset)
-                    grouped_highlights.setdefault(label, []).append(new_span)
+            for source, labels in note.highlights.items():
+                grouped_labels = grouped_highlights.setdefault(source, {})
+                for label, spans in labels.items():
+                    for span in spans:
+                        new_span = ctakesclient.typesystem.Span(
+                            span.begin + offset, span.end + offset
+                        )
+                        grouped_labels.setdefault(label, []).append(new_span)
 
             for start, stop in note.philter_map.items():
                 grouped_philter_map[start + offset] = stop + offset
@@ -472,6 +476,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     # record filesystem options like --s3-region before creating Roots
     store.set_user_fs_options(vars(args))
 
+    args.dir_input = cli_utils.process_input_dir(args.dir_input)
     root_input = store.Root(args.dir_input)
 
     # Auth & read files early for quick error feedback
@@ -488,6 +493,9 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
             get_unique_id = _get_unique_id_for_encounter_grouping
         case _:
             get_unique_id = _get_unique_id_for_no_grouping
+
+    common.print_header()
+    print("Preparing metadata…")  # i.e. the codebook
 
     async with client:
         with deid.Codebook(args.dir_phi) as codebook:
