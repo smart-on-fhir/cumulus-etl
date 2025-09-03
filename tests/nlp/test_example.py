@@ -23,6 +23,7 @@ class TestExampleTask(OpenAITestCase, BaseEtlSimple):
         "example_nlp__nlp_llama4_scout",
     )
     async def test_basic_etl(self, task_name):
+        self.mock_azure()
         for _ in range(8):
             self.mock_response()
         await self.run_etl(tasks=[task_name], input_path="%EXAMPLE-NLP%")

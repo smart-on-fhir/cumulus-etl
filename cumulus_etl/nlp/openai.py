@@ -1,7 +1,7 @@
 """Abstraction layer for Hugging Face's inference API"""
 
-import abc
 import os
+from collections.abc import Iterable
 
 import openai
 from openai.types import chat
@@ -10,21 +10,47 @@ from pydantic import BaseModel
 from cumulus_etl import errors
 
 
-class OpenAIModel(abc.ABC):
-    USER_ID = None  # name in compose file or brand name
-    MODEL_NAME = None  # which model to request via the API
+class OpenAIModel:
+    AZURE_ID = None  # model name in MS Azure
+    BEDROCK_ID = None  # model name in AWS Bedrock
+    COMPOSE_ID = None  # docker service name in compose.yaml
+    VLLM_INFO = None  # tuple of vLLM model name, env var stem use for URL, plus default port
 
-    @abc.abstractmethod
-    def make_client(self) -> openai.AsyncOpenAI:
-        """Creates an NLP client"""
+    AZURE_ENV = ("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
+    BEDROCK_ENV = ("BEDROCK_OPENAI_API_KEY", "BEDROCK_OPENAI_ENDPOINT")
+
+    @staticmethod
+    def _env_defined(env_keys: Iterable[str]) -> bool:
+        return all(os.environ.get(key) for key in env_keys)
 
     def __init__(self):
-        self.client = self.make_client()
+        self.is_vllm = False
 
-    # override to add your own checks
-    @classmethod
-    async def pre_init_check(cls) -> None:
-        pass
+        if self.AZURE_ID and self._env_defined(self.AZURE_ENV):
+            self.model_name = self.AZURE_ID
+            self.client = openai.AsyncAzureOpenAI(api_version="2024-10-21")
+
+        elif self.BEDROCK_ID and self._env_defined(self.BEDROCK_ENV):
+            self.model_name = self.BEDROCK_ID
+            self.client = openai.AsyncOpenAI(
+                base_url=os.environ["BEDROCK_OPENAI_ENDPOINT"],
+                api_key=os.environ["BEDROCK_OPENAI_API_KEY"],
+            )
+
+        elif self.COMPOSE_ID:
+            self.model_name = self.VLLM_INFO[0]
+            url = os.environ.get(f"CUMULUS_{self.VLLM_INFO[1]}_URL")  # set by compose.yaml
+            url = url or f"http://localhost:{self.VLLM_INFO[2]}/v1"  # offer non-docker fallback
+            self.client = openai.AsyncOpenAI(base_url=url, api_key="")
+            self.is_vllm = True
+
+        else:
+            errors.fatal(
+                "Missing Azure or Bedrock environment variables. "
+                "Set AZURE_OPENAI_API_KEY & AZURE_OPENAI_ENDPOINT or "
+                "BEDROCK_OPENAI_API_KEY & BEDROCK_OPENAI_ENDPOINT.",
+                errors.ARGS_INVALID,
+            )
 
     # override to add your own checks
     async def post_init_check(self) -> None:
@@ -32,15 +58,14 @@ class OpenAIModel(abc.ABC):
             models = self.client.models.list()
             names = {model.id async for model in models}
         except openai.APIError as exc:
-            errors.fatal(
-                f"NLP server '{self.USER_ID}' is unreachable: {exc}.\n"
-                f"If it's a local server, try running 'docker compose up {self.USER_ID} --wait'.",
-                errors.SERVICE_MISSING,
-            )
+            message = f"NLP server is unreachable: {exc}."
+            if self.is_vllm:
+                message += f"\nTry running 'docker compose up {self.COMPOSE_ID} --wait'."
+            errors.fatal(message, errors.SERVICE_MISSING)
 
-        if self.MODEL_NAME not in names:
+        if self.model_name not in names:
             errors.fatal(
-                f"NLP server '{self.USER_ID}' is using an unexpected model setup.",
+                f"NLP server does not have model ID '{self.model_name}'.",
                 errors.SERVICE_MISSING,
             )
 
@@ -49,7 +74,7 @@ class OpenAIModel(abc.ABC):
 
     async def _parse_prompt(self, system: str, user: str, schema) -> chat.ParsedChatCompletion:
         return await self.client.chat.completions.parse(
-            model=self.MODEL_NAME,
+            model=self.model_name,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
@@ -61,28 +86,8 @@ class OpenAIModel(abc.ABC):
         )
 
 
-class AzureModel(OpenAIModel):
-    USER_ID = "Azure"
-
-    @classmethod
-    async def pre_init_check(cls) -> None:
-        await super().pre_init_check()
-
-        messages = []
-        if not os.environ.get("AZURE_OPENAI_API_KEY"):
-            messages.append("The AZURE_OPENAI_API_KEY environment variable is not set.")
-        if not os.environ.get("AZURE_OPENAI_ENDPOINT"):
-            messages.append("The AZURE_OPENAI_ENDPOINT environment variable is not set.")
-
-        if messages:
-            errors.fatal("\n".join(messages), errors.ARGS_INVALID)
-
-    def make_client(self) -> openai.AsyncOpenAI:
-        return openai.AsyncAzureOpenAI(api_version="2024-10-21")
-
-
-class Gpt35Model(AzureModel):  # deprecated, do not use in new code (doesn't support JSON schemas)
-    MODEL_NAME = "gpt-35-turbo-0125"
+class Gpt35Model(OpenAIModel):  # deprecated, do not use in new code (doesn't support JSON schemas)
+    AZURE_ID = "gpt-35-turbo-0125"
 
     # 3.5 doesn't support a pydantic JSON schema, so we do some work to keep it using the same API
     # as the rest of our code.
@@ -93,41 +98,27 @@ class Gpt35Model(AzureModel):  # deprecated, do not use in new code (doesn't sup
         return response
 
 
-class Gpt4Model(AzureModel):
-    MODEL_NAME = "gpt-4"
+class Gpt4Model(OpenAIModel):
+    AZURE_ID = "gpt-4"
 
 
-class Gpt4oModel(AzureModel):
-    MODEL_NAME = "gpt-4o"
+class Gpt4oModel(OpenAIModel):
+    AZURE_ID = "gpt-4o"
 
 
-class Gpt5Model(AzureModel):
-    MODEL_NAME = "gpt-5"
+class Gpt5Model(OpenAIModel):
+    AZURE_ID = "gpt-5"
 
 
-class LocalModel(OpenAIModel, abc.ABC):
-    @property
-    @abc.abstractmethod
-    def url(self) -> str:
-        """The OpenAI compatible URL to talk to (where's the server?)"""
-
-    def make_client(self) -> openai.AsyncOpenAI:
-        return openai.AsyncOpenAI(base_url=self.url, api_key="")
+class GptOss120bModel(OpenAIModel):
+    AZURE_ID = "gpt-oss-120b"
+    BEDROCK_ID = "openai.gpt-oss-120b-1:0"
+    COMPOSE_ID = "gpt-oss-120b"
+    VLLM_INFO = ("openai/gpt-oss-120b", "GPT_OSS_120B", 8086)
 
 
-class GptOss120bModel(LocalModel):
-    USER_ID = "gpt-oss-120b"
-    MODEL_NAME = "openai/gpt-oss-120b"
-
-    @property
-    def url(self) -> str:
-        return os.environ.get("CUMULUS_GPT_OSS_120B_URL") or "http://localhost:8086/v1"
-
-
-class Llama4ScoutModel(LocalModel):
-    USER_ID = "llama4-scout"
-    MODEL_NAME = "nvidia/Llama-4-Scout-17B-16E-Instruct-FP8"
-
-    @property
-    def url(self) -> str:
-        return os.environ.get("CUMULUS_LLAMA4_SCOUT_URL") or "http://localhost:8087/v1"
+class Llama4ScoutModel(OpenAIModel):
+    AZURE_ID = "Llama-4-Scout-17B-16E-Instruct"
+    BEDROCK_ID = "meta.llama4-scout-17b-instruct-v1:0"
+    COMPOSE_ID = "llama4-scout"
+    VLLM_INFO = ("nvidia/Llama-4-Scout-17B-16E-Instruct-FP8", "LLAMA4_SCOUT", 8087)

@@ -42,6 +42,7 @@ class TestCovidSymptomGptResultsTask(OpenAITestCase):
         """
         self.make_json("DocumentReference", "doc", **i2b2_mock_data.documentreference())
         self.mock_response()
+        self.mock_azure()
 
         task = covid_symptom.CovidSymptomNlpResultsGpt4Task(self.job_config, self.scrubber)
         await task.run()
@@ -54,6 +55,7 @@ class TestCovidSymptomGptResultsTask(OpenAITestCase):
     async def test_happy_path(self):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
         self.mock_response(parsed=False)
+        self.mock_azure()
 
         task = covid_symptom.CovidSymptomNlpResultsGpt35Task(self.job_config, self.scrubber)
         await task.run()
