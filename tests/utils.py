@@ -3,8 +3,6 @@
 import contextlib
 import datetime
 import filecmp
-import functools
-import inspect
 import json
 import os
 import tempfile
@@ -27,7 +25,7 @@ from cumulus_etl.formats.deltalake import DeltaLakeFormat
 _FROZEN_TIME = datetime.datetime(
     2021, 9, 15, 1, 23, 45, tzinfo=datetime.timezone(datetime.timedelta(hours=4))
 )
-FROZEN_TIME_UTC = _FROZEN_TIME.astimezone(datetime.timezone.utc)
+FROZEN_TIME_UTC = _FROZEN_TIME.astimezone(datetime.UTC)
 
 
 class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
@@ -91,37 +89,6 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
             yield
         if code is not None:
             self.assertEqual(cm.exception.code, code)
-
-    async def _catch_system_exit(self, method):
-        try:
-            ret = method()
-            if inspect.isawaitable(ret):
-                return await ret
-            return ret
-        except SystemExit:
-            self.fail("Raised unexpected system exit")
-
-    def _callTestMethod(self, method):
-        """
-        Works around an async test case bug in python 3.10 and below.
-
-        This seems to be some version of https://github.com/python/cpython/issues/83282
-        but fixed & never backported.
-        I was not able to find a separate bug report for this specific issue.
-
-        Given the following two test methods (for Pythons before 3.11),
-        only the second one will hang:
-
-            async def test_fails_correctly(self):
-                raise BaseException("OK")
-            async def test_hangs_forever(self):
-                raise SystemExit("Nope")
-
-        This class works around that by wrapping all test methods and translating uncaught
-        SystemExits into failures.
-        _callTestMethod() can be deleted once we no longer use python 3.10 in our testing suite.
-        """
-        return super()._callTestMethod(functools.partial(self._catch_system_exit, method))
 
 
 class TreeCompareMixin(unittest.TestCase):

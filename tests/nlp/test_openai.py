@@ -16,7 +16,7 @@ import pydantic
 
 from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl.studies import covid_symptom, irae
-from cumulus_etl.etl.studies.irae.irae_tasks import DSAMention, DSAPresent
+from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantAnnotation
 from tests import i2b2_mock_data
 from tests.nlp.utils import OpenAITestCase
 
@@ -26,12 +26,31 @@ class TestWithSpansNLPTasks(OpenAITestCase):
 
     MODEL_ID = "openai/gpt-oss-120b"
 
+    def default_kidney(self, **kwargs) -> KidneyTransplantAnnotation:
+        model_dict = {
+            "donor_transplant_date_mention": {"has_mention": False, "spans": []},
+            "donor_type_mention": {"has_mention": False, "spans": []},
+            "donor_relationship_mention": {"has_mention": False, "spans": []},
+            "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
+            "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
+            "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
+            "rx_compliance_mention": {"has_mention": False, "spans": []},
+            "dsa_mention": {"has_mention": False, "spans": []},
+            "infection_mention": {"has_mention": False, "spans": []},
+            "viral_infection_mention": {"has_mention": False, "spans": []},
+            "bacterial_infection_mention": {"has_mention": False, "spans": []},
+            "fungal_infection_mention": {"has_mention": False, "spans": []},
+            "graft_rejection_mention": {"has_mention": False, "spans": []},
+            "graft_failure_mention": {"has_mention": False, "spans": []},
+            "ptld_mention": {"has_mention": False, "spans": []},
+            "cancer_mention": {"has_mention": False, "spans": []},
+            "deceased_mention": {"has_mention": False, "spans": []},
+        }
+        model_dict.update(kwargs)
+        return KidneyTransplantAnnotation.model_validate(model_dict)
+
     def default_content(self) -> pydantic.BaseModel:
-        return DSAMention(
-            dsa_history=False,
-            dsa_mentioned=False,
-            dsa_present=DSAPresent("None of the above"),
-        )
+        return self.default_kidney()
 
     def prep_docs(self, docref: dict | None = None):
         """Create two docs for input"""
@@ -98,7 +117,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v1/06ee"
+        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v2/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
             common.read_json(cache_file),
@@ -109,11 +128,9 @@ class TestWithSpansNLPTasks(OpenAITestCase):
                         "finish_reason": "stop",
                         "index": 0,
                         "message": {
-                            "parsed": {
-                                "dsa_history": False,
-                                "dsa_mentioned": False,
-                                "dsa_present": "None of the above",
-                            },
+                            "parsed": self.default_content().model_dump(
+                                mode="json", exclude_unset=True
+                            ),
                             "role": "assistant",
                         },
                     },
@@ -154,19 +171,13 @@ class TestWithSpansNLPTasks(OpenAITestCase):
 
     async def test_output_fields(self):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
-        self.mock_response(
-            content=DSAMention(
-                spans=["oo"],
-                dsa_history=False,
-                dsa_mentioned=True,
-                dsa_present=DSAPresent("None of the above"),
-            )
-        )
+        self.mock_response()
         await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
+        del batch.rows[0]["result"]  # don't bother testing the NLP serialization, that's elsewhere
         self.assertEqual(
             batch.rows[0],
             {
@@ -178,13 +189,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
                 "6beb306dc5b91513f353ecdb6aaedee8a9864b3a2f20d91f0d5b27510152acf2",
                 "generated_on": "2021-09-14T21:23:45+00:00",
                 "system_fingerprint": "test-fp",
-                "task_version": 1,
-                "result": {
-                    "spans": [(1, 3)],
-                    "dsa_history": False,
-                    "dsa_mentioned": True,
-                    "dsa_present": "None of the above",
-                },
+                "task_version": 2,
             },
         )
 
@@ -214,11 +219,13 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         )
 
         self.mock_response(
-            content=DSAMention(
-                spans=["Test", "TEST  \n Note.", " !Hello!\n", "nope"],
-                dsa_present=DSAPresent("None of the above"),
-                dsa_history=True,
-                dsa_mentioned=True,
+            content=self.default_kidney(
+                dsa_mention={
+                    "spans": ["Test", "TEST  \n Note.", " !Hello!\n", "nope"],
+                    "has_mention": True,
+                    "dsa_history": True,
+                    "dsa": "None of the above",
+                }
             )
         )
         await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
@@ -226,14 +233,18 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
-        self.assertEqual(batch.rows[0]["result"]["spans"], [(0, 4), (0, 11), (14, 19)])
+        self.assertEqual(
+            batch.rows[0]["result"]["dsa_mention"]["spans"], [(0, 4), (0, 11), (14, 19)]
+        )
 
     async def test_span_conversion_in_schema(self):
         schema = irae.IraeGptOss120bTask.get_schema(None, [])
         result_index = schema.get_field_index("result")
         result_type = schema.field(result_index).type
-        spans_index = result_type.get_field_index("spans")
-        span_type = result_type.field(spans_index).type
+        dsa_index = result_type.get_field_index("dsa_mention")  # spot check one of the structs
+        dsa_type = result_type.field(dsa_index).type
+        spans_index = dsa_type.get_field_index("spans")
+        span_type = dsa_type.field(spans_index).type
         self.assertEqual(span_type, pyarrow.list_(pyarrow.list_(pyarrow.int32(), 2)))
 
     async def test_no_encounter_error(self):

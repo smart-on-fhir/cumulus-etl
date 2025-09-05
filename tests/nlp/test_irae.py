@@ -4,7 +4,7 @@ import json
 
 import ddt
 
-from cumulus_etl.etl.studies.irae.irae_tasks import DSAMention, DSAPresent
+from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantAnnotation
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import OpenAITestCase
 
@@ -25,11 +25,32 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
     async def test_basic_etl(self, task_name, model_id):
         self.mock_azure()
         self.mock_response(
-            content=DSAMention(
-                spans=["note"],
-                dsa_mentioned=True,
-                dsa_history=False,
-                dsa_present=DSAPresent("DSA Treatment prescribed or DSA treatment administered"),
+            content=KidneyTransplantAnnotation.model_validate(
+                {
+                    "donor_transplant_date_mention": {"has_mention": False, "spans": []},
+                    "donor_type_mention": {"has_mention": False, "spans": []},
+                    "donor_relationship_mention": {"has_mention": False, "spans": []},
+                    "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
+                    "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
+                    "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
+                    "rx_compliance_mention": {"has_mention": False, "spans": []},
+                    "dsa_mention": {"has_mention": False, "spans": []},
+                    "infection_mention": {"has_mention": False, "spans": []},
+                    "viral_infection_mention": {"has_mention": False, "spans": []},
+                    "bacterial_infection_mention": {"has_mention": False, "spans": []},
+                    "fungal_infection_mention": {"has_mention": False, "spans": []},
+                    "graft_rejection_mention": {"has_mention": False, "spans": []},
+                    "graft_failure_mention": {"has_mention": False, "spans": []},
+                    "ptld_mention": {"has_mention": False, "spans": []},
+                    "cancer_mention": {"has_mention": False, "spans": []},
+                    # Have one with some real data, just to confirm it converts and gets to end
+                    "deceased_mention": {
+                        "has_mention": True,
+                        "spans": ["note"],
+                        "deceased": True,
+                        "deceased_date": "2025-10-10",
+                    },
+                }
             )
         )
 
@@ -54,11 +75,15 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
                         "1. Base all assertions ONLY on patient-specific information in the clinical document.\n"
                         "   - Never negate or exclude information just because it is not mentioned.\n"
                         "   - Never conflate family history or population-level risk with patient findings.\n"
+                        "   - Do not count past medical history, prior episodes, or family history.\n"
                         "2. Do not invent or infer facts beyond what is documented.\n"
                         "3. Maintain high fidelity to the clinical document language when citing spans.\n"
-                        "4. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
+                        "4. Answer patient outcomes with strongest available documented evidence:\n"
+                        "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
+                        "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
-                        "Pydantic Schema:\n" + json.dumps(DSAMention.model_json_schema()),
+                        "Pydantic Schema:\n"
+                        + json.dumps(KidneyTransplantAnnotation.model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -72,7 +97,7 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": DSAMention,
+                "response_format": KidneyTransplantAnnotation,
             },
             self.mock_create.call_args_list[0][1],
         )

@@ -58,7 +58,7 @@ async def _wait_for_completion(
             try:
                 # Wait for completion for a moment
                 stdout, stderr = await asyncio.wait_for(process.communicate(), 1)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # MS tool isn't done yet, let's calculate percentage finished so far,
                 # by comparing full PHI and de-identified file sizes.
                 # They won't perfectly match up (de-id should be smaller), but it's something.

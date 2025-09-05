@@ -7,7 +7,7 @@ import ddt
 import pydantic
 
 from cumulus_etl import common, errors
-from cumulus_etl.etl.studies.irae.irae_tasks import DSAMention, DSAPresent
+from cumulus_etl.etl.studies.example.example_tasks import AgeMention
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import OpenAITestCase
 
@@ -26,11 +26,7 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
         )
 
     def default_content(self) -> pydantic.BaseModel:
-        return DSAMention(
-            dsa_history=False,
-            dsa_mentioned=False,
-            dsa_present=DSAPresent("None of the above"),
-        )
+        return AgeMention()
 
     def make_docs(self, docs: list[tuple[str, str]], res_type: str) -> None:
         with common.NdjsonWriter(f"{self.tmpdir}/{res_type}.ndjson") as writer:
@@ -105,7 +101,7 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
 
     async def run_etl(self, *args):
         await super().run_etl(
-            *args, input_path=self.tmpdir, tasks=["irae__nlp_gpt_oss_120b"], nlp=True
+            *args, input_path=self.tmpdir, tasks=["example_nlp__nlp_gpt_oss_120b"], nlp=True
         )
 
     async def test_uses_note_ids(self):

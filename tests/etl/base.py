@@ -139,9 +139,7 @@ class TaskTestCase(utils.AsyncTestCase):
             batch_size=5,
             dir_errors=self.errors_dir,
             export_group_name="test-group",
-            export_datetime=datetime.datetime(
-                2012, 10, 10, 5, 30, 12, tzinfo=datetime.timezone.utc
-            ),
+            export_datetime=datetime.datetime(2012, 10, 10, 5, 30, 12, tzinfo=datetime.UTC),
             export_url=self.export_url,
         )
 

@@ -1,6 +1,5 @@
 """Tests for the mstool module"""
 
-import asyncio
 import filecmp
 import os
 import shutil
@@ -104,11 +103,7 @@ class TestMicrosoftToolWrapper(AsyncTestCase):
         # - both files in place, finished
         self.patch(
             "asyncio.wait_for",
-            side_effect=[
-                asyncio.TimeoutError,
-                asyncio.TimeoutError,
-                ("Out", "Err"),
-            ],
+            side_effect=[TimeoutError, TimeoutError, ("Out", "Err")],
         )
 
         def fake_getsize(path: str) -> int:

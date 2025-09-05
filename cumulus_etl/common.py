@@ -362,7 +362,7 @@ def datetime_now(local: bool = False) -> datetime.datetime:
 
     :param local: whether to use local timezone or (if False) UTC
     """
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     if local:
         now = now.astimezone()
     return now

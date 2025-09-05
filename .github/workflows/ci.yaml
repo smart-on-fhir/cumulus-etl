@@ -21,7 +21,7 @@ jobs:
       matrix:
         # Don't go crazy with the Python versions as the test suite is a beast.
         # Just test the minimum version we support.
-        python-version: ["3.10"]
+        python-version: ["3.11"]
 
     steps:
       - uses: actions/checkout@v4

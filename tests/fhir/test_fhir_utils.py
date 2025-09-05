@@ -83,7 +83,7 @@ class TestDateParsing(utils.AsyncTestCase):
         ),
         (
             "1992-11-06T13:28:17.239Z",
-            datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.timezone.utc),
+            datetime.datetime(1992, 11, 6, 13, 28, 17, 239000, tzinfo=datetime.UTC),
         ),
     )
     @ddt.unpack

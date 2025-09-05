@@ -247,6 +247,8 @@ class BaseOpenAiTask(BaseNlpTask):
             return pyarrow.bool_()
         elif issubclass(annotation, int):
             return pyarrow.int32()
+        elif issubclass(annotation, pydantic.BaseModel):
+            return cls.convert_pydantic_fields_to_pyarrow(annotation.model_fields)
 
         raise ValueError(f"Unsupported type {annotation}")  # pragma: no cover
 
@@ -258,52 +260,74 @@ class BaseOpenAiTaskWithSpans(BaseOpenAiTask):
     1. We need to convert the text spans into integer spans, to avoid PHI hitting Athena.
     2. We need to ensure the pyarrow schema shows a list of ints not strings for spans.
 
-    It assumes the field is named "spans" in the top level of the pydantic model.
+    It assumes any field named "spans" in the hierarchy of the pydantic model should be converted.
     """
 
     def post_process(self, parsed: dict, orig_note_text: str, orig_note: dict) -> None:
-        new_spans = []
-        missed_some = False
-
-        for span in parsed["spans"]:
-            # Now we need to find this span in the original text.
-            # However, LLMs like to mess with us, and the span is not always accurate to the
-            # original text (e.g. whitespace, case, punctuation differences). So be a little fuzzy.
-            orig_span = span
-            span = span.strip(string.punctuation + string.whitespace)
-            span = re.escape(span)
-            # Replace sequences of whitespace with a whitespace regex, to allow the span returned
-            # by the LLM to match regardless of what the LLM does with whitespace and to ignore
-            # how we trim trailing whitespace from the original note.
-            span = ESCAPED_WHITESPACE.sub(r"\\s+", span)
-
-            found = False
-            for match in re.finditer(span, orig_note_text, re.IGNORECASE):
-                found = True
-                new_spans.append(match.span())
-            if not found:
-                missed_some = True
-                logging.warning(
-                    "Could not match span received from NLP server for "
-                    f"{orig_note['resourceType']}/{orig_note['id']}: {orig_span}"
-                )
-
-        if missed_some:
+        if not self._process_dict(parsed, orig_note_text, orig_note):
             self.add_error(orig_note)
 
-        parsed["spans"] = new_spans
+    def _process_dict(self, parsed: dict, orig_note_text: str, orig_note: dict) -> bool:
+        """Returns False if any span couldn't be matched"""
+        all_found = True
+
+        for key, value in parsed.items():
+            if key != "spans":
+                if isinstance(value, dict):
+                    all_found &= self._process_dict(value, orig_note_text, orig_note)  # descend
+                continue
+
+            new_spans = []
+            for span in value:
+                # Now we need to find this span in the original text.
+                # However, LLMs like to mess with us, and the span is not always accurate to the
+                # original text (e.g. whitespace, case, punctuation differences).
+                # So be a little fuzzy.
+                orig_span = span
+                span = span.strip(string.punctuation + string.whitespace)
+                span = re.escape(span)
+                # Replace sequences of whitespace with a whitespace regex, to allow the span
+                # returned by the LLM to match regardless of what the LLM does with whitespace and
+                # to ignore how we trim trailing whitespace from the original note.
+                span = ESCAPED_WHITESPACE.sub(r"\\s+", span)
+
+                found = False
+                for match in re.finditer(span, orig_note_text, re.IGNORECASE):
+                    found = True
+                    new_spans.append(match.span())
+                if not found:
+                    all_found = False
+                    logging.warning(
+                        "Could not match span received from NLP server for "
+                        f"{orig_note['resourceType']}/{orig_note['id']}: {orig_span}"
+                    )
+
+            parsed[key] = new_spans
+
+        return all_found
 
     @classmethod
     def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema:
+        """Convert lists of string textual spans into lists of index pairs"""
         schema = super().get_schema(resource_type, rows)
 
         result_index = schema.get_field_index("result")
         result_struct = schema.field(result_index).type
+        result_struct = cls._convert_schema(result_struct)
 
-        children = result_struct.fields
-        new_spans_type = pyarrow.list_(pyarrow.list_(pyarrow.int32(), 2))
-        spans_index = result_struct.get_field_index("spans")
-        children[spans_index] = pyarrow.field("spans", new_spans_type)
-        schema = schema.set(result_index, pyarrow.field("result", pyarrow.struct(children)))
-
+        schema = schema.set(result_index, pyarrow.field("result", result_struct))
         return schema
+
+    @classmethod
+    def _convert_schema(cls, schema: pyarrow.StructType) -> pyarrow.StructType:
+        children = schema.fields  # copy field list
+
+        for index in range(schema.num_fields):
+            field = children[index]
+            if field.name == "spans":
+                new_spans_type = pyarrow.list_(pyarrow.list_(pyarrow.int32(), 2))
+                children[index] = field.with_type(new_spans_type)
+            elif isinstance(field.type, pyarrow.StructType):
+                children[index] = field.with_type(cls._convert_schema(field.type))
+
+        return pyarrow.struct(children)
