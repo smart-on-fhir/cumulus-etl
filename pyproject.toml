@@ -1,6 +1,6 @@
 [project]
 name = "cumulus-etl"
-requires-python = ">= 3.10"
+requires-python = ">= 3.11"
 dependencies = [
     "aiobotocore < 2.22.0",  # FIXME: temp hotfix for dependency version madness - remove later
     "ctakesclient >= 5.1",

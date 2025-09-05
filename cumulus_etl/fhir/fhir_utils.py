@@ -102,9 +102,6 @@ def parse_datetime(value: str | None) -> datetime.datetime | None:
         elif len(pieces) == 2:
             return datetime.datetime(int(pieces[0]), int(pieces[1]), 1)  # note: naive datetime
 
-        # Until we depend on Python 3.11+, manually handle Z
-        value = value.replace("Z", "+00:00")
-
         return datetime.datetime.fromisoformat(value)
     except ValueError:
         return None

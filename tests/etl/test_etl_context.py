@@ -34,7 +34,7 @@ class TestJobContext(utils.AsyncTestCase):
             )
 
             context.last_successful_datetime = datetime.datetime(
-                2008, 5, 1, 14, 30, 30, tzinfo=datetime.timezone.utc
+                2008, 5, 1, 14, 30, 30, tzinfo=datetime.UTC
             )
             self.assertEqual(
                 {
@@ -51,7 +51,7 @@ class TestJobContext(utils.AsyncTestCase):
     def test_last_successful_props(self):
         context = JobContext("nope")
         context.last_successful_datetime = datetime.datetime(
-            2008, 5, 1, 14, 30, 30, tzinfo=datetime.timezone.utc
+            2008, 5, 1, 14, 30, 30, tzinfo=datetime.UTC
         )
         context.last_successful_input_dir = "/input"
         context.last_successful_output_dir = "/output"
