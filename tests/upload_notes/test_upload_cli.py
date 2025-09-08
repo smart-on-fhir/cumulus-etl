@@ -11,7 +11,7 @@ import cumulus_fhir_support as cfs
 import ddt
 
 from cumulus_etl import cli, common, errors
-from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
+from cumulus_etl.upload_notes.labelstudio import Highlight, LabelStudioClient, LabelStudioNote
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
 
@@ -646,13 +646,13 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(len(tasks), 1)
         self.assertEqual(
             [
-                tasks[0].text[span.begin : span.end]
-                for span in tasks[0].highlights["Cumulus"]["Tag"]
+                tasks[0].text[highlight.span[0] : highlight.span[1]]
+                for highlight in tasks[0].highlights
             ],
             ["Elm", "St", "Freddy", "A+", "Street", "Elm", "St", "Freddy", "A+", "Street"],
         )
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["Cumulus"]["Tag"]],
+            [highlight.span for highlight in tasks[0].highlights],
             [
                 (129, 132),
                 (133, 135),
@@ -666,6 +666,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 (422, 428),
             ],
         )
+        self.assertEqual({highlight.origin for highlight in tasks[0].highlights}, {"Cumulus"})
+        self.assertEqual({highlight.label for highlight in tasks[0].highlights}, {"Tag"})
+        self.assertEqual({highlight.sublabel_name for highlight in tasks[0].highlights}, {None})
 
     async def test_highlight_boundaries(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -676,8 +679,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
+        self.assertEqual(len(tasks[0].highlights), 3)
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["Cumulus"]["Tag"]],
+            [highlight.span for highlight in tasks[0].highlights],
             [(106, 109), (120, 123), (125, 128)],
         )
 
@@ -699,20 +703,15 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 2)
-        self.assertEqual({"number"}, set(tasks[0].highlights["me"]))
-        self.assertEqual({"number", "single"}, set(tasks[0].highlights["you"]))
-        self.assertEqual([span.key() for span in tasks[0].highlights["me"]["number"]], [(106, 109)])
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["you"]["number"]],
-            [(110, 113)],
+            tasks[0].highlights,
+            [
+                Highlight("number", (106, 109), "me"),
+                Highlight("number", (110, 113), "you"),
+                Highlight("single", (106, 109), "you"),
+            ],
         )
-        self.assertEqual(
-            [span.key() for span in tasks[0].highlights["you"]["single"]], [(106, 109)]
-        )
-        self.assertEqual({"number"}, set(tasks[1].highlights["you"]))
-        self.assertEqual(
-            [span.key() for span in tasks[1].highlights["you"]["number"]], [(106, 111)]
-        )
+        self.assertEqual(tasks[1].highlights, [Highlight("number", (106, 111), "you")])
 
     async def test_label_by_anon_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -722,9 +721,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1"))
             csv_file = f"{tmpdir}/labels.csv"
             with open(csv_file, "w", newline="", encoding="utf8") as f:
-                f.write("note_ref,label,span\n")
-                f.write(f"DocumentReference/{ANON_D1},test,0:3\n")
-                f.write(f"DiagnosticReport/{ANON_D2},test,4:7\n")
+                f.write("note_ref,label,span,origin,sublabel_name,sublabel_value\n")
+                f.write(f"DocumentReference/{ANON_D1},test,0:3,custom,,,\n")
+                f.write(f"DiagnosticReport/{ANON_D2},test,4:7,,My Choice,My Value\n")
             await self.run_upload_notes(
                 f"--label-by-anon-csv={csv_file}", input_path=tmpdir, philter="disable"
             )
@@ -732,11 +731,18 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 2)
         self.assertEqual(
-            [span.key() for span in tasks[0].highlights["Cumulus"]["test"]], [(110, 113)]
+            tasks[0].highlights,
+            [
+                Highlight(
+                    "test",
+                    (110, 113),
+                    "Cumulus",
+                    sublabel_name="My Choice",
+                    sublabel_value="My Value",
+                )
+            ],
         )
-        self.assertEqual(
-            [span.key() for span in tasks[1].highlights["Cumulus"]["test"]], [(106, 109)]
-        )
+        self.assertEqual(tasks[1].highlights, [Highlight("test", (106, 109), "custom")])
 
     async def test_label_by_athena_table(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -750,9 +756,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
-        self.assertEqual(
-            [span.key() for span in tasks[0].highlights["Cumulus"]["my-label"]], [(106, 111)]
-        )
+        self.assertEqual(tasks[0].highlights, [Highlight("my-label", (106, 111), "Cumulus")])
 
     async def test_label_by_multiple(self):
         with self.assert_fatal_exit(errors.MULTIPLE_LABELING_ARGS):

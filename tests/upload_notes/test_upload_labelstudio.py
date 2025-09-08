@@ -2,12 +2,11 @@
 
 from unittest import mock
 
-import ctakesclient
 import ddt
 from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import errors
-from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
+from cumulus_etl.upload_notes.labelstudio import Highlight, LabelStudioClient, LabelStudioNote
 from tests import ctakesmock
 from tests.utils import AsyncTestCase
 
@@ -253,19 +252,20 @@ class TestUploadLabelStudio(AsyncTestCase):
         self.assertEqual("unique2", self.get_pushed_task()["data"]["unique_id"])
 
     async def test_push_highlights(self):
-        note = self.make_note(philter_label=False, ctakes=False)
-        note.highlights = {
-            "First Source": {
-                "Label1": [
-                    ctakesclient.typesystem.Span(7, 11),
-                    ctakesclient.typesystem.Span(12, 16),
-                ],
-                "Label2": [ctakesclient.typesystem.Span(7, 11)],
-            },
-            "Second Source": {
-                "Label1": [ctakesclient.typesystem.Span(7, 11)],
-            },
+        self.ls_project.parsed_label_config = {
+            "mylabel": {"type": "Labels", "to_name": ["mytext"]},
+            "Sub1": {"type": "Choices", "to_name": ["mytext"]},
+            "Sub2": {"type": "TextArea", "to_name": ["mytext"]},
         }
+        note = self.make_note(philter_label=False, ctakes=False)
+        note.highlights = [
+            Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
+            Highlight("Label1", (12, 16), "First Source", sublabel_name="Sub1", sublabel_value="A"),
+            Highlight("Label1", (12, 16), "First Source", sublabel_name="Sub1", sublabel_value="B"),
+            Highlight("Label1", (12, 16), "First Source", sublabel_name="Sub2", sublabel_value="C"),
+            Highlight("Label2", (7, 11), "First Source"),
+            Highlight("Label1", (7, 11), "Second Source", sublabel_name="Sub2", sublabel_value="C"),
+        ]
         await self.push_tasks(note)
         self.assertEqual(
             {
@@ -285,6 +285,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                         "model_version": "First Source",
                         "result": [
                             {
+                                "id": "fce1bc68a2a6418f24e1f35f1b827431",
                                 "from_name": "mylabel",
                                 "to_name": "mytext",
                                 "type": "labels",
@@ -297,6 +298,20 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 },
                             },
                             {
+                                "id": "fce1bc68a2a6418f24e1f35f1b827431",
+                                "from_name": "Sub1",
+                                "to_name": "mytext",
+                                "type": "choices",
+                                "value": {
+                                    "choices": ["A"],
+                                    "end": 11,
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                            {
+                                "id": "88ffbfff9d62ad338d71469f66508fea",
                                 "from_name": "mylabel",
                                 "to_name": "mytext",
                                 "type": "labels",
@@ -309,6 +324,32 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 },
                             },
                             {
+                                "id": "88ffbfff9d62ad338d71469f66508fea",
+                                "from_name": "Sub1",
+                                "to_name": "mytext",
+                                "type": "choices",
+                                "value": {
+                                    "choices": ["A", "B"],
+                                    "end": 16,
+                                    "score": 1.0,
+                                    "start": 12,
+                                    "text": "text",
+                                },
+                            },
+                            {
+                                "id": "88ffbfff9d62ad338d71469f66508fea",
+                                "from_name": "Sub2",
+                                "to_name": "mytext",
+                                "type": "textarea",
+                                "value": {
+                                    "end": 16,
+                                    "score": 1.0,
+                                    "start": 12,
+                                    "text": ["C"],
+                                },
+                            },
+                            {
+                                "id": "d57979ec1c633b690e13b1e3d182c3e3",
                                 "from_name": "mylabel",
                                 "to_name": "mytext",
                                 "type": "labels",
@@ -326,6 +367,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                         "model_version": "Second Source",
                         "result": [
                             {
+                                "id": "3b5b3791ca8e471832ea07eb5f81163e",
                                 "from_name": "mylabel",
                                 "to_name": "mytext",
                                 "type": "labels",
@@ -337,12 +379,47 @@ class TestUploadLabelStudio(AsyncTestCase):
                                     "text": "note",
                                 },
                             },
+                            {
+                                "id": "3b5b3791ca8e471832ea07eb5f81163e",
+                                "from_name": "Sub2",
+                                "to_name": "mytext",
+                                "type": "textarea",
+                                "value": {
+                                    "end": 11,
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": ["C"],
+                                },
+                            },
                         ],
                     },
                 ],
             },
             self.get_pushed_task(),
         )
+
+    async def test_unrecognized_label_name(self):
+        self.ls_project.parsed_label_config = {
+            "mylabel": {"type": "Labels", "to_name": ["mytext"]},
+        }
+        note = self.make_note(philter_label=False, ctakes=False)
+        note.highlights = [
+            Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
+        ]
+        with self.assert_fatal_exit(errors.LABEL_UNKNOWN):
+            await self.push_tasks(note)
+
+    async def test_unrecognized_config_type(self):
+        self.ls_project.parsed_label_config = {
+            "mylabel": {"type": "Labels", "to_name": ["mytext"]},
+            "Sub1": {"type": "Bogus", "to_name": ["mytext"]},
+        }
+        note = self.make_note(philter_label=False, ctakes=False)
+        note.highlights = [
+            Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
+        ]
+        with self.assert_fatal_exit(errors.LABEL_CONFIG_TYPE_UNKNOWN):
+            await self.push_tasks(note)
 
     async def test_push_in_batches(self):
         notes = [
