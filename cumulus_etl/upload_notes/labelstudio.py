@@ -2,6 +2,7 @@
 
 import dataclasses
 import datetime
+import hashlib
 import math
 from collections.abc import AsyncIterator, Collection, Iterable
 
@@ -16,6 +17,17 @@ from cumulus_etl import batching, cli_utils, errors
 # LabelStudio : Document Annotation
 #
 ###############################################################################
+
+
+@dataclasses.dataclass
+class Highlight:
+    """Describes a label, a span, and some extra metadata"""
+
+    label: str
+    span: tuple[int, int]
+    origin: str
+    sublabel_name: str | None = None
+    sublabel_value: str | None = None
 
 
 @dataclasses.dataclass
@@ -45,10 +57,8 @@ class LabelStudioNote:
         default_factory=list
     )
 
-    # Matches found by word search or csv, as a dict of origins -> labels -> found spans
-    highlights: dict[str, dict[str | None, list[ctakesclient.typesystem.Span]]] = dataclasses.field(
-        default_factory=dict
-    )
+    # Matches found by word search or csv
+    highlights: list[Highlight] = dataclasses.field(default_factory=list)
 
     # Matches found by Philter
     philter_map: dict[int, int] = dataclasses.field(default_factory=dict)
@@ -167,19 +177,49 @@ class LabelStudioClient:
 
         return task
 
-    def _format_match(self, begin: int, end: int, text: str, labels: Iterable[str]) -> dict:
-        return {
-            "from_name": self._labels_name,
-            "to_name": self._labels_config["to_name"][0],
-            "type": "labels",
+    def _format_match(
+        self,
+        begin: int,
+        end: int,
+        text: str,
+        labels: Iterable[str],
+        from_name: str | None = None,
+        label_id: str | None = None,
+    ) -> dict:
+        from_name = from_name or self._labels_name
+        config = self._project.parsed_label_config.get(from_name)
+        if not config:
+            errors.fatal(f"Unrecognized label name '{from_name}'.", errors.LABEL_UNKNOWN)
+
+        match = {
+            "from_name": from_name,
+            "to_name": config["to_name"][0],
+            "type": config["type"].casefold(),
             "value": {
                 "start": begin,
                 "end": end,
                 "score": 1.0,
                 "text": text,
-                "labels": list(labels),
             },
         }
+        if label_id:
+            match["id"] = label_id
+
+        match config["type"].casefold():
+            case "labels":
+                field = "labels"
+            case "choices":
+                field = "choices"
+            case "textarea":
+                field = "text"
+            case _:
+                errors.fatal(
+                    f"Unrecognized Label Studio config type '{config['type']}'.",
+                    errors.LABEL_CONFIG_TYPE_UNKNOWN,
+                )
+
+        match["value"][field] = list(labels)
+        return match
 
     def _format_ctakes_predictions(self, task: dict, note: LabelStudioNote) -> None:
         if not note.ctakes_matches:
@@ -208,20 +248,46 @@ class LabelStudioClient:
         self._update_used_labels(task, used_labels)
 
     def _format_highlights_predictions(self, task: dict, note: LabelStudioNote) -> None:
-        for source, labels in note.highlights.items():
-            prediction = {"model_version": source}
-            results = []
-            for label, spans in labels.items():
-                for span in spans:
-                    results.append(
-                        self._format_match(
-                            span.begin, span.end, note.text[span.begin : span.end], [label]
-                        )
-                    )
-            prediction["result"] = results
-            task["predictions"].append(prediction)
+        # Group up the highlights by parent label.
+        # Then we'll see how many sublabels it has.
+        grouped_highlights = {}  # key-tuple -> sublabel name -> sublabel value list
+        for highlight in note.highlights:
+            key = (highlight.label, highlight.span, highlight.origin)
+            sublabels = grouped_highlights.setdefault(key, {})
+            sublabels.setdefault(highlight.sublabel_name, []).append(highlight.sublabel_value)
 
-            self._update_used_labels(task, labels.keys())
+        predictions = {}  # dict of origin -> prediction dict
+        for key, sublabels in grouped_highlights.items():
+            label, span, origin = key
+            default_prediction = {"model_version": origin, "result": []}
+            prediction = predictions.setdefault(origin, default_prediction)
+
+            label_id = "__".join(str(k) for k in key)
+            label_id = hashlib.md5(label_id.encode(), usedforsecurity=False).hexdigest()
+            text = note.text[span[0] : span[1]]
+
+            # First, add the parent label
+            prediction["result"].append(
+                self._format_match(span[0], span[1], text, [label], label_id=label_id)
+            )
+
+            # Now add sublabels
+            for sublabel_name, sublabel_values in sublabels.items():
+                if not sublabel_name:
+                    continue
+                prediction["result"].append(
+                    self._format_match(
+                        span[0],
+                        span[1],
+                        text,
+                        sublabel_values,
+                        label_id=label_id,
+                        from_name=sublabel_name,
+                    )
+                )
+
+        task["predictions"].extend(predictions.values())
+        self._update_used_labels(task, {x.label for x in note.highlights})
 
     def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
         """

@@ -3,8 +3,6 @@
 import argparse
 from collections.abc import Collection
 
-import ctakesclient
-
 from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.upload_notes import labelstudio
 
@@ -56,7 +54,17 @@ def _label_by_csv(
     *,
     is_anon: bool,
 ) -> None:
-    matcher = nlp.CsvMatcher(csv_file, is_anon=is_anon, extra_fields=["label", "span", "origin"])
+    matcher = nlp.CsvMatcher(
+        csv_file,
+        is_anon=is_anon,
+        extra_fields=[
+            "label",
+            "span",
+            "sublabel_name",
+            "sublabel_value",
+            "origin",
+        ],
+    )
 
     for note in notes:
         for ref, doc_span in note.doc_spans.items():
@@ -65,15 +73,23 @@ def _label_by_csv(
                 for match in sorted(matches):
                     label = match[0]
                     span = match[1]
-                    origin = match[2] or DEFAULT_ORIGIN
+                    sublabel_name = match[2] or None
+                    sublabel_value = match[3] or None
+                    origin = match[4] or DEFAULT_ORIGIN
                     if "__" in origin:  # if it looks like a table name, chop it down
                         origin = origin.split("__", 1)[-1].removeprefix("nlp_")
                     if label and span and ":" in span:
                         begin, end = span.split(":", 1)
-                        span = ctakesclient.typesystem.Span(
-                            int(begin) + doc_span[0], int(end) + doc_span[0]
+                        span = (int(begin) + doc_span[0], int(end) + doc_span[0])
+                        note.highlights.append(
+                            labelstudio.Highlight(
+                                label,
+                                span,
+                                origin=origin,
+                                sublabel_name=sublabel_name,
+                                sublabel_value=sublabel_value,
+                            )
                         )
-                        note.highlights.setdefault(origin, {}).setdefault(label, []).append(span)
 
 
 def _highlight_words(
@@ -91,8 +107,12 @@ def _highlight_words(
     for note in notes:
         for pattern in patterns:
             for match in pattern.finditer(note.text):
-                # Look at group 2 (the middle term group, ignoring the edge groups)
-                span = ctakesclient.typesystem.Span(match.start(2), match.end(2))
-                labels = note.highlights.setdefault(DEFAULT_ORIGIN, {})
-                # We use a generic default label to cause Label Studio to highlight it
-                labels.setdefault(DEFAULT_LABEL, []).append(span)
+                note.highlights.append(
+                    labelstudio.Highlight(
+                        # We use a generic default label to cause Label Studio to highlight it
+                        label=DEFAULT_LABEL,
+                        # Look at group 2 (the middle term group, ignoring the edge groups)
+                        span=(match.start(2), match.end(2)),
+                        origin=DEFAULT_ORIGIN,
+                    )
+                )

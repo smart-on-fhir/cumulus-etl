@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import dataclasses
 import datetime
 import sys
 from collections.abc import Callable, Collection
@@ -247,7 +248,7 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
     for unique_id, group_notes in by_unique_id.items():
         grouped_text = ""
         grouped_ctakes_matches = []
-        grouped_highlights = {}
+        grouped_highlights = []
         grouped_philter_map = {}
         grouped_doc_mappings = {}
         grouped_doc_spans = {}
@@ -283,14 +284,10 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 match.end += offset
                 grouped_ctakes_matches.append(match)
 
-            for source, labels in note.highlights.items():
-                grouped_labels = grouped_highlights.setdefault(source, {})
-                for label, spans in labels.items():
-                    for span in spans:
-                        new_span = ctakesclient.typesystem.Span(
-                            span.begin + offset, span.end + offset
-                        )
-                        grouped_labels.setdefault(label, []).append(new_span)
+            for highlight in note.highlights:
+                span = highlight.span
+                new_span = (span[0] + offset, span[1] + offset)
+                grouped_highlights.append(dataclasses.replace(highlight, span=new_span))
 
             for start, stop in note.philter_map.items():
                 grouped_philter_map[start + offset] = stop + offset
