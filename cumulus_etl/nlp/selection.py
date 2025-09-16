@@ -165,6 +165,17 @@ def _define_regex_filter(
     return res_filter
 
 
+def _combine_filters(one: deid.FilterFunc, two: deid.FilterFunc) -> deid.FilterFunc:
+    async def combined(codebook: deid.Codebook, resource: dict) -> bool:
+        if one and not await one(codebook, resource):
+            return False
+        if two and not await two(codebook, resource):
+            return False
+        return True
+
+    return combined
+
+
 def get_note_filter(client: cfs.FhirClient, args: argparse.Namespace) -> deid.FilterFunc:
     """Returns (patient refs to match, resource refs to match)"""
     # Confirm we don't have conflicting arguments. Which we could maybe combine, as a future
@@ -174,22 +185,27 @@ def get_note_filter(client: cfs.FhirClient, args: argparse.Namespace) -> deid.Fi
     has_word = bool(args.select_by_word)
     has_regex = bool(args.select_by_regex)
     has_athena_table = bool(args.select_by_athena_table)
-    arg_count = (
-        int(has_csv) + int(has_anon_csv) + int(has_word or has_regex) + int(has_athena_table)
-    )
-    if arg_count > 1:
+    csv_count = int(has_csv) + int(has_anon_csv) + int(has_athena_table)
+    if csv_count > 1:
         errors.fatal(
-            "Multiple selection arguments provided. Please specify just one.",
+            "Multiple CSV selection arguments provided. Please specify just one.",
             errors.MULTIPLE_COHORT_ARGS,
         )
 
+    func = None
+
+    # Currently, only support one CSV input (could relax - but should we use OR or AND?)
     if has_athena_table:
-        return _define_csv_filter(query_athena_table(args.select_by_athena_table, args), True)
+        func = _define_csv_filter(query_athena_table(args.select_by_athena_table, args), True)
     elif has_anon_csv:
-        return _define_csv_filter(args.select_by_anon_csv, True)
+        func = _define_csv_filter(args.select_by_anon_csv, True)
     elif has_csv:
-        return _define_csv_filter(args.select_by_csv, False)
-    elif has_word or has_regex:
-        return _define_regex_filter(client, args.select_by_word, args.select_by_regex)
-    else:
-        return None
+        func = _define_csv_filter(args.select_by_csv, False)
+
+    # And combine that with any word filter (all word filters are OR'd together, and then AND'd
+    # with the csv filter - i.e. you can filter down your CSV file further with regexes)
+    if has_word or has_regex:
+        regex_func = _define_regex_filter(client, args.select_by_word, args.select_by_regex)
+        func = _combine_filters(func, regex_func)
+
+    return func

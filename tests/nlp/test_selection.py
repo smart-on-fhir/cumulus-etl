@@ -22,7 +22,7 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
             [("doc1.1", "pat1"), ("doc1.2", "pat1"), ("doc2.1", "pat2")], "DocumentReference"
         )
         self.make_docs(
-            [("dx3.1", "pat3"), ("dx3.1", "pat3"), ("dx4.1", "pat4")], "DiagnosticReport"
+            [("dx3.1", "pat3"), ("dx3.2", "pat3"), ("dx4.1", "pat4")], "DiagnosticReport"
         )
 
     def default_content(self) -> pydantic.BaseModel:
@@ -262,6 +262,22 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
         self.assertIn("dx4.1", model_args["messages"][1]["content"])
         model_args = self.mock_create.call_args_list[1][1]
         self.assertIn("doc2.1", model_args["messages"][1]["content"])
+
+    async def test_selection_by_csv_and_search(self):
+        path = self.make_cohort_csv(["patient_id", "pat1", "pat3"])
+        self.mock_response()
+        self.mock_response()
+
+        await self.run_etl(
+            f"--select-by-csv={path}",  # just doc1.1, doc1.2, dx3.1, and dx3.2
+            r"--select-by-regex=d.*\.1",  # filters down to just doc1.1 and dx3.1
+        )
+
+        self.assertEqual(self.mock_create.call_count, 2)
+        model_args = self.mock_create.call_args_list[0][1]
+        self.assertIn("dx3.1", model_args["messages"][1]["content"])
+        model_args = self.mock_create.call_args_list[1][1]
+        self.assertIn("doc1.1", model_args["messages"][1]["content"])
 
     @mock.patch("cumulus_etl.fhir.get_clinical_note")
     async def test_search_error_ignored(self, mock_get):
