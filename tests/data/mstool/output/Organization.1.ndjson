@@ -19,6 +19,14 @@
     {
       "system": "http://hl7.org/fhir/sid/us-npi",
       "value": "Test-NPI-Value"
+    },
+    {
+      "system": "urn:oid:2.16.840.1.113883.4.7",
+      "value": "Test-CLIA-Value"
+    },
+    {
+      "system": "urn:oid:2.16.840.1.113883.6.300",
+      "value": "Test-CLIA-Value"
     }
   ],
   "active": true,
