@@ -283,6 +283,28 @@
     {"path": "Immunization.protocolApplied.doseNumber", "method": "keep"}, // caution: non-PHI freeform string
     {"path": "Immunization.protocolApplied.seriesDoses", "method": "keep"}, // caution: non-PHI freeform string
 
+    // ** Location: https://www.hl7.org/fhir/R4/location.html **
+    // This is not a patient-linked resource, so we aren't as worried about PHI here.
+    {"path": "Location.identifier.where(system='http://hl7.org/fhir/sid/us-npi')", "method": "keep"},
+    {"path": "Location.status", "method": "keep"},
+    {"path": "Location.operationalStatus", "method": "keep"},
+    {"path": "Location.name", "method": "keep"},
+    {"path": "Location.alias", "method": "keep"},
+    // Skip Location.description
+    {"path": "Location.mode", "method": "keep"},
+    {"path": "Location.type", "method": "keep"},
+    // Skip Location.telecom and address
+    {"path": "Location.physicalType", "method": "keep"},
+    // Skip Location.position
+    {"path": "Location.managingOrganization", "method": "keep"},
+    {"path": "Location.partOf", "method": "keep"},
+    {"path": "Location.hoursOfOperation.daysOfWeek", "method": "keep"},
+    {"path": "Location.hoursOfOperation.allDay", "method": "keep"},
+    {"path": "Location.hoursOfOperation.openingTime", "method": "keep"},
+    {"path": "Location.hoursOfOperation.closingTime", "method": "keep"},
+    // Skip Location.availabilityExceptions
+    {"path": "Location.endpoint", "method": "keep"},
+
     // ** Medication: https://www.hl7.org/fhir/R4/medication.html **
     // Skip Medication.identifier
     {"path": "Medication.code", "method": "keep"},
@@ -368,6 +390,19 @@
     {"path": "Observation.component.interpretation", "method": "keep"},
     // Skip Observation.component.referenceRange
 
+    // ** Organization: https://www.hl7.org/fhir/R4/organization.html **
+    // This is not a patient-linked resource, so we aren't as worried about PHI here.
+    {"path": "Organization.identifier.where(system='http://hl7.org/fhir/sid/us-npi')", "method": "keep"},
+    {"path": "Organization.active", "method": "keep"},
+    {"path": "Organization.type", "method": "keep"},
+    {"path": "Organization.name", "method": "keep"},
+    {"path": "Organization.alias", "method": "keep"},
+    // Skip Organization.telecom and address
+    {"path": "Organization.partOf", "method": "keep"},
+    {"path": "Organization.contact.purpose", "method": "keep"},
+    // Skip Organization.contact.name, telecom, and address
+    {"path": "Organization.endpoint", "method": "keep"},
+
     // ** Patient: https://www.hl7.org/fhir/R4/patient.html **
     // Skip Patient.identifier
     {"path": "Patient.active", "method": "keep"},
@@ -395,6 +430,45 @@
     {"path": "Patient.managingOrganization", "method": "keep"},
     {"path": "Patient.link.other", "method": "keep"},
     {"path": "Patient.link.type", "method": "keep"},
+
+    // ** Practitioner: https://www.hl7.org/fhir/R4/practitioner.html **
+    // This is not a patient-linked resource, so we aren't as worried about PHI here.
+    // But it's also a person, so exhibit some caution.
+    {"path": "Practitioner.identifier.where(system='http://hl7.org/fhir/sid/us-npi')", "method": "keep"},
+    {"path": "Practitioner.active", "method": "keep"},
+    // Skip Practitioner.name, telecom, and address
+    {"path": "Practitioner.gender", "method": "keep"},
+    {"path": "Practitioner.birthDate", "method": "generalize",
+     // keep just the year for privacy (note: 90+ HIPAA grouping is done downstream in SQL
+     "cases": {"true": "$this.toString().replaceMatches('^(?<year>\\\\d+).*', '${year}')"}},
+    // Skip Practitioner.photo
+    {"path": "Practitioner.qualification.identifier", "method": "keep"},
+    {"path": "Practitioner.qualification.code", "method": "keep"},
+    {"path": "Practitioner.qualification.period", "method": "keep"},
+    {"path": "Practitioner.qualification.issuer", "method": "keep"},
+    {"path": "Practitioner.communication", "method": "keep"},
+
+    // ** PractitionerRole: https://www.hl7.org/fhir/R4/practitionerrole.html **
+    // This is not a patient-linked resource, so we aren't as worried about PHI here.
+    // But it's also closely associated with a person, so exhibit some caution.
+    {"path": "PractitionerRole.identifier.where(system='http://hl7.org/fhir/sid/us-npi')", "method": "keep"},
+    {"path": "PractitionerRole.active", "method": "keep"},
+    {"path": "PractitionerRole.period", "method": "keep"},
+    {"path": "PractitionerRole.practitioner", "method": "keep"},
+    {"path": "PractitionerRole.organization", "method": "keep"},
+    {"path": "PractitionerRole.code", "method": "keep"},
+    {"path": "PractitionerRole.specialty", "method": "keep"},
+    {"path": "PractitionerRole.location", "method": "keep"},
+    {"path": "PractitionerRole.healthcareService", "method": "keep"},
+    // Skip PractitionerRole.telecom
+    {"path": "PractitionerRole.availableTime.daysOfWeek", "method": "keep"},
+    {"path": "PractitionerRole.availableTime.allDay", "method": "keep"},
+    {"path": "PractitionerRole.availableTime.availableStartTime", "method": "keep"},
+    {"path": "PractitionerRole.availableTime.availableEndTime", "method": "keep"},
+    // Skip PractitionerRole.notAvailable.description
+    {"path": "PractitionerRole.notAvailable.during", "method": "keep"},
+    // Skip PractitionerRole.availabilityExceptions
+    {"path": "PractitionerRole.endpoint", "method": "keep"},
 
     // ** Procedure: https://www.hl7.org/fhir/R4/procedure.html **
     // Skip Procedure.identifier

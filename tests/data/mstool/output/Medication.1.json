@@ -11,7 +11,8 @@
   "contained": [
     {
       "resourceType": "Organization",
-      "id": "org4"
+      "id": "org4",
+      "name": "Pfizer Laboratories Div Pfizer Inc"
     }
   ],
 

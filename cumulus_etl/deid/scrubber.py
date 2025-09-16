@@ -329,6 +329,7 @@ class Scrubber:
                 "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-sex",
                 "http://open.epic.com/FHIR/STU3/StructureDefinition/temperature-in-fahrenheit",
                 "http://open.epic.com/FHIR/R4/StructureDefinition/patient-preferred-provider-sex",
+                "https://open.epic.com/fhir/extensions/specialty",
                 "https://open.epic.com/FHIR/StructureDefinition/patient-merge-target-reference",
                 "https://open.epic.com/FHIR/StructureDefinition/patient-merge-unmerge-instant",
                 # A Netherlands extension used by Epic

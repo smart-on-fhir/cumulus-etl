@@ -47,7 +47,7 @@ dev = [
     "pre-commit",
     # Ruff is using minor versions for breaking changes until their 1.0 release.
     # See https://docs.astral.sh/ruff/versioning/
-    "ruff < 0.13",  # keep in rough sync with pre-commit-config.yaml
+    "ruff < 0.14",  # keep in rough sync with .pre-commit-config.yaml
 ]
 
 [project.urls]

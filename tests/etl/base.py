@@ -52,7 +52,6 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         comment=None,
         batch_size=None,
         tasks=None,
-        tags: list[str] | None = None,
         philter=True,
         errors_to=None,
         export_to: str | None = None,

@@ -81,9 +81,7 @@ def is_ed_docref(docref) -> bool:
 class BaseCovidCtakesTask(tasks.BaseNlpTask):
     """Covid Symptom study task, to generate symptom lists from ED notes using cTAKES + a polarity check"""
 
-    tags: ClassVar = {"covid_symptom", "gpu"}
-
-    # Subclasses: set name, tags, and polarity_model yourself
+    # Subclasses: set name and polarity_model yourself
     polarity_model = None
 
     # Use a shared task_version for subclasses, to make sharing the ctakes cache folder easier
@@ -245,7 +243,6 @@ class BaseCovidGptTask(tasks.BaseOpenAiTask):
     """Covid Symptom study task, using GPT"""
 
     outputs: ClassVar = [tasks.OutputTable(resource_type=None)]
-    tags: ClassVar = {"covid_symptom", "cpu"}
     system_prompt = "You are a helpful assistant."
     user_prompt = (
         "### Instructions ###\n"

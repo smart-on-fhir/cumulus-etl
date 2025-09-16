@@ -115,7 +115,7 @@ class TestConvert(ConvertTestsBase):
         self.assertEqual(2, len(symptoms))
         self.assertEqual("for", symptoms[0]["match"]["text"])
         completion = utils.read_delta_lake(f"{self.target_path}/etl__completion")  # and completion
-        self.assertEqual(13, len(completion))
+        self.assertEqual(17, len(completion))
         self.assertEqual("allergyintolerance", completion[0]["table_name"])
         comp_enc = utils.read_delta_lake(f"{self.target_path}/etl__completion_encounters")
         self.assertEqual(2, len(comp_enc))

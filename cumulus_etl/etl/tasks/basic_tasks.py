@@ -15,31 +15,26 @@ from cumulus_etl.etl import tasks
 class AllergyIntoleranceTask(tasks.EtlTask):
     name: ClassVar = "allergyintolerance"
     resource: ClassVar = "AllergyIntolerance"
-    tags: ClassVar = {"cpu"}
 
 
 class ConditionTask(tasks.EtlTask):
     name: ClassVar = "condition"
     resource: ClassVar = "Condition"
-    tags: ClassVar = {"cpu"}
 
 
 class DeviceTask(tasks.EtlTask):
     name: ClassVar = "device"
     resource: ClassVar = "Device"
-    tags: ClassVar = {"cpu"}
 
 
 class DiagnosticReportTask(tasks.EtlTask):
     name: ClassVar = "diagnosticreport"
     resource: ClassVar = "DiagnosticReport"
-    tags: ClassVar = {"cpu"}
 
 
 class DocumentReferenceTask(tasks.EtlTask):
     name: ClassVar = "documentreference"
     resource: ClassVar = "DocumentReference"
-    tags: ClassVar = {"cpu"}
 
 
 class EncounterTask(tasks.EtlTask):
@@ -47,7 +42,6 @@ class EncounterTask(tasks.EtlTask):
 
     name: ClassVar = "encounter"
     resource: ClassVar = "Encounter"
-    tags: ClassVar = {"cpu"}
 
     # Encounters are a little more complicated than normal FHIR resources.
     # We also write out a table tying Encounters to a group name, for completion tracking.
@@ -80,7 +74,11 @@ class EncounterTask(tasks.EtlTask):
 class ImmunizationTask(tasks.EtlTask):
     name: ClassVar = "immunization"
     resource: ClassVar = "Immunization"
-    tags: ClassVar = {"cpu"}
+
+
+class LocationTask(tasks.EtlTask):
+    name = "location"
+    resource = "Location"
 
 
 class MedicationRequestTask(tasks.EtlTask):
@@ -88,7 +86,6 @@ class MedicationRequestTask(tasks.EtlTask):
 
     name: ClassVar = "medicationrequest"
     resource: ClassVar = "MedicationRequest"
-    tags: ClassVar = {"cpu"}
 
     # We may write to a second Medication table as we go.
     # MedicationRequest can have inline medications via CodeableConcepts, or external Medication
@@ -194,22 +191,33 @@ class MedicationRequestTask(tasks.EtlTask):
 class ObservationTask(tasks.EtlTask):
     name: ClassVar = "observation"
     resource: ClassVar = "Observation"
-    tags: ClassVar = {"cpu"}
+
+
+class OrganizationTask(tasks.EtlTask):
+    name = "organization"
+    resource = "Organization"
 
 
 class PatientTask(tasks.EtlTask):
     name: ClassVar = "patient"
     resource: ClassVar = "Patient"
-    tags: ClassVar = {"cpu"}
+
+
+class PractitionerTask(tasks.EtlTask):
+    name = "practitioner"
+    resource = "Practitioner"
+
+
+class PractitionerRoleTask(tasks.EtlTask):
+    name = "practitionerrole"
+    resource = "PractitionerRole"
 
 
 class ProcedureTask(tasks.EtlTask):
     name: ClassVar = "procedure"
     resource: ClassVar = "Procedure"
-    tags: ClassVar = {"cpu"}
 
 
 class ServiceRequestTask(tasks.EtlTask):
     name: ClassVar = "servicerequest"
     resource: ClassVar = "ServiceRequest"
-    tags: ClassVar = {"cpu"}

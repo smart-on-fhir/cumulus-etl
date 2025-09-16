@@ -63,8 +63,12 @@ def get_default_tasks() -> list[type[AnyTask]]:
         basic_tasks.DiagnosticReportTask,
         basic_tasks.DocumentReferenceTask,
         basic_tasks.ImmunizationTask,
+        basic_tasks.LocationTask,
         basic_tasks.MedicationRequestTask,
         basic_tasks.ObservationTask,
+        basic_tasks.OrganizationTask,
+        basic_tasks.PractitionerTask,
+        basic_tasks.PractitionerRoleTask,
         basic_tasks.ProcedureTask,
         basic_tasks.ServiceRequestTask,
     ]

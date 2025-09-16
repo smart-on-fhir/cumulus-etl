@@ -1,7 +1,3 @@
-Simple test case, with only a few rows each.
+Simple test case, with only a few rows each for all supported resources.
 
-For convenience, ID numbers have the following layout:
-- encounters start with 2
-- patients start with 3
-- instances start with 4
-- providers start with 5
+Usually these can just be pulled from the FHIR spec's examples.

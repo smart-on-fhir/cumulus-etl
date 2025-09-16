@@ -41,7 +41,7 @@ RUN python3 -m nltk.downloader -d /usr/local/share/nltk_data averaged_perceptron
 COPY . /app
 
 ARG ETL_VERSION
-RUN [ -z "$ETL_VERSION" ] || sed -i "s/0\.0\.0/$ETL_VERSION/" /app/cumulus_etl/__init__.py
+RUN [ -z "$ETL_VERSION" ] || sed -i "s/1\!0\.0\.0/$ETL_VERSION/" /app/cumulus_etl/__init__.py
 # Print the final version we're using
 RUN grep __version__ /app/cumulus_etl/__init__.py
 
