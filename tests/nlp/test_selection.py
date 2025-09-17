@@ -1,13 +1,14 @@
 """Tests for selection filtering in NLP tasks."""
 
 import base64
+import shutil
 from unittest import mock
 
 import ddt
 import pydantic
 
 from cumulus_etl import common, errors
-from cumulus_etl.etl.studies.example.example_tasks import AgeMention
+from cumulus_etl.etl.studies.example.example_tasks import AgeMention, ExampleGptOss120bTask
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import OpenAITestCase
 
@@ -284,3 +285,32 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
         mock_get.side_effect = ValueError
         await self.run_etl("--select-by-word=doc2")
         self.assertEqual(self.mock_create.call_count, 0)
+
+    @mock.patch("rich.get_console")
+    @mock.patch.object(ExampleGptOss120bTask, "run", side_effect=RuntimeError)
+    async def test_selection_count_prompt(self, mock_run, mock_get_console):
+        # Pretend to be an interactive TTY
+        console = mock.MagicMock()
+        console.is_interactive = True
+        mock_get_console.return_value = console
+
+        # Test default is negative
+        with self.assertRaises(SystemExit):
+            with mock.patch("builtins.input", return_value=""):
+                await self.run_etl("--select-by-word=doc2")
+
+        # Test can cancel with actual answer
+        with self.assertRaises(SystemExit):
+            with mock.patch("builtins.input", return_value="n"):
+                await self.run_etl("--select-by-word=doc2")
+
+        # Test can continue with actual answer
+        with self.assertRaises(RuntimeError):
+            with mock.patch("builtins.input", return_value="y"):
+                await self.run_etl("--select-by-word=doc2")
+
+        shutil.rmtree(self.output_path)  # clean it up
+
+        # Test can continue with skip arg
+        with self.assertRaises(RuntimeError):
+            await self.run_etl("--select-by-word=doc2", "--allow-large-selection")
