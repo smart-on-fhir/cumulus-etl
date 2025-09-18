@@ -44,7 +44,7 @@ def add_note_selection(parser: argparse.ArgumentParser):
     group.add_argument(
         "--allow-large-selection",
         action="store_true",
-        help="allow a larger-than-normal selection",
+        help="skip selection size validation",
     )
     return group
 
