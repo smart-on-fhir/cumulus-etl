@@ -35,7 +35,6 @@ class BaseNlpTask(tasks.EtlTask):
         # maybe add a group_field? (remember to call self.seen_docrefs.add() if so)
         tasks.OutputTable(resource_type=None)
     ]
-    tags: ClassVar = {"gpu"}  # maybe a study identifier?
 
     # Task Version
     # The "task_version" field is a simple integer that gets incremented any time an NLP-relevant parameter is changed.

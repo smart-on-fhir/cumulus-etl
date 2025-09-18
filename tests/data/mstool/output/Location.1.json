@@ -1,0 +1,60 @@
+{
+  "resourceType": "Location",
+  "meta": {
+    "security": [
+      {
+        "code": "REDACTED",
+        "display": "redacted",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+      },
+      {
+        "code": "ABSTRED",
+        "display": "abstracted",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+      }
+    ]
+  },
+  "id": "1",
+  "identifier": [
+    {
+      "system": "http://hl7.org/fhir/sid/us-npi",
+      "value": "Test-NPI-Value"
+    }
+  ],
+  "status": "active",
+  "operationalStatus": {"system": "http://terminology.hl7.org/CodeSystem/v2-0116", "code": "O"},
+  "name": "South Wing, second floor",
+  "alias": [
+    "BU MC, SW, F2",
+    "Burgers University Medical Center, South Wing, second floor"
+  ],
+  "mode": "instance",
+  "type": [{"text": "Floor"}],
+  "address": {"country": "NLD", "postalCode": "9100 PZ"},
+  "physicalType": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/location-physical-type",
+        "code": "wi",
+        "display": "Wing"
+      }
+    ]
+  },
+  "managingOrganization": {
+    "reference": "Organization/f001"
+  },
+  "partOf": {"reference": "Location/Another"},
+  "hoursOfOperation": [
+    {
+      "daysOfWeek": ["mon"],
+      "allDay": false,
+      "openingTime": "08:00",
+      "closingTime": "22:00"
+    }
+  ],
+  "endpoint": [
+    {
+      "reference": "Endpoint/example"
+    }
+  ]
+}

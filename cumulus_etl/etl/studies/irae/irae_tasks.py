@@ -2,7 +2,6 @@
 
 import json
 from enum import StrEnum
-from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -433,22 +432,18 @@ class BaseIraeTask(tasks.BaseOpenAiTaskWithSpans):
 class IraeGpt4oTask(BaseIraeTask):
     name = "irae__nlp_gpt4o"
     client_class = nlp.Gpt4oModel
-    tags: ClassVar = {"irae", "cpu"}
 
 
 class IraeGpt5Task(BaseIraeTask):
     name = "irae__nlp_gpt5"
     client_class = nlp.Gpt5Model
-    tags: ClassVar = {"irae", "cpu"}
 
 
 class IraeGptOss120bTask(BaseIraeTask):
     name = "irae__nlp_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
-    tags: ClassVar = {"irae", "gpu"}
 
 
 class IraeLlama4ScoutTask(BaseIraeTask):
     name = "irae__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
-    tags: ClassVar = {"irae", "gpu"}

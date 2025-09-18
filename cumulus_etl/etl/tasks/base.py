@@ -90,7 +90,6 @@ class EtlTask:
     name: ClassVar[str] = None  # task & table name
     # incoming resource that this task operates on (will be included in bulk exports etc)
     resource: ClassVar[str | set[str]] = None
-    tags: ClassVar[set[str]] = []
     # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
     needs_bulk_deid: ClassVar[bool] = True
 

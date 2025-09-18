@@ -1,0 +1,61 @@
+{
+  "resourceType": "Organization",
+  "meta": {
+    "security": [
+      {
+        "code": "REDACTED",
+        "display": "redacted",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+      },
+      {
+        "code": "ABSTRED",
+        "display": "abstracted",
+        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
+      }
+    ]
+  },
+  "id": "hl7",
+  "identifier": [
+    {
+      "system": "http://hl7.org/fhir/sid/us-npi",
+      "value": "Test-NPI-Value"
+    },
+    {
+      "system": "urn:oid:2.16.840.1.113883.4.7",
+      "value": "Test-CLIA-Value"
+    },
+    {
+      "system": "urn:oid:2.16.840.1.113883.6.300",
+      "value": "Test-CLIA-Value"
+    }
+  ],
+  "active": true,
+  "type": [{"text": "Standards body"}],
+  "name": "Health Level Seven International",
+  "alias": [
+    "HL7 International"
+  ],
+  "address": [
+    {
+      "state": "MI",
+      "postalCode": "48100",
+      "country": "USA"
+    }
+  ],
+  "partOf": {"reference": "Organization/Parent"},
+  "contact": [
+    {
+      "purpose": {"text": "legal"},
+      "address": {
+        "state": "MI",
+        "postalCode": "48100",
+        "country": "USA"
+      }
+    }
+  ],
+  "endpoint": [
+    {
+      "reference": "Endpoint/example"
+    }
+  ]
+}

@@ -187,13 +187,17 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/documentreference"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/encounter"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/immunization"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/location"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/medication"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/medicationrequest"
-              - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
             CreateNativeDeltaTable: True
             WriteManifest: False
           - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/observation"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/organization"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/patient"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/practitioner"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/practitionerrole"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/procedure"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/servicerequest"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/etl__completion"
