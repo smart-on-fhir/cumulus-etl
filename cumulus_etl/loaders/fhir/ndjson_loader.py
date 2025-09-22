@@ -56,7 +56,9 @@ class FhirNdjsonLoader(base.Loader):
             # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
             return None
 
-        found_files = cfs.list_multiline_json_in_dir(self.root.path, fsspec_fs=self.root.fs)
+        found_files = cfs.list_multiline_json_in_dir(
+            self.root.path, fsspec_fs=self.root.fs, recursive=True
+        )
         return {resource for resource in found_files.values() if resource}
 
     async def load_resources(self, resources: set[str]) -> base.LoaderResults:

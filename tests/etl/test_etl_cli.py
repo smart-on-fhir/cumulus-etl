@@ -381,6 +381,21 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["patient"], phi_path=self.make_tempdir())
         self.assertEqual(cm.exception.code, errors.WRONG_PHI_FOLDER)
 
+    async def test_looks_recursively_for_input(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            os.makedirs(f"{tmpdir}/subdir1/subdir2")
+            with open(f"{tmpdir}/subdir1/subdir2/patients.ndjson", "w", encoding="utf8") as f:
+                json.dump({"resourceType": "Patient", "id": "pat1"}, f)
+            await self.run_etl(tasks=["patient"], input_path=tmpdir)
+
+        self.assertEqual(
+            common.read_json(f"{self.output_path}/patient/patient.000.ndjson"),
+            {
+                "resourceType": "Patient",
+                "id": "50ffe70a1bdf3b6e73adac15e4ab7f9d7e247466d7a6c395c2ae9098741a62bd",
+            },
+        )
+
 
 class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""

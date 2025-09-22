@@ -55,7 +55,7 @@ async def inliner(
     mimetypes = set(mimetypes)
 
     # Grab files to read for the given resources
-    found_files = cfs.list_multiline_json_in_dir(in_root.path, resources, fsspec_fs=in_root.fs)
+    found_files = common.ls_resources(in_root, resources)
 
     # Predict how much work we'll have to do by getting counts of lines and files
     if in_root.protocol == "file":

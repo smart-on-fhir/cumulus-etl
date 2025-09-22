@@ -78,7 +78,9 @@ def get_temp_dir(subdir: str) -> str:
 
 
 def ls_resources(root: store.Root, resources: set[str], warn_if_empty: bool = False) -> list[str]:
-    found_files = cfs.list_multiline_json_in_dir(root.path, resources, fsspec_fs=root.fs)
+    found_files = cfs.list_multiline_json_in_dir(
+        root.path, resources, fsspec_fs=root.fs, recursive=True
+    )
 
     if warn_if_empty:
         # Invert the {path: type} found_files dictionary into {type: [paths...]}
