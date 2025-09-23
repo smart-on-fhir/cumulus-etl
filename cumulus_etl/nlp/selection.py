@@ -153,7 +153,7 @@ def _define_regex_filter(
         patterns.extend(cli_utils.user_term_to_pattern(word).pattern for word in words)
 
     # combine into one big compiled pattern
-    patterns = re.compile("|".join(patterns))
+    patterns = re.compile("|".join(patterns), re.IGNORECASE)
 
     async def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
         try:
