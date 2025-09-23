@@ -253,7 +253,7 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
         self.mock_response()
         self.mock_response()
         await self.run_etl(
-            "--select-by-word=doc2",  # hits one docref
+            "--select-by-word=DOC2",  # hits one docref
             "--select-by-word=do",  # hits none
             "--select-by-regex=d.4",  # hits one dxreport
         )
