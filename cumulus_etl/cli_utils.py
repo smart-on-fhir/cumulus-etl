@@ -121,14 +121,12 @@ def add_output_format(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def add_task_selection(parser: argparse.ArgumentParser, *, etl_mode: bool):
-    default = ", default is all supported FHIR resources" if etl_mode else ""
-    required = not etl_mode
+def add_task_selection(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--task",
         action="append",
-        help=f"only run these tasks (comma separated{default}, use '--task help' to see full list)",
-        required=required,
+        help="only run these tasks (comma separated, default is all supported FHIR resources, "
+        "use '--task help' to see full list)",
     )
 
 

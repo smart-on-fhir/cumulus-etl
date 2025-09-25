@@ -84,10 +84,54 @@ def get_note_date(note: dict) -> datetime.datetime | None:
     return None
 
 
+def _cache_metadata_filename(cache_dir: str, namespace: str, filename: str) -> str:
+    cache_dir = store.Root(cache_dir, create=True)
+    path = f"nlp-cache/{namespace}/{filename}"
+    return cache_dir.joinpath(path)
+
+
+def cache_metadata_write(cache_dir: str, namespace: str, content: dict) -> None:
+    path = _cache_metadata_filename(cache_dir, namespace, "metadata.json")
+    store.Root(os.path.dirname(path), create=True)
+    common.write_json(path, content, indent=2)
+
+
+def cache_metadata_read(cache_dir: str, namespace: str) -> dict:
+    path = _cache_metadata_filename(cache_dir, namespace, "metadata.json")
+    try:
+        return common.read_json(path)
+    except (FileNotFoundError, PermissionError):
+        return {}
+
+
+def _cache_filename(cache_dir: str, namespace: str, checksum: str) -> str:
+    cache_dir = store.Root(cache_dir, create=True)
+    path = f"nlp-cache/{namespace}/{checksum[0:4]}/sha256-{checksum}.cache"
+    return cache_dir.joinpath(path)
+
+
+def cache_checksum(note_text: str) -> str:
+    return hashlib.sha256(note_text.encode("utf8"), usedforsecurity=False).hexdigest()
+
+
+def cache_write(cache_dir: str, namespace: str, checksum: str, content: str) -> None:
+    path = _cache_filename(cache_dir, namespace, checksum)
+    store.Root(os.path.dirname(path), create=True)
+    common.write_text(path, content)
+
+
+def cache_read(cache_dir: str, namespace: str, checksum: str) -> str | None:
+    path = _cache_filename(cache_dir, namespace, checksum)
+    try:
+        return common.read_text(path)
+    except (FileNotFoundError, PermissionError):
+        return None
+
+
 async def cache_wrapper(
     cache_dir: str,
     namespace: str,
-    content: str,
+    checksum: str,
     from_file: Callable[[str], Obj],
     to_file: Callable[[Obj], str],
     method: Callable,
@@ -95,18 +139,12 @@ async def cache_wrapper(
     **kwargs,
 ) -> Obj:
     """Looks up an NLP result in the cache first, falling back to actually calling NLP."""
-    # First, what is our target path for a possible cache file
-    cache_dir = store.Root(cache_dir, create=True)
-    checksum = hashlib.sha256(content.encode("utf8")).hexdigest()
-    path = f"nlp-cache/{namespace}/{checksum[0:4]}/sha256-{checksum}.cache"
-    cache_filename = cache_dir.joinpath(path)
+    result = cache_read(cache_dir, namespace, checksum)
 
-    # And try to read that file, falling back to calling the given method if a cache is not available
-    try:
-        result = from_file(common.read_text(cache_filename))
-    except (FileNotFoundError, PermissionError):
+    if result is None:
         result = await method(*args, **kwargs)
-        cache_dir.makedirs(os.path.dirname(cache_filename))
-        common.write_text(cache_filename, to_file(result))
+        cache_write(cache_dir, namespace, checksum, to_file(result))
+    else:
+        result = from_file(result)
 
     return result

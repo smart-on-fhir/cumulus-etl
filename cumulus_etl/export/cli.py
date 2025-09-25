@@ -23,7 +23,7 @@ def define_export_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     cli_utils.add_auth(parser, use_fhir_url=False)
-    cli_utils.add_task_selection(parser, etl_mode=True)
+    cli_utils.add_task_selection(parser)
 
 
 async def export_main(args: argparse.Namespace) -> None:

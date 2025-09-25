@@ -22,17 +22,32 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
     """Fills out an argument parser with all the ETL options."""
     parser.usage = "%(prog)s [OPTION]... INPUT OUTPUT PHI"
 
-    pipeline.add_common_etl_args(parser)
+    # Smaller default batch size than normal ETL because we might keep notes in memory during batch
+    pipeline.add_common_etl_args(parser, batch_size=50_000)
     cli_utils.add_ctakes_override(parser)
-    cli_utils.add_task_selection(parser, etl_mode=False)
     cli_utils.add_aws(parser, athena=True)
     nlp.add_note_selection(parser)
 
+    parser.add_argument(
+        "--task",
+        action="append",
+        help="run this NLP task (comma separated, use '--task help' to see full list)",
+        required=True,
+    )
     parser.add_argument(
         "--provider",
         choices=["azure", "bedrock", "local"],
         default="local",
         help="which model provider to use (default is local)",
+    )
+    parser.add_argument(
+        "--azure-deployment",
+        help="what Azure deployment name to use (default is model name)",
+    )
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="use batching mode (saves money, might take longer, not all models support it)",
     )
 
 
@@ -48,7 +63,7 @@ async def check_input_size(
 
 
 async def nlp_main(args: argparse.Namespace) -> None:
-    nlp.set_nlp_provider(args.provider)
+    nlp.set_nlp_config(args)
 
     async def prep_scrubber(
         client: cfs.FhirClient, results: loaders.LoaderResults

@@ -23,14 +23,14 @@ class NlpModelTestCase(TaskTestCase):
         self.patch("cumulus_etl.nlp.models._provider_name", new=provider)
 
     def mock_openai(self, model_id: str) -> None:
-        self.mock_client = mock.MagicMock()
+        self.mock_client = mock.AsyncMock()
         self.mock_create = mock.AsyncMock()
         self.mock_client.chat.completions.parse = self.mock_create
         self.mock_client_factory = self.patch("openai.AsyncOpenAI")
         self.mock_client_factory.return_value = self.mock_client
         self.mock_client.models.list = self.mock_model_list(model_id)
 
-    def mock_azure(self, model_id: str) -> None:
+    def mock_azure(self, model_id: str, batching: bool = False) -> None:
         self.mode = "azure"
         self.mock_provider(self.mode)
         self.mock_openai(model_id)
