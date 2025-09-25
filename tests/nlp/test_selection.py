@@ -216,16 +216,34 @@ class TestSelection(OpenAITestCase, BaseEtlSimple):
             await self.run_etl("--select-by-athena-table=db.cohort__test")
 
     async def test_athena_table_too_large(self):
-        self.mock_athena(["a"] * 20_002)  # one extra for header, one extra to cross threshold
+        self.mock_athena(["a"] * 50_002)  # one extra for header, one extra to cross threshold
         with self.assert_fatal_exit(errors.ATHENA_TABLE_TOO_BIG):
             await self.run_etl("--select-by-athena-table=db.cohort__test")
 
         # Do it again with the allow arg
-        self.mock_athena(["a"] * 20_002)
+        self.mock_athena(["a"] * 50_002)
         with self.assert_fatal_exit(errors.COHORT_NOT_FOUND):  # different error now
             await self.run_etl(
                 "--select-by-athena-table=db.cohort__test", "--allow-large-selection"
             )
+
+        # Pretend to be an interactive TTY
+        mock_get_console = self.patch("rich.get_console")
+        console = mock.MagicMock()
+        console.is_interactive = True
+        mock_get_console.return_value = console
+
+        # Try with rejection of prompt
+        self.mock_athena(["a"] * 50_002)
+        with self.assert_fatal_exit(0):
+            with mock.patch("builtins.input", return_value=""):  # default no
+                await self.run_etl("--select-by-athena-table=db.cohort__test")
+
+        # Try with acceptance of prompt
+        self.mock_athena(["a"] * 50_002)
+        with self.assert_fatal_exit(errors.COHORT_NOT_FOUND):  # different error now
+            with mock.patch("builtins.input", return_value="y"):
+                await self.run_etl("--select-by-athena-table=db.cohort__test")
 
     async def test_no_patient_defined(self):
         with common.NdjsonWriter(f"{self.tmpdir}/docs.ndjson") as writer:

@@ -48,13 +48,11 @@ async def nlp_main(args: argparse.Namespace) -> None:
         scrubber = deid.Scrubber(args.dir_phi)
 
         # Let the user know how many documents got selected, so there are no big cost surprises.
-        # But skip it if we aren't in a TTY or the user provided an override flag.
-        should_confirm = rich.get_console().is_interactive and not args.allow_large_selection
         count = await check_input_size(scrubber.codebook, results.path, res_filter)
-        if should_confirm:
-            if not rich.prompt.Confirm.ask(f"Run NLP on {count:,} notes?", default=False):
-                raise SystemExit
-        else:
+        response = cli_utils.prompt(
+            f"Run NLP on {count:,} notes?", override=args.allow_large_selection
+        )
+        if response in cli_utils.PromptResponse.SKIPPED:
             rich.print(f"Running NLP on {count:,} notes…")
 
         config_args = {"ctakes_overrides": args.ctakes_overrides, "resource_filter": res_filter}
