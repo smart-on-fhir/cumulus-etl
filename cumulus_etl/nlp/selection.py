@@ -71,14 +71,18 @@ def query_athena_table(table: str, args) -> str:
         work_group=args.athena_workgroup,
         schema_name=database,
     ).cursor()
-    if hasattr(args, "allow_large_selection"):
-        count = cursor.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]  # noqa: S608
-        if int(count) > 20_000 and not args.allow_large_selection:
+
+    # Make sure the table is not so large that the user is maybe running against a core table
+    count = cursor.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]  # noqa: S608
+    if int(count) > 50_000:
+        msg = f"Athena cohort in '{table}' is very large ({int(count):,} rows)."
+        response = cli_utils.prompt(f"{msg} Continue?", override=args.allow_large_selection)
+        if response == cli_utils.PromptResponse.NON_INTERACTIVE:
             errors.fatal(
-                f"Athena cohort in '{table}' is very large ({int(count):,} rows).\n"
-                "If you want to use it anyway, pass --allow-large-selection",
+                f"{msg}\nIf you want to use it anyway, pass --allow-large-selection",
                 errors.ATHENA_TABLE_TOO_BIG,
             )
+
     return cursor.execute(f'SELECT * FROM "{table}"').output_location  # noqa: S608
 
 

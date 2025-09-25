@@ -1,6 +1,7 @@
 """Helper methods for CLI parsing."""
 
 import argparse
+import enum
 import itertools
 import os
 import re
@@ -281,3 +282,24 @@ def process_input_dir(folder: str) -> str:
     if folder == "%EXAMPLE-NLP%" and not os.path.exists(folder):
         return os.path.join(os.path.dirname(__file__), "etl/studies/example/ndjson")
     return folder
+
+
+class PromptResponse(enum.Flag):
+    # Break these into so many conditions to help avoid spaghetti code of "if" conditions.
+    # With this, you can do one simple match tree, hopefully.
+    OVERRIDDEN = 1
+    NON_INTERACTIVE = 2
+    APPROVED = 4
+    # Combos:
+    SKIPPED = 3  # combo of OVERRIDEN and NON_INTERACTIVE
+
+
+def prompt(msg: str, override: bool = False) -> PromptResponse:
+    if override:
+        return PromptResponse.SKIPPED
+    elif not rich.get_console().is_interactive:
+        return PromptResponse.NON_INTERACTIVE
+    elif rich.prompt.Confirm.ask(msg, default=False):
+        return PromptResponse.APPROVED
+    else:
+        raise SystemExit(0)
