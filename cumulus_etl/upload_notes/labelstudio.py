@@ -160,6 +160,7 @@ class LabelStudioClient:
                 "anon_patient_id": note.anon_patient_id,
                 "encounter_id": note.encounter_id,
                 "anon_encounter_id": note.anon_encounter_id,
+                "date": note.date and note.date.isoformat(),
                 "docref_mappings": note.doc_mappings,
                 # json doesn't natively have tuples, so convert spans to lists
                 "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},
