@@ -502,6 +502,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(1, len(notes))
         note = notes[0]
 
+        self.assertEqual(note.date.isoformat(), "2018-01-01T00:00:00")
+
         # The order will be oldest->newest (None placed last)
         self.assertEqual(
             self.wrap_note("Document", "DocRef 3", date="01/01/18")

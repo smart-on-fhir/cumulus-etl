@@ -300,6 +300,7 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 group_notes[0].encounter_id,
                 group_notes[0].anon_encounter_id,
                 text=grouped_text,
+                date=group_notes[0].date,
                 doc_mappings=grouped_doc_mappings,
                 doc_spans=grouped_doc_spans,
                 ctakes_matches=grouped_ctakes_matches,

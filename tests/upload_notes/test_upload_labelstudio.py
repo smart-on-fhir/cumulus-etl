@@ -1,5 +1,6 @@
 """Tests for cumulus.upload_notes.labelstudio.py"""
 
+import datetime
 from unittest import mock
 
 import ddt
@@ -26,7 +27,11 @@ class TestUploadLabelStudio(AsyncTestCase):
 
     @staticmethod
     def make_note(
-        *, unique_id: str = "unique", ctakes: bool = True, philter_label: bool = True
+        *,
+        unique_id: str = "unique",
+        ctakes: bool = True,
+        philter_label: bool = True,
+        **kwargs,
     ) -> LabelStudioNote:
         text = "Normal note text"
         note = LabelStudioNote(
@@ -38,6 +43,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             doc_mappings={"doc": "doc-anon"},
             doc_spans={"doc": (0, len(text))},
             text=text,
+            **kwargs,
         )
         if ctakes:
             note.ctakes_matches = ctakesmock.fake_ctakes_extract(note.text).list_match(
@@ -71,7 +77,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         return imported_tasks[0]
 
     async def test_basic_push(self):
-        await self.push_tasks(self.make_note())
+        await self.push_tasks(self.make_note(date=datetime.datetime(2010, 10, 10)))
         self.assertEqual(
             {
                 "data": {
@@ -81,6 +87,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_patient_id": "patient-anon",
                     "encounter_id": "enc",
                     "anon_encounter_id": "enc-anon",
+                    "date": "2010-10-10T00:00:00",
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [{"value": "Itch"}, {"value": "Nausea"}],
@@ -174,6 +181,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_patient_id": "patient-anon",
                     "encounter_id": "enc",
                     "anon_encounter_id": "enc-anon",
+                    "date": None,
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [],
@@ -198,6 +206,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                 "anon_patient_id": "patient-anon",
                 "encounter_id": "enc",
                 "anon_encounter_id": "enc-anon",
+                "date": None,
                 "docref_mappings": {"doc": "doc-anon"},
                 "docref_spans": {"doc": [0, 16]},
                 "mylabel": [
@@ -218,6 +227,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                 "anon_patient_id": "patient-anon",
                 "encounter_id": "enc",
                 "anon_encounter_id": "enc-anon",
+                "date": None,
                 "docref_mappings": {"doc": "doc-anon"},
                 "docref_spans": {"doc": [0, 16]},
                 "mylabel": [],  # this needs to be sent, or the server will complain
@@ -276,6 +286,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "anon_patient_id": "patient-anon",
                     "encounter_id": "enc",
                     "anon_encounter_id": "enc-anon",
+                    "date": None,
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [{"value": "Label1"}, {"value": "Label2"}],
