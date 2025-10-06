@@ -28,6 +28,13 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
     cli_utils.add_aws(parser, athena=True)
     nlp.add_note_selection(parser)
 
+    parser.add_argument(
+        "--provider",
+        choices=["azure", "bedrock", "local"],
+        default="local",
+        help="which model provider to use (default is local)",
+    )
+
 
 async def check_input_size(
     codebook: deid.Codebook, folder: str, res_filter: deid.FilterFunc
@@ -41,6 +48,8 @@ async def check_input_size(
 
 
 async def nlp_main(args: argparse.Namespace) -> None:
+    nlp.set_nlp_provider(args.provider)
+
     async def prep_scrubber(
         client: cfs.FhirClient, results: loaders.LoaderResults
     ) -> tuple[deid.Scrubber, dict]:

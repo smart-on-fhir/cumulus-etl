@@ -14,10 +14,11 @@ class AgeMention(pydantic.BaseModel):
     age: int | None = pydantic.Field(None, description="The age of the patient")
 
 
-class BaseExampleTask(tasks.BaseOpenAiTaskWithSpans):
-    task_version = 0
+class BaseExampleTask(tasks.BaseModelTaskWithSpans):
+    task_version = 1
     # Task Version History:
-    # ** 0 (2025-08): Initial work, still in flux **
+    # ** 1 (2025-10): New serialized format **
+    # ** 0 (2025-08): Initial work **
 
     system_prompt = (
         "You are a clinical chart reviewer.\n"

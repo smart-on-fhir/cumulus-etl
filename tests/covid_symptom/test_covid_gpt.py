@@ -1,21 +1,18 @@
 """Tests for GPT covid symptom tasks"""
 
 import hashlib
-from typing import ClassVar
 
 import ddt
 
 from cumulus_etl.etl.studies import covid_symptom
 from cumulus_etl.etl.studies.covid_symptom.covid_tasks import CovidSymptoms
 from tests import i2b2_mock_data
-from tests.nlp.utils import OpenAITestCase
+from tests.nlp.utils import NlpModelTestCase
 
 
 @ddt.ddt
-class TestCovidSymptomGptResultsTask(OpenAITestCase):
+class TestCovidSymptomGptResultsTask(NlpModelTestCase):
     """Test case for CovidSymptomNlpResultsGpt*Task"""
-
-    MODEL_ID: ClassVar = ["gpt-35-turbo-0125", "gpt-4"]
 
     def default_content(self):
         return CovidSymptoms.model_validate(
@@ -41,8 +38,8 @@ class TestCovidSymptomGptResultsTask(OpenAITestCase):
         The rest of the tests work with gpt 3.5.
         """
         self.make_json("DocumentReference", "doc", **i2b2_mock_data.documentreference())
+        self.mock_azure("gpt-4")
         self.mock_response()
-        self.mock_azure()
 
         task = covid_symptom.CovidSymptomNlpResultsGpt4Task(self.job_config, self.scrubber)
         await task.run()
@@ -50,12 +47,12 @@ class TestCovidSymptomGptResultsTask(OpenAITestCase):
         # Only the model (and sometimes the task version) are unique to the gpt4 task
         self.assertEqual(self.mock_create.call_args_list[0][1]["model"], "gpt-4")
         batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(batch.rows[0]["task_version"], 2)
+        self.assertEqual(batch.rows[0]["task_version"], 3)
 
     async def test_happy_path(self):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
-        self.mock_response(parsed=False)
-        self.mock_azure()
+        self.mock_azure("gpt-35-turbo-0125")
+        self.mock_response(content=self.default_content().model_dump_json(by_alias=True))
 
         task = covid_symptom.CovidSymptomNlpResultsGpt35Task(self.job_config, self.scrubber)
         await task.run()
@@ -93,7 +90,7 @@ class TestCovidSymptomGptResultsTask(OpenAITestCase):
                     "encounter_id": self.codebook.db.resource_hash("67890"),
                     "subject_id": self.codebook.db.resource_hash("12345"),
                     "generated_on": "2021-09-14T21:23:45+00:00",
-                    "task_version": 2,
+                    "task_version": 3,
                     "system_fingerprint": "test-fp",
                     "symptoms": {
                         "congestion_or_runny_nose": True,

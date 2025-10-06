@@ -10,11 +10,11 @@ import pydantic
 from cumulus_etl import common, errors
 from cumulus_etl.etl.studies.example.example_tasks import AgeMention, ExampleGptOss120bTask
 from tests.etl import BaseEtlSimple
-from tests.nlp.utils import OpenAITestCase
+from tests.nlp.utils import NlpModelTestCase
 
 
 @ddt.ddt
-class TestSelection(OpenAITestCase, BaseEtlSimple):
+class TestSelection(NlpModelTestCase, BaseEtlSimple):
     MODEL_ID = "openai/gpt-oss-120b"
 
     def setUp(self):

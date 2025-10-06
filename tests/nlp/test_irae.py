@@ -6,11 +6,11 @@ import ddt
 
 from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantAnnotation
 from tests.etl import BaseEtlSimple
-from tests.nlp.utils import OpenAITestCase
+from tests.nlp.utils import NlpModelTestCase
 
 
 @ddt.ddt
-class TestIraeTask(OpenAITestCase, BaseEtlSimple):
+class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     """Test case for Irae tasks"""
 
     DATA_ROOT = "irae"
@@ -23,7 +23,7 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
     )
     @ddt.unpack
     async def test_basic_etl(self, task_name, model_id):
-        self.mock_azure()
+        self.mock_azure(model_id)
         self.mock_response(
             content=KidneyTransplantAnnotation.model_validate(
                 {
@@ -54,7 +54,7 @@ class TestIraeTask(OpenAITestCase, BaseEtlSimple):
             )
         )
 
-        await self.run_etl(tasks=[task_name])
+        await self.run_etl("--provider=azure", tasks=[task_name])
 
         self.assert_files_equal(
             f"{self.root_path}/output.ndjson",
