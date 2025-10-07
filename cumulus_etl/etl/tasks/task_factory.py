@@ -36,6 +36,7 @@ def get_nlp_tasks() -> list[type[AnyTask]]:
         example.ExampleGpt5Task,
         example.ExampleGptOss120bTask,
         example.ExampleLlama4ScoutTask,
+        irae.IraeClaudeSonnet45Task,
         irae.IraeGptOss120bTask,
         irae.IraeGpt4oTask,
         irae.IraeGpt5Task,

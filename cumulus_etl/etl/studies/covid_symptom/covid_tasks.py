@@ -239,7 +239,7 @@ class CovidSymptoms(pydantic.BaseModel):
     sore_throat: bool = pydantic.Field(alias="Sore throat")
 
 
-class BaseCovidGptTask(tasks.BaseOpenAiTask):
+class BaseCovidGptTask(tasks.BaseModelTask):
     """Covid Symptom study task, using GPT"""
 
     outputs: ClassVar = [tasks.OutputTable(resource_type=None)]
@@ -332,8 +332,9 @@ class CovidSymptomNlpResultsGpt35Task(BaseCovidGptTask):
     name: ClassVar = "covid_symptom__nlp_results_gpt35"
     client_class: ClassVar = nlp.Gpt35Model
 
-    task_version: ClassVar = 2
+    task_version: ClassVar = 3
     # Task Version History:
+    # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-08): Refactor with some changed params **
     #   Sending pydantic class instead of just asking for JSON
     #   temperature: 0
@@ -348,8 +349,9 @@ class CovidSymptomNlpResultsGpt4Task(BaseCovidGptTask):
     name: ClassVar = "covid_symptom__nlp_results_gpt4"
     client_class: ClassVar = nlp.Gpt4Model
 
-    task_version: ClassVar = 2
+    task_version: ClassVar = 3
     # Task Version History:
+    # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-08): Refactor with some changed params **
     #   Sending pydantic class instead of just asking for JSON
     #   temperature: 0

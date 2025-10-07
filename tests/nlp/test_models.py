@@ -1,5 +1,5 @@
 """
-Tests for nlp/openai.py and etl/tasks/nlp_tasks.py.
+Tests for nlp/models.py and etl/tasks/nlp_tasks.py.
 
 Uses some studies as sample tasks, to exercise the full pipeline, but does not do full testing
 of those studies - that code is elsewhere in study-specific test files.
@@ -18,10 +18,11 @@ from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl.studies import covid_symptom, irae
 from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantAnnotation
 from tests import i2b2_mock_data
-from tests.nlp.utils import OpenAITestCase
+from tests.nlp.utils import NlpModelTestCase
 
 
-class TestWithSpansNLPTasks(OpenAITestCase):
+@ddt.ddt
+class TestWithSpansNLPTasks(NlpModelTestCase):
     """Tests local NLP with spans and similar shared/generic code"""
 
     MODEL_ID = "openai/gpt-oss-120b"
@@ -117,28 +118,13 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v2/06ee"
+        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v3/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
             common.read_json(cache_file),
             {
-                "id": "test-id",
-                "choices": [
-                    {
-                        "finish_reason": "stop",
-                        "index": 0,
-                        "message": {
-                            "parsed": self.default_content().model_dump(
-                                mode="json", exclude_unset=True
-                            ),
-                            "role": "assistant",
-                        },
-                    },
-                ],
-                "created": 1723143708,
-                "model": "test-model",
-                "object": "chat.completion",
-                "system_fingerprint": "test-fp",
+                "answer": self.default_content().model_dump(mode="json", exclude_unset=True),
+                "fingerprint": "test-fp",
             },
         )
 
@@ -163,6 +149,11 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         """Verify we check the server properties"""
         # Happy path
         await irae.IraeGptOss120bTask.init_check()
+
+        # Random error bubbles up
+        self.mock_client.models.list = mock.MagicMock(side_effect=SystemExit)
+        with self.assertRaises(SystemExit):
+            await irae.IraeGptOss120bTask.init_check()
 
         # Bad model ID
         self.mock_client.models.list = self.mock_model_list("bogus-model")
@@ -189,7 +180,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
                 "6beb306dc5b91513f353ecdb6aaedee8a9864b3a2f20d91f0d5b27510152acf2",
                 "generated_on": "2021-09-14T21:23:45+00:00",
                 "system_fingerprint": "test-fp",
-                "task_version": 2,
+                "task_version": 3,
             },
         )
 
@@ -264,7 +255,7 @@ class TestWithSpansNLPTasks(OpenAITestCase):
         self.prep_docs()
         self.mock_response(finish_reason="length")
         self.mock_response()
-        await self.assert_failed_doc("NLP server response didn't complete for .*: length")
+        await self.assert_failed_doc("NLP failed for .*: did not complete, .*: length")
 
     async def test_bad_json_error(self):
         self.prep_docs()
@@ -274,12 +265,86 @@ class TestWithSpansNLPTasks(OpenAITestCase):
             "NLP failed for DocumentReference/1: 0 validation errors for Fake error"
         )
 
+    @ddt.data(
+        "Hello\n```json\n%CONTENT%\n```\nGoodbye",
+        "```\n%CONTENT%\n```",
+        "%CONTENT%",
+    )
+    async def test_bedrock_text_parsing(self, text):
+        self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
+        self.mock_bedrock()
+        content = self.default_kidney(dsa_mention={"spans": ["foo"], "has_mention": True})
+        content_text = content.model_dump_json()
+        self.mock_response(content=text.replace("%CONTENT%", content_text))
+
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(self.format.write_records.call_count, 1)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(len(batch.rows), 1)
+        self.assertEqual(
+            batch.rows[0]["result"]["dsa_mention"],
+            {
+                "spans": [(0, 3)],
+                "has_mention": True,
+                "dsa_history": False,
+                "dsa": "None of the above",
+            },
+        )
+
+    async def test_bedrock_tool_use_parsing(self):
+        self.prep_docs()
+        self.mock_bedrock()
+        self.mock_response()
+        # Also test that we handle Claude's injected parameter parent
+        self.mock_response(content={"parameter": self.default_kidney().model_dump()})
+
+        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(self.format.write_records.call_count, 1)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(len(batch.rows), 2)
+
+    async def test_bedrock_tool_bad_stop_reason(self):
+        self.prep_docs()
+        self.mock_bedrock()
+        self.mock_response(finish_reason="blarg")
+        self.mock_response()
+
+        await self.assert_failed_doc(
+            "NLP failed for DocumentReference/1: did not complete, with stop reason: blarg"
+        )
+
+    async def test_bedrock_tool_no_content(self):
+        self.prep_docs()
+        self.mock_bedrock()
+        self.add_response(
+            {
+                "stopReason": "tool_use",
+                "output": {"message": {"content": [{"bogus": "content"}]}},
+            }
+        )
+        self.mock_response()
+
+        await self.assert_failed_doc(
+            "NLP failed for DocumentReference/1: no response content found"
+        )
+
+    @ddt.data(
+        ("local", nlp.ClaudeSonnet45Model),
+        ("azure", nlp.ClaudeSonnet45Model),
+        ("bedrock", nlp.Gpt5Model),
+    )
+    @ddt.unpack
+    async def test_wrong_tool_for_model(self, provider, model):
+        with self.assert_fatal_exit(errors.ARGS_INVALID):
+            self.mock_provider(provider)
+            model()
+
 
 @ddt.ddt
-class TestAzureNLPTasks(OpenAITestCase):
+class TestAzureNLPTasks(NlpModelTestCase):
     """Tests the Azure specific code"""
-
-    MODEL_ID = "gpt-35-turbo-0125"
 
     @ddt.data(
         # env vars to set, success
@@ -289,32 +354,8 @@ class TestAzureNLPTasks(OpenAITestCase):
     )
     @ddt.unpack
     async def test_requires_env(self, names, success):
-        self.mock_azure()
+        self.mock_azure("gpt-35-turbo-0125")
         task = covid_symptom.CovidSymptomNlpResultsGpt35Task(self.job_config, self.scrubber)
-        env = {name: "content" for name in names}
-        self.patch_dict(os.environ, env, clear=True)
-        if success:
-            await task.init_check()
-        else:
-            with self.assertRaises(SystemExit):
-                await task.init_check()
-
-
-@ddt.ddt
-class TestBedrockNLPTasks(OpenAITestCase):
-    """Tests the Bedrock specific code"""
-
-    MODEL_ID = "meta.llama4-scout-17b-instruct-v1:0"
-
-    @ddt.data(
-        # env vars to set, success
-        (["BEDROCK_OPENAI_API_KEY", "BEDROCK_OPENAI_ENDPOINT"], True),
-        (["BEDROCK_OPENAI_API_KEY"], False),
-        (["BEDROCK_OPENAI_ENDPOINT"], False),
-    )
-    @ddt.unpack
-    async def test_requires_env(self, names, success):
-        task = irae.IraeLlama4ScoutTask(self.job_config, self.scrubber)
         env = {name: "content" for name in names}
         self.patch_dict(os.environ, env, clear=True)
         if success:

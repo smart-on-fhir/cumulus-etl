@@ -395,9 +395,10 @@ class KidneyTransplantAnnotation(BaseModel):
     deceased_mention: DeceasedMention
 
 
-class BaseIraeTask(tasks.BaseOpenAiTaskWithSpans):
-    task_version = 2
+class BaseIraeTask(tasks.BaseModelTaskWithSpans):
+    task_version = 3
     # Task Version History:
+    # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
     # ** 1 (2025-08): Updated prompt **
     # ** 0 (2025-08): Initial version **
@@ -447,3 +448,8 @@ class IraeGptOss120bTask(BaseIraeTask):
 class IraeLlama4ScoutTask(BaseIraeTask):
     name = "irae__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
+
+
+class IraeClaudeSonnet45Task(BaseIraeTask):
+    name = "irae__nlp_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model

@@ -15,7 +15,6 @@ import cumulus_fhir_support as cfs
 import pyarrow
 import pydantic
 import rich.progress
-from openai.types import chat
 
 from cumulus_etl import common, fhir, nlp, store
 from cumulus_etl.etl import tasks
@@ -120,8 +119,8 @@ class BaseNlpTask(tasks.EtlTask):
         return TRAILING_WHITESPACE.sub("", note_text)
 
 
-class BaseOpenAiTask(BaseNlpTask):
-    """Base class for any NLP task talking to OpenAI."""
+class BaseModelTask(BaseNlpTask):
+    """Base class for any NLP task talking to LLM models."""
 
     outputs: ClassVar = [tasks.OutputTable(resource_type=None, uniqueness_fields={"note_ref"})]
 
@@ -150,36 +149,20 @@ class BaseOpenAiTask(BaseNlpTask):
             orig_note_ref = f"{orig_note['resourceType']}/{orig_note['id']}"
 
             try:
-                completion_class = chat.ParsedChatCompletion[self.response_format]
-                response = await nlp.cache_wrapper(
-                    self.task_config.dir_phi,
-                    f"{self.name}_v{self.task_version}",
-                    note_text,
-                    lambda x: completion_class.model_validate_json(x),  # from file
-                    lambda x: x.model_dump_json(  # to file
-                        indent=None, round_trip=True, exclude_unset=True, by_alias=True
-                    ),
-                    client.prompt,
+                response = await client.prompt(
                     self.system_prompt,
                     self.get_user_prompt(note_text),
-                    self.response_format,
+                    schema=self.response_format,
+                    cache_dir=self.task_config.dir_phi,
+                    cache_namespace=f"{self.name}_v{self.task_version}",
+                    note_text=note_text,
                 )
             except Exception as exc:
                 logging.warning(f"NLP failed for {orig_note_ref}: {exc}")
                 self.add_error(orig_note)
                 continue
 
-            choice = response.choices[0]
-
-            if choice.finish_reason != "stop" or not choice.message.parsed:
-                logging.warning(
-                    f"NLP server response didn't complete for {orig_note_ref}: "
-                    f"{choice.finish_reason}"
-                )
-                self.add_error(orig_note)
-                continue
-
-            parsed = choice.message.parsed.model_dump(mode="json")
+            parsed = response.answer.model_dump(mode="json")
             self.post_process(parsed, orig_note_text, orig_note)
 
             yield {
@@ -189,7 +172,7 @@ class BaseOpenAiTask(BaseNlpTask):
                 # Since this date is stored as a string, use UTC time for easy comparisons
                 "generated_on": common.datetime_now().isoformat(),
                 "task_version": self.task_version,
-                "system_fingerprint": response.system_fingerprint,
+                "system_fingerprint": response.fingerprint,
                 "result": parsed,
             }
 
@@ -252,7 +235,7 @@ class BaseOpenAiTask(BaseNlpTask):
         raise ValueError(f"Unsupported type {annotation}")  # pragma: no cover
 
 
-class BaseOpenAiTaskWithSpans(BaseOpenAiTask):
+class BaseModelTaskWithSpans(BaseModelTask):
     """
     When the response includes spans, we need to do extra processing.
 

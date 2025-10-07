@@ -9,29 +9,48 @@ from openai.types import chat
 from tests.etl import TaskTestCase
 
 
-class OpenAITestCase(TaskTestCase):
-    """Sets up some OpenAI mocks for you"""
+class NlpModelTestCase(TaskTestCase):
+    """Sets up some NLP model mocks for you"""
 
     MODEL_ID = None
 
     def setUp(self):
         super().setUp()
+        self.mock_local(self.MODEL_ID)
+        self.responses = []
+
+    def mock_provider(self, provider: str) -> None:
+        self.patch("cumulus_etl.nlp.models._provider_name", new=provider)
+
+    def mock_openai(self, model_id: str) -> None:
         self.mock_client = mock.MagicMock()
         self.mock_create = mock.AsyncMock()
         self.mock_client.chat.completions.parse = self.mock_create
-        self.mock_client.models.list = self.mock_model_list(self.MODEL_ID)
         self.mock_client_factory = self.patch("openai.AsyncOpenAI")
         self.mock_client_factory.return_value = self.mock_client
+        self.mock_client.models.list = self.mock_model_list(model_id)
 
-        self.responses = []
-
-    def mock_azure(self):
+    def mock_azure(self, model_id: str) -> None:
+        self.mode = "azure"
+        self.mock_provider(self.mode)
+        self.mock_openai(model_id)
         self.patch_dict(os.environ, {"AZURE_OPENAI_API_KEY": "?", "AZURE_OPENAI_ENDPOINT": "?"})
         self.mock_azure_factory = self.patch("openai.AsyncAzureOpenAI")
         self.mock_azure_factory.return_value = self.mock_client
 
-    def mock_bedrock(self):
-        self.patch_dict(os.environ, {"BEDROCK_OPENAI_API_KEY": "?", "BEDROCK_OPENAI_ENDPOINT": "?"})
+    def mock_bedrock(self) -> None:
+        self.mode = "bedrock"
+        self.mock_provider(self.mode)
+        self.mock_client = mock.MagicMock()
+        self.mock_create = mock.MagicMock()
+        self.mock_client_factory = self.patch("cumulus_etl.nlp.models.boto3.client")
+        self.mock_client_factory.return_value = self.mock_client
+        self.mock_client.converse = self.mock_create
+
+    def mock_local(self, model_id: str) -> None:
+        self.mode = "local"
+        self.mock_provider(self.mode)
+        self.mock_openai(model_id)
 
     @staticmethod
     def mock_model_list(models: str | list[str] = "", *, error: bool = False):
@@ -55,27 +74,51 @@ class OpenAITestCase(TaskTestCase):
 
         return EmptyModel()
 
+    def add_response(self, response: dict) -> None:
+        self.responses.append(response)
+        self.mock_create.side_effect = self.responses
+
     def mock_response(
         self,
         *,
-        finish_reason: str = "stop",
-        content: pydantic.BaseModel | None = None,
-        parsed: bool = True,
+        finish_reason: str | None = None,
+        content: pydantic.BaseModel | dict | str | None = None,
     ) -> None:
         content = content or self.default_content()
-        message_args = (
-            {"parsed": content} if parsed else {"content": content.model_dump_json(by_alias=True)}
-        )
-        message = chat.ParsedChatCompletionMessage(**message_args, role="assistant")
 
-        self.responses.append(
-            chat.ParsedChatCompletion(
-                id="test-id",
-                choices=[chat.ParsedChoice(finish_reason=finish_reason, index=0, message=message)],
-                created=1723143708,
-                model="test-model",
-                object="chat.completion",
-                system_fingerprint="test-fp",
-            ),
-        )
-        self.mock_create.side_effect = self.responses
+        if self.mode == "bedrock":
+            if isinstance(content, str):
+                default_stop = "end_turn"
+                message = {"text": content}
+            else:
+                default_stop = "tool_use"
+                if isinstance(content, pydantic.BaseModel):
+                    content = content.model_dump(by_alias=True)
+                message = {"toolUse": {"input": content}}
+            self.add_response(
+                {
+                    "stopReason": finish_reason or default_stop,
+                    "output": {"message": {"content": [message]}},
+                }
+            )
+        else:
+            if isinstance(content, str):
+                message_args = {"content": content}
+            else:
+                message_args = {"parsed": content}
+            message = chat.ParsedChatCompletionMessage(**message_args, role="assistant")
+
+            self.add_response(
+                chat.ParsedChatCompletion(
+                    id="test-id",
+                    choices=[
+                        chat.ParsedChoice(
+                            finish_reason=finish_reason or "stop", index=0, message=message
+                        )
+                    ],
+                    created=1723143708,
+                    model="test-model",
+                    object="chat.completion",
+                    system_fingerprint="test-fp",
+                ),
+            )
