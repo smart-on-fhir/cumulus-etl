@@ -298,7 +298,7 @@ class Llama4ScoutModel(Model):
     AZURE_ID = "Llama-4-Scout-17B-16E-Instruct"
     BEDROCK_ID = "us.meta.llama4-scout-17b-instruct-v1:0"
     COMPOSE_ID = "llama4-scout"
-    VLLM_INFO = ("nvidia/Llama-4-Scout-17B-16E-Instruct-FP8", "LLAMA4_SCOUT", 8087)
+    VLLM_INFO = ("nvidia/Llama-4-Scout-17B-16E-Instruct-FP4", "LLAMA4_SCOUT", 8087)
 
 
 class ClaudeSonnet45Model(Model):
