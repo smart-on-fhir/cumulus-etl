@@ -145,7 +145,7 @@ services:
     # Needs 80GB of GPU memory. A g6.12xlarge EC2 instance should work.
     # Docs: https://docs.vllm.ai/projects/recipes/en/latest/OpenAI/GPT-OSS.html
     extends: common-base
-    image: vllm/vllm-openai:gptoss  # TODO: once stabilized, revert to main releases
+    image: vllm/vllm-openai:v0.10.2
     environment:
       - VLLM_ATTENTION_BACKEND=TRITON_ATTN_VLLM_V1  # needed for NVIDIA A10 and A100 chips
     command:
@@ -154,7 +154,7 @@ services:
       # If you update anything here that could affect NLP results, consider updating the
       # task_version of any tasks that use this docker.
       - --model=openai/gpt-oss-120b
-      - --revision=bc75b44b8a2a116a0e4c6659bcd1b7969885f423
+      - --revision=b5c939de8f754692c1647ca79fbf85e8c1e70f8a
       - --tensor-parallel-size=4
     shm_size: 32G
     healthcheck:
@@ -178,18 +178,17 @@ services:
     # Needs 80GB of GPU memory. A g6.12xlarge EC2 instance should work.
     # Docs: https://docs.vllm.ai/projects/recipes/en/latest/Llama/Llama4-Scout.html
     extends: common-base
-    image: vllm/vllm-openai:v0.10.0
+    image: vllm/vllm-openai:v0.11.0
     environment:
       - HF_TOKEN
       - HUGGING_FACE_HUB_TOKEN
-      - VLLM_ATTENTION_BACKEND=TRITON_ATTN_VLLM_V1  # needed for NVIDIA A10 and A100 chips
     command:
       - --download-dir=/data
       - --port=8087
       # If you update anything here that could affect NLP results, consider updating the
       # task_version of any tasks that use this docker.
-      - --model=nvidia/Llama-4-Scout-17B-16E-Instruct-FP8
-      - --revision=d1cf1e9db03b67e10422f97f38c8b546dec14789
+      - --model=nvidia/Llama-4-Scout-17B-16E-Instruct-FP4
+      - --revision=5588d5387bb37753ee29cde60e76910efc7fb4a9
       - --tensor-parallel-size=4
     shm_size: 32G
     healthcheck:
