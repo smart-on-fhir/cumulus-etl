@@ -2,7 +2,13 @@
 name = "cumulus-etl"
 requires-python = ">= 3.11"
 dependencies = [
-    "aiobotocore < 2.22.0",  # FIXME: temp hotfix for dependency version madness - remove later
+    # Manually specify aiobotocore with a boto3 extra, to avoid some dependency hell.
+    # (fsspec -> s3fs -> aiobotocore -> botocore are all tightly pinned - adding the boto3 here
+    # avoids a lot of backtracking on pip's part to old versions for some reason).
+    # Search "fsspec aiobotocore boto3" for more details and other frustrated people.
+    # (The 2.14.0 lower bound is to help the resolver align with our boto3 requirements quicker.)
+    "aiobotocore[boto3] >= 2.14.0",
+    "boto3 >= 1.34.131",
     "ctakesclient >= 5.1",
     "cumulus-fhir-support >= 1.6",
     "delta-spark >= 4, < 5",
