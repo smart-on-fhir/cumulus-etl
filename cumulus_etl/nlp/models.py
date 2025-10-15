@@ -2,6 +2,7 @@
 
 import abc
 import dataclasses
+import datetime
 import json
 import os
 from collections.abc import Iterable
@@ -46,7 +47,28 @@ class PromptResponse:
         return PromptResponse(answer, **serialized)
 
 
+@dataclasses.dataclass(kw_only=True)
+class TokenStats:
+    new_input_tokens: int = 0
+    cache_read_input_tokens: int = 0
+    cache_written_input_tokens: int = 0
+    output_tokens: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class TokenPrices:
+    date: datetime.date  # when these prices were last updated
+    # These values are in dollars per 1,000-tokens (e.g. $0.0165/1000-tokens)
+    new_input_tokens: float
+    cache_read_input_tokens: float = 0
+    cache_written_input_tokens: float = 0
+    output_tokens: float
+
+
 class Provider(abc.ABC):
+    def __init__(self):
+        self.stats = TokenStats()
+
     async def post_init_check(self) -> None:
         pass  # pragma: no cover
 
@@ -56,8 +78,13 @@ class Provider(abc.ABC):
 
 
 class BedrockProvider(Provider):
-    def __init__(self, model_name: str):
+    def __init__(
+        self, model_name: str, *, supports_cache: bool = True, supports_schema: bool = True
+    ):
+        super().__init__()
         self.model_name = model_name
+        self.supports_cache = supports_cache
+        self.supports_schema = supports_schema
         self.client = boto3.client("bedrock-runtime")
 
     async def prompt(self, system: str, user: str, schema: type[BaseModel]) -> PromptResponse:
@@ -71,10 +98,8 @@ class BedrockProvider(Provider):
         #
         # Also, some models *don't* support this approach at all, and will error out if you provide
         # the toolChoice field. So let's skip those here.
-        supports_schema = self.model_name not in {"us.meta.llama4-scout-17b-instruct-v1:0"}
-
         extra_args = {}
-        if supports_schema:
+        if self.supports_schema:
             extra_args = {
                 "toolConfig": {
                     "tools": [
@@ -84,19 +109,31 @@ class BedrockProvider(Provider):
                                 "description": "convert to JSON",
                                 "inputSchema": {"json": schema.model_json_schema()},
                             },
-                        }
+                        },
                     ],
                     "toolChoice": {"tool": {"name": "to_json"}},
                 },
             }
+            if self.supports_cache:
+                extra_args["toolConfig"]["tools"].append({"cachePoint": {"type": "default"}})
+
+        system_prompts = [{"text": system}]
+        if self.supports_cache:
+            system_prompts.append({"cachePoint": {"type": "default"}})
 
         response = self.client.converse(
             modelId=self.model_name,
-            system=[{"text": system}],
+            system=system_prompts,
             messages=[{"role": "user", "content": [{"text": user}]}],
             inferenceConfig={"temperature": 0},
             **extra_args,
         )
+
+        usage = response.get("usage", {})
+        self.stats.cache_read_input_tokens += usage.get("cacheReadInputTokens", 0)
+        self.stats.cache_written_input_tokens += usage.get("cacheWriteInputTokens", 0)
+        self.stats.new_input_tokens += usage.get("inputTokens", 0)
+        self.stats.output_tokens += usage.get("outputTokens", 0)
 
         stop_reason = response.get("stopReason")
         if stop_reason not in {"end_turn", "tool_use"}:
@@ -129,6 +166,7 @@ class BedrockProvider(Provider):
 
 class OpenAIProvider(Provider):
     def __init__(self, model_name: str, client: openai.AsyncOpenAI):
+        super().__init__()
         self.model_name = model_name
         self.client = client
 
@@ -161,11 +199,18 @@ class OpenAIProvider(Provider):
             response_format=schema if supports_schema else {"type": "json_object"},
         )
 
+        if response.usage:
+            cached_tokens = 0
+            if response.usage.prompt_tokens_details:
+                cached_tokens = response.usage.prompt_tokens_details.cached_tokens or 0
+            self.stats.cache_read_input_tokens += cached_tokens
+            self.stats.new_input_tokens += response.usage.prompt_tokens - cached_tokens
+            self.stats.output_tokens += response.usage.completion_tokens
+
         choice = response.choices[0]
         if supports_schema:
             parsed = choice.message.parsed
         else:
-            print(choice.message.content)
             parsed = schema.model_validate_json(choice.message.content)
 
         if choice.finish_reason != "stop" or not parsed:
@@ -204,7 +249,11 @@ class VllmProvider(OpenAIProvider):
 
 class Model:
     AZURE_ID = None  # model name in MS Azure
+    AZURE_PRICES: TokenPrices | None = None
     BEDROCK_ID = None  # model name in AWS Bedrock
+    BEDROCK_PRICES: TokenPrices | None = None
+    BEDROCK_CACHE = True  # turns on caching
+    BEDROCK_SCHEMA = True  # turns on JSON schema support
     COMPOSE_ID = None  # docker service name in compose.yaml
     VLLM_INFO = None  # tuple of vLLM model name, env var stem use for URL, plus default port
 
@@ -221,6 +270,8 @@ class Model:
         )
 
     def __init__(self):
+        self.prices = None
+
         if _provider_name == "azure":
             if not self.AZURE_ID:
                 self.raise_unsupported_error()
@@ -231,11 +282,17 @@ class Model:
                     errors.ARGS_INVALID,
                 )
             self.provider = AzureProvider(self.AZURE_ID)
+            self.prices = self.AZURE_PRICES
 
         elif _provider_name == "bedrock":
             if not self.BEDROCK_ID:
                 self.raise_unsupported_error()
-            self.provider = BedrockProvider(self.BEDROCK_ID)
+            self.provider = BedrockProvider(
+                self.BEDROCK_ID,
+                supports_cache=self.BEDROCK_CACHE,
+                supports_schema=self.BEDROCK_SCHEMA,
+            )
+            self.prices = self.BEDROCK_PRICES
 
         else:
             if not self.COMPOSE_ID:
@@ -243,6 +300,10 @@ class Model:
             self.provider = VllmProvider(
                 self.COMPOSE_ID, self.VLLM_INFO[0], self.VLLM_INFO[1], self.VLLM_INFO[2]
             )
+
+    @property
+    def stats(self) -> TokenStats:
+        return self.provider.stats
 
     # override to add your own checks
     async def post_init_check(self) -> None:
@@ -273,33 +334,88 @@ class Model:
 
 class Gpt35Model(Model):  # deprecated, do not use in new code (doesn't support JSON schemas)
     AZURE_ID = "gpt-35-turbo-0125"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "gpt-35-turbo-0125"
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.00055,
+        output_tokens=0.00165,
+    )
 
 
 class Gpt4Model(Model):
     AZURE_ID = "gpt-4"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "GPT-4" with 32K context
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.06,
+        output_tokens=0.12,
+    )
 
 
 class Gpt4oModel(Model):
     AZURE_ID = "gpt-4o"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "GPT-4o-2024-1120 Global"
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.0025,
+        cache_read_input_tokens=0.00125,
+        output_tokens=0.01,
+    )
 
 
 class Gpt5Model(Model):
     AZURE_ID = "gpt-5"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "GPT-5 2025-08-07 Global"
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.00125,
+        cache_read_input_tokens=0.00013,
+        output_tokens=0.01,
+    )
 
 
 class GptOss120bModel(Model):
     AZURE_ID = "gpt-oss-120b"
+    # AZURE_PRICES = TokenPrices(...)  # TODO: find online
     BEDROCK_ID = "openai.gpt-oss-120b-1:0"
+    BEDROCK_CACHE = False
+    BEDROCK_PRICES = TokenPrices(
+        # https://aws.amazon.com/bedrock/pricing/ for us-east-1
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.00015,
+        output_tokens=0.0006,
+    )
     COMPOSE_ID = "gpt-oss-120b"
     VLLM_INFO = ("openai/gpt-oss-120b", "GPT_OSS_120B", 8086)
 
 
 class Llama4ScoutModel(Model):
     AZURE_ID = "Llama-4-Scout-17B-16E-Instruct"
+    # AZURE_PRICES = TokenPrices(...)  # TODO: find online
     BEDROCK_ID = "us.meta.llama4-scout-17b-instruct-v1:0"
+    BEDROCK_CACHE = False
+    BEDROCK_SCHEMA = False
+    BEDROCK_PRICES = TokenPrices(
+        # https://aws.amazon.com/bedrock/pricing/ for us-east-1
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.00017,
+        output_tokens=0.00066,
+    )
     COMPOSE_ID = "llama4-scout"
     VLLM_INFO = ("nvidia/Llama-4-Scout-17B-16E-Instruct-FP4", "LLAMA4_SCOUT", 8087)
 
 
 class ClaudeSonnet45Model(Model):
     BEDROCK_ID = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    BEDROCK_PRICES = TokenPrices(
+        # https://aws.amazon.com/bedrock/pricing/ for us-east-1
+        date=datetime.date(2025, 10, 15),
+        new_input_tokens=0.0033,
+        cache_read_input_tokens=0.00033,
+        cache_written_input_tokens=0.004125,
+        output_tokens=0.0165,
+    )

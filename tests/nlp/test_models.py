@@ -277,7 +277,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         content_text = content.model_dump_json()
         self.mock_response(content=text.replace("%CONTENT%", content_text))
 
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeClaudeSonnet45Task(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -328,6 +328,30 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
 
         await self.assert_failed_doc(
             "NLP failed for DocumentReference/1: no response content found"
+        )
+
+    @ddt.data("azure", "bedrock")
+    async def test_usage_recorded(self, provider):
+        self.prep_docs()
+        if provider == "azure":
+            self.mock_azure("gpt-oss-120b")
+        else:
+            self.mock_bedrock()
+        self.mock_response(usage=(1, 2, 4, 8))
+        self.mock_response(usage=(16, 32, 64, 128))
+
+        task = irae.IraeGptOss120bTask(self.job_config, self.scrubber)
+        await task.run()
+
+        self.assertEqual(
+            task.model.stats,
+            nlp.TokenStats(
+                new_input_tokens=17,
+                cache_read_input_tokens=34,
+                # Only bedrock uses cache writing (other providers do it transparently)
+                cache_written_input_tokens=68 if provider == "bedrock" else 0,
+                output_tokens=136,
+            ),
         )
 
     @ddt.data(

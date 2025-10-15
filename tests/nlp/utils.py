@@ -4,7 +4,7 @@ from unittest import mock
 import httpx
 import openai
 import pydantic
-from openai.types import chat
+from openai.types import chat, completion_usage
 
 from tests.etl import TaskTestCase
 
@@ -83,6 +83,7 @@ class NlpModelTestCase(TaskTestCase):
         *,
         finish_reason: str | None = None,
         content: pydantic.BaseModel | dict | str | None = None,
+        usage: tuple[int, int, int, int] | None = None,  # input, cache-read, cache-write, output
     ) -> None:
         content = content or self.default_content()
 
@@ -95,12 +96,18 @@ class NlpModelTestCase(TaskTestCase):
                 if isinstance(content, pydantic.BaseModel):
                     content = content.model_dump(by_alias=True)
                 message = {"toolUse": {"input": content}}
-            self.add_response(
-                {
-                    "stopReason": finish_reason or default_stop,
-                    "output": {"message": {"content": [message]}},
+            response = {
+                "stopReason": finish_reason or default_stop,
+                "output": {"message": {"content": [message]}},
+            }
+            if usage:
+                response["usage"] = {
+                    "inputTokens": usage[0],
+                    "cacheReadInputTokens": usage[1],
+                    "cacheWriteInputTokens": usage[2],
+                    "outputTokens": usage[3],
                 }
-            )
+            self.add_response(response)
         else:
             if isinstance(content, str):
                 message_args = {"content": content}
@@ -116,6 +123,14 @@ class NlpModelTestCase(TaskTestCase):
                             finish_reason=finish_reason or "stop", index=0, message=message
                         )
                     ],
+                    usage=completion_usage.CompletionUsage(
+                        completion_tokens=usage[3] if usage else 0,
+                        prompt_tokens=(usage[0] + usage[1]) if usage else 0,
+                        total_tokens=0,
+                        prompt_tokens_details=completion_usage.PromptTokensDetails(
+                            cached_tokens=usage[1] if usage else 0
+                        ),
+                    ),
                     created=1723143708,
                     model="test-model",
                     object="chat.completion",

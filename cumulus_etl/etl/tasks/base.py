@@ -155,6 +155,8 @@ class EtlTask:
                 for formatter in self.formatters:
                     formatter.finalize()
 
+        self.finish_task()
+
         return self.summaries
 
     @classmethod
@@ -445,6 +447,11 @@ class EtlTask:
         :returns: False if this task should be skipped and end immediately
         """
         return True
+
+    def finish_task(self) -> None:
+        """
+        If your subclass needs to do any final cleanup or reporting, override this.
+        """
 
     def pop_current_group_values(self, table_index: int) -> set[str]:
         """
