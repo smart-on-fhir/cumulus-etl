@@ -101,6 +101,7 @@ jobs:
 
           # Run the NLP task
           docker compose run --rm \
+            --pull never \
             --volume $DATADIR:/in \
             cumulus-etl \
             nlp \
