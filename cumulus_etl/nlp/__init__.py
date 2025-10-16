@@ -9,6 +9,7 @@ from .models import (
     Gpt35Model,
     GptOss120bModel,
     Llama4ScoutModel,
+    TokenStats,
     set_nlp_provider,
 )
 from .selection import CsvMatcher, add_note_selection, get_note_filter, query_athena_table

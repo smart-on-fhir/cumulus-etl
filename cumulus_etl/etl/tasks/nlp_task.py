@@ -15,6 +15,7 @@ import cumulus_fhir_support as cfs
 import pyarrow
 import pydantic
 import rich.progress
+import rich.table
 
 from cumulus_etl import common, fhir, nlp, store
 from cumulus_etl.etl import tasks
@@ -130,13 +131,15 @@ class BaseModelTask(BaseNlpTask):
     client_class: ClassVar = None
     response_format: ClassVar = None
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model = self.client_class()
+
     @classmethod
     async def init_check(cls) -> None:
         await cls.client_class().post_init_check()
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
-        client = self.client_class()
-
         async for orig_note, note, orig_note_text in self.read_notes(progress=progress):
             try:
                 note_ref, encounter_id, subject_id = nlp.get_note_info(note)
@@ -149,7 +152,7 @@ class BaseModelTask(BaseNlpTask):
             orig_note_ref = f"{orig_note['resourceType']}/{orig_note['id']}"
 
             try:
-                response = await client.prompt(
+                response = await self.model.prompt(
                     self.system_prompt,
                     self.get_user_prompt(note_text),
                     schema=self.response_format,
@@ -175,6 +178,33 @@ class BaseModelTask(BaseNlpTask):
                 "system_fingerprint": response.fingerprint,
                 "result": parsed,
             }
+
+    def finish_task(self) -> None:
+        stats = self.model.stats
+        rich.print("\n Token usage:")
+        table = rich.table.Table("", "", box=None, show_header=False)
+        table.add_row(" New input tokens:", f"{stats.new_input_tokens:,}")
+        table.add_row(" Input tokens read from cache:", f"{stats.cache_read_input_tokens:,}")
+        if stats.cache_written_input_tokens:
+            # This stat is only relevant for bedrock, so only show it if it's used
+            table.add_row(
+                " Input tokens written to cache:", f"{stats.cache_written_input_tokens:,}"
+            )
+        table.add_row(" Output tokens:", f"{stats.output_tokens:,}")
+
+        # Estimate cost, if provided
+        if prices := self.model.prices:
+            cost = (
+                stats.new_input_tokens * prices.new_input_tokens
+                + stats.cache_read_input_tokens * prices.cache_read_input_tokens
+                + stats.cache_written_input_tokens * prices.cache_written_input_tokens
+                + stats.output_tokens * prices.output_tokens
+            )
+            cost /= 1_000  # all prices are "per 1,000 tokens"
+            when = prices.date.strftime("%b %Y")
+            table.add_row(f" Estimated cost (as of {when}):", f"${cost:.2f}")
+
+        rich.get_console().print(table)
 
     @classmethod
     def get_user_prompt(cls, note_text: str) -> str:
