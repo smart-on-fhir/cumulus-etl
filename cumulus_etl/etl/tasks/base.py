@@ -371,6 +371,9 @@ class EtlTask:
     #
     ##########################################################################################
 
+    def read_ndjson_from_disk(self, input_root: store.Root, resource: str) -> Iterator[dict]:
+        yield from common.read_resource_ndjson(input_root, resource)
+
     def read_ndjson(
         self, *, progress: rich.progress.Progress | None = None, resources: list[str] | None = None
     ) -> Iterator[dict]:
@@ -399,7 +402,7 @@ class EtlTask:
         # You may want to process all linked resources first, and only then the "real" resource
         # (like we do for Medications and MedicationRequests).
         for resource in resources:
-            for line in common.read_resource_ndjson(input_root, resource):
+            for line in self.read_ndjson_from_disk(input_root, resource):
                 yield line
                 if progress:
                     progress.advance(row_task)

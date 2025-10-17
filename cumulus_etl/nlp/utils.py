@@ -1,5 +1,6 @@
 """Misc NLP functions"""
 
+import datetime
 import hashlib
 import os
 from collections.abc import Callable
@@ -35,7 +36,7 @@ async def is_note_valid(codebook: deid.Codebook, note: dict) -> bool:
 
 def get_note_info(note: dict) -> tuple[str, str, str]:
     """
-    Returns note_ref, encounter_id, subject_id for the given DocRef/DxReport.
+    Returns note_ref, encounter_id, subject_ref for the given DocRef/DxReport.
 
     Raises KeyError if any of them aren't present.
     """
@@ -44,10 +45,43 @@ def get_note_info(note: dict) -> tuple[str, str, str]:
     if not encounters:  # check for dxreport encounter field
         encounters = [note["encounter"]] if "encounter" in note else []
     if not encounters:
-        raise KeyError(f"No encounters for note {note_ref}")
+        raise KeyError(f"No encounters for note '{note_ref}'")
     _, encounter_id = fhir.unref_resource(encounters[0])
-    _, subject_id = fhir.unref_resource(note["subject"])
-    return note_ref, encounter_id, subject_id
+    subject_ref = get_note_subject_ref(note)
+    if not subject_ref:
+        raise KeyError(f"No subject for note '{note_ref}'")
+    return note_ref, encounter_id, subject_ref
+
+
+def get_note_subject_ref(note: dict) -> str | None:
+    """Returns the subject ref of a note, suitable for cross-referencing across notes"""
+    try:
+        subject_type, subject_id = fhir.unref_resource(note.get("subject"))
+    except ValueError:
+        return None
+
+    if subject_type:
+        return f"{subject_type}/{subject_id}"
+    else:
+        # avoids dealing with contained refs or other oddities that won't match across notes
+        return None
+
+
+def get_note_date(note: dict) -> datetime.datetime | None:
+    """Returns the date of a note - preferring clinical dates, then administrative ones"""
+    if note.get("resourceType") == "DiagnosticReport":
+        if time := fhir.parse_datetime(note.get("effectiveDateTime")):
+            return time
+        if time := fhir.parse_datetime(note.get("effectivePeriod", {}).get("start")):
+            return time
+        if time := fhir.parse_datetime(note.get("issued")):
+            return time
+    elif note.get("resourceType") == "DocumentReference":
+        if time := fhir.parse_datetime(note.get("context", {}).get("period", {}).get("start")):
+            return time
+        if time := fhir.parse_datetime(note.get("date")):
+            return time
+    return None
 
 
 async def cache_wrapper(

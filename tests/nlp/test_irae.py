@@ -1,5 +1,6 @@
 """Tests for etl/studies/irae/"""
 
+import base64
 import json
 
 import ddt
@@ -17,6 +18,30 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     """Test case for Irae tasks"""
 
     DATA_ROOT = "irae"
+
+    @staticmethod
+    def longitudinal_content(**kwargs):
+        content = {
+            "donor_transplant_date_mention": {"has_mention": False, "spans": []},
+            "donor_type_mention": {"has_mention": False, "spans": []},
+            "donor_relationship_mention": {"has_mention": False, "spans": []},
+            "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
+            "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
+            "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
+            "rx_compliance_mention": {"has_mention": False, "spans": []},
+            "dsa_mention": {"has_mention": False, "spans": []},
+            "infection_mention": {"has_mention": False, "spans": []},
+            "viral_infection_mention": {"has_mention": False, "spans": []},
+            "bacterial_infection_mention": {"has_mention": False, "spans": []},
+            "fungal_infection_mention": {"has_mention": False, "spans": []},
+            "graft_rejection_mention": {"has_mention": False, "spans": []},
+            "graft_failure_mention": {"has_mention": False, "spans": []},
+            "ptld_mention": {"has_mention": False, "spans": []},
+            "cancer_mention": {"has_mention": False, "spans": []},
+            "deceased_mention": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return KidneyTransplantLongitudinalAnnotation.model_validate(content)
 
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
@@ -39,27 +64,14 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             )
         )
         self.mock_response(
-            content=KidneyTransplantLongitudinalAnnotation.model_validate(
-                {
-                    "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
-                    "rx_compliance_mention": {"has_mention": False, "spans": []},
-                    "dsa_mention": {"has_mention": False, "spans": []},
-                    "infection_mention": {"has_mention": False, "spans": []},
-                    "viral_infection_mention": {"has_mention": False, "spans": []},
-                    "bacterial_infection_mention": {"has_mention": False, "spans": []},
-                    "fungal_infection_mention": {"has_mention": False, "spans": []},
-                    "graft_rejection_mention": {"has_mention": False, "spans": []},
-                    "graft_failure_mention": {"has_mention": False, "spans": []},
-                    "ptld_mention": {"has_mention": False, "spans": []},
-                    "cancer_mention": {"has_mention": False, "spans": []},
-                    # Have one with some real data, just to confirm it converts and gets to end
-                    "deceased_mention": {
-                        "has_mention": True,
-                        "spans": ["note"],
-                        "deceased": True,
-                        "deceased_date": "2025-10-10",
-                    },
-                }
+            content=self.longitudinal_content(
+                # Have a little real data, just to confirm it converts and gets to end
+                deceased_mention={
+                    "has_mention": True,
+                    "spans": ["note"],
+                    "deceased": True,
+                    "deceased_date": "2025-10-10",
+                },
             )
         )
 
@@ -156,3 +168,100 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             },
             self.mock_create.call_args_list[1][1],
         )
+
+    async def test_ordered_by_date(self):
+        self.mock_azure("gpt-oss-120b")
+
+        self.input_dir = self.make_tempdir()
+
+        def prep_doc(year: str, add_date: bool = True) -> None:
+            text = f"note {year}"
+            kwargs = {
+                "subject": {"reference": "Patient/x"},
+                "context": {"encounter": [{"reference": "Encounter/x"}]},
+                "content": [
+                    {
+                        "attachment": {
+                            "contentType": "text/plain",
+                            "data": base64.standard_b64encode(text.encode()).decode(),
+                        },
+                    },
+                ],
+            }
+            if add_date:
+                kwargs["date"] = f"{year}-01-01"
+            self.make_json("DocumentReference", year, **kwargs)
+            self.mock_response(content=self.longitudinal_content())
+
+        prep_doc("2022")
+        prep_doc("2021")
+        prep_doc("2024")
+        prep_doc("null", add_date=True)
+        prep_doc("2023")
+
+        await self.run_etl(
+            "--provider=azure", tasks=["irae__nlp_gpt_oss_120b"], input_path=self.input_dir
+        )
+
+        last_words = [
+            x[1]["messages"][1]["content"].split()[-1] for x in self.mock_create.call_args_list
+        ]
+        self.assertEqual(last_words, ["2021", "2022", "2023", "2024", "null"])
+
+    async def test_early_exit(self):
+        self.mock_azure("gpt-oss-120b")
+
+        self.input_dir = self.make_tempdir()
+
+        def prep_doc(
+            patient: str,
+            year: str,
+            deceased: bool = False,
+            failed: bool = False,
+            skip_mock: bool = False,
+        ) -> None:
+            text = f"note {year}"
+            kwargs = {
+                "subject": {"reference": f"Patient/{patient}"},
+                "context": {"encounter": [{"reference": "Encounter/x"}]},
+                "content": [
+                    {
+                        "attachment": {
+                            "contentType": "text/plain",
+                            "data": base64.standard_b64encode(text.encode()).decode(),
+                        }
+                    }
+                ],
+            }
+            self.make_json("DocumentReference", year, **kwargs)
+            if not skip_mock:
+                kwargs = {}
+                if deceased:
+                    kwargs["deceased_mention"] = {
+                        "has_mention": True,
+                        "spans": [],
+                        "deceased": True,
+                    }
+                if failed:
+                    kwargs["graft_failure_mention"] = {
+                        "has_mention": True,
+                        "spans": [],
+                        "graft_failure": "Kidney graft has failed or kidney graft loss",
+                    }
+                self.mock_response(content=self.longitudinal_content(**kwargs))
+
+        prep_doc("p1", "2020")
+        prep_doc("p1", "2021", deceased=True)
+        prep_doc("p1", "2022", skip_mock=True)
+        prep_doc("p2", "2023")
+        prep_doc("p2", "2024", failed=True)
+        prep_doc("p2", "2025", skip_mock=True)
+
+        await self.run_etl(
+            "--provider=azure", tasks=["irae__nlp_gpt_oss_120b"], input_path=self.input_dir
+        )
+
+        last_words = [
+            x[1]["messages"][1]["content"].split()[-1] for x in self.mock_create.call_args_list
+        ]
+        self.assertEqual(last_words, ["2020", "2021", "2023", "2024"])

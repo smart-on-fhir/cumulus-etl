@@ -14,7 +14,7 @@ from .models import (
     set_nlp_provider,
 )
 from .selection import CsvMatcher, add_note_selection, get_note_filter, query_athena_table
-from .utils import cache_wrapper, get_note_info, is_note_valid
+from .utils import cache_wrapper, get_note_date, get_note_info, get_note_subject_ref, is_note_valid
 from .watcher import (
     check_ctakes,
     check_negation_cnlpt,

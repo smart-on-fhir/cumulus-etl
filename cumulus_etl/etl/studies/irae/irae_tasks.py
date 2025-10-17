@@ -1,10 +1,14 @@
 """Define tasks for the irae study"""
 
+import datetime
+import logging
+from collections.abc import Generator, Iterator
 from enum import StrEnum
 
+import cumulus_fhir_support as cfs
 from pydantic import BaseModel, Field
 
-from cumulus_etl import nlp
+from cumulus_etl import common, nlp, store
 from cumulus_etl.etl import tasks
 
 
@@ -453,61 +457,124 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
     )
 
 
-class IraeDonorGpt4oTask(BaseIraeTask):
+class BaseDonorIraeTask(BaseIraeTask):
+    response_format = KidneyTransplantDonorGroupAnnotation
+
+
+class BaseLongitudinalIraeTask(BaseIraeTask):
+    response_format = KidneyTransplantLongitudinalAnnotation
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.subject_refs_to_skip = set()
+
+    @staticmethod
+    def ndjson_in_order(input_root: store.Root, resource: str) -> Generator[dict]:
+        # To avoid loading all the notes into memory, we'll first go through each note, and keep
+        # track of their byte offset on disk and their date. Then we'll grab each from disk in
+        # order.
+
+        # Get a list of all files we're going to be working with here
+        filenames = common.ls_resources(input_root, {resource})
+
+        # Go through all files, keeping a record of each line's dates and offsets.
+        note_info = []
+        for file_index, path in enumerate(filenames):
+            for row in cfs.read_multiline_json_with_details(path, fsspec_fs=input_root.fs):
+                date = nlp.get_note_date(row["json"]) or datetime.datetime.max
+                note_info.append((date, file_index, row["byte_offset"]))
+
+        # Now yield each note again in order, reading each from disk
+        note_info.sort()
+        for _date, file_index, offset in note_info:
+            rows = cfs.read_multiline_json_with_details(
+                filenames[file_index],
+                offset=offset,
+                fsspec_fs=input_root.fs,
+            )
+            # StopIteration errors shouldn't happen here, because we just went through these
+            # files above, but just to be safe, we'll gracefully intercept it.
+            try:
+                yield next(rows)["json"]
+            except StopIteration:  # pragma: no cover
+                logging.warning(
+                    f"File '{filenames[file_index]}' changed while reading, skipping some notes."
+                )
+                continue
+
+    # Override the read-from-disk portion, so we can order notes in oldest-to-newest order
+    def read_ndjson_from_disk(self, input_root: store.Root, resource: str) -> Iterator[dict]:
+        yield from self.ndjson_in_order(input_root, resource)
+
+    def should_skip(self, orig_note: dict) -> bool:
+        subject_ref = nlp.get_note_subject_ref(orig_note)
+        return subject_ref in self.subject_refs_to_skip or super().should_skip(orig_note)
+
+    def post_process(self, parsed: dict, orig_note_text: str, orig_note: dict) -> None:
+        super().post_process(parsed, orig_note_text, orig_note)
+
+        # If we have an annotation that asserts a graft failure or deceased,
+        # we can stop processing charts for that patient, to avoid pointless NLP requests.
+
+        graft_failure = parsed.get("graft_failure_mention", {})
+        is_failed = (
+            graft_failure.get("has_mention")
+            and graft_failure.get("graft_failure") == GraftFailurePresent.CONFIRMED
+        )
+
+        deceased = parsed.get("deceased_mention", {})
+        is_deceased = deceased.get("has_mention") and deceased.get("deceased")
+
+        if is_failed or is_deceased:
+            if subject_ref := nlp.get_note_subject_ref(orig_note):
+                self.subject_refs_to_skip.add(subject_ref)
+
+
+class IraeDonorGpt4oTask(BaseDonorIraeTask):
     name = "irae__nlp_donor_gpt4o"
     client_class = nlp.Gpt4oModel
-    response_format = KidneyTransplantDonorGroupAnnotation
 
 
-class IraeLongitudinalGpt4oTask(BaseIraeTask):
+class IraeLongitudinalGpt4oTask(BaseLongitudinalIraeTask):
     name = "irae__nlp_gpt4o"
     client_class = nlp.Gpt4oModel
-    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeDonorGpt5Task(BaseIraeTask):
+class IraeDonorGpt5Task(BaseDonorIraeTask):
     name = "irae__nlp_donor_gpt5"
     client_class = nlp.Gpt5Model
-    response_format = KidneyTransplantDonorGroupAnnotation
 
 
-class IraeLongitudinalGpt5Task(BaseIraeTask):
+class IraeLongitudinalGpt5Task(BaseLongitudinalIraeTask):
     name = "irae__nlp_gpt5"
     client_class = nlp.Gpt5Model
-    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeDonorGptOss120bTask(BaseIraeTask):
+class IraeDonorGptOss120bTask(BaseDonorIraeTask):
     name = "irae__nlp_donor_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
-    response_format = KidneyTransplantDonorGroupAnnotation
 
 
-class IraeLongitudinalGptOss120bTask(BaseIraeTask):
+class IraeLongitudinalGptOss120bTask(BaseLongitudinalIraeTask):
     name = "irae__nlp_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
-    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeDonorLlama4ScoutTask(BaseIraeTask):
+class IraeDonorLlama4ScoutTask(BaseDonorIraeTask):
     name = "irae__nlp_donor_llama4_scout"
     client_class = nlp.Llama4ScoutModel
-    response_format = KidneyTransplantDonorGroupAnnotation
 
 
-class IraeLongitudinalLlama4ScoutTask(BaseIraeTask):
+class IraeLongitudinalLlama4ScoutTask(BaseLongitudinalIraeTask):
     name = "irae__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
-    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeDonorClaudeSonnet45Task(BaseIraeTask):
+class IraeDonorClaudeSonnet45Task(BaseDonorIraeTask):
     name = "irae__nlp_donor_claude_sonnet45"
     client_class = nlp.ClaudeSonnet45Model
-    response_format = KidneyTransplantDonorGroupAnnotation
 
 
-class IraeLongitudinalClaudeSonnet45Task(BaseIraeTask):
+class IraeLongitudinalClaudeSonnet45Task(BaseLongitudinalIraeTask):
     name = "irae__nlp_claude_sonnet45"
     client_class = nlp.ClaudeSonnet45Model
-    response_format = KidneyTransplantLongitudinalAnnotation
