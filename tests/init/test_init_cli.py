@@ -34,6 +34,8 @@ class TestInit(utils.AsyncTestCase):
         self.assertIn("patient", dirs)
         self.assertIn("medicationrequest", dirs)
         self.assertIn("medication", dirs)  # secondary table
+        self.assertIn("etl__completion_encounters", dirs)  # custom ETL table
+        self.assertIn("etl__completion", dirs)  # another custom ETL table
         self.assertIn("JobConfig", dirs)  # so that the dir is flagged as an ETL dir by 'convert'
 
         # Are folder contents what we expect?
