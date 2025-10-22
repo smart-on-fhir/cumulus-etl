@@ -16,7 +16,7 @@ import pydantic
 
 from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl.studies import covid_symptom, irae
-from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantAnnotation
+from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantLongitudinalAnnotation
 from tests import i2b2_mock_data
 from tests.nlp.utils import NlpModelTestCase
 
@@ -27,13 +27,8 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
 
     MODEL_ID = "openai/gpt-oss-120b"
 
-    def default_kidney(self, **kwargs) -> KidneyTransplantAnnotation:
+    def default_kidney(self, **kwargs) -> KidneyTransplantLongitudinalAnnotation:
         model_dict = {
-            "donor_transplant_date_mention": {"has_mention": False, "spans": []},
-            "donor_type_mention": {"has_mention": False, "spans": []},
-            "donor_relationship_mention": {"has_mention": False, "spans": []},
-            "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
-            "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
             "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
             "rx_compliance_mention": {"has_mention": False, "spans": []},
             "dsa_mention": {"has_mention": False, "spans": []},
@@ -48,7 +43,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             "deceased_mention": {"has_mention": False, "spans": []},
         }
         model_dict.update(kwargs)
-        return KidneyTransplantAnnotation.model_validate(model_dict)
+        return KidneyTransplantLongitudinalAnnotation.model_validate(model_dict)
 
     def default_content(self) -> pydantic.BaseModel:
         return self.default_kidney()
@@ -60,7 +55,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.make_json("DocumentReference", "2", **i2b2_mock_data.documentreference("bar"))
 
     async def assert_failed_doc(self, msg: str):
-        task = irae.IraeGptOss120bTask(self.job_config, self.scrubber)
+        task = irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber)
         with self.assertLogs(level="WARN") as cm:
             await task.run()
 
@@ -115,10 +110,10 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.assertFalse(os.path.exists(f"{self.phi_dir}/nlp-cache"))
 
         self.mock_response()
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v3/06ee"
+        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v4/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
             common.read_json(cache_file),
@@ -128,13 +123,13 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             },
         )
 
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
         self.assertEqual(self.mock_create.call_count, 1)
 
         # Confirm that if we remove the cache file, we call the endpoint again
         self.mock_response()
         os.remove(cache_file)
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
         self.assertEqual(self.mock_create.call_count, 2)
 
     async def test_init_check_unreachable(self):
@@ -142,28 +137,28 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.mock_client.models.list = self.mock_model_list(error=True)
 
         with self.assertRaises(SystemExit) as cm:
-            await irae.IraeGptOss120bTask.init_check()
+            await irae.IraeLongitudinalGptOss120bTask.init_check()
         self.assertEqual(errors.SERVICE_MISSING, cm.exception.code)
 
     async def test_init_check_config(self):
         """Verify we check the server properties"""
         # Happy path
-        await irae.IraeGptOss120bTask.init_check()
+        await irae.IraeLongitudinalGptOss120bTask.init_check()
 
         # Random error bubbles up
         self.mock_client.models.list = mock.MagicMock(side_effect=SystemExit)
         with self.assertRaises(SystemExit):
-            await irae.IraeGptOss120bTask.init_check()
+            await irae.IraeLongitudinalGptOss120bTask.init_check()
 
         # Bad model ID
         self.mock_client.models.list = self.mock_model_list("bogus-model")
         with self.assert_fatal_exit(errors.SERVICE_MISSING):
-            await irae.IraeGptOss120bTask.init_check()
+            await irae.IraeLongitudinalGptOss120bTask.init_check()
 
     async def test_output_fields(self):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
         self.mock_response()
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -180,7 +175,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
                 "6beb306dc5b91513f353ecdb6aaedee8a9864b3a2f20d91f0d5b27510152acf2",
                 "generated_on": "2021-09-14T21:23:45+00:00",
                 "system_fingerprint": "test-fp",
-                "task_version": 3,
+                "task_version": 4,
             },
         )
 
@@ -191,7 +186,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             **i2b2_mock_data.documentreference("Test   \n  lines  "),
         )
         self.mock_response()
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
         kwargs = self.mock_create.call_args.kwargs
@@ -219,7 +214,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
                 }
             )
         )
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -229,7 +224,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         )
 
     async def test_span_conversion_in_schema(self):
-        schema = irae.IraeGptOss120bTask.get_schema(None, [])
+        schema = irae.IraeLongitudinalGptOss120bTask.get_schema(None, [])
         result_index = schema.get_field_index("result")
         result_type = schema.field(result_index).type
         dsa_index = result_type.get_field_index("dsa_mention")  # spot check one of the structs
@@ -277,7 +272,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         content_text = content.model_dump_json()
         self.mock_response(content=text.replace("%CONTENT%", content_text))
 
-        await irae.IraeClaudeSonnet45Task(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalClaudeSonnet45Task(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -299,7 +294,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         # Also test that we handle Claude's injected parameter parent
         self.mock_response(content={"parameter": self.default_kidney().model_dump()})
 
-        await irae.IraeGptOss120bTask(self.job_config, self.scrubber).run()
+        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -340,7 +335,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.mock_response(usage=(1, 2, 4, 8))
         self.mock_response(usage=(16, 32, 64, 128))
 
-        task = irae.IraeGptOss120bTask(self.job_config, self.scrubber)
+        task = irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber)
         await task.run()
 
         self.assertEqual(

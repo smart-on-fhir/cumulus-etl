@@ -1,6 +1,7 @@
 """Base NLP task support"""
 
 import copy
+import json
 import logging
 import os
 import re
@@ -126,10 +127,10 @@ class BaseModelTask(BaseNlpTask):
     outputs: ClassVar = [tasks.OutputTable(resource_type=None, uniqueness_fields={"note_ref"})]
 
     # If you change these prompts, consider updating task_version.
-    system_prompt: ClassVar = None
-    user_prompt: ClassVar = None
-    client_class: ClassVar = None
-    response_format: ClassVar = None
+    system_prompt: str = None
+    user_prompt: str = None
+    client_class: type[nlp.Model] = None
+    response_format: type[pydantic.BaseModel] = None
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -153,7 +154,7 @@ class BaseModelTask(BaseNlpTask):
 
             try:
                 response = await self.model.prompt(
-                    self.system_prompt,
+                    self.get_system_prompt(),
                     self.get_user_prompt(note_text),
                     schema=self.response_format,
                     cache_dir=self.task_config.dir_phi,
@@ -205,6 +206,12 @@ class BaseModelTask(BaseNlpTask):
             table.add_row(f" Estimated cost (as of {when}):", f"${cost:.2f}")
 
         rich.get_console().print(table)
+
+    @classmethod
+    def get_system_prompt(cls) -> str:
+        return cls.system_prompt.replace(
+            "%JSON-SCHEMA%", json.dumps(cls.response_format.model_json_schema())
+        )
 
     @classmethod
     def get_user_prompt(cls, note_text: str) -> str:
