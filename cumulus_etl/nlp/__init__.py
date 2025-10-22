@@ -9,6 +9,7 @@ from .models import (
     Gpt35Model,
     GptOss120bModel,
     Llama4ScoutModel,
+    Model,
     TokenStats,
     set_nlp_provider,
 )

@@ -1,6 +1,5 @@
 """Define tasks for the irae study"""
 
-import json
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -10,7 +9,7 @@ from cumulus_etl.etl import tasks
 
 
 class SpanAugmentedMention(BaseModel):
-    has_mention: bool | None  # True, False, or None
+    has_mention: bool  # True, False
     spans: list[str]
 
 
@@ -23,7 +22,10 @@ class SpanAugmentedMention(BaseModel):
 
 # Dates are treated as strings - no enum needed
 class DonorTransplantDateMention(SpanAugmentedMention):
-    donor_transplant_date: str | None = Field(None, description="Date of renal transplant")
+    donor_transplant_date: str | None = Field(
+        None,
+        description="Exact date of renal transplant; use YYYY-MM-DD format in your response. Only highlight date mentions with an explicit day, month, and year (e.g. 2020-01-15). All other date mentions, or an absence of a date mention, should be indicated with None.",
+    )
 
 
 class DonorType(StrEnum):
@@ -51,9 +53,11 @@ class DonorRelationshipMention(SpanAugmentedMention):
 
 
 class DonorHlaMatchQuality(StrEnum):
-    WELL = "Well matched (0-1 mismatches)"
-    MODERATE = "Moderately matched (2-4 mismatches)"
-    POOR = "Poorly matched (5-6 mismatches)"
+    WELL = "Well matched (0-1 mismatches) OR recipient explicitly documented as not sensitized"
+    MODERATE = (
+        "Moderately matched (2-4 mismatches) OR recipient explicitly documented as sensitized"
+    )
+    POOR = "Poorly matched (5-6 mismatches) OR recipient explicitly documented as highly sensitized"
     NOT_MENTIONED = "HLA match quality not mentioned"
 
 
@@ -354,7 +358,7 @@ class DeceasedMention(SpanAugmentedMention):
     deceased_date: str | None = Field(
         None,
         description=(
-            "If the patient is deceased, include the date the patient became deceased. "
+            "If the patient is deceased, include the date the patient became deceased. Use YYYY-MM-DD format if possible. "
             "Use None if there is no date recorded or if the patient is not observed as deceased."
         ),
     )
@@ -365,7 +369,7 @@ class DeceasedMention(SpanAugmentedMention):
 ###############################################################################
 
 
-class KidneyTransplantAnnotation(BaseModel):
+class KidneyTransplantDonorGroupAnnotation(BaseModel):
     """
     An object-model for annotations of immune related adverse event (IRAE)
     observations found in a patient's chart, relating specifically to kidney
@@ -381,6 +385,24 @@ class KidneyTransplantAnnotation(BaseModel):
     donor_relationship_mention: DonorRelationshipMention
     donor_hla_match_quality_mention: DonorHlaMatchQualityMention
     donor_hla_mismatch_count_mention: DonorHlaMismatchCountMention
+
+
+class KidneyTransplantLongitudinalAnnotation(BaseModel):
+    """
+    An object-model for annotations of immune related adverse event (IRAE)
+    observations found in a patient's chart, relating specifically to kidney
+    transplants.
+
+    This class only includes longitudinally variable mentions, i.e. those
+    that can change over time, such as therapeutic status, compliance, infections,
+    graft rejection/failure, DSA, PTLD, cancer, and deceased status.
+
+    Take care to avoid false positives, like confusing information that only
+    appears in family history for patient history. Annotations should indicate
+    the relevant details of the finding, as well as some additional evidence
+    metadata to validate findings post-hoc.
+    """
+
     rx_therapeutic_status_mention: RxTherapeuticStatusMention
     rx_compliance_mention: RxComplianceMention
     dsa_mention: DSAMention
@@ -396,8 +418,9 @@ class KidneyTransplantAnnotation(BaseModel):
 
 
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
-    task_version = 3
+    task_version = 4
     # Task Version History:
+    # ** 4 (2025-10): Split into donor & longitudinal models **
     # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
     # ** 1 (2025-08): Updated prompt **
@@ -419,7 +442,8 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
         "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
         "\n"
-        "Pydantic Schema:\n" + json.dumps(KidneyTransplantAnnotation.model_json_schema())
+        "Pydantic Schema:\n"
+        "%JSON-SCHEMA%"
     )
     user_prompt = (
         "Evaluate the following clinical document for kidney transplant variables and outcomes.\n"
@@ -427,29 +451,63 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
         "\n"
         "%CLINICAL-NOTE%"
     )
-    response_format = KidneyTransplantAnnotation
 
 
-class IraeGpt4oTask(BaseIraeTask):
+class IraeDonorGpt4oTask(BaseIraeTask):
+    name = "irae__nlp_donor_gpt4o"
+    client_class = nlp.Gpt4oModel
+    response_format = KidneyTransplantDonorGroupAnnotation
+
+
+class IraeLongitudinalGpt4oTask(BaseIraeTask):
     name = "irae__nlp_gpt4o"
     client_class = nlp.Gpt4oModel
+    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeGpt5Task(BaseIraeTask):
+class IraeDonorGpt5Task(BaseIraeTask):
+    name = "irae__nlp_donor_gpt5"
+    client_class = nlp.Gpt5Model
+    response_format = KidneyTransplantDonorGroupAnnotation
+
+
+class IraeLongitudinalGpt5Task(BaseIraeTask):
     name = "irae__nlp_gpt5"
     client_class = nlp.Gpt5Model
+    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeGptOss120bTask(BaseIraeTask):
+class IraeDonorGptOss120bTask(BaseIraeTask):
+    name = "irae__nlp_donor_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+    response_format = KidneyTransplantDonorGroupAnnotation
+
+
+class IraeLongitudinalGptOss120bTask(BaseIraeTask):
     name = "irae__nlp_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
+    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeLlama4ScoutTask(BaseIraeTask):
+class IraeDonorLlama4ScoutTask(BaseIraeTask):
+    name = "irae__nlp_donor_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+    response_format = KidneyTransplantDonorGroupAnnotation
+
+
+class IraeLongitudinalLlama4ScoutTask(BaseIraeTask):
     name = "irae__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
+    response_format = KidneyTransplantLongitudinalAnnotation
 
 
-class IraeClaudeSonnet45Task(BaseIraeTask):
+class IraeDonorClaudeSonnet45Task(BaseIraeTask):
+    name = "irae__nlp_donor_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+    response_format = KidneyTransplantDonorGroupAnnotation
+
+
+class IraeLongitudinalClaudeSonnet45Task(BaseIraeTask):
     name = "irae__nlp_claude_sonnet45"
     client_class = nlp.ClaudeSonnet45Model
+    response_format = KidneyTransplantLongitudinalAnnotation

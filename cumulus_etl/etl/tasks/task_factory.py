@@ -1,5 +1,6 @@
 """Finds and creates ETL tasks"""
 
+import inspect
 import sys
 from collections.abc import Iterable
 from typing import TypeVar
@@ -25,22 +26,15 @@ def get_all_tasks() -> list[type[AnyTask]]:
     ]
 
 
+def get_classes_from_module(module) -> list[type[AnyTask]]:
+    return [x[1] for x in inspect.getmembers(module, inspect.isclass)]
+
+
 def get_nlp_tasks() -> list[type[AnyTask]]:
     return [
-        covid_symptom.CovidSymptomNlpResultsGpt35Task,
-        covid_symptom.CovidSymptomNlpResultsGpt4Task,
-        covid_symptom.CovidSymptomNlpResultsTask,
-        covid_symptom.CovidSymptomNlpResultsTermExistsTask,
-        example.ExampleGpt4Task,
-        example.ExampleGpt4oTask,
-        example.ExampleGpt5Task,
-        example.ExampleGptOss120bTask,
-        example.ExampleLlama4ScoutTask,
-        irae.IraeClaudeSonnet45Task,
-        irae.IraeGptOss120bTask,
-        irae.IraeGpt4oTask,
-        irae.IraeGpt5Task,
-        irae.IraeLlama4ScoutTask,
+        *get_classes_from_module(covid_symptom),
+        *get_classes_from_module(example),
+        *get_classes_from_module(irae),
     ]
 
 
