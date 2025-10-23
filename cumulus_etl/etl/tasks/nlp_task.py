@@ -142,8 +142,11 @@ class BaseModelTask(BaseNlpTask):
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
         async for orig_note, note, orig_note_text in self.read_notes(progress=progress):
+            if self.should_skip(orig_note):
+                continue
+
             try:
-                note_ref, encounter_id, subject_id = nlp.get_note_info(note)
+                note_ref, encounter_id, subject_ref = nlp.get_note_info(note)
             except KeyError as exc:
                 logging.warning(exc)
                 self.add_error(orig_note)
@@ -172,7 +175,7 @@ class BaseModelTask(BaseNlpTask):
             yield {
                 "note_ref": note_ref,
                 "encounter_ref": f"Encounter/{encounter_id}",
-                "subject_ref": f"Patient/{subject_id}",
+                "subject_ref": subject_ref,
                 # Since this date is stored as a string, use UTC time for easy comparisons
                 "generated_on": common.datetime_now().isoformat(),
                 "task_version": self.task_version,
@@ -217,6 +220,10 @@ class BaseModelTask(BaseNlpTask):
     def get_user_prompt(cls, note_text: str) -> str:
         prompt = cls.user_prompt or "%CLINICAL-NOTE%"
         return prompt.replace("%CLINICAL-NOTE%", note_text)
+
+    def should_skip(self, orig_note: dict) -> bool:
+        """Subclasses can fill this out if they like, to skip notes"""
+        return False
 
     def post_process(self, parsed: dict, orig_note_text: str, orig_note: dict) -> None:
         """Subclasses can fill this out if they like"""

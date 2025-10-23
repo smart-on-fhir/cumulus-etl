@@ -55,23 +55,6 @@ async def gather_resources(
     )
 
 
-def datetime_from_resource(resource: dict) -> datetime.datetime | None:
-    """Returns the date of a resource - preferring clinical dates, then administrative ones"""
-    if resource["resourceType"] == "DiagnosticReport":
-        if time := fhir.parse_datetime(resource.get("effectiveDateTime")):
-            return time
-        if time := fhir.parse_datetime(resource.get("effectivePeriod", {}).get("start")):
-            return time
-        if time := fhir.parse_datetime(resource.get("issued")):
-            return time
-    elif resource["resourceType"] == "DocumentReference":
-        if time := fhir.parse_datetime(resource.get("context", {}).get("period", {}).get("start")):
-            return time
-        if time := fhir.parse_datetime(resource.get("date")):
-            return time
-    return None
-
-
 def _get_encounter_id(resource: dict) -> str | None:
     encounter_ref = None
     if resource["resourceType"] == "DiagnosticReport":
@@ -158,7 +141,7 @@ async def read_notes_from_ndjson(
                 doc_spans=doc_spans,
                 title=title,
                 text=text,
-                date=datetime_from_resource(resource),
+                date=nlp.get_note_date(resource),
             )
         )
 

@@ -32,7 +32,7 @@ async def covid_symptoms_extract(
     :return: list of NLP results encoded as FHIR observations
     """
     try:
-        note_ref, encounter_id, subject_id = nlp.get_note_info(docref)
+        note_ref, encounter_id, subject_ref = nlp.get_note_info(docref)
     except KeyError as exc:
         logging.warning(exc)
         return None
@@ -108,7 +108,7 @@ async def covid_symptoms_extract(
             "id": row_id,
             "docref_id": docref_id,
             "encounter_id": encounter_id,
-            "subject_id": subject_id,
+            "subject_id": subject_ref.split("/")[-1],
             "generated_on": timestamp,
             "task_version": task_version,
             "match": match,

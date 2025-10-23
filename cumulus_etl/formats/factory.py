@@ -16,4 +16,4 @@ def get_format_class(name: str) -> type[Format]:
     try:
         return classes[name]
     except KeyError as exc:
-        raise ValueError(f"Unknown output format name {name}.") from exc
+        raise ValueError(f"Unknown output format name '{name}'.") from exc

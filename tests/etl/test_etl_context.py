@@ -14,6 +14,7 @@ class TestJobContext(utils.AsyncTestCase):
     def test_missing_file_context(self):
         context = JobContext("nope")
         self.assertEqual({}, context.as_json())
+        self.assertIsNone(context.last_successful_datetime)
 
     def test_save_and_load(self):
         with tempfile.NamedTemporaryFile(mode="w+") as f:
