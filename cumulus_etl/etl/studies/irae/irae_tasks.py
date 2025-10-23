@@ -510,8 +510,8 @@ class BaseLongitudinalIraeTask(BaseIraeTask):
         subject_ref = nlp.get_note_subject_ref(orig_note)
         return subject_ref in self.subject_refs_to_skip or super().should_skip(orig_note)
 
-    def post_process(self, parsed: dict, orig_note_text: str, orig_note: dict) -> None:
-        super().post_process(parsed, orig_note_text, orig_note)
+    def post_process(self, parsed: dict, details: tasks.NoteDetails) -> None:
+        super().post_process(parsed, details)
 
         # If we have an annotation that asserts a graft failure or deceased,
         # we can stop processing charts for that patient, to avoid pointless NLP requests.
@@ -526,7 +526,7 @@ class BaseLongitudinalIraeTask(BaseIraeTask):
         is_deceased = deceased.get("has_mention") and deceased.get("deceased")
 
         if is_failed or is_deceased:
-            if subject_ref := nlp.get_note_subject_ref(orig_note):
+            if subject_ref := nlp.get_note_subject_ref(details.orig_note):
                 self.subject_refs_to_skip.add(subject_ref)
 
 
