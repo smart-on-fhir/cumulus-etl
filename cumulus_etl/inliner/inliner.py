@@ -219,5 +219,5 @@ async def _inline_one_attachment(
     # Overwrite other associated metadata with latest info (existing metadata might now be stale)
     attachment["contentType"] = f"{mimetype}; charset={response.encoding}"
     attachment["size"] = len(response.content)
-    sha1_hash = hashlib.sha1(response.content).digest()  # noqa: S324
+    sha1_hash = hashlib.sha1(response.content, usedforsecurity=False).digest()
     attachment["hash"] = base64.standard_b64encode(sha1_hash).decode("ascii")
