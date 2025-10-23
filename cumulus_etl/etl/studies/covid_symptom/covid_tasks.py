@@ -155,7 +155,7 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
             # But the current approach instead focuses purely on accuracy and makes sure that we zero-out any dangling
             # entries for groups that we do process.
             # Downstream SQL can ignore the above cases itself, as needed.
-            self.seen_docrefs.add(docref["id"])
+            self.seen_groups.add(docref["id"])
 
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.

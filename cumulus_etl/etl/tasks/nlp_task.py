@@ -1,6 +1,7 @@
 """Base NLP task support"""
 
 import copy
+import dataclasses
 import json
 import logging
 import os
@@ -54,11 +55,11 @@ class BaseNlpTask(tasks.EtlTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.seen_docrefs = set()
+        self.seen_groups = set()
 
     def pop_current_group_values(self, table_index: int) -> set[str]:
-        values = self.seen_docrefs
-        self.seen_docrefs = set()
+        values = self.seen_groups
+        self.seen_groups = set()
         return values
 
     def add_error(self, docref: dict) -> None:
@@ -121,10 +122,28 @@ class BaseNlpTask(tasks.EtlTask):
         return TRAILING_WHITESPACE.sub("", note_text)
 
 
+@dataclasses.dataclass(kw_only=True)
+class NoteDetails:
+    note_ref: str
+    encounter_id: str
+    subject_ref: str
+
+    note_text: str
+    note: dict
+
+    orig_note_ref: str
+    orig_note_text: str
+    orig_note: dict
+
+
 class BaseModelTask(BaseNlpTask):
     """Base class for any NLP task talking to LLM models."""
 
-    outputs: ClassVar = [tasks.OutputTable(resource_type=None, uniqueness_fields={"note_ref"})]
+    outputs: ClassVar = [
+        tasks.OutputTable(
+            resource_type=None, uniqueness_fields={"note_ref"}, group_field="note_ref"
+        )
+    ]
 
     # If you change these prompts, consider updating task_version.
     system_prompt: str = None
@@ -155,33 +174,48 @@ class BaseModelTask(BaseNlpTask):
             note_text = self.remove_trailing_whitespace(orig_note_text)
             orig_note_ref = f"{orig_note['resourceType']}/{orig_note['id']}"
 
-            try:
-                response = await self.model.prompt(
-                    self.get_system_prompt(),
-                    self.get_user_prompt(note_text),
-                    schema=self.response_format,
-                    cache_dir=self.task_config.dir_phi,
-                    cache_namespace=f"{self.name}_v{self.task_version}",
-                    note_text=note_text,
-                )
-            except Exception as exc:
-                logging.warning(f"NLP failed for {orig_note_ref}: {exc}")
-                self.add_error(orig_note)
-                continue
+            details = NoteDetails(
+                note_ref=note_ref,
+                encounter_id=encounter_id,
+                subject_ref=subject_ref,
+                note_text=note_text,
+                note=note,
+                orig_note_ref=orig_note_ref,
+                orig_note_text=orig_note_text,
+                orig_note=orig_note,
+            )
 
-            parsed = response.answer.model_dump(mode="json")
-            self.post_process(parsed, orig_note_text, orig_note)
+            if result := await self.process_note(details):
+                yield result
 
-            yield {
-                "note_ref": note_ref,
-                "encounter_ref": f"Encounter/{encounter_id}",
-                "subject_ref": subject_ref,
-                # Since this date is stored as a string, use UTC time for easy comparisons
-                "generated_on": common.datetime_now().isoformat(),
-                "task_version": self.task_version,
-                "system_fingerprint": response.fingerprint,
-                "result": parsed,
-            }
+    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
+        try:
+            response = await self.model.prompt(
+                self.get_system_prompt(),
+                self.get_user_prompt(details.note_text),
+                schema=self.response_format,
+                cache_dir=self.task_config.dir_phi,
+                cache_namespace=f"{self.name}_v{self.task_version}",
+                note_text=details.note_text,
+            )
+        except Exception as exc:
+            logging.warning(f"NLP failed for {details.orig_note_ref}: {exc}")
+            self.add_error(details.orig_note)
+            return None
+
+        parsed = response.answer.model_dump(mode="json")
+        self.post_process(parsed, details.orig_note_text, details.orig_note)
+
+        return {
+            "note_ref": details.note_ref,
+            "encounter_ref": f"Encounter/{details.encounter_id}",
+            "subject_ref": details.subject_ref,
+            # Since this date is stored as a string, use UTC time for easy comparisons
+            "generated_on": common.datetime_now().isoformat(),
+            "task_version": self.task_version,
+            "system_fingerprint": response.fingerprint,
+            "result": parsed,
+        }
 
     def finish_task(self) -> None:
         stats = self.model.stats
