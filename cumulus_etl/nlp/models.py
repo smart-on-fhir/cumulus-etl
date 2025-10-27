@@ -144,8 +144,12 @@ class BedrockProvider(Provider):
             if "toolUse" in content:
                 raw_json = content["toolUse"]["input"]
                 # Sometimes (e.g. with claude sonnet 4.5) we get a wrapper field of "parameter"
-                if len(raw_json) == 1 and "parameter" in raw_json:
-                    raw_json = raw_json["parameter"]
+                # or "$PARAMETER_NAME" :shrug: - for now, just look for those names in particular.
+                # If we see a wider variety, we can try to skip any single wrapper field, but I
+                # want to keep the option of studies that have only one top level field for now.
+                top_keys = set(raw_json)
+                if len(top_keys) == 1 and {"parameter", "$PARAMETER_NAME"} & top_keys:
+                    raw_json = raw_json.popitem()[1]
                 answer = schema.model_validate(raw_json)
                 break
             if "text" in content:

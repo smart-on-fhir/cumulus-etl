@@ -24,10 +24,10 @@ jobs:
         python-version: ["3.11"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -37,7 +37,7 @@ jobs:
           pip install .[tests]
 
       - name: Check out MS tool
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: microsoft/Tools-for-Health-Data-Anonymization
           path: mstool
@@ -77,7 +77,7 @@ jobs:
     env:
       UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Docker
         uses: docker/setup-buildx-action@v3
@@ -122,7 +122,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install linters
         run: |
