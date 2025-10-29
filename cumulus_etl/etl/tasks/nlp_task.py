@@ -192,29 +192,39 @@ class BaseModelTask(BaseNlpTask):
                 logging.warning(f"NLP failed for {orig_note_ref}: {exc}")
                 self.add_error(orig_note)
 
-    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
-        response = await self.model.prompt(
+    async def process_note(
+        self, details: NoteDetails, *, count: int = 1
+    ) -> tasks.EntryBundle | None:
+        responses = await self.model.prompt(
             self.get_system_prompt(),
             self.get_user_prompt(details.note_text),
             schema=self.response_format,
             cache_dir=self.task_config.dir_phi,
             cache_namespace=f"{self.name}_v{self.task_version}",
             note_text=details.note_text,
+            count=count,
         )
 
-        parsed = response.answer.model_dump(mode="json")
-        self.post_process(parsed, details)
+        self.seen_groups.add(details.note_ref)
 
-        return {
-            "note_ref": details.note_ref,
-            "encounter_ref": f"Encounter/{details.encounter_id}",
-            "subject_ref": details.subject_ref,
-            # Since this date is stored as a string, use UTC time for easy comparisons
-            "generated_on": common.datetime_now().isoformat(),
-            "task_version": self.task_version,
-            "system_fingerprint": response.fingerprint,
-            "result": parsed,
-        }
+        entries = []
+        for index, response in enumerate(responses):
+            parsed = response.answer.model_dump(mode="json")
+            self.post_process(parsed, details)
+            entries.append(
+                {
+                    "note_ref": details.note_ref,
+                    "encounter_ref": f"Encounter/{details.encounter_id}",
+                    "subject_ref": details.subject_ref,
+                    # Since this date is stored as a string, use UTC time for easy comparisons
+                    "generated_on": common.datetime_now().isoformat(),
+                    "task_version": self.task_version,
+                    "system_fingerprint": response.fingerprint,
+                    "vote": index + 1,
+                    "result": parsed,
+                }
+            )
+        return entries
 
     def finish_task(self) -> None:
         stats = self.model.stats
@@ -272,6 +282,7 @@ class BaseModelTask(BaseNlpTask):
                 pyarrow.field("generated_on", pyarrow.string()),
                 pyarrow.field("task_version", pyarrow.int32()),
                 pyarrow.field("system_fingerprint", pyarrow.string()),
+                pyarrow.field("vote", pyarrow.int32()),
                 pyarrow.field("result", result_schema),
             ]
         )

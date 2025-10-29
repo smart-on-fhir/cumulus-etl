@@ -424,6 +424,7 @@ class KidneyTransplantLongitudinalAnnotation(BaseModel):
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
     task_version = 4
     # Task Version History:
+    # ** 5 (2025-10): Voting **
     # ** 4 (2025-10): Split into donor & longitudinal models **
     # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
@@ -455,6 +456,50 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
         "\n"
         "%CLINICAL-NOTE%"
     )
+
+    async def process_note(self, details: tasks.NoteDetails, **kwargs) -> tasks.EntryBundle | None:
+        results = await super().process_note(details, count=3)
+        results.append(self.merge_votes(details, results))
+        return results
+
+    def merge_votes(self, details: tasks.NoteDetails, votes: list[dict]) -> dict:
+        merged = votes[0].copy()
+        merged["vote"] = 0  # use zero to flag the consensus view
+        merged["result"] = {}  # start empty, for cleanliness
+
+        for key in votes[0]["result"]:
+            merged["result"][key] = self.merge_stanzas(
+                details, [vote["result"][key] for vote in votes]
+            )
+
+        return merged
+
+    def merge_stanzas(self, details: tasks.NoteDetails, stanzas: list[dict]) -> dict:
+        # Note! This assumes that all stanzas are SpanAugmentedMention-derived.
+
+        # Determine which value wins the vote
+        values = [self.get_mention_value(stanza) for stanza in stanzas]
+        winning_value = max(values, key=values.count)
+
+        # Use the first matching value's spans (rather than write an overlap-merging algorithm)
+        for stanza in stanzas:
+            value = self.get_mention_value(stanza)
+            if winning_value == value:
+                if values.count(winning_value) < len(stanzas):
+                    print(
+                        "MIKE: winner", details.orig_note_ref, stanza, values.count(winning_value)
+                    )
+                return stanza
+
+        # Should not reach here, the value should be in the list!
+        raise RuntimeError("Stanza value missing from list")  # pragma: no cover
+
+    @staticmethod
+    def get_mention_value(stanza: dict) -> dict:
+        """Returns just the clinically relevant portions (no spans)"""
+        value = stanza.copy()
+        value.pop("spans", None)
+        return value
 
 
 class BaseDonorIraeTask(BaseIraeTask):
