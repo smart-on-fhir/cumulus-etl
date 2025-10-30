@@ -19,7 +19,8 @@ from cumulus_etl.etl import config
 
 # Defined here, as syntactic sugar for when you subclass your own task and re-define read_entries()
 EntryAtom = dict | list[dict]
-EntryIterator = AsyncIterator[EntryAtom | tuple[EntryAtom, ...]]
+EntryBundle = EntryAtom | tuple[EntryAtom, ...]
+EntryIterator = AsyncIterator[EntryBundle]
 
 
 @dataclasses.dataclass(kw_only=True)

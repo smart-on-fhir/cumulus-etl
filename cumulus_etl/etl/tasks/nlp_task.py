@@ -1,6 +1,7 @@
 """Base NLP task support"""
 
 import copy
+import dataclasses
 import json
 import logging
 import os
@@ -54,11 +55,11 @@ class BaseNlpTask(tasks.EtlTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.seen_docrefs = set()
+        self.seen_groups = set()
 
     def pop_current_group_values(self, table_index: int) -> set[str]:
-        values = self.seen_docrefs
-        self.seen_docrefs = set()
+        values = self.seen_groups
+        self.seen_groups = set()
         return values
 
     def add_error(self, docref: dict) -> None:
@@ -121,10 +122,28 @@ class BaseNlpTask(tasks.EtlTask):
         return TRAILING_WHITESPACE.sub("", note_text)
 
 
+@dataclasses.dataclass(kw_only=True)
+class NoteDetails:
+    note_ref: str
+    encounter_id: str
+    subject_ref: str
+
+    note_text: str
+    note: dict
+
+    orig_note_ref: str
+    orig_note_text: str
+    orig_note: dict
+
+
 class BaseModelTask(BaseNlpTask):
     """Base class for any NLP task talking to LLM models."""
 
-    outputs: ClassVar = [tasks.OutputTable(resource_type=None, uniqueness_fields={"note_ref"})]
+    outputs: ClassVar = [
+        tasks.OutputTable(
+            resource_type=None, uniqueness_fields={"note_ref"}, group_field="note_ref"
+        )
+    ]
 
     # If you change these prompts, consider updating task_version.
     system_prompt: str = None
@@ -155,33 +174,47 @@ class BaseModelTask(BaseNlpTask):
             note_text = self.remove_trailing_whitespace(orig_note_text)
             orig_note_ref = f"{orig_note['resourceType']}/{orig_note['id']}"
 
+            details = NoteDetails(
+                note_ref=note_ref,
+                encounter_id=encounter_id,
+                subject_ref=subject_ref,
+                note_text=note_text,
+                note=note,
+                orig_note_ref=orig_note_ref,
+                orig_note_text=orig_note_text,
+                orig_note=orig_note,
+            )
+
             try:
-                response = await self.model.prompt(
-                    self.get_system_prompt(),
-                    self.get_user_prompt(note_text),
-                    schema=self.response_format,
-                    cache_dir=self.task_config.dir_phi,
-                    cache_namespace=f"{self.name}_v{self.task_version}",
-                    note_text=note_text,
-                )
+                if result := await self.process_note(details):
+                    yield result
             except Exception as exc:
                 logging.warning(f"NLP failed for {orig_note_ref}: {exc}")
                 self.add_error(orig_note)
-                continue
 
-            parsed = response.answer.model_dump(mode="json")
-            self.post_process(parsed, orig_note_text, orig_note)
+    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
+        response = await self.model.prompt(
+            self.get_system_prompt(),
+            self.get_user_prompt(details.note_text),
+            schema=self.response_format,
+            cache_dir=self.task_config.dir_phi,
+            cache_namespace=f"{self.name}_v{self.task_version}",
+            note_text=details.note_text,
+        )
 
-            yield {
-                "note_ref": note_ref,
-                "encounter_ref": f"Encounter/{encounter_id}",
-                "subject_ref": subject_ref,
-                # Since this date is stored as a string, use UTC time for easy comparisons
-                "generated_on": common.datetime_now().isoformat(),
-                "task_version": self.task_version,
-                "system_fingerprint": response.fingerprint,
-                "result": parsed,
-            }
+        parsed = response.answer.model_dump(mode="json")
+        self.post_process(parsed, details)
+
+        return {
+            "note_ref": details.note_ref,
+            "encounter_ref": f"Encounter/{details.encounter_id}",
+            "subject_ref": details.subject_ref,
+            # Since this date is stored as a string, use UTC time for easy comparisons
+            "generated_on": common.datetime_now().isoformat(),
+            "task_version": self.task_version,
+            "system_fingerprint": response.fingerprint,
+            "result": parsed,
+        }
 
     def finish_task(self) -> None:
         stats = self.model.stats
@@ -225,7 +258,7 @@ class BaseModelTask(BaseNlpTask):
         """Subclasses can fill this out if they like, to skip notes"""
         return False
 
-    def post_process(self, parsed: dict, orig_note_text: str, orig_note: dict) -> None:
+    def post_process(self, parsed: dict, details: NoteDetails) -> None:
         """Subclasses can fill this out if they like"""
 
     @classmethod
@@ -289,18 +322,18 @@ class BaseModelTaskWithSpans(BaseModelTask):
     It assumes any field named "spans" in the hierarchy of the pydantic model should be converted.
     """
 
-    def post_process(self, parsed: dict, orig_note_text: str, orig_note: dict) -> None:
-        if not self._process_dict(parsed, orig_note_text, orig_note):
-            self.add_error(orig_note)
+    def post_process(self, parsed: dict, details: NoteDetails) -> None:
+        if not self._process_dict(parsed, details):
+            self.add_error(details.orig_note)
 
-    def _process_dict(self, parsed: dict, orig_note_text: str, orig_note: dict) -> bool:
+    def _process_dict(self, parsed: dict, details: NoteDetails) -> bool:
         """Returns False if any span couldn't be matched"""
         all_found = True
 
         for key, value in parsed.items():
             if key != "spans":
                 if isinstance(value, dict):
-                    all_found &= self._process_dict(value, orig_note_text, orig_note)  # descend
+                    all_found &= self._process_dict(value, details)  # descend
                 continue
 
             new_spans = []
@@ -318,14 +351,14 @@ class BaseModelTaskWithSpans(BaseModelTask):
                 span = ESCAPED_WHITESPACE.sub(r"\\s+", span)
 
                 found = False
-                for match in re.finditer(span, orig_note_text, re.IGNORECASE):
+                for match in re.finditer(span, details.orig_note_text, re.IGNORECASE):
                     found = True
                     new_spans.append(match.span())
                 if not found:
                     all_found = False
                     logging.warning(
                         "Could not match span received from NLP server for "
-                        f"{orig_note['resourceType']}/{orig_note['id']}: {orig_span}"
+                        f"{details.orig_note_ref}: {orig_span}"
                     )
 
             parsed[key] = new_spans
