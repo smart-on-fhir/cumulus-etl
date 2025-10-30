@@ -482,6 +482,8 @@ class BaseLongitudinalIraeTask(BaseIraeTask):
         for file_index, path in enumerate(filenames):
             for row in cfs.read_multiline_json_with_details(path, fsspec_fs=input_root.fs):
                 date = nlp.get_note_date(row["json"]) or datetime.datetime.max
+                if not date.tzinfo:  # to compare, we need everything to be aware
+                    date = date.replace(tzinfo=datetime.UTC)
                 note_info.append((date, file_index, row["byte_offset"]))
 
         # Now yield each note again in order, reading each from disk

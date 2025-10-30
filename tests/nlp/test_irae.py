@@ -175,7 +175,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         self.input_dir = self.make_tempdir()
 
         def prep_doc(year: str, add_date: bool = True) -> None:
-            text = f"note {year}"
+            text = f"note {year[:4]}"
             kwargs = {
                 "subject": {"reference": "Patient/x"},
                 "context": {"encounter": [{"reference": "Encounter/x"}]},
@@ -189,15 +189,15 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 ],
             }
             if add_date:
-                kwargs["date"] = f"{year}-01-01"
+                kwargs["date"] = year
             self.make_json("DocumentReference", year, **kwargs)
             self.mock_response(content=self.longitudinal_content())
 
         prep_doc("2022")
         prep_doc("2021")
         prep_doc("2024")
-        prep_doc("null", add_date=True)
-        prep_doc("2023")
+        prep_doc("null", add_date=False)
+        prep_doc("2023-01-01T00:00:00+04:00")
 
         await self.run_etl(
             "--provider=azure", tasks=["irae__nlp_gpt_oss_120b"], input_path=self.input_dir
