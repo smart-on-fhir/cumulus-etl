@@ -225,6 +225,7 @@ Resources:
             CreateNativeDeltaTable: True
             WriteManifest: False
           - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/example_nlp__nlp_claude_sonnet45"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/example_nlp__nlp_gpt4"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/example_nlp__nlp_gpt4o"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/example_nlp__nlp_gpt5"
