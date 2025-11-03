@@ -138,66 +138,23 @@ Pass in an argument like `--export-to /host/export` to save the NDJSON for the s
 in the given folder. (Note this does not save the clinical note text unless it is already inline
 -- this is just saving the DocumentReference resources).
 
-## NLP
+## Pre-Labeling Notes
 
-To enable NLP tagging via cTAKES, pass `--nlp`.
-This will tag mentions of symptoms it finds, to make chart review easier.
+You may want to make the human chart reviewer's life easier by pre-labeling or pre-annotating
+the note text before they see it.
 
-### Dependent Services
+You can manually highlight some terms by passing `--highlight-by-word` or `--highlight-by-regex`.
 
-NLP needs cTAKES to be available, so you'll need to launch it before you begin:
-
-```shell
-export UMLS_API_KEY=your-umls-api-key
-docker compose up --wait --profile upload-notes
-```
-
-Or if you have access to a GPU,
-you can speed up the NLP by launching the GPU profile instead with `--profile upload-notes-gpu`.
-
-### Custom Dictionaries
-
-If you would like to customize the dictionary terms that are marked up and sent to Label Studio,
-simply pass in a new dictionary like so: `--symptoms-bsv /host/my-symptoms.bsv`.
-
-This file should look like (this is a portion of the default Covid dictionary):
-```
-##  Columns = CUI|TUI||STR|PREF
-##      CUI = Concept Unique Identifier
-##      TUI = Type Unique Identifier
-##      STR = String text in clinical note (case insensitive)
-##     PREF = Preferred output concept label
-
-##  Congestion or runny nose
-C0027424|T184|nasal congestion|Congestion or runny nose
-C0027424|T184|stuffed-up nose|Congestion or runny nose
-C0027424|T184|stuffy nose|Congestion or runny nose
-C0027424|T184|congested nose|Congestion or runny nose
-C1260880|T184|rhinorrhea|Congestion or runny nose
-C1260880|T184|Nasal discharge|Congestion or runny nose
-C1260880|T184|discharge from nose|Congestion or runny nose
-C1260880|T184|nose dripping|Congestion or runny nose
-C1260880|T184|nose running|Congestion or runny nose
-C1260880|T184|running nose|Congestion or runny nose
-C1260880|T184|runny nose|Congestion or runny nose
-C0027424|T184|R09.81|Congestion or runny nose
-
-##  Diarrhea
-C0011991|T184|diarrhea|Diarrhea
-C0011991|T184|R19.7|Diarrhea
-C0011991|T184|Watery stool|Diarrhea
-C0011991|T184|Watery stools|Diarrhea
-```
-
-Upload mode will only label phrases whose CUI appears in this symptom file.
-And the label used will be the last part of each line (the `PREF` part).
-
-That is, with the above symptoms file, the word `headache` would not be labelled at all
-because no CUI for headache is listed in the file.
-But any phrases that cTAKES tags as CUI `C0011991` will be labelled as `Diarrhea`.
-
-cTAKES has an internal dictionary and knows some phrases already.
-But you may get better results by adding extra terms and variations in your symptoms file.
+You can also add more complicated labels (highlighting but with a study tag)
+by passing `--label-by-csv`, `--label-by-anon-csv`, or `--label-by-athena-table`.
+These all expect a certain format:
+- A note ID column (`note_ref`, `documentreference_id`, `diagnosticreport_ref`, etc)
+- A `label` column holding names of Label Studio labels
+- A `span` column holding spans of the note to highlight like `124:157`
+- Optionally `sublabel_name` and `sublabel_value` columns if the Label Studio label has more
+  complicated sub-options.
+- Optionally an `origin` column that will name the source of the labels (used to separate
+  labels into separate annotation sources in Label Studio)
 
 ## Philter
 

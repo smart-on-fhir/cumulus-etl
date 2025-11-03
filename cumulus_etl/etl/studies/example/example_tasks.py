@@ -41,6 +41,11 @@ class BaseExampleTask(tasks.BaseModelTaskWithSpans):
 # Have a task for every ETL-supported model, to allow sites to choose whatever model works for them.
 
 
+class ExampleClaudeSonnet45Task(BaseExampleTask):
+    name = "example_nlp__nlp_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+
+
 class ExampleGpt4Task(BaseExampleTask):
     name = "example_nlp__nlp_gpt4"
     client_class = nlp.Gpt4Model
