@@ -1,11 +1,13 @@
 """Abstraction layer for inference APIs"""
 
 import abc
+import asyncio
 import dataclasses
 import datetime
 import json
 import os
 from collections.abc import Iterable
+from functools import partial
 from typing import NoReturn, Self
 
 import boto3
@@ -322,18 +324,46 @@ class Model:
         cache_dir: str,
         cache_namespace: str,
         note_text: str,
-    ) -> PromptResponse:
+        count: int = 1,
+    ) -> list[PromptResponse]:
+        """Guarantees at least one response (or you'll see an exception)"""
         return await cache_wrapper(
             cache_dir,
             cache_namespace,
             note_text,
-            lambda x: PromptResponse.from_dict(json.loads(x), schema),  # from file
-            lambda x: json.dumps(x.to_dict()),  # to file
-            self.provider.prompt,
+            partial(self._load_multiple, schema=schema),  # from file
+            self._store_multiple,  # to file
+            self._prompt_multiple,
             system,
             user,
-            schema,
+            schema=schema,
+            count=count,
         )
+
+    async def _prompt_multiple(
+        self, system: str, user: str, *, schema: type[BaseModel], count: int
+    ) -> list[PromptResponse]:
+        coroutines = [self.provider.prompt(system, user, schema) for _ in range(count)]
+        results = await asyncio.gather(*coroutines, return_exceptions=True)
+        responses = [x for x in results if isinstance(x, PromptResponse)]
+
+        if not responses:
+            # OK none of the prompts succeeded - let's raise one of the errors so it can be
+            # flagged more aggressively.
+            raise results[0]
+
+        # If any of the results succeeded... Just accept that we have fewer responses.
+        # Likely due to flakey JSON formatting issues on the LLM side.
+        return responses
+
+    @staticmethod
+    def _load_multiple(contents: str, *, schema: type[BaseModel]) -> list[PromptResponse]:
+        lines = contents.split("\n")
+        return [PromptResponse.from_dict(json.loads(line), schema) for line in lines if line]
+
+    @staticmethod
+    def _store_multiple(responses: list[PromptResponse]) -> str:
+        return "\n".join(json.dumps(response.to_dict()) for response in responses) + "\n"
 
 
 class Gpt35Model(Model):  # deprecated, do not use in new code (doesn't support JSON schemas)
