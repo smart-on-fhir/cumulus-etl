@@ -429,7 +429,8 @@ class KidneyTransplantLongitudinalAnnotation(BaseModel):
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
     task_version = 5
     # Task Version History:
-    # ** 5 (2025-10): Update pydantic model (biological relation; defaults for SpAM) **
+    # ** 5 (2025-10): Update pydantic model (biological relation;
+    #                 Defaults for SpanAugmentedMention properties **
     # ** 4 (2025-10): Split into donor & longitudinal models **
     # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
