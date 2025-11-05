@@ -13,8 +13,12 @@ from cumulus_etl.etl import tasks
 
 
 class SpanAugmentedMention(BaseModel):
-    has_mention: bool  # True, False
-    spans: list[str]
+    has_mention: bool = Field(
+        False, description="Whether there is any mention of this variable in the text."
+    )
+    spans: list[str] = Field(
+        default_factory=list, description="The text spans where this variable is mentioned."
+    )
 
 
 ###############################################################################
@@ -45,14 +49,15 @@ class DonorTypeMention(SpanAugmentedMention):
 
 
 class DonorRelationship(StrEnum):
-    RELATED = "Donor was related to the renal transplant recipient"
-    UNRELATED = "Donor was unrelated to the renal transplant recipient"
+    RELATED = "Donor was biologically related to the renal transplant recipient"
+    UNRELATED = "Donor was biologically unrelated to the renal transplant recipient"
     NOT_MENTIONED = "Donor relationship status was not mentioned"
 
 
 class DonorRelationshipMention(SpanAugmentedMention):
     donor_relationship: DonorRelationship = Field(
-        DonorRelationship.NOT_MENTIONED, description="Was the renal donor related to the recipient?"
+        DonorRelationship.NOT_MENTIONED,
+        description="Was the renal donor biologically related to the recipient?",
     )
 
 
@@ -422,8 +427,10 @@ class KidneyTransplantLongitudinalAnnotation(BaseModel):
 
 
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
-    task_version = 4
+    task_version = 5
     # Task Version History:
+    # ** 5 (2025-10): Update pydantic model (biological relation;
+    #                 Defaults for SpanAugmentedMention properties **
     # ** 4 (2025-10): Split into donor & longitudinal models **
     # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
