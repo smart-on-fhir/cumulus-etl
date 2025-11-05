@@ -14,13 +14,12 @@ from cumulus_etl.etl import tasks
 
 class SpanAugmentedMention(BaseModel):
     has_mention: bool = Field(
-        False, 
-        description="Whether there is any mention of this variable in the text."
-    )   
-    spans: list[str] = Field(
-        default_factory=list,
-        description="The text spans where this variable is mentioned."
+        False, description="Whether there is any mention of this variable in the text."
     )
+    spans: list[str] = Field(
+        default_factory=list, description="The text spans where this variable is mentioned."
+    )
+
 
 ###############################################################################
 # Donor Characteristics
@@ -57,7 +56,8 @@ class DonorRelationship(StrEnum):
 
 class DonorRelationshipMention(SpanAugmentedMention):
     donor_relationship: DonorRelationship = Field(
-        DonorRelationship.NOT_MENTIONED, description="Was the renal donor biologically related to the recipient?"
+        DonorRelationship.NOT_MENTIONED,
+        description="Was the renal donor biologically related to the recipient?",
     )
 
 
