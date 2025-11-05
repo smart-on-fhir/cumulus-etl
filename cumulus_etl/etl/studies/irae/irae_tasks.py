@@ -18,7 +18,7 @@ class SpanAugmentedMention(BaseModel):
         description="Whether there is any mention of this variable in the text."
     )   
     spans: list[str] = Field(
-        [],
+        default_factory=list,
         description="The text spans where this variable is mentioned."
     )
 
@@ -427,8 +427,9 @@ class KidneyTransplantLongitudinalAnnotation(BaseModel):
 
 
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
-    task_version = 4
+    task_version = 5
     # Task Version History:
+    # ** 5 (2025-10): Update pydantic model (biological relation; defaults for SpAM) **
     # ** 4 (2025-10): Split into donor & longitudinal models **
     # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
