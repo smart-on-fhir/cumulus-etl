@@ -1,5 +1,20 @@
 """The irae study"""
 
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryClaudeSonnet45Task as IraeMultipleTransplantHistoryClaudeSonnet45Task,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryGpt4oTask as IraeMultipleTransplantHistoryGpt4oTask,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryGpt5Task as IraeMultipleTransplantHistoryGpt5Task,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryGptOss120bTask as IraeMultipleTransplantHistoryGptOss120bTask,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryLlama4ScoutTask as IraeMultipleTransplantHistoryLlama4ScoutTask,
+)
 from .irae_tasks import IraeDonorClaudeSonnet45Task as IraeDonorClaudeSonnet45Task
 from .irae_tasks import IraeDonorGpt4oTask as IraeDonorGpt4oTask
 from .irae_tasks import IraeDonorGpt5Task as IraeDonorGpt5Task

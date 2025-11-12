@@ -22,6 +22,24 @@ class SpanAugmentedMention(BaseModel):
 
 
 ###############################################################################
+# History of Multiple Transplants
+#
+# Mentions relevant in tracking if this patient has a history of multiple transplants,
+# renal or otherwise.
+###############################################################################
+class MultipleTransplantHistoryMention(SpanAugmentedMention):
+    """
+    Does this patient have a history of multiple transplants, renal or otherwise?
+    For use in reevaluating the patients in our cohort, excluding patients with a history
+    of multiple transplants from our analysis.
+    """
+
+    multiple_transplant_history: bool = Field(
+        False, description="Whether there is any mention of a history of multiple transplants."
+    )
+
+
+###############################################################################
 # Donor Characteristics
 #
 # For a given transplant, these should be static over time
@@ -30,9 +48,15 @@ class SpanAugmentedMention(BaseModel):
 
 # Dates are treated as strings - no enum needed
 class DonorTransplantDateMention(SpanAugmentedMention):
+    """
+    Date of the first renal transplant. If there is only one transplant mentioned,
+    assume that this is the first transplant. If a POD (post-operative day) is mentioned,
+    use that to infer the date.
+    """
+
     donor_transplant_date: str | None = Field(
         None,
-        description="Exact date of renal transplant; use YYYY-MM-DD format in your response. Only highlight date mentions with an explicit day, month, and year (e.g. 2020-01-15). All other date mentions, or an absence of a date mention, should be indicated with None.",
+        description="Exact date of first renal transplant; use YYYY-MM-DD format in your response. Only highlight date mentions with an explicit day, month, and year (e.g. 2020-01-15). All other date mentions, or an absence of a date mention, should be indicated with None.",
     )
 
 
@@ -43,8 +67,15 @@ class DonorType(StrEnum):
 
 
 class DonorTypeMention(SpanAugmentedMention):
+    """
+    Type of donor in the first renal transplant. If there is only one transplant
+    mentioned, assume that this is the first transplant. Exclude donors that are only
+    hypothetical or under evaluation/assessment.
+    """
+
     donor_type: DonorType = Field(
-        DonorType.NOT_MENTIONED, description="Was the renal donor living at the time of transplant?"
+        DonorType.NOT_MENTIONED,
+        description="Was the first renal donor living at the time of renal transplant?",
     )
 
 
@@ -55,9 +86,15 @@ class DonorRelationship(StrEnum):
 
 
 class DonorRelationshipMention(SpanAugmentedMention):
+    """
+    Relatedness of the donor and recipient in the first renal transplant. If there is only one
+    transplant mentioned, assume that this is the first transplant. Exclude donors that are only
+    hypothetical or under evaluation/assessment.
+    """
+
     donor_relationship: DonorRelationship = Field(
         DonorRelationship.NOT_MENTIONED,
-        description="Was the renal donor biologically related to the recipient?",
+        description="Was the first renal transplant donor biologically related to the recipient?",
     )
 
 
@@ -71,9 +108,14 @@ class DonorHlaMatchQuality(StrEnum):
 
 
 class DonorHlaMatchQualityMention(SpanAugmentedMention):
+    """
+    Human leukocyte antigen (HLA) match quality of the first renal transplant. If there is only one
+    transplant mentioned, assume that this is the first transplant.
+    """
+
     donor_hla_match_quality: DonorHlaMatchQuality = Field(
         DonorHlaMatchQuality.NOT_MENTIONED,
-        description="What was the renal transplant HLA match quality?",
+        description="What was the HLA match quality for the first renal transplant?",
     )
 
 
@@ -89,9 +131,14 @@ class DonorHlaMismatchCount(StrEnum):
 
 
 class DonorHlaMismatchCountMention(SpanAugmentedMention):
+    """
+    Human leukocyte antigen (HLA) mismatch count for the first renal transplant. If there is only
+    one transplant mentioned, assume that this is the first transplant.
+    """
+
     donor_hla_mismatch_count: DonorHlaMismatchCount = Field(
         DonorHlaMismatchCount.NOT_MENTIONED,
-        description="What was the renal donor-recipient HLA mismatch count?",
+        description="What was the donor-recipient HLA mismatch count for the first renal transplant?",
     )
 
 
@@ -367,7 +414,7 @@ class DeceasedMention(SpanAugmentedMention):
     deceased_date: str | None = Field(
         None,
         description=(
-            "If the patient is deceased, include the date the patient became deceased. Use YYYY-MM-DD format if possible. "
+            "If the patient is deceased, include the date the patient became deceased. Use YYYY-MM-DD format if possible."
             "Use None if there is no date recorded or if the patient is not observed as deceased."
         ),
     )
@@ -376,6 +423,16 @@ class DeceasedMention(SpanAugmentedMention):
 ###############################################################################
 # Aggregated Annotation and Mention Classes
 ###############################################################################
+class MultipleTransplantHistoryAnnotation(BaseModel):
+    """
+    An object-model for annotations of patients with a history of multiple transplants.
+    Take care to avoid false positives, like confusing information that only
+    appears in family history for patient history. Annotations should indicate
+    the relevant details of the finding, as well as some additional evidence
+    metadata to validate findings post-hoc.
+    """
+
+    multiple_transplant_history_mention: MultipleTransplantHistoryMention
 
 
 class KidneyTransplantDonorGroupAnnotation(BaseModel):
@@ -427,10 +484,12 @@ class KidneyTransplantLongitudinalAnnotation(BaseModel):
 
 
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
-    task_version = 5
+    task_version = 6
     # Task Version History:
+    # ** 6 (2025-11): Pydantic updates (donors refer to 1st transplant;
+    #                 POD inference guidance; new multiple transplant model) **
     # ** 5 (2025-10): Update pydantic model (biological relation;
-    #                 Defaults for SpanAugmentedMention properties **
+    #                 Defaults for SpanAugmentedMention properties) **
     # ** 4 (2025-10): Split into donor & longitudinal models **
     # ** 3 (2025-10): New serialized format **
     # ** 2 (2025-09): Updated prompt and pydantic models **
@@ -462,6 +521,10 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
         "\n"
         "%CLINICAL-NOTE%"
     )
+
+
+class BaseMultipleTransplantHistoryIraeTask(BaseIraeTask):
+    response_format = MultipleTransplantHistoryAnnotation
 
 
 class BaseDonorIraeTask(BaseIraeTask):
@@ -539,6 +602,11 @@ class BaseLongitudinalIraeTask(BaseIraeTask):
                 self.subject_refs_to_skip.add(subject_ref)
 
 
+class IraeMultipleTransplantHistoryGpt4oTask(BaseMultipleTransplantHistoryIraeTask):
+    name = "irae__nlp_multiple_transplant_history_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
 class IraeDonorGpt4oTask(BaseDonorIraeTask):
     name = "irae__nlp_donor_gpt4o"
     client_class = nlp.Gpt4oModel
@@ -547,6 +615,11 @@ class IraeDonorGpt4oTask(BaseDonorIraeTask):
 class IraeLongitudinalGpt4oTask(BaseLongitudinalIraeTask):
     name = "irae__nlp_gpt4o"
     client_class = nlp.Gpt4oModel
+
+
+class IraeMultipleTransplantHistoryGpt5Task(BaseMultipleTransplantHistoryIraeTask):
+    name = "irae__nlp_multiple_transplant_history_gpt5"
+    client_class = nlp.Gpt5Model
 
 
 class IraeDonorGpt5Task(BaseDonorIraeTask):
@@ -559,6 +632,11 @@ class IraeLongitudinalGpt5Task(BaseLongitudinalIraeTask):
     client_class = nlp.Gpt5Model
 
 
+class IraeMultipleTransplantHistoryGptOss120bTask(BaseMultipleTransplantHistoryIraeTask):
+    name = "irae__nlp_multiple_transplant_history_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
 class IraeDonorGptOss120bTask(BaseDonorIraeTask):
     name = "irae__nlp_donor_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
@@ -569,6 +647,11 @@ class IraeLongitudinalGptOss120bTask(BaseLongitudinalIraeTask):
     client_class = nlp.GptOss120bModel
 
 
+class IraeMultipleTransplantHistoryLlama4ScoutTask(BaseMultipleTransplantHistoryIraeTask):
+    name = "irae__nlp_multiple_transplant_history_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+
+
 class IraeDonorLlama4ScoutTask(BaseDonorIraeTask):
     name = "irae__nlp_donor_llama4_scout"
     client_class = nlp.Llama4ScoutModel
@@ -577,6 +660,11 @@ class IraeDonorLlama4ScoutTask(BaseDonorIraeTask):
 class IraeLongitudinalLlama4ScoutTask(BaseLongitudinalIraeTask):
     name = "irae__nlp_llama4_scout"
     client_class = nlp.Llama4ScoutModel
+
+
+class IraeMultipleTransplantHistoryClaudeSonnet45Task(BaseMultipleTransplantHistoryIraeTask):
+    name = "irae__nlp_multiple_transplant_history_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
 
 
 class IraeDonorClaudeSonnet45Task(BaseDonorIraeTask):

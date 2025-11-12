@@ -6,6 +6,7 @@ import json
 import ddt
 
 from cumulus_etl.etl.studies.irae.irae_tasks import (
+    MultipleTransplantHistoryAnnotation,
     KidneyTransplantDonorGroupAnnotation,
     KidneyTransplantLongitudinalAnnotation,
 )
@@ -53,6 +54,9 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.unpack
     async def test_basic_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
+        # NOTE: Mock order needs to match the execution order, which
+        #       funnily enough is not the order they're named in but is their
+        #       alphabetical order by Task Name
         self.mock_response(
             content=KidneyTransplantDonorGroupAnnotation.model_validate(
                 {
@@ -75,11 +79,28 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 },
             )
         )
+        self.mock_response(
+            content=MultipleTransplantHistoryAnnotation.model_validate(
+                {
+                    "multiple_transplant_history_mention": {
+                        "multiple_transplant_history": True,
+                        "has_mention": True,
+                        "spans": ["Past surgical history: Two failed renal transplants"],
+                    },
+                }
+            )
+        )
 
+        multiple_transplant_history_task_name = (
+            f"irae__nlp_multiple_transplant_history_{model_slug}"
+        )
         donor_task_name = f"irae__nlp_donor_{model_slug}"
         longitudinal_task_name = f"irae__nlp_{model_slug}"
 
-        await self.run_etl("--provider=azure", tasks=[donor_task_name, longitudinal_task_name])
+        await self.run_etl(
+            "--provider=azure",
+            tasks=[multiple_transplant_history_task_name, donor_task_name, longitudinal_task_name],
+        )
 
         self.assert_files_equal(
             f"{self.root_path}/donor-output.ndjson",
@@ -89,8 +110,13 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             f"{self.root_path}/longitudinal-output.ndjson",
             f"{self.output_path}/{longitudinal_task_name}/{longitudinal_task_name}.000.ndjson",
         )
+        self.assert_files_equal(
+            f"{self.root_path}/multiple-transplant-history-output.ndjson",
+            f"{self.output_path}/{multiple_transplant_history_task_name}/{multiple_transplant_history_task_name}.000.ndjson",
+        )
 
-        self.assertEqual(self.mock_create.call_count, 2)
+        self.assertEqual(self.mock_create.call_count, 3)
+
         self.assertEqual(
             {
                 "messages": [
@@ -119,7 +145,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "content": "Evaluate the following clinical document for kidney "
                         "transplant variables and outcomes.\n"
                         "Here is the clinical document for you to analyze:\n\n"
-                        "Test note 1",
+                        "Test note 2 with Past surgical history: Two failed renal transplants",
                     },
                 ],
                 "model": model_id,
@@ -160,7 +186,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "content": "Evaluate the following clinical document for kidney "
                         "transplant variables and outcomes.\n"
                         "Here is the clinical document for you to analyze:\n\n"
-                        "Test note 1",
+                        "Test note 2 with Past surgical history: Two failed renal transplants",
                     },
                 ],
                 "model": model_id,
@@ -172,6 +198,45 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 ),
             },
             self.mock_create.call_args_list[1][1],
+        )
+        self.assertEqual(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a clinical chart reviewer for a kidney transplant outcomes study.\n"
+                        "Your task is to extract patient-specific information from an unstructured clinical "
+                        "document and map it into a predefined Pydantic schema.\n"
+                        "\n"
+                        "Core Rules:\n"
+                        "1. Base all assertions ONLY on patient-specific information in the clinical document.\n"
+                        "   - Never negate or exclude information just because it is not mentioned.\n"
+                        "   - Never conflate family history or population-level risk with patient findings.\n"
+                        "   - Do not count past medical history, prior episodes, or family history.\n"
+                        "2. Do not invent or infer facts beyond what is documented.\n"
+                        "3. Maintain high fidelity to the clinical document language when citing spans.\n"
+                        "4. Answer patient outcomes with strongest available documented evidence:\n"
+                        "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
+                        "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
+                        "\n"
+                        "Pydantic Schema:\n"
+                        + json.dumps(MultipleTransplantHistoryAnnotation.model_json_schema()),
+                    },
+                    {
+                        "role": "user",
+                        "content": "Evaluate the following clinical document for kidney "
+                        "transplant variables and outcomes.\n"
+                        "Here is the clinical document for you to analyze:\n\n"
+                        "Test note 2 with Past surgical history: Two failed renal transplants",
+                    },
+                ],
+                "model": model_id,
+                "seed": 12345,
+                "temperature": 0,
+                "timeout": 120,
+                "response_format": MultipleTransplantHistoryAnnotation,
+            },
+            self.mock_create.call_args_list[2][1],
         )
 
     async def test_ordered_by_date(self):
