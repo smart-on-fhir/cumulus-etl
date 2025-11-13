@@ -487,7 +487,7 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
     task_version = 6
     # Task Version History:
     # ** 6 (2025-11): Pydantic updates (donors refer to 1st transplant;
-    #                 POD inference guidance; new multiple transplant model) **
+    #                 POD inference guidance; new multiple transplant task) **
     # ** 5 (2025-10): Update pydantic model (biological relation;
     #                 Defaults for SpanAugmentedMention properties) **
     # ** 4 (2025-10): Split into donor & longitudinal models **
