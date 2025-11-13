@@ -212,12 +212,23 @@ Resources:
             CreateNativeDeltaTable: True
             WriteManifest: False
           - DeltaTables:
-              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_claude_sonnet45"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_claude_sonnet45"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_llama4_scout"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_donor_claude_sonnet45"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_donor_gpt4o"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_donor_gpt5"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_donor_gpt_oss_120b"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_donor_llama4_scout"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_claude_sonnet45"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_gpt4o"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_gpt5"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_gpt_oss_120b"

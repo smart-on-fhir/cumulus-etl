@@ -10,3 +10,18 @@ from .irae_tasks import IraeLongitudinalGpt4oTask as IraeLongitudinalGpt4oTask
 from .irae_tasks import IraeLongitudinalGpt5Task as IraeLongitudinalGpt5Task
 from .irae_tasks import IraeLongitudinalGptOss120bTask as IraeLongitudinalGptOss120bTask
 from .irae_tasks import IraeLongitudinalLlama4ScoutTask as IraeLongitudinalLlama4ScoutTask
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryClaudeSonnet45Task as IraeMultipleTransplantHistoryClaudeSonnet45Task,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryGpt4oTask as IraeMultipleTransplantHistoryGpt4oTask,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryGpt5Task as IraeMultipleTransplantHistoryGpt5Task,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryGptOss120bTask as IraeMultipleTransplantHistoryGptOss120bTask,
+)
+from .irae_tasks import (
+    IraeMultipleTransplantHistoryLlama4ScoutTask as IraeMultipleTransplantHistoryLlama4ScoutTask,
+)
