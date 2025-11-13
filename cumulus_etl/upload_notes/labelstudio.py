@@ -3,11 +3,12 @@
 import dataclasses
 import datetime
 import hashlib
+import json
 import math
 from collections.abc import AsyncIterator, Collection, Iterable
 
 import ctakesclient
-import label_studio_sdk
+import label_studio_sdk as ls
 import label_studio_sdk.data_manager as lsdm
 
 from cumulus_etl import batching, cli_utils, errors
@@ -68,10 +69,9 @@ class LabelStudioClient:
     """Client to talk to Label Studio"""
 
     def __init__(self, url: str, api_key: str, project_id: int, cui_labels: dict[str, str]):
-        self._client = label_studio_sdk.Client(url, api_key)
-        self._client.check_connection()
-        self._project = self._client.get_project(project_id)
-        self._labels_name, self._labels_config = self._get_labels_config()
+        self._client = ls.LabelStudio(base_url=url, api_key=api_key)
+        self._project = self._client.projects.get(project_id)
+        self._labels_name = self._get_first_labels_config_name()
         self._cui_labels = dict(cui_labels)
 
     async def push_tasks(
@@ -86,11 +86,11 @@ class LabelStudioClient:
         if existing_tasks:
             if overwrite:
                 print(f"Overwriting {len(existing_tasks):,} existing charts.")
-                self._project.delete_tasks([t["id"] for t in existing_tasks])
+                for task_id in existing_tasks.values():
+                    self._client.tasks.delete(task_id)
             else:
                 print(f"Skipping {len(existing_tasks):,} existing charts.")
-                existing_unique_ids = {t["data"]["unique_id"] for t in existing_tasks}
-                notes = [note for note in notes if note.unique_id not in existing_unique_ids]
+                notes = [note for note in notes if note.unique_id not in existing_tasks]
 
         # OK, import away!
         if notes:
@@ -99,11 +99,11 @@ class LabelStudioClient:
             # I've seen batches of 700 fail, but 600 succeed. So we give ourselves plenty of
             # headroom here and use batches of 300.
             async for batch in self._batch_with_progress("Uploading charts…", new_notes, 300):
-                self._project.import_tasks(batch)
+                self._client.projects.import_tasks(self._project.id, request=batch)
             if new_task_count:
                 print(f"Imported {new_task_count:,} new charts.")
 
-    async def _search_for_existing_tasks(self, unique_ids: Collection[str]) -> Collection[dict]:
+    async def _search_for_existing_tasks(self, unique_ids: Collection[str]) -> dict[str, int]:
         existing_tasks = []
 
         # Batch our requests, because if there are a lot of notes, a single search with all the
@@ -116,9 +116,14 @@ class LabelStudioClient:
             col = lsdm.Column.data("unique_id")
             batch_search = lsdm.Filters.item(col, lsdm.Operator.IN_LIST, lsdm.Type.List, batch)
             batch_filter = lsdm.Filters.create(lsdm.Filters.AND, [batch_search])
-            existing_tasks.extend(self._project.get_tasks(filters=batch_filter))
+            results = self._client.tasks.list(
+                project=self._project.id,
+                query=json.dumps({"filters": batch_filter}),
+                include="data,id",
+            )
+            existing_tasks.extend(results)
 
-        return existing_tasks
+        return {t.data["unique_id"]: t.id for t in existing_tasks}
 
     async def _batch_with_progress(
         self, label: str, collection: Collection, batch_size: int
@@ -130,15 +135,13 @@ class LabelStudioClient:
                 yield batch
                 progress.advance(progress_task)
 
-    def _get_labels_config(self) -> tuple[str, dict]:
-        """Finds the first <Labels> tag in the config and returns its name and values, falling back to <Choices>"""
-        for k, v in self._project.parsed_label_config.items():
-            if v.get("type") == "Labels":
-                return k, v
-
-        for k, v in self._project.parsed_label_config.items():
-            if v.get("type") == "Choices":
-                return k, v
+    def _get_first_labels_config_name(self) -> str:
+        """Finds the first labels-type tag in the config and returns its name and values"""
+        tags = self._project.get_label_interface().find_tags(
+            match_fn=lambda x: x.tag in {"Labels", "Choices"}
+        )
+        for tag in tags:
+            return tag.name  # just get first one
 
         errors.fatal(
             "Could not find a Labels or Choices config in the Label Studio project.\n"
@@ -151,9 +154,9 @@ class LabelStudioClient:
             errors.LABEL_STUDIO_CONFIG_INVALID,
         )
 
-    def _format_task_for_note(self, note: LabelStudioNote) -> dict:
-        task = {
-            "data": {
+    def _format_task_for_note(self, note: LabelStudioNote) -> ls.ImportApiRequest:
+        task = ls.ImportApiRequest(
+            data={
                 "text": note.text,
                 "unique_id": note.unique_id,
                 "patient_id": note.patient_id,
@@ -165,8 +168,8 @@ class LabelStudioClient:
                 # json doesn't natively have tuples, so convert spans to lists
                 "docref_spans": {k: list(v) for k, v in note.doc_spans.items()},
             },
-            "predictions": [],
-        }
+            predictions=[],
+        )
 
         # Initialize any used labels in case we have a dynamic label config.
         # Label Studio needs to see *something* here
@@ -188,14 +191,16 @@ class LabelStudioClient:
         label_id: str | None = None,
     ) -> dict:
         from_name = from_name or self._labels_name
-        config = self._project.parsed_label_config.get(from_name)
+        interface = self._project.get_label_interface()
+        config_labels, _dynamic = interface.get_all_labels()
+        config = from_name in config_labels and interface.get_tag(from_name)
         if not config:
             errors.fatal(f"Unrecognized label name '{from_name}'.", errors.LABEL_UNKNOWN)
 
         match = {
             "from_name": from_name,
-            "to_name": config["to_name"][0],
-            "type": config["type"].casefold(),
+            "to_name": config.to_name[0],
+            "type": config.tag.casefold(),
             "value": {
                 "start": begin,
                 "end": end,
@@ -206,7 +211,7 @@ class LabelStudioClient:
         if label_id:
             match["id"] = label_id
 
-        match config["type"].casefold():
+        match config.tag.casefold():
             case "labels":
                 field = "labels"
             case "choices":
@@ -215,23 +220,20 @@ class LabelStudioClient:
                 field = "text"
             case _:
                 errors.fatal(
-                    f"Unrecognized Label Studio config type '{config['type']}'.",
+                    f"Unrecognized Label Studio config type '{config.tag}'.",
                     errors.LABEL_CONFIG_TYPE_UNKNOWN,
                 )
 
         match["value"][field] = list(labels)
         return match
 
-    def _format_ctakes_predictions(self, task: dict, note: LabelStudioNote) -> None:
+    def _format_ctakes_predictions(self, task: ls.ImportApiRequest, note: LabelStudioNote) -> None:
         if not note.ctakes_matches:
             return
 
-        prediction = {
-            "model_version": "cTAKES",
-        }
+        prediction = ls.PredictionRequest.construct(model_version="cTAKES", result=[])
 
         used_labels = set()
-        results = []
         for match in note.ctakes_matches:
             matched_labels = {
                 self._cui_labels.get(concept.cui) for concept in match.conceptAttributes
@@ -239,16 +241,17 @@ class LabelStudioClient:
             # drop the result of a concept not being in our bsv label set
             matched_labels.discard(None)
             if matched_labels:
-                results.append(
+                prediction.result.append(
                     self._format_match(match.begin, match.end, match.text, matched_labels)
                 )
                 used_labels.update(matched_labels)
-        prediction["result"] = results
-        task["predictions"].append(prediction)
+        task.predictions.append(prediction)
 
         self._update_used_labels(task, used_labels)
 
-    def _format_highlights_predictions(self, task: dict, note: LabelStudioNote) -> None:
+    def _format_highlights_predictions(
+        self, task: ls.ImportApiRequest, note: LabelStudioNote
+    ) -> None:
         # Group up the highlights by parent label.
         # Then we'll see how many sublabels it has.
         grouped_highlights = {}  # key-tuple -> sublabel name -> sublabel value list
@@ -257,10 +260,10 @@ class LabelStudioClient:
             sublabels = grouped_highlights.setdefault(key, {})
             sublabels.setdefault(highlight.sublabel_name, []).append(highlight.sublabel_value)
 
-        predictions = {}  # dict of origin -> prediction dict
+        predictions = {}  # dict of origin -> prediction request
         for key, sublabels in grouped_highlights.items():
             label, span, origin = key
-            default_prediction = {"model_version": origin, "result": []}
+            default_prediction = ls.PredictionRequest.construct(model_version=origin, result=[])
             prediction = predictions.setdefault(origin, default_prediction)
 
             label_id = "__".join(str(k) for k in key)
@@ -268,7 +271,7 @@ class LabelStudioClient:
             text = note.text[span[0] : span[1]]
 
             # First, add the parent label
-            prediction["result"].append(
+            prediction.result.append(
                 self._format_match(span[0], span[1], text, [label], label_id=label_id)
             )
 
@@ -276,7 +279,7 @@ class LabelStudioClient:
             for sublabel_name, sublabel_values in sublabels.items():
                 if not sublabel_name:
                     continue
-                prediction["result"].append(
+                prediction.result.append(
                     self._format_match(
                         span[0],
                         span[1],
@@ -287,10 +290,10 @@ class LabelStudioClient:
                     )
                 )
 
-        task["predictions"].extend(predictions.values())
+        task.predictions.extend(predictions.values())
         self._update_used_labels(task, {x.label for x in note.highlights})
 
-    def _format_philter_predictions(self, task: dict, note: LabelStudioNote) -> None:
+    def _format_philter_predictions(self, task: ls.ImportApiRequest, note: LabelStudioNote) -> None:
         """
         Adds a predication layer with philter spans.
 
@@ -302,20 +305,17 @@ class LabelStudioClient:
         if not note.philter_map:
             return
 
-        prediction = {
-            "model_version": "Philter",
-        }
+        prediction = ls.PredictionRequest.construct(model_version="Philter", result=[])
 
-        results = []
         for start, stop in sorted(note.philter_map.items()):
             # We hardcode the label "_philter" - Label Studio will still highlight unknown labels,
             # and this is unlikely to collide with existing labels.
-            results.append(self._format_match(start, stop, note.text[start:stop], ["_philter"]))
-        prediction["result"] = results
+            result = self._format_match(start, stop, note.text[start:stop], ["_philter"])
+            prediction.result.append(result)
 
-        task["predictions"].append(prediction)
+        task.predictions.append(prediction)
 
-    def _update_used_labels(self, task: dict, used_labels: Iterable[str]) -> None:
+    def _update_used_labels(self, task: ls.ImportApiRequest, used_labels: Iterable[str]) -> None:
         # This path supports configs like <Labels name="label" toName="text" value="$label"/> where
         # the labels can be dynamically set by us. (This is still safe to do even without dynamic
         # labels - and since we can't really tell from the label config whether there are dynamic
@@ -328,7 +328,7 @@ class LabelStudioClient:
         #
         # The rule that Cumulus uses is that the value= variable must equal the name= of the
         # <Labels> element.
-        existing_labels = task["data"].get(self._labels_name, [])
+        existing_labels = task.data.get(self._labels_name, [])
         existing_labels = {d["value"] for d in existing_labels}
         existing_labels.update(used_labels)
-        task["data"][self._labels_name] = [{"value": x} for x in sorted(existing_labels)]
+        task.data[self._labels_name] = [{"value": x} for x in sorted(existing_labels)]

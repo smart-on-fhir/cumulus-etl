@@ -1,10 +1,13 @@
 """Tests for cumulus.upload_notes.labelstudio.py"""
 
 import datetime
+import json
+import types
 from unittest import mock
 
 import ddt
 from ctakesclient.typesystem import Polarity
+from label_studio_sdk.label_interface import LabelInterface
 
 from cumulus_etl import errors
 from cumulus_etl.upload_notes.labelstudio import Highlight, LabelStudioClient, LabelStudioNote
@@ -19,11 +22,18 @@ class TestUploadLabelStudio(AsyncTestCase):
     def setUp(self):
         super().setUp()
 
-        self.ls_mock = self.patch("cumulus_etl.upload_notes.labelstudio.label_studio_sdk.Client")
+        self.ls_mock = self.patch("label_studio_sdk.LabelStudio")
         self.ls_client = self.ls_mock.return_value
-        self.ls_project = self.ls_client.get_project.return_value
-        self.ls_project.get_tasks.return_value = []
-        self.ls_project.parsed_label_config = {"mylabel": {"type": "Labels", "to_name": ["mytext"]}}
+        self.ls_project = self.ls_client.projects.get.return_value
+        self.ls_client.tasks.list.return_value = []
+        self.mock_config("""
+        <View>
+            <Labels name="mylabel" toName="mytext" value="$mylabel"/>
+            <Text name="mytext" value="$mytext"/>
+        </View>""")
+
+    def mock_config(self, config: dict):
+        self.ls_project.get_label_interface.return_value = LabelInterface(config)
 
     @staticmethod
     def make_note(
@@ -71,10 +81,10 @@ class TestUploadLabelStudio(AsyncTestCase):
         await client.push_tasks(notes, **kwargs)
 
     def get_pushed_task(self) -> dict:
-        self.assertEqual(1, self.ls_project.import_tasks.call_count)
-        imported_tasks = self.ls_project.import_tasks.call_args[0][0]
+        self.assertEqual(1, self.ls_client.projects.import_tasks.call_count)
+        imported_tasks = self.ls_client.projects.import_tasks.call_args[1]["request"]
         self.assertEqual(1, len(imported_tasks))
-        return imported_tasks[0]
+        return imported_tasks[0].model_dump(exclude_unset=True)
 
     async def test_basic_push(self):
         await self.push_tasks(self.make_note(date=datetime.datetime(2010, 10, 10)))
@@ -194,9 +204,11 @@ class TestUploadLabelStudio(AsyncTestCase):
     @ddt.data("Choices", "Labels")
     async def test_dynamic_labels(self, label_type):
         """Verify we send dynamic labels"""
-        self.ls_project.parsed_label_config = {
-            "mylabel": {"type": label_type, "to_name": ["mytext"]},
-        }
+        self.mock_config(f"""
+        <View>
+            <{label_type} name="mylabel" toName="mytext" value="$mylabel"/>
+            <Text name="mytext" value="$mytext"/>
+        </View>""")
         await self.push_tasks(self.make_note())
         self.assertEqual(
             {
@@ -236,37 +248,43 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_no_label_config(self):
-        self.ls_project.parsed_label_config = {}
+        self.mock_config("<View/>")
         with self.assert_fatal_exit(errors.LABEL_STUDIO_CONFIG_INVALID):
             await self.push_tasks(self.make_note())
 
     async def test_overwrite(self):
-        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"unique_id": "unique"}}]
+        self.ls_client.tasks.list.return_value = [
+            types.SimpleNamespace(id=1, data={"unique_id": "unique"})
+        ]
 
         # Try once without overwrite
         await self.push_tasks(self.make_note())
-        self.assertFalse(self.ls_project.import_tasks.called)
-        self.assertFalse(self.ls_project.delete_tasks.called)
+        self.assertFalse(self.ls_client.projects.import_tasks.called)
+        self.assertFalse(self.ls_client.tasks.delete.called)
 
         # Now overwrite
         await self.push_tasks(self.make_note(), overwrite=True)
-        self.assertEqual([mock.call([1])], self.ls_project.delete_tasks.call_args_list)
-        self.assertTrue(self.ls_project.import_tasks.called)
+        self.assertEqual([mock.call(1)], self.ls_client.tasks.delete.call_args_list)
+        self.assertTrue(self.ls_client.projects.import_tasks.called)
 
     async def test_overwrite_partial(self):
         """Verify that we push what we can and ignore any existing tasks by default"""
-        self.ls_project.get_tasks.return_value = [{"id": 1, "data": {"unique_id": "unique"}}]
+        self.ls_client.tasks.list.return_value = [
+            types.SimpleNamespace(id=1, data={"unique_id": "unique"})
+        ]
 
         await self.push_tasks(self.make_note(), self.make_note(unique_id="unique2"))
-        self.assertFalse(self.ls_project.delete_tasks.called)
+        self.assertFalse(self.ls_client.tasks.delete.called)
         self.assertEqual("unique2", self.get_pushed_task()["data"]["unique_id"])
 
     async def test_push_highlights(self):
-        self.ls_project.parsed_label_config = {
-            "mylabel": {"type": "Labels", "to_name": ["mytext"]},
-            "Sub1": {"type": "Choices", "to_name": ["mytext"]},
-            "Sub2": {"type": "TextArea", "to_name": ["mytext"]},
-        }
+        self.mock_config("""
+        <View>
+            <Labels name="mylabel" toName="mytext" value="$mylabel"/>
+            <Text name="mytext" value="$mytext"/>
+            <Choices name="Sub1" toName="mytext"/>,
+            <TextArea name="Sub2" toName="mytext"/>,
+        </View>""")
         note = self.make_note(philter_label=False, ctakes=False)
         note.highlights = [
             Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
@@ -410,9 +428,6 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_unrecognized_label_name(self):
-        self.ls_project.parsed_label_config = {
-            "mylabel": {"type": "Labels", "to_name": ["mytext"]},
-        }
         note = self.make_note(philter_label=False, ctakes=False)
         note.highlights = [
             Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
@@ -421,10 +436,12 @@ class TestUploadLabelStudio(AsyncTestCase):
             await self.push_tasks(note)
 
     async def test_unrecognized_config_type(self):
-        self.ls_project.parsed_label_config = {
-            "mylabel": {"type": "Labels", "to_name": ["mytext"]},
-            "Sub1": {"type": "Bogus", "to_name": ["mytext"]},
-        }
+        self.mock_config("""
+        <View>
+            <Labels name="mylabel" toName="mytext" value="$mylabel"/>
+            <Text name="mytext" value="$mytext"/>
+            <Bogus name="Sub1" toName="mytext"/>,
+        </View>""")
         note = self.make_note(philter_label=False, ctakes=False)
         note.highlights = [
             Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
@@ -440,15 +457,17 @@ class TestUploadLabelStudio(AsyncTestCase):
         await self.push_tasks(*notes)
 
         # Confirm we searched in batches
-        self.assertEqual(2, self.ls_project.get_tasks.call_count)
-        filters = self.ls_project.get_tasks.call_args_list[0][1]["filters"]
+        self.assertEqual(2, self.ls_client.tasks.list.call_count)
+        filters = self.ls_client.tasks.list.call_args_list[0][1]["query"]
+        filters = json.loads(filters)["filters"]
         self.assertEqual(500, len(filters["items"][0]["value"]))
-        filters = self.ls_project.get_tasks.call_args_list[1][1]["filters"]
+        filters = self.ls_client.tasks.list.call_args_list[1][1]["query"]
+        filters = json.loads(filters)["filters"]
         self.assertEqual(1, len(filters["items"][0]["value"]))
 
         # Confirm we imported in batches
-        self.assertEqual(2, self.ls_project.import_tasks.call_count)
-        imported_tasks = self.ls_project.import_tasks.call_args_list[0][0][0]
+        self.assertEqual(2, self.ls_client.projects.import_tasks.call_count)
+        imported_tasks = self.ls_client.projects.import_tasks.call_args_list[0][1]["request"]
         self.assertEqual(300, len(imported_tasks))
-        imported_tasks = self.ls_project.import_tasks.call_args_list[1][0][0]
+        imported_tasks = self.ls_client.projects.import_tasks.call_args_list[1][1]["request"]
         self.assertEqual(201, len(imported_tasks))
