@@ -346,7 +346,7 @@ def print_header(name: str | None = None) -> None:
     """Prints a section break to the console, with a name for the user"""
     rich.get_console().rule()
     if name:
-        print(name)
+        rich.print(name)
 
 
 ###############################################################################

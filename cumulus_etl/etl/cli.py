@@ -55,7 +55,7 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="run tasks even if their resources are not present",
     )
-    cli_utils.add_task_selection(parser, etl_mode=True)
+    cli_utils.add_task_selection(parser)
 
     cli_utils.add_aws(parser)
 

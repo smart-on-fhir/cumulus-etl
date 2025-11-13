@@ -46,7 +46,8 @@ class CtakesMixin(unittest.TestCase):
 
     def tearDown(self) -> None:
         super().tearDown()
-        del os.environ["URL_CTAKES_REST"]
+        if "URL_CTAKES_REST" in os.environ:
+            del os.environ["URL_CTAKES_REST"]
         self.ctakes_server.kill()
         self.ctakes_server.join()
         self.ctakes_overrides = None

@@ -9,6 +9,7 @@ from cumulus_etl.etl.studies.irae.irae_tasks import (
     KidneyTransplantDonorGroupAnnotation,
     KidneyTransplantLongitudinalAnnotation,
 )
+from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 
@@ -125,7 +126,9 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": KidneyTransplantDonorGroupAnnotation,
+                "response_format": OpenAIProvider.pydantic_to_response_format(
+                    KidneyTransplantDonorGroupAnnotation
+                ),
             },
             self.mock_create.call_args_list[0][1],
         )
@@ -164,7 +167,9 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": KidneyTransplantLongitudinalAnnotation,
+                "response_format": OpenAIProvider.pydantic_to_response_format(
+                    KidneyTransplantLongitudinalAnnotation
+                ),
             },
             self.mock_create.call_args_list[1][1],
         )

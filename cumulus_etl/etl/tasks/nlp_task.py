@@ -10,7 +10,7 @@ import string
 import sys
 import types
 import typing
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from typing import ClassVar
 
 import cumulus_fhir_support as cfs
@@ -153,13 +153,41 @@ class BaseModelTask(BaseNlpTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.model = self.client_class()
+        self.model = self.client_class(max_batch_count=self.task_config.batch_size)
 
     @classmethod
     async def init_check(cls) -> None:
         await cls.client_class().post_init_check()
 
     async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+        cache_namespace = f"{self.name}_v{self.task_version}"
+
+        # Step 1: if model supports batching, we create batches and send them off
+        async def prompt_iter() -> AsyncGenerator[nlp.Prompt]:
+            async for note_details in self.prepared_notes():
+                yield self.make_prompt(note_details)
+
+        await self.model.prompt_via_batches_if_possible(
+            schema=self.response_format,
+            cache_dir=self.task_config.dir_phi,
+            cache_namespace=cache_namespace,
+            prompt_iter=prompt_iter(),
+        )
+
+        # Step 2: go through notes, processing as we go (getting batch results above from cache)
+        async for details in self.prepared_notes(progress=progress):
+            try:
+                if result := await self.process_note(details):
+                    yield result
+            except Exception as exc:
+                logging.warning(f"NLP failed for {details.orig_note_ref}: {exc}")
+                self.add_error(details.orig_note)
+
+    async def prepared_notes(
+        self,
+        *,
+        progress: rich.progress.Progress = None,
+    ) -> AsyncGenerator[NoteDetails]:
         async for orig_note, note, orig_note_text in self.read_notes(progress=progress):
             if self.should_skip(orig_note):
                 continue
@@ -174,7 +202,7 @@ class BaseModelTask(BaseNlpTask):
             note_text = self.remove_trailing_whitespace(orig_note_text)
             orig_note_ref = f"{orig_note['resourceType']}/{orig_note['id']}"
 
-            details = NoteDetails(
+            yield NoteDetails(
                 note_ref=note_ref,
                 encounter_id=encounter_id,
                 subject_ref=subject_ref,
@@ -185,22 +213,19 @@ class BaseModelTask(BaseNlpTask):
                 orig_note=orig_note,
             )
 
-            try:
-                if result := await self.process_note(details):
-                    yield result
-            except Exception as exc:
-                logging.warning(f"NLP failed for {orig_note_ref}: {exc}")
-                self.add_error(orig_note)
-
-    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
-        response = await self.model.prompt(
-            self.get_system_prompt(),
-            self.get_user_prompt(details.note_text),
+    def make_prompt(self, details: NoteDetails) -> nlp.Prompt:
+        return nlp.Prompt(
+            system=self.get_system_prompt(),
+            user=self.get_user_prompt(details.note_text),
             schema=self.response_format,
             cache_dir=self.task_config.dir_phi,
             cache_namespace=f"{self.name}_v{self.task_version}",
-            note_text=details.note_text,
+            cache_checksum=nlp.cache_checksum(details.note_text),
         )
+
+    # May be overridden if necessary by subclasses
+    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
+        response = await self.model.prompt(self.make_prompt(details))
 
         parsed = response.answer.model_dump(mode="json")
         self.post_process(parsed, details)
@@ -238,6 +263,7 @@ class BaseModelTask(BaseNlpTask):
                 + stats.output_tokens * prices.output_tokens
             )
             cost /= 1_000  # all prices are "per 1,000 tokens"
+            cost *= prices.multiplier
             when = prices.date.strftime("%b %Y")
             table.add_row(f" Estimated cost (as of {when}):", f"${cost:.2f}")
 

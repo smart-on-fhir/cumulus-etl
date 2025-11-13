@@ -6,18 +6,25 @@ of those studies - that code is elsewhere in study-specific test files.
 """
 
 import filecmp
+import hashlib
+import json
 import os
+from types import SimpleNamespace
 from unittest import mock
 
 import ddt
+import httpx
 import openai
 import pyarrow
 import pydantic
 
 from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl.studies import covid_symptom, irae
+from cumulus_etl.etl.studies.example.example_tasks import AgeMention
 from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantLongitudinalAnnotation
+from cumulus_etl.nlp.models import OpenAIProvider
 from tests import i2b2_mock_data
+from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 
 
@@ -27,7 +34,8 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
 
     MODEL_ID = "openai/gpt-oss-120b"
 
-    def default_kidney(self, **kwargs) -> KidneyTransplantLongitudinalAnnotation:
+    @staticmethod
+    def default_kidney(**kwargs) -> KidneyTransplantLongitudinalAnnotation:
         model_dict = {
             "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
             "rx_compliance_mention": {"has_mention": False, "spans": []},
@@ -364,8 +372,48 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
 
 
 @ddt.ddt
-class TestAzureNLPTasks(NlpModelTestCase):
+class TestAzureNLPTasks(NlpModelTestCase, BaseEtlSimple):
     """Tests the Azure specific code"""
+
+    @staticmethod
+    def batch_line(contents: str) -> str:
+        checksum = hashlib.sha256(contents.encode("utf8"), usedforsecurity=False).hexdigest()
+        return json.dumps(
+            {
+                "custom_id": checksum,
+                "response": {
+                    "body": {
+                        "id": f"blarg-{checksum}",
+                        "choices": [
+                            {
+                                "index": 0,
+                                "finish_reason": "stop",
+                                "message": {
+                                    "role": "assistant",
+                                    "content": json.dumps({"has_mention": True, "age": 10}),
+                                },
+                            }
+                        ],
+                        "created": 1000000,
+                        "model": "gpt-4o",
+                        "object": "chat.completion",
+                    },
+                },
+            },
+        )
+
+    def mock_content(self, contents: list | None = None) -> None:
+        if contents is None:
+            contents = [
+                self.batch_line("Notes for fever"),
+                self.batch_line("Notes! for fever"),
+            ]
+        self.mock_client.files.content.return_value = openai.HttpxBinaryResponseContent(
+            httpx.Response(status_code=200, text="\n".join(contents)),
+        )
+
+    def default_content(self) -> pydantic.BaseModel:
+        return AgeMention(has_mention=True, age=10)
 
     @ddt.data(
         # env vars to set, success
@@ -384,3 +432,214 @@ class TestAzureNLPTasks(NlpModelTestCase):
         else:
             with self.assertRaises(SystemExit):
                 await task.init_check()
+
+    async def test_custom_deployment(self):
+        self.mock_azure("gpt-4o")
+
+        self.mock_response()
+        self.mock_response()
+
+        await self.run_etl(
+            "--azure-deployment=foo", "--provider=azure", tasks=["example_nlp__nlp_gpt4o"]
+        )
+
+        self.assertEqual(self.mock_create.call_args_list[0][1]["model"], "foo")
+
+    async def test_batching_happy_path(self):
+        self.mock_azure("gpt-4o")
+
+        async def upload_file(**kwargs):
+            self.assertEqual(kwargs["purpose"], "batch")
+            file_text = common.read_text(str(kwargs["file"]))
+            lines = [json.loads(line) for line in file_text.split("\n") if line]
+            self.assertEqual(len(lines), 4)  # 2 docrefs, 2 dxreports
+            self.assertEqual(
+                lines[0]["custom_id"],
+                "5db841c4c46d8a25fbb1891fd1eb352170278fa2b931c1c5edebe09a06582fb5",
+            )
+            self.assertEqual(lines[0]["method"], "POST")
+            self.assertEqual(lines[0]["url"], "/v1/chat/completions")
+            self.assertEqual(lines[0]["body"]["model"], "gpt-4o")
+            self.assertTrue(lines[0]["body"]["messages"][0]["content"].startswith("You are a"))
+            return SimpleNamespace(id="input")
+
+        self.mock_client.files.create = upload_file
+        self.mock_client.batches.create.return_value = SimpleNamespace(id="batch")
+        self.mock_client.batches.retrieve.return_value = SimpleNamespace(
+            id="batch", status="completed", error_file_id=None, output_file_id="output"
+        )
+        self.mock_content()
+
+        await self.run_etl("--batch", "--provider=azure", tasks=["example_nlp__nlp_gpt4o"])
+
+        self.assertEqual(
+            self.mock_client.batches.create.call_args_list[0][1],
+            {
+                "completion_window": "24h",
+                "endpoint": "/v1/chat/completions",
+                "input_file_id": "input",
+            },
+        )
+        self.assertEqual(
+            self.mock_client.batches.retrieve.call_args_list[0][1],
+            {
+                "batch_id": "batch",
+            },
+        )
+
+    async def test_model_does_not_support_batching(self):
+        self.mock_azure("gpt-oss-120b")
+        with self.assert_fatal_exit(errors.NLP_BATCHING_UNSUPPORTED):
+            await self.run_etl(
+                "--batch", "--provider=azure", tasks=["example_nlp__nlp_gpt_oss_120b"]
+            )
+
+    async def test_resume_batching(self):
+        self.mock_azure("gpt-4o")
+
+        path_dir = f"{self.phi_path}/nlp-cache/example_nlp__nlp_gpt4o_v1"
+        os.makedirs(path_dir)
+        with open(f"{path_dir}/metadata.json", "w", encoding="utf8") as f:
+            json.dump({"batches-azure": ["b1", "b2"]}, f)
+
+        # Just mock the retrieval bits, make the creation bits blow up
+        self.mock_client.files.create.side_effect = RuntimeError
+        self.mock_client.batches.retrieve.return_value = SimpleNamespace(
+            id="batch", status="completed", error_file_id=None, output_file_id="output"
+        )
+        self.mock_content()
+
+        await self.run_etl("--batch", "--provider=azure", tasks=["example_nlp__nlp_gpt4o"])
+
+    async def test_errors(self):
+        self.mock_azure("gpt-4o")
+
+        self.mock_client.files.create.return_value = SimpleNamespace(id="input")
+        self.mock_client.batches.create.return_value = SimpleNamespace(id="batch")
+        self.mock_client.batches.retrieve.side_effect = [
+            SimpleNamespace(id="batch", status="validating"),
+            SimpleNamespace(id="batch", status="in_progress"),
+            SimpleNamespace(id="batch", status="finalizing"),
+            SimpleNamespace(
+                # Will still process error/output files when failed, just prints a message
+                id="batch",
+                status="failed",
+                error_file_id="error",
+                output_file_id="output",
+            ),
+        ]
+        self.mock_client.files.content.side_effect = [
+            openai.HttpxBinaryResponseContent(  # error file
+                httpx.Response(
+                    status_code=200,
+                    text="\n".join(
+                        [
+                            # Test all the various ways we can stuff errors in there
+                            json.dumps({"error": {"message": {"error": {"message": "error1"}}}}),
+                            "{'blarg'",  # invalid json
+                        ],
+                    ),
+                ),
+            ),
+            openai.HttpxBinaryResponseContent(  # output file
+                httpx.Response(
+                    status_code=200,
+                    text="\n".join(
+                        [
+                            # Test all the various ways we can stuff errors in there
+                            json.dumps({"error": {"message": "error2"}}),
+                            json.dumps({"response": {"status_code": 400}}),
+                            json.dumps({"response": {"body": {"model": "gpt-4o"}}}),  # no custom_id
+                            json.dumps({"custom_id": "xx", "response": {"id": "yy"}}),  # no body
+                        ],
+                    ),
+                ),
+            ),
+        ]
+
+        # The above gave no real responses, so we'll fall back to non-batching:
+        self.mock_response()
+        self.mock_response()
+
+        with self.assertLogs(level="WARNING") as logs:
+            await self.run_etl("--batch", "--provider=azure", tasks=["example_nlp__nlp_gpt4o"])
+
+        self.assertEqual(
+            logs.output,
+            [
+                "WARNING:root:Batch did not complete, got status: 'failed'",
+                "WARNING:root:Error from NLP: error1",
+                "WARNING:root:Could not process error message: '{'blarg''",
+                "WARNING:root:Error from NLP: error2",
+                "WARNING:root:Unexpected status code from NLP: 400",
+                "WARNING:root:Unexpected response from NLP: missing data",  # no custom id
+                "WARNING:root:Unexpected response from NLP: missing data",  # no body
+            ],
+        )
+
+    @mock.patch.object(OpenAIProvider, "AZURE_MAX_BATCH_COUNT", 2)
+    @mock.patch.object(OpenAIProvider, "AZURE_MAX_BATCH_BYTES", 6000)
+    async def test_splitting_batch(self):
+        self.mock_azure("gpt-4o")
+
+        docref = i2b2_mock_data.documentreference("foo")
+        self.make_json("DocumentReference", "1", **docref)
+        self.make_json("DocumentReference", "2", **docref)
+        # Now a break because of max count of 2 rows
+        docref = i2b2_mock_data.documentreference("very long string that breaks size limit x 2")
+        self.make_json("DocumentReference", "3", **docref)
+        # Now a break because of max byte limit
+        self.make_json("DocumentReference", "4", **docref)
+
+        self.mock_client.files.create.side_effect = [
+            SimpleNamespace(id="input1"),
+            SimpleNamespace(id="input2"),
+            SimpleNamespace(id="input3"),
+        ]
+        self.mock_client.batches.create.side_effect = [
+            SimpleNamespace(id="batch1"),
+            SimpleNamespace(id="batch2"),
+            SimpleNamespace(id="batch3"),
+        ]
+        self.mock_client.batches.retrieve.side_effect = [
+            SimpleNamespace(
+                id="batch1", status="completed", error_file_id=None, output_file_id="output1"
+            ),
+            SimpleNamespace(
+                id="batch2", status="completed", error_file_id=None, output_file_id="output2"
+            ),
+            SimpleNamespace(
+                id="batch3", status="completed", error_file_id=None, output_file_id="output3"
+            ),
+        ]
+        self.mock_client.files.content.side_effect = [
+            openai.HttpxBinaryResponseContent(
+                httpx.Response(
+                    status_code=200,
+                    text="\n".join([self.batch_line("foo"), self.batch_line("foo")]),
+                ),
+            ),
+            openai.HttpxBinaryResponseContent(
+                httpx.Response(
+                    status_code=200,
+                    text="\n".join(
+                        [self.batch_line("very long string that breaks size limit x 2")]
+                    ),
+                ),
+            ),
+            openai.HttpxBinaryResponseContent(
+                httpx.Response(
+                    status_code=200,
+                    text="\n".join(
+                        [self.batch_line("very long string that breaks size limit x 2")]
+                    ),
+                ),
+            ),
+        ]
+
+        await self.run_etl(
+            "--batch",
+            "--provider=azure",
+            tasks=["example_nlp__nlp_gpt4o"],
+            input_path=self.input_dir,
+        )

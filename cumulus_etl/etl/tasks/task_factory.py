@@ -106,14 +106,20 @@ def get_selected_tasks(
         _print_task_names(all_tasks, file=sys.stderr)
         raise SystemExit(errors.TASK_UNKNOWN)
     if names - all_task_names:
-        print(
+        errors.fatal(
             "Cannot mix NLP and non-NLP tasks in the same run. "
             "Use 'cumulus-etl nlp' for NLP tasks and 'cumulus-etl etl' for normal FHIR tasks.",
-            file=sys.stderr,
+            errors.TASK_MISMATCH,
         )
-        raise SystemExit(errors.TASK_MISMATCH)
 
-    return [task for task in all_tasks if task.name in names]
+    tasks = [task for task in all_tasks if task.name in names]
+
+    if nlp:
+        models = {getattr(t, "client_class", None) for t in tasks}
+        if len(models) > 1:
+            errors.fatal("Only one kind of NLP model can be run at once.", errors.TASK_TOO_MANY)
+
+    return tasks
 
 
 def _print_task_names(all_tasks: list[type[AnyTask]], *, file=sys.stdout) -> None:
