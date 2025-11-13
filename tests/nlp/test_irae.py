@@ -234,7 +234,9 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": MultipleTransplantHistoryAnnotation,
+                "response_format": OpenAIProvider.pydantic_to_response_format(
+                    MultipleTransplantHistoryAnnotation
+                ),
             },
             self.mock_create.call_args_list[2][1],
         )
