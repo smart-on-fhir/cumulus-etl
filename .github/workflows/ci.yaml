@@ -131,3 +131,9 @@ jobs:
 
       - name: Run ruff
         run: ruff check --output-format=github .
+
+  bdf-validation:
+    name: BDF validation
+    uses: ARPA-H-BDF/bdfkb-schema/.github/workflows/ci-validate.yaml@main
+    with:
+      python-version: '3.11'

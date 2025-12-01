@@ -15,7 +15,7 @@ dependencies = [
     "fsspec[http,s3]",
     "httpx",
     "inscriptis",
-    "label-studio-sdk >= 1",
+    "label-studio-sdk >= 2",
     "nltk >= 3.9",
     "openai",
     "oracledb",
