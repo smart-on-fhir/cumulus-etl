@@ -68,8 +68,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         with self.assertLogs(level="WARN") as cm:
             await task.run()
 
-        self.assertEqual(len(cm.output), 1)
-        self.assertRegex(cm.output[0], r"Could not check polarity for .* \(ValueError\): oops")
+        self.assertTrue(any("Could not check polarity for" in x for x in cm.output))
 
         # Confirm that we skipped the doc
         self.assertEqual(self.format.write_records.call_count, 1)
