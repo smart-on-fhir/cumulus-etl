@@ -1,0 +1,86 @@
+version: 2.4.0
+
+tool:
+  name: Cumulus ETL
+  repo_url: https://github.com/smart-on-fhir/cumulus-etl
+  tool_homepage: https://docs.smarthealthit.org/cumulus/etl/
+  documentation_url: https://docs.smarthealthit.org/cumulus/etl/
+  tool_type: CLI
+
+llm:
+  usesLlm: true
+  bringOwnKey: true
+
+input:
+  - name: Clinical/phenotype structured 1
+    dataCategory: clinical-phenotype
+    dataClass: structured
+    dataType: clinical-ehr
+    format:
+      - various
+    dataStandard:
+      - fhir
+    proprietary: false
+    source: https://github.com/smart-on-fhir/sample-bulk-fhir-datasets
+
+output:
+  - name: Clinical/phenotype tabular 1
+    dataCategory: clinical-phenotype
+    dataClass: tabular
+    dataType: clinical-ehr
+    format:
+      - json
+    dataStandard:
+      - fhir
+    proprietary: false
+    source: https://github.com/smart-on-fhir/sample-bulk-fhir-datasets
+  - name: Clinical/phenotype matrix 1
+    dataCategory: clinical/phenotype
+    dataClass: matrix
+    dataType: clinical-ehr
+    format:
+      - csv
+    dataStandard:
+      - Stratified counts of FHIR elements
+    proprietary: true
+    source: "TODO"
+
+license:
+  license_type: Apache-2.0
+  link: https://github.com/smart-on-fhir/cumulus-etl/blob/main/LICENSE
+
+funding:
+  source: ONC, CDC, ARPA-H
+  agreement: Not specified
+  link: ""
+
+domains:
+  - Anything in the EHR
+
+credit:
+  - name: Cumulus-Fab
+    role: Developer
+    org: Boston Children's Hospital
+    url: https://docs.smarthealthit.org/cumulus/
+
+target_users:
+  primary_user:
+    user_type: site-admin-prepping-ehr-extracts
+    technical_literacy_level:
+      - intermediate
+    biomedical_literacy_level:
+      - novice
+  secondary_user:
+    user_type: researcher
+    technical_literacy_level:
+      - advanced
+    biomedical_literacy_level:
+      - novice
+
+maturity:
+  beginning_maturity: 1
+  current_maturity: 5
+
+media: [{ "link": "https://docs.smarthealthit.org/cumulus/" }]
+
+collaborations: []
