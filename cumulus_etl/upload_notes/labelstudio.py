@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import json
 import math
+import re
 from collections.abc import AsyncIterator, Collection, Iterable
 
 import ctakesclient
@@ -18,6 +19,9 @@ from cumulus_etl import batching, cli_utils, errors
 # LabelStudio : Document Annotation
 #
 ###############################################################################
+
+NON_ALPHANUM = re.compile("[^a-z0-9]")
+UNDERSCORES = re.compile("_+")
 
 
 @dataclasses.dataclass
@@ -260,6 +264,9 @@ class LabelStudioClient:
             sublabels = grouped_highlights.setdefault(key, {})
             sublabels.setdefault(highlight.sublabel_name, []).append(highlight.sublabel_value)
 
+        # Also keep track of all the different sublabel values, for adding as a new data column.
+        sublabel_col_vals = {}  # (label, sublabel_name) -> (sublabel value, uncased text) -> text
+
         predictions = {}  # dict of origin -> prediction request
         for key, sublabels in grouped_highlights.items():
             label, span, origin = key
@@ -289,9 +296,36 @@ class LabelStudioClient:
                         from_name=sublabel_name,
                     )
                 )
+                # Keep track of values for the sublabel data columns
+                vals = sublabel_col_vals.setdefault((label, sublabel_name), {})
+                for value in sublabel_values:
+                    vals[(value, text.casefold())] = text
 
         task.predictions.extend(predictions.values())
         self._update_used_labels(task, {x.label for x in note.highlights})
+
+        # Add sublabel data cols
+        for (label, sublabel_name), vals_with_text in sublabel_col_vals.items():
+            # Label Studio doesn't love col names with spaces, so we convert the label to a
+            # SQL-safe version. The names will be unique (i.e. not conflict with our other data
+            # columns like `docref_mappings` because we add a _label or _text suffix below.
+            # There is a light chance of collision because of how we're modifying these labels,
+            # but if that were to happen, the consequences are minor (one of the labels doesn't
+            # get a Label Studio column).
+            slug = label
+            sublabel_name = sublabel_name.removeprefix(f"{label} ")
+            if sublabel_name and slug != sublabel_name:
+                slug += f"_{sublabel_name}"
+            slug = NON_ALPHANUM.sub("_", slug.casefold())  # replace all non-alphanums with sunders
+            slug = UNDERSCORES.sub("_", slug)  # replace multiple underscores with one
+
+            # Now mash together any separate label values, using a little visual separator
+            # (newlines will be removed by Label Studio, so we need something visual)
+            vals_keys = sorted(vals_with_text)
+            vals = " ✦ ".join([x[0].strip() for x in vals_keys])
+            task.data[f"{slug}_label"] = vals
+            texts = " ✦ ".join([vals_with_text[x].strip() for x in vals_keys])
+            task.data[f"{slug}_text"] = texts
 
     def _format_philter_predictions(self, task: ls.ImportApiRequest, note: LabelStudioNote) -> None:
         """
