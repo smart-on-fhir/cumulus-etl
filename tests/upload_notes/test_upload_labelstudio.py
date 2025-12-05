@@ -308,6 +308,10 @@ class TestUploadLabelStudio(AsyncTestCase):
                     "docref_mappings": {"doc": "doc-anon"},
                     "docref_spans": {"doc": [0, 16]},
                     "mylabel": [{"value": "Label1"}, {"value": "Label2"}],
+                    "label1_sub1_label": "A ✦ A ✦ B",
+                    "label1_sub1_text": "note ✦ text ✦ text",
+                    "label1_sub2_label": "C ✦ C",
+                    "label1_sub2_text": "note ✦ text",
                 },
                 "predictions": [
                     {
