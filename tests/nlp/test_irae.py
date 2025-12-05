@@ -9,6 +9,7 @@ from cumulus_etl.etl.studies.irae.irae_tasks import (
     KidneyTransplantDonorGroupAnnotation,
     KidneyTransplantLongitudinalAnnotation,
     MultipleTransplantHistoryAnnotation,
+    ImmunosuppresiveMedicationsAnnotation,
 )
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple

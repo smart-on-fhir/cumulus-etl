@@ -25,3 +25,18 @@ from .irae_tasks import (
 from .irae_tasks import (
     IraeMultipleTransplantHistoryLlama4ScoutTask as IraeMultipleTransplantHistoryLlama4ScoutTask,
 )
+from .irae_tasks import (
+    IraeImmunosuppressiveMedicationsClaudeSonnet45Task as IraeImmunosuppressiveMedicationsClaudeSonnet45Task,
+)
+from .irae_tasks import (
+    IraeImmunosuppressiveMedicationsGpt4oTask as IraeImmunosuppressiveMedicationsGpt4oTask,
+)
+from .irae_tasks import (
+    IraeImmunosuppressiveMedicationsGpt5Task as IraeImmunosuppressiveMedicationsGpt5Task,
+)
+from .irae_tasks import (
+    IraeImmunosuppressiveMedicationsGptOss120bTask as IraeImmunosuppressiveMedicationsGptOss120bTask,
+)
+from .irae_tasks import (
+    IraeImmunosuppressiveMedicationsLlama4ScoutTask as IraeImmunosuppressiveMedicationsLlama4ScoutTask,
+)

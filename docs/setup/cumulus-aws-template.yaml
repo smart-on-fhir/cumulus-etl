@@ -212,6 +212,14 @@ Resources:
             CreateNativeDeltaTable: True
             WriteManifest: False
           - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_immunosuppresive_medications_claude_sonnet45"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_immunosuppresive_medications_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_immunosuppresive_medications_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_immunosuppresive_medications_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_immunosuppresive_medications_llama4_scout"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_claude_sonnet45"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_gpt4o"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_multiple_transplant_history_gpt5"
