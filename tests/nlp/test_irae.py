@@ -59,6 +59,31 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         #       funnily enough is not the order they're named in but is their
         #       alphabetical order by Task Name
         self.mock_response(
+            content=ImmunosuppresiveMedicationsAnnotation.model_validate(
+                {
+                    "immunosuppresive_medication_mentions": [
+                        {
+                            "has_mention": False,
+                            "spans": [],
+                            "status": "None of the above",
+                            "category": "None of the above",
+                            "route": "None of the above",
+                            "phase": "None of the above",
+                            "expected_supply_days": None,
+                            "number_of_repeats_allowed": None,
+                            "frequency": "None of the above",
+                            "start_date": None,
+                            "end_date": None,
+                            "quantity_unit": "None of the above",
+                            "quantity_value": None,
+                            "drug_class": "None of the above",
+                            "ingredient": "None of the above",
+                        }
+                    ]
+                }
+            )
+        )
+        self.mock_response(
             content=KidneyTransplantDonorGroupAnnotation.model_validate(
                 {
                     "donor_transplant_date_mention": {"has_mention": False, "spans": []},
@@ -92,6 +117,10 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             )
         )
 
+        immunosuppresive_medications_task_name = (
+            f"irae__nlp_immunosuppresive_medications_{model_slug}"
+        )
+
         multiple_transplant_history_task_name = (
             f"irae__nlp_multiple_transplant_history_{model_slug}"
         )
@@ -100,9 +129,18 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
 
         await self.run_etl(
             "--provider=azure",
-            tasks=[multiple_transplant_history_task_name, donor_task_name, longitudinal_task_name],
+            tasks=[
+                immunosuppresive_medications_task_name,
+                multiple_transplant_history_task_name,
+                donor_task_name,
+                longitudinal_task_name,
+            ],
         )
 
+        self.assert_files_equal(
+            f"{self.root_path}/immunosuppresive-medications-output.ndjson",
+            f"{self.output_path}/{immunosuppresive_medications_task_name}/{immunosuppresive_medications_task_name}.000.ndjson",
+        )
         self.assert_files_equal(
             f"{self.root_path}/donor-output.ndjson",
             f"{self.output_path}/{donor_task_name}/{donor_task_name}.000.ndjson",
@@ -116,8 +154,49 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             f"{self.output_path}/{multiple_transplant_history_task_name}/{multiple_transplant_history_task_name}.000.ndjson",
         )
 
-        self.assertEqual(self.mock_create.call_count, 3)
+        self.assertEqual(self.mock_create.call_count, 4)
 
+        self.assertEqual(
+            {
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a clinical chart reviewer for a kidney transplant outcomes study.\n"
+                        "Your task is to extract patient-specific information from an unstructured clinical "
+                        "document and map it into a predefined Pydantic schema.\n"
+                        "\n"
+                        "Core Rules:\n"
+                        "1. Base all assertions ONLY on patient-specific information in the clinical document.\n"
+                        "   - Never negate or exclude information just because it is not mentioned.\n"
+                        "   - Never conflate family history or population-level risk with patient findings.\n"
+                        "   - Do not count past medical history, prior episodes, or family history.\n"
+                        "2. Do not invent or infer facts beyond what is documented.\n"
+                        "3. Maintain high fidelity to the clinical document language when citing spans.\n"
+                        "4. Answer patient outcomes with strongest available documented evidence:\n"
+                        "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
+                        "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
+                        "\n"
+                        "Pydantic Schema:\n"
+                        + json.dumps(ImmunosuppresiveMedicationsAnnotation.model_json_schema()),
+                    },
+                    {
+                        "role": "user",
+                        "content": "Evaluate the following clinical document for kidney "
+                        "transplant variables and outcomes.\n"
+                        "Here is the clinical document for you to analyze:\n\n"
+                        "Test note 2 with Past surgical history: Two failed renal transplants",
+                    },
+                ],
+                "model": model_id,
+                "seed": 12345,
+                "temperature": 0,
+                "timeout": 120,
+                "response_format": OpenAIProvider.pydantic_to_response_format(
+                    ImmunosuppresiveMedicationsAnnotation
+                ),
+            },
+            self.mock_create.call_args_list[0][1],
+        )
         self.assertEqual(
             {
                 "messages": [
@@ -157,7 +236,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                     KidneyTransplantDonorGroupAnnotation
                 ),
             },
-            self.mock_create.call_args_list[0][1],
+            self.mock_create.call_args_list[1][1],
         )
         self.assertEqual(
             {
@@ -198,7 +277,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                     KidneyTransplantLongitudinalAnnotation
                 ),
             },
-            self.mock_create.call_args_list[1][1],
+            self.mock_create.call_args_list[2][1],
         )
         self.assertEqual(
             {
@@ -239,7 +318,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                     MultipleTransplantHistoryAnnotation
                 ),
             },
-            self.mock_create.call_args_list[2][1],
+            self.mock_create.call_args_list[3][1],
         )
 
     async def test_ordered_by_date(self):
