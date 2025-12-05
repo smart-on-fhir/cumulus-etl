@@ -8,9 +8,6 @@ import cumulus_fhir_support as cfs
 
 from cumulus_etl import common, nlp, store
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.studies.irae.irae_multiple_transplant_history_models import (
-    MultipleTransplantHistoryAnnotation,
-)
 from cumulus_etl.etl.studies.irae.irae_donor_models import (
     KidneyTransplantDonorGroupAnnotation,
 )
@@ -20,7 +17,9 @@ from cumulus_etl.etl.studies.irae.irae_longitudinal_models import (
 from cumulus_etl.etl.studies.irae.irae_med_models import (
     ImmunosuppresiveMedicationsAnnotation,
 )
-
+from cumulus_etl.etl.studies.irae.irae_multiple_transplant_history_models import (
+    MultipleTransplantHistoryAnnotation,
+)
 
 ###############################################################################
 # Base IRAE Tasks

@@ -1,4 +1,3 @@
-from enum import StrEnum
 from pydantic import BaseModel, Field
 
 from cumulus_etl.etl.studies.irae.irae_base_models import SpanAugmentedMention
