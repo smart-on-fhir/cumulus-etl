@@ -185,7 +185,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
                 "6beb306dc5b91513f353ecdb6aaedee8a9864b3a2f20d91f0d5b27510152acf2",
                 "generated_on": "2021-09-14T21:23:45+00:00",
                 "system_fingerprint": "test-fp",
-                "task_version": 7,
+                "task_version": 6,
             },
         )
 
