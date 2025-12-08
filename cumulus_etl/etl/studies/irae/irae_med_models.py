@@ -187,18 +187,12 @@ class TreatmentPhase(StrEnum):
 # helper: Describe Drug Type (class or therapy modality) or drug ingredient.
 
 
-def clean(text: str) -> str | None:
-    return text.replace("  ", " ").strip()
-
-
 def drug_type_desc(drug_type: str) -> str:
-    return clean(
-        f"Extract the {drug_type} class or therapy modality documented for this medication, if present"
-    )
+    return f"Extract the {drug_type} class or therapy modality documented for this medication, if present"
 
 
 def ingredient_desc(ingredient: str) -> str:
-    return clean(f"Extract the {ingredient} ingredient documented for this medication, if present")
+    return "Extract the {ingredient} ingredient documented for this medication, if present"
 
 
 def drug_type_field(default=None, description=None) -> str | None:
