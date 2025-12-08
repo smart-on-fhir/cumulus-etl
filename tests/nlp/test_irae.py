@@ -6,10 +6,10 @@ import json
 import ddt
 
 from cumulus_etl.etl.studies.irae.irae_tasks import (
+    ImmunosuppresiveMedicationsAnnotation,
     KidneyTransplantDonorGroupAnnotation,
     KidneyTransplantLongitudinalAnnotation,
     MultipleTransplantHistoryAnnotation,
-    ImmunosuppresiveMedicationsAnnotation,
 )
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple
