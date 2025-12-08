@@ -123,14 +123,6 @@ class BaseDonorIraeTask(BaseIraeTask):
 class BaseLongitudinalIraeTask(BaseIraeTask):
     response_format = KidneyTransplantLongitudinalAnnotation
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.subject_refs_to_skip = set()
-
-    def should_skip(self, orig_note: dict) -> bool:
-        subject_ref = nlp.get_note_subject_ref(orig_note)
-        return subject_ref in self.subject_refs_to_skip or super().should_skip(orig_note)
-
 
 ###############################################################################
 # Model-Specific Tasks
