@@ -28,9 +28,8 @@ from cumulus_etl.etl.studies.irae.irae_multiple_transplant_history_models import
 
 
 class BaseIraeTask(tasks.BaseModelTaskWithSpans):
-    task_version = 7
     # Task Version History:
-    # ** 7 (2025-12): Serostatus mentions added to donor task
+    # ** (2025-12): Task version moved to subclasses; see below
     # ** 6 (2025-11): Pydantic updates (donors refer to 1st transplant;
     #                 POD inference guidance; new multiple transplant task) **
     # ** 5 (2025-10): Update pydantic model (biological relation;
@@ -109,18 +108,35 @@ class BaseIraeTask(tasks.BaseModelTaskWithSpans):
 
 
 class BaseImmunosuppressiveMedicationsIraeTask(BaseIraeTask):
+    task_version = 6
+    # Task Version History:
+    # ** 6 (2025-12): Task version moved to subclasses
+
     response_format = ImmunosuppresiveMedicationsAnnotation
 
 
 class BaseMultipleTransplantHistoryIraeTask(BaseIraeTask):
+    task_version = 6
+    # Task Version History:
+    # ** 6 (2025-12): Task version moved to subclasses
+
     response_format = MultipleTransplantHistoryAnnotation
 
 
 class BaseDonorIraeTask(BaseIraeTask):
+    task_version = 7
+    # Task Version History:
+    # ** 7 (2025-12): Serostatus mentions added to donor task
+    # ** 6 (2025-12): Task version moved to subclasses
+
     response_format = KidneyTransplantDonorGroupAnnotation
 
 
 class BaseLongitudinalIraeTask(BaseIraeTask):
+    task_version = 6
+    # Task Version History:
+    # ** 6 (2025-12): Task version moved to subclasses
+
     response_format = KidneyTransplantLongitudinalAnnotation
 
 
