@@ -11,6 +11,113 @@ from cumulus_etl.etl.studies.irae.irae_base_models import SpanAugmentedMention
 ###############################################################################
 
 
+class Serostatus(StrEnum):
+    """
+    Serostatus classification based on IgG serology or explicit seropositive/seronegative statements.
+    - SEROPOSITIVE: Documented IgG positive / seropositive
+    - SERONEGATIVE: Documented IgG negative / seronegative
+    - NOT_MENTIONED: No serostatus documentation found
+    """
+
+    SEROPOSITIVE = "SEROPOSITIVE"
+    SERONEGATIVE = "SERONEGATIVE"
+    NOT_MENTIONED = "NOT_MENTIONED"
+
+
+class SerostatusDonorMention(SpanAugmentedMention):
+    """
+    Overall serostatus of the donor at the time of first renal transplant.
+    """
+
+    serostatus: Serostatus = Field(
+        Serostatus.NOT_MENTIONED,
+        description=(
+            "Overall serostatus of the renal donor for ANY virus. "
+            "Set SEROPOSITIVE if the note documents the donor as seropositive for "
+            "ANY virus (including CMV, EBV, HBV, HCV, HSV, VZV, or an unspecified virus), "
+            "or uses generic language such as 'donor is seropositive' without naming the virus. "
+            "Set SERONEGATIVE only if it explicitly states the donor was seronegative for all IgG tests. "
+            "Otherwise use NOT_MENTIONED."
+        ),
+    )
+
+
+class SerostatusDonorCMVMention(SpanAugmentedMention):
+    """
+    CMV serostatus of the donor at the time of first renal transplant.
+    """
+
+    serostatus: Serostatus = Field(
+        Serostatus.NOT_MENTIONED,
+        description=(
+            "CMV serostatus of the renal donor. Choose one of: 'SEROPOSITIVE', 'SERONEGATIVE', 'NOT_MENTIONED'. "
+            "Look for patterns like 'CMV D+', 'CMV D-', 'donor CMV IgG positive', 'donor CMV IgG negative', etc."
+        ),
+    )
+
+
+class SerostatusDonorEBVMention(SpanAugmentedMention):
+    """
+    EBV serostatus of the donor at the time of first renal transplant.
+    """
+
+    serostatus: Serostatus = Field(
+        Serostatus.NOT_MENTIONED,
+        description=(
+            "EBV serostatus of the renal donor. Choose one of: 'SEROPOSITIVE', 'SERONEGATIVE', 'NOT_MENTIONED'. "
+            "Look for patterns like 'EBV D+', 'EBV D-', 'donor EBV IgG positive', 'donor EBV IgG negative', etc."
+        ),
+    )
+
+
+class SerostatusRecipientMention(SpanAugmentedMention):
+    """
+    Overall serostatus of the recipient at the time of first renal transplant.
+    """
+
+    serostatus: Serostatus = Field(
+        Serostatus.NOT_MENTIONED,
+        description=(
+            "Serostatus of the recipient at the time of renal transplant for ANY virus. "
+            "Set SEROPOSITIVE if the note documents the recipient as seropositive for "
+            "ANY virus (including CMV, EBV, HBV, HCV, HSV, VZV, or an unspecified virus), "
+            "or if the text states 'recipient is seropositive' without naming the virus. "
+            "Set SERONEGATIVE only if explicitly stated the recipient was seronegative. "
+            "Otherwise use NOT_MENTIONED."
+        ),
+    )
+
+
+class SerostatusRecipientCMVMention(SpanAugmentedMention):
+    """
+    CMV serostatus of the recipient at the time of first renal transplant.
+    """
+
+    serostatus: Serostatus = Field(
+        Serostatus.NOT_MENTIONED,
+        description=(
+            "CMV serostatus of the recipient at the time of renal transplant. "
+            "Choose one of: 'SEROPOSITIVE', 'SERONEGATIVE', 'NOT_MENTIONED'. "
+            "Look for patterns like 'CMV R+', 'CMV R-', 'recipient CMV IgG positive', 'recipient CMV IgG negative', etc."
+        ),
+    )
+
+
+class SerostatusRecipientEBVMention(SpanAugmentedMention):
+    """
+    EBV serostatus of the recipient at the time of first renal transplant.
+    """
+
+    serostatus: Serostatus = Field(
+        Serostatus.NOT_MENTIONED,
+        description=(
+            "EBV serostatus of the recipient at the time of renal transplant. "
+            "Choose one of: 'SEROPOSITIVE', 'SERONEGATIVE', 'NOT_MENTIONED'. "
+            "Look for patterns like 'EBV R+', 'EBV R-', 'recipient EBV IgG positive', 'recipient EBV IgG negative', etc."
+        ),
+    )
+
+
 # Dates are treated as strings - no enum needed
 class DonorTransplantDateMention(SpanAugmentedMention):
     """
@@ -130,3 +237,9 @@ class KidneyTransplantDonorGroupAnnotation(BaseModel):
     donor_relationship_mention: DonorRelationshipMention
     donor_hla_match_quality_mention: DonorHlaMatchQualityMention
     donor_hla_mismatch_count_mention: DonorHlaMismatchCountMention
+    donor_serostatus_mention: SerostatusDonorMention
+    donor_serostatus_cmv_mention: SerostatusDonorCMVMention
+    donor_serostatus_ebv_mention: SerostatusDonorEBVMention
+    recipient_serostatus_mention: SerostatusRecipientMention
+    recipient_serostatus_cmv_mention: SerostatusRecipientCMVMention
+    recipient_serostatus_ebv_mention: SerostatusRecipientEBVMention
