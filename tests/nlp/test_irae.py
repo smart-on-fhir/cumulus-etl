@@ -6,7 +6,7 @@ import json
 import ddt
 
 from cumulus_etl.etl.studies.irae.irae_tasks import (
-    ImmunosuppresiveMedicationsAnnotation,
+    ImmunosuppressiveMedicationsAnnotation,
     KidneyTransplantDonorGroupAnnotation,
     KidneyTransplantLongitudinalAnnotation,
     MultipleTransplantHistoryAnnotation,
@@ -48,19 +48,19 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         ("llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack
-    async def test_basic_immunosuppresive_medications_etl(self, model_slug, model_id):
+    async def test_basic_immunosuppressive_medications_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
 
-        immunosuppresive_medications_task_name = (
-            f"irae__nlp_immunosuppresive_medications_{model_slug}"
+        immunosuppressive_medications_task_name = (
+            f"irae__nlp_immunosuppressive_medications_{model_slug}"
         )
         self.mock_response(
-            content=ImmunosuppresiveMedicationsAnnotation.model_validate(
+            content=ImmunosuppressiveMedicationsAnnotation.model_validate(
                 {
-                    "immunosuppresive_medication_mentions": [
+                    "immunosuppressive_medication_mentions": [
                         {
                             "has_mention": False,
-                            "spans": [],
+                            "spans": ["note"],
                             "status": "None of the above",
                             "category": "None of the above",
                             "route": "None of the above",
@@ -80,18 +80,18 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             )
         )
 
-        immunosuppresive_medications_task_name = (
-            f"irae__nlp_immunosuppresive_medications_{model_slug}"
+        immunosuppressive_medications_task_name = (
+            f"irae__nlp_immunosuppressive_medications_{model_slug}"
         )
         await self.run_etl(
             "--provider=azure",
             tasks=[
-                immunosuppresive_medications_task_name,
+                immunosuppressive_medications_task_name,
             ],
         )
         self.assert_files_equal(
-            f"{self.root_path}/immunosuppresive-medications-output.ndjson",
-            f"{self.output_path}/{immunosuppresive_medications_task_name}/{immunosuppresive_medications_task_name}.000.ndjson",
+            f"{self.root_path}/immunosuppressive-medications-output.ndjson",
+            f"{self.output_path}/{immunosuppressive_medications_task_name}/{immunosuppressive_medications_task_name}.000.ndjson",
         )
 
         self.assertEqual(self.mock_create.call_count, 1)
@@ -116,7 +116,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
                         "Pydantic Schema:\n"
-                        + json.dumps(ImmunosuppresiveMedicationsAnnotation.model_json_schema()),
+                        + json.dumps(ImmunosuppressiveMedicationsAnnotation.model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -131,7 +131,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "temperature": 0,
                 "timeout": 120,
                 "response_format": OpenAIProvider.pydantic_to_response_format(
-                    ImmunosuppresiveMedicationsAnnotation
+                    ImmunosuppressiveMedicationsAnnotation
                 ),
             },
             self.mock_create.call_args_list[0][1],
