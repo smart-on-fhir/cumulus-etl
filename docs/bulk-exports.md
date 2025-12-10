@@ -22,18 +22,12 @@ and then just feed the resulting files to Cumulus ETL.
 (Though note that you will need to provide some export information manually,
 with the `--export-group` and `--export-timestamp` options. See `--help` for more info.)
 
-2. Cumulus ETL has an `export` command to perform just a bulk export without an ETL step.
-   Run it like so: `cumulus-etl export FHIR_URL ./output` (see `--help` for more options).
-   - You can provide standard
-   [bulk FHIR options](https://hl7.org/fhir/uv/bulkdata/export.html#query-parameters)
-   like `_type` and `_typeFilter` in the URL or via CLI arguments like
-   `--type` and `--type-filter`.
-   - This workflow will generate an export log file, from which Cumulus ETL can pull
-   some export metadata like the Group name and export timestamp.
-
-3. Or you may need more advanced options than our internal exporter supports.
-   The [SMART Bulk Data Client](https://github.com/smart-on-fhir/bulk-data-client)
-   is a great tool with lots of features (and also generates an export log file).
+2. Otherwise, we recommend the [SMART Fetch](https://docs.smarthealthit.org/cumulus/fetch/) tool.
+Not only will it grab the bulk export, but it will do post-processing to grab resources that
+don't normally come in a bulk export (like Medications and PractitionerRoles) and inline linked
+clinical notes so that you don't have to download them later.
+It will also generate a log file that the ETL can parse, so you don't need to specify the above
+`--export-*` options manually.
 
 In any case, it's simple to feed that data to the ETL:
 1. Pass Cumulus ETL the folder that holds the downloaded data as the input path.

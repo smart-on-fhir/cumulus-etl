@@ -79,6 +79,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Docker images take up so much space, we were getting "no space left on device" errors.
+      # This is a script that removes a bunch of cruft. Notably tied to a specific commit, so it
+      # can't change on us.
+      - name: Clean Up Disk
+        run: curl -fsSL https://raw.githubusercontent.com/kou/arrow/173e2fee5f6667b7e23f8bc6094936f6c6003039/ci/scripts/util_free_space.sh | bash
+
       - name: Install Docker
         uses: docker/setup-buildx-action@v3
 
