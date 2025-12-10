@@ -121,7 +121,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        # NOTE: `vX` here needs to be updated as task_version changes
+        # NOTE: `vX` here needs to be updated as BaseLongitudinalIraeTask task_version changes
         cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v6/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
@@ -173,7 +173,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
         del batch.rows[0]["result"]  # don't bother testing the NLP serialization, that's elsewhere
-        # NOTE: task_version in the assertion below needs updating as the task changes
+        # NOTE: task_version in the assertion below needs updating as the Longitudinal task changes
         self.assertEqual(
             batch.rows[0],
             {

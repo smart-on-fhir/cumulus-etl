@@ -25,11 +25,6 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @staticmethod
     def longitudinal_content(**kwargs):
         content = {
-            "donor_transplant_date_mention": {"has_mention": False, "spans": []},
-            "donor_type_mention": {"has_mention": False, "spans": []},
-            "donor_relationship_mention": {"has_mention": False, "spans": []},
-            "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
-            "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
             "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
             "rx_compliance_mention": {"has_mention": False, "spans": []},
             "dsa_mention": {"has_mention": False, "spans": []},
@@ -246,6 +241,12 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                     "donor_relationship_mention": {"has_mention": False, "spans": []},
                     "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
                     "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
+                    "donor_serostatus_mention": {"has_mention": False, "spans": []},
+                    "donor_serostatus_cmv_mention": {"has_mention": False, "spans": []},
+                    "donor_serostatus_ebv_mention": {"has_mention": False, "spans": []},
+                    "recipient_serostatus_mention": {"has_mention": False, "spans": []},
+                    "recipient_serostatus_cmv_mention": {"has_mention": False, "spans": []},
+                    "recipient_serostatus_ebv_mention": {"has_mention": False, "spans": []},
                 }
             )
         )

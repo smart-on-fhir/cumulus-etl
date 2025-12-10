@@ -22,6 +22,12 @@ class TestNlpCli(NlpModelTestCase, BaseEtlSimple):
                 "donor_relationship_mention": {"has_mention": False, "spans": []},
                 "donor_hla_match_quality_mention": {"has_mention": False, "spans": []},
                 "donor_hla_mismatch_count_mention": {"has_mention": False, "spans": []},
+                "donor_serostatus_mention": {"has_mention": False, "spans": []},
+                "donor_serostatus_cmv_mention": {"has_mention": False, "spans": []},
+                "donor_serostatus_ebv_mention": {"has_mention": False, "spans": []},
+                "recipient_serostatus_mention": {"has_mention": False, "spans": []},
+                "recipient_serostatus_cmv_mention": {"has_mention": False, "spans": []},
+                "recipient_serostatus_ebv_mention": {"has_mention": False, "spans": []},
             }
         )
 
