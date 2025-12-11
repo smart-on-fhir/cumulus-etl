@@ -243,6 +243,16 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         span_type = dsa_type.field(spans_index).type
         self.assertEqual(span_type, pyarrow.list_(pyarrow.list_(pyarrow.int32(), 2)))
 
+        # Also test a slightly different task, with a list in the mix
+        schema = irae.IraeImmunosuppressiveMedicationsGptOss120bTask.get_schema(None, [])
+        result_index = schema.get_field_index("result")
+        result_type = schema.field(result_index).type
+        med_index = result_type.get_field_index("immunosuppressive_medication_mentions")
+        med_type = result_type.field(med_index).type.value_type
+        spans_index = med_type.get_field_index("spans")
+        span_type = med_type.field(spans_index).type
+        self.assertEqual(span_type, pyarrow.list_(pyarrow.list_(pyarrow.int32(), 2)))
+
     async def test_no_encounter_error(self):
         docref = i2b2_mock_data.documentreference("foo")
         del docref["context"]

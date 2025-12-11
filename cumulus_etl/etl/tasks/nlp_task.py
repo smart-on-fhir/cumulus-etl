@@ -410,5 +410,9 @@ class BaseModelTaskWithSpans(BaseModelTask):
                 children[index] = field.with_type(new_spans_type)
             elif isinstance(field.type, pyarrow.StructType):
                 children[index] = field.with_type(cls._convert_schema(field.type))
+            elif isinstance(field.type, pyarrow.ListType):
+                sub_type = field.type.value_type
+                if isinstance(sub_type, pyarrow.StructType):
+                    children[index] = field.with_type(pyarrow.list_(cls._convert_schema(sub_type)))
 
         return pyarrow.struct(children)
