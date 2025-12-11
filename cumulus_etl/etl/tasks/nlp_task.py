@@ -189,9 +189,6 @@ class BaseModelTask(BaseNlpTask):
         progress: rich.progress.Progress = None,
     ) -> AsyncGenerator[NoteDetails]:
         async for orig_note, note, orig_note_text in self.read_notes(progress=progress):
-            if self.should_skip(orig_note):
-                continue
-
             try:
                 note_ref, encounter_id, subject_ref = nlp.get_note_info(note)
             except KeyError as exc:
@@ -280,10 +277,6 @@ class BaseModelTask(BaseNlpTask):
         prompt = cls.user_prompt or "%CLINICAL-NOTE%"
         return prompt.replace("%CLINICAL-NOTE%", note_text)
 
-    def should_skip(self, orig_note: dict) -> bool:
-        """Subclasses can fill this out if they like, to skip notes"""
-        return False
-
     def post_process(self, parsed: dict, details: NoteDetails) -> None:
         """Subclasses can fill this out if they like"""
 
@@ -358,8 +351,11 @@ class BaseModelTaskWithSpans(BaseModelTask):
 
         for key, value in parsed.items():
             if key != "spans":
+                # descend as needed
                 if isinstance(value, dict):
-                    all_found &= self._process_dict(value, details)  # descend
+                    all_found &= self._process_dict(value, details)
+                if isinstance(value, list) and value and isinstance(value[0], dict):
+                    all_found &= all(self._process_dict(v, details) for v in value)
                 continue
 
             new_spans = []

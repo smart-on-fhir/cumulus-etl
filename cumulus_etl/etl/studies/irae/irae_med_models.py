@@ -331,9 +331,9 @@ class RxIngredientImmunosuppression(StrEnum):
     NONE = "None of the above"
 
 
-class ImmunosuppresiveMedicationMention(MedicationMention):
+class ImmunosuppressiveMedicationMention(MedicationMention):
     """
-    Mentions of ImmunosuppresiveMedications for this given chart.
+    Mentions of ImmunosuppressiveMedications for this given chart.
     """
 
     drug_class: RxClassImmunosuppression = drug_type_field(
@@ -354,12 +354,12 @@ class ImmunosuppresiveMedicationMention(MedicationMention):
 ###############################################################################
 
 
-class ImmunosuppresiveMedicationsAnnotation(BaseModel):
+class ImmunosuppressiveMedicationsAnnotation(BaseModel):
     """
-    All mentions of ImmunosuppresiveMedications for this given chart.
+    All mentions of ImmunosuppressiveMedications for this given chart.
     """
 
-    immunosuppresive_medication_mentions: list[ImmunosuppresiveMedicationMention] = Field(
+    immunosuppressive_medication_mentions: list[ImmunosuppressiveMedicationMention] = Field(
         default_factory=list,
-        description="All mentions of ImmunosuppresiveMedications for this given chart.",
+        description="All mentions of ImmunosuppressiveMedications for this given chart.",
     )

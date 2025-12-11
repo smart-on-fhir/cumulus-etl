@@ -15,7 +15,7 @@ from cumulus_etl.etl.studies.irae.irae_longitudinal_models import (
     KidneyTransplantLongitudinalAnnotation,
 )
 from cumulus_etl.etl.studies.irae.irae_med_models import (
-    ImmunosuppresiveMedicationsAnnotation,
+    ImmunosuppressiveMedicationsAnnotation,
 )
 from cumulus_etl.etl.studies.irae.irae_multiple_transplant_history_models import (
     MultipleTransplantHistoryAnnotation,
@@ -112,7 +112,7 @@ class BaseImmunosuppressiveMedicationsIraeTask(BaseIraeTask):
     # Task Version History:
     # ** 6 (2025-12): Task version moved to subclasses
 
-    response_format = ImmunosuppresiveMedicationsAnnotation
+    response_format = ImmunosuppressiveMedicationsAnnotation
 
 
 class BaseMultipleTransplantHistoryIraeTask(BaseIraeTask):
@@ -154,27 +154,27 @@ class BaseLongitudinalIraeTask(BaseIraeTask):
 
 
 class IraeImmunosuppressiveMedicationsGpt4oTask(BaseImmunosuppressiveMedicationsIraeTask):
-    name = "irae__nlp_immunosuppresive_medications_gpt4o"
+    name = "irae__nlp_immunosuppressive_medications_gpt4o"
     client_class = nlp.Gpt4oModel
 
 
 class IraeImmunosuppressiveMedicationsGpt5Task(BaseImmunosuppressiveMedicationsIraeTask):
-    name = "irae__nlp_immunosuppresive_medications_gpt5"
+    name = "irae__nlp_immunosuppressive_medications_gpt5"
     client_class = nlp.Gpt5Model
 
 
 class IraeImmunosuppressiveMedicationsGptOss120bTask(BaseImmunosuppressiveMedicationsIraeTask):
-    name = "irae__nlp_immunosuppresive_medications_gpt_oss_120b"
+    name = "irae__nlp_immunosuppressive_medications_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
 
 
 class IraeImmunosuppressiveMedicationsLlama4ScoutTask(BaseImmunosuppressiveMedicationsIraeTask):
-    name = "irae__nlp_immunosuppresive_medications_llama4_scout"
+    name = "irae__nlp_immunosuppressive_medications_llama4_scout"
     client_class = nlp.Llama4ScoutModel
 
 
 class IraeImmunosuppressiveMedicationsClaudeSonnet45Task(BaseImmunosuppressiveMedicationsIraeTask):
-    name = "irae__nlp_immunosuppresive_medications_claude_sonnet45"
+    name = "irae__nlp_immunosuppressive_medications_claude_sonnet45"
     client_class = nlp.ClaudeSonnet45Model
 
 
