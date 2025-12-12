@@ -348,14 +348,13 @@ class BaseModelTaskWithSpans(BaseModelTask):
     def _process_dict(self, parsed: dict, details: NoteDetails) -> bool:
         """Returns False if any span couldn't be matched"""
         all_found = True
-
         for key, value in parsed.items():
             if key != "spans":
                 # descend as needed
                 if isinstance(value, dict):
                     all_found &= self._process_dict(value, details)
                 if isinstance(value, list) and value and isinstance(value[0], dict):
-                    all_found &= all(self._process_dict(v, details) for v in value)
+                    all_found &= all([self._process_dict(v, details) for v in value])
                 continue
 
             new_spans = []
