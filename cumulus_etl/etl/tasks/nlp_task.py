@@ -348,6 +348,7 @@ class BaseModelTaskWithSpans(BaseModelTask):
     def _process_dict(self, parsed: dict, details: NoteDetails) -> bool:
         """Returns False if any span couldn't be matched"""
         all_found = True
+
         for key, value in parsed.items():
             if key != "spans":
                 # descend as needed
