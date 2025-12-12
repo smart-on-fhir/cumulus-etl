@@ -21,7 +21,10 @@ import pydantic
 from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl.studies import covid_symptom, irae
 from cumulus_etl.etl.studies.example.example_tasks import AgeMention
-from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantLongitudinalAnnotation
+from cumulus_etl.etl.studies.irae.irae_tasks import (
+    KidneyTransplantLongitudinalAnnotation,
+    ImmunosuppressiveMedicationsAnnotation,
+)
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests import i2b2_mock_data
 from tests.etl import BaseEtlSimple
@@ -231,6 +234,96 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.assertEqual(len(batch.rows), 1)
         self.assertEqual(
             batch.rows[0]["result"]["dsa_mention"]["spans"], [(0, 4), (0, 11), (14, 19)]
+        )
+
+    async def test_span_conversion_after_failed_span_match(self):
+        # Regression test for span matching continuing after a failed match for list-based
+        # annotation class
+        self.make_json(
+            "DocumentReference",
+            "1",
+            **i2b2_mock_data.documentreference("Test   NOTE. !Hello!"),
+        )
+        # Response to mock is a list-based annotation class with one span that won't match
+        # followed by others that will match
+        self.mock_response(
+            content=ImmunosuppressiveMedicationsAnnotation.model_validate(
+                {
+                    "immunosuppressive_medication_mentions": [
+                        {
+                            "has_mention": True,
+                            "spans": ["Test"],
+                            "status": "None of the above",
+                            "category": "None of the above",
+                            "route": "None of the above",
+                            "phase": "None of the above",
+                            "expected_supply_days": None,
+                            "number_of_repeats_allowed": None,
+                            "frequency": "None of the above",
+                            "start_date": None,
+                            "end_date": None,
+                            "quantity_unit": "None of the above",
+                            "quantity_value": None,
+                            "drug_class": "None of the above",
+                            "ingredient": "None of the above",
+                        },
+                        {
+                            "has_mention": True,
+                            "spans": ["WILL NOT MATCH"],
+                            "status": "None of the above",
+                            "category": "None of the above",
+                            "route": "None of the above",
+                            "phase": "None of the above",
+                            "expected_supply_days": None,
+                            "number_of_repeats_allowed": None,
+                            "frequency": "None of the above",
+                            "start_date": None,
+                            "end_date": None,
+                            "quantity_unit": "None of the above",
+                            "quantity_value": None,
+                            "drug_class": "None of the above",
+                            "ingredient": "None of the above",
+                        },
+                        {
+                            "has_mention": True,
+                            "spans": ["TEST  \n Note."],
+                            "status": "None of the above",
+                            "category": "None of the above",
+                            "route": "None of the above",
+                            "phase": "None of the above",
+                            "expected_supply_days": None,
+                            "number_of_repeats_allowed": None,
+                            "frequency": "None of the above",
+                            "start_date": None,
+                            "end_date": None,
+                            "quantity_unit": "None of the above",
+                            "quantity_value": None,
+                            "drug_class": "None of the above",
+                            "ingredient": "None of the above",
+                        },
+                    ]
+                }
+            )
+        )
+        await irae.IraeImmunosuppressiveMedicationsGptOss120bTask(
+            self.job_config, self.scrubber
+        ).run()
+
+        self.assertEqual(self.format.write_records.call_count, 1)
+        batch = self.format.write_records.call_args[0][0]
+        self.assertEqual(len(batch.rows), 1)
+        print(batch.rows)
+        # First match as expected
+        self.assertEqual(
+            batch.rows[0]["result"]["immunosuppressive_medication_mentions"][0]["spans"], [(0, 4)]
+        )
+        # No Match
+        self.assertEqual(
+            batch.rows[0]["result"]["immunosuppressive_medication_mentions"][1]["spans"], []
+        )
+        # Still matches after failed one
+        self.assertEqual(
+            batch.rows[0]["result"]["immunosuppressive_medication_mentions"][2]["spans"], [(0, 11)]
         )
 
     async def test_span_conversion_in_schema(self):
