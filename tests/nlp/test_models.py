@@ -22,8 +22,8 @@ from cumulus_etl import common, errors, nlp
 from cumulus_etl.etl.studies import covid_symptom, irae
 from cumulus_etl.etl.studies.example.example_tasks import AgeMention
 from cumulus_etl.etl.studies.irae.irae_tasks import (
-    KidneyTransplantLongitudinalAnnotation,
     ImmunosuppressiveMedicationsAnnotation,
+    KidneyTransplantLongitudinalAnnotation,
 )
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests import i2b2_mock_data
