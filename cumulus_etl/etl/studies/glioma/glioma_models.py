@@ -1,15 +1,16 @@
 from pydantic import BaseModel, Field
-from cumulus_etl.etl.studies.glioma.glioma_pathology_models import (
-    TopographyMention,
-    MorphologyMention,
-    GradeMention,
-    BehaviorMention,
-)
+
 from cumulus_etl.etl.studies.glioma.glioma_gene_models import (
     TargetGeneticTestMention,
     VariantMention,
 )
 from cumulus_etl.etl.studies.glioma.glioma_med_models import CancerMedicationMention
+from cumulus_etl.etl.studies.glioma.glioma_pathology_models import (
+    BehaviorMention,
+    GradeMention,
+    MorphologyMention,
+    TopographyMention,
+)
 from cumulus_etl.etl.studies.glioma.glioma_surgery_models import SurgeryMention
 
 
