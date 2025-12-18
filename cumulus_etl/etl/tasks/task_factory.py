@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, errors
-from cumulus_etl.etl.studies import covid_symptom, example, irae, glioma
+from cumulus_etl.etl.studies import covid_symptom, example, glioma, irae
 from cumulus_etl.etl.tasks import basic_tasks
 
 AnyTask = TypeVar("AnyTask", bound="EtlTask")  # noqa: F821
