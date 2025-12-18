@@ -1,7 +1,7 @@
 from enum import StrEnum
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import Field, StringConstraints
 
 from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
@@ -36,7 +36,7 @@ class TopographyMention(SpanAugmentedMention):
 ICDOMorphologyCode = Annotated[str, StringConstraints(pattern=r"^\d{4}/[0-9]$")]
 
 
-class MorphologyMention(BaseModel):
+class MorphologyMention(SpanAugmentedMention):
     """
     ICD-O Oncology Morphology (Histology + Behavior).
 
