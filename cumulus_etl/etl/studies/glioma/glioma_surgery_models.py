@@ -1,6 +1,7 @@
 from enum import StrEnum
-from typing import Optional
+
 from pydantic import Field
+
 from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
 
@@ -60,16 +61,16 @@ class SurgeryMention(SpanAugmentedMention):
         description="Reported extent of tumor resection.",
     )
 
-    anatomical_site: Optional[str] = Field(
+    anatomical_site: str | None = Field(
         default=None,
         description="Anatomical site of surgery (e.g., 'left frontal lobe', 'right temporal lobe').",
     )
 
-    technique_details: Optional[str] = Field(
+    technique_details: str | None = Field(
         default=None,
         description="Additional operative details (e.g., 'intraoperative mapping', 'iMRI-guided').",
     )
 
-    complications: Optional[str] = Field(
+    complications: str | None = Field(
         default=None, description="Intraoperative or postoperative complications if mentioned."
     )

@@ -1,6 +1,7 @@
 from enum import StrEnum
-from typing import Optional
+
 from pydantic import Field
+
 from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
 
@@ -17,34 +18,32 @@ class TargetGeneticTestMention(SpanAugmentedMention):
     """
 
     # --- Core actionable alteration ---
-    braf_altered: Optional[bool] = Field(
+    braf_altered: bool | None = Field(
         None, description="Whether a BRAF alteration is present (any type)."
     )
 
-    braf_v600e: Optional[bool] = Field(
-        None, description="Whether a BRAF V600E mutation is present."
-    )
+    braf_v600e: bool | None = Field(None, description="Whether a BRAF V600E mutation is present.")
 
-    braf_fusion: Optional[bool] = Field(
+    braf_fusion: bool | None = Field(
         None, description="Whether a BRAF fusion (e.g., KIAA1549-BRAF) is present."
     )
 
     # --- Common glioma-defining markers ---
-    idh_mutant: Optional[bool] = Field(
+    idh_mutant: bool | None = Field(
         None, description="Whether an IDH1 or IDH2 mutation is present."
     )
 
-    h3k27m_mutant: Optional[bool] = Field(
+    h3k27m_mutant: bool | None = Field(
         None, description="Whether an H3 K27M (H3-3A or H3C2) mutation is present."
     )
 
     # --- Tumor suppressors / pathway-level relevance ---
-    tp53_altered: Optional[bool] = Field(
+    tp53_altered: bool | None = Field(
         None, description="Whether TP53 mutation or loss is reported."
     )
 
     # --- Copy number / pathway surrogates ---
-    cdkn2a_deleted: Optional[bool] = Field(None, description="Whether CDKN2A deletion is reported.")
+    cdkn2a_deleted: bool | None = Field(None, description="Whether CDKN2A deletion is reported.")
 
 
 ###############################################################################

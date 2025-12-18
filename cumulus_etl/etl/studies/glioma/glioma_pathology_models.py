@@ -1,6 +1,8 @@
 from enum import StrEnum
-from typing import Optional, Annotated
+from typing import Annotated
+
 from pydantic import BaseModel, Field, StringConstraints
+
 from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
 ###############################################################################

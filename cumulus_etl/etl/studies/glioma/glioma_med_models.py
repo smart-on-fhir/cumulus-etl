@@ -1,5 +1,7 @@
 from enum import StrEnum
+
 from pydantic import Field
+
 from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
 
@@ -190,7 +192,7 @@ class TreatmentPhase(StrEnum):
 # helper: Describe Drug Type (class or therapy modality) or drug ingredient.
 
 
-def drug_type_field(default=None, drug_type: str = None) -> str | None:
+def drug_type_field(default=None, drug_type=None) -> str | None:
     return Field(default=default, description=drug_type_desc(drug_type))
 
 
