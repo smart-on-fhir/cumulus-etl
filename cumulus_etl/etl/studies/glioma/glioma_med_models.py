@@ -6,18 +6,6 @@ from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMenti
 
 
 ###############################################################################
-# Treatment: RxClass Cancer
-###############################################################################
-class RxClassCancer(StrEnum):
-    CHEMO = "Cytotoxic chemotherapy"
-    CHECKPOINT = "Checkpoint inhibitors, especially PD-1, PDL-1, CTLA-4"
-    CYTOKINE = "Cytokine therapy, especially IL-2 and interferon alpha"
-    CAR_T = "Chimeric antigen receptor (CAR-T)"
-    OTHER = "Other drug indicated for treatment of cancer(s)"
-    NONE = "None of the above"
-
-
-###############################################################################
 # Generic
 ###############################################################################
 class RxFrequency(StrEnum):
@@ -201,17 +189,11 @@ def ingredient_field(default=None, ingredient=None) -> str | None:
 
 
 def drug_type_desc(drug_type: str) -> str:
-    return clean(
-        f"Extract the {drug_type} class or therapy modality documented for this medication, if present"
-    )
+    return f"Extract the {drug_type} class or therapy modality documented for this medication, if present"
 
 
 def ingredient_desc(ingredient: str) -> str:
-    return clean(f"Extract the {ingredient} ingredient documented for this medication, if present")
-
-
-def clean(text: str) -> str | None:
-    return text.replace("  ", " ").strip()
+    return f"Extract the {ingredient} ingredient documented for this medication, if present"
 
 
 ###############################################################################
@@ -275,6 +257,18 @@ class MedicationMention(SpanAugmentedMention):
         None,
         description="Numeric amount of medication prescribed or administered (FHIR Quantity.value)",
     )
+
+
+###############################################################################
+# Treatment: RxClass Cancer
+###############################################################################
+class RxClassCancer(StrEnum):
+    CHEMO = "Cytotoxic chemotherapy"
+    CHECKPOINT = "Checkpoint inhibitors, especially PD-1, PDL-1, CTLA-4"
+    CYTOKINE = "Cytokine therapy, especially IL-2 and interferon alpha"
+    CAR_T = "Chimeric antigen receptor (CAR-T)"
+    OTHER = "Other drug indicated for treatment of cancer(s)"
+    NONE = "None of the above"
 
 
 ###############################################################################
