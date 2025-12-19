@@ -1,0 +1,1 @@
+{"id":"43","content":[{"attachment":{"contentType":"text/plain","data":"VGVzdCBnbGlvbWEgbm90ZSB3aXRoIG1lbnRpb24gb2YgR3JhZGUgSUkgY2FuY2Vy"}}],"context":{"encounter":[{"reference":"Encounter/23"}]},"status":"current","subject":{"reference":"Patient/334567"},"resourceType":"DocumentReference"}
