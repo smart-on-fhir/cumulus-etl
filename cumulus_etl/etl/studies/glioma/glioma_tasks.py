@@ -20,7 +20,7 @@ from cumulus_etl.etl.studies.glioma.glioma_models import (
 
 class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
     # Task Version History:
-    # ** 0 (2025-25): Initial version **
+    # ** 0 (2025-12): Initial version **
     task_version = 0
 
     system_prompt = (
