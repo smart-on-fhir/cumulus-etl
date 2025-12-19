@@ -21,6 +21,7 @@ from cumulus_etl.etl.studies.glioma.glioma_models import (
 class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
     # Task Version History:
     # ** 0 (2025-25): Initial version **
+    task_version = 0
 
     system_prompt = (
         "You are a clinical chart reviewer for a study examining the efficacy of various "
