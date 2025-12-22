@@ -336,12 +336,12 @@ class ImmunosuppressiveMedicationMention(MedicationMention):
 
     drug_class: RxClassImmunosuppression = drug_type_field(
         default=RxClassImmunosuppression.NONE,
-        description="Immunosuppressive drug class or therapy modality",
+        drug_type="Immunosuppressive drug class or therapy modality",
     )
 
     ingredient: RxIngredientImmunosuppression = ingredient_field(
         default=RxIngredientImmunosuppression.NONE,
-        description="Specific immunosuppressive drug ingredient",
+        ingredient="Specific immunosuppressive drug ingredient",
     )
 
 
