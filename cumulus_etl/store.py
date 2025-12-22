@@ -62,6 +62,7 @@ class Root:
         """
         parsed = urlparse(path)
         self.protocol = parsed.scheme or "file"  # assume local if no obvious scheme
+        self.is_http = self.protocol in {"http", "https"}
         self.path = path if parsed.scheme else os.path.abspath(path)
 
         try:

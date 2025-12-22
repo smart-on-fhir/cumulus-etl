@@ -396,6 +396,11 @@ class TestEtlJobFlow(BaseEtlSimple):
             },
         )
 
+    async def test_bails_if_input_does_not_exist(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assert_fatal_exit(errors.FOLDER_DOES_NOT_EXIST):
+                await self.run_etl(tasks=["patient"], input_path=f"{tmpdir}/nope")
+
 
 class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""

@@ -38,7 +38,7 @@ async def inline_main(args: argparse.Namespace) -> None:
     fhir_root = store.Root(args.url_input)
 
     # Help the user in case they got the order of the arguments wrong.
-    if fhir_root.protocol not in {"http", "https"}:
+    if not fhir_root.is_http:
         errors.fatal(
             f"Provided URL {args.url_input} does not look like a URL. "
             "See --help for argument usage.",
