@@ -34,8 +34,8 @@ def get_nlp_tasks() -> list[type[AnyTask]]:
     return [
         *get_classes_from_module(covid_symptom),
         *get_classes_from_module(example),
-        *get_classes_from_module(irae),
         *get_classes_from_module(glioma),
+        *get_classes_from_module(irae),
     ]
 
 
