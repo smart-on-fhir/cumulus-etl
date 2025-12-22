@@ -58,7 +58,7 @@ class TestCovidSymptomGptResultsTask(NlpModelTestCase):
         await task.run()
 
         # Confirm we send the correct params to the server
-        prompt = covid_symptom.CovidSymptomNlpResultsGpt35Task.get_user_prompt("foo")
+        prompt = task.get_user_prompt("foo")
         self.assertEqual(
             hashlib.md5(prompt.encode("utf8")).hexdigest(),
             "8c5025f98a6cfc94dfedbf10a82396ae",  # catch unexpected prompt changes
