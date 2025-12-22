@@ -1,6 +1,5 @@
 """Tests for etl/studies/glioma/"""
 
-import base64
 import json
 
 import ddt

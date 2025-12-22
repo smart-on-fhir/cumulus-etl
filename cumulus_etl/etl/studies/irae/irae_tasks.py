@@ -1,12 +1,6 @@
 """Define tasks for the irae study"""
 
-import datetime
-import logging
-from collections.abc import Generator, Iterator
-
-import cumulus_fhir_support as cfs
-
-from cumulus_etl import common, nlp, store
+from cumulus_etl import nlp
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.irae.irae_donor_models import (
     KidneyTransplantDonorGroupAnnotation,
