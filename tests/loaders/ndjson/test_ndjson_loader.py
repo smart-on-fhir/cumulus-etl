@@ -165,7 +165,7 @@ class TestNdjsonLoader(AsyncTestCase):
         with self.assertRaises(ValueError):
             await cli.main(
                 [
-                    "/tmp/input",
+                    self.make_tempdir(),
                     "/tmp/output",
                     "/tmp/phi",
                     "--skip-init-checks",

@@ -51,7 +51,7 @@ class FhirNdjsonLoader(base.Loader):
         self.inline_mimetypes = inline_mimetypes
 
     async def detect_resources(self) -> set[str] | None:
-        if self.root.protocol in {"http", "https"}:
+        if self.root.is_http:
             # We haven't done the export yet, so there are no files to inspect yet.
             # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
             return None
@@ -63,7 +63,7 @@ class FhirNdjsonLoader(base.Loader):
 
     async def load_resources(self, resources: set[str]) -> base.LoaderResults:
         # Are we doing a bulk FHIR export from a server?
-        if self.root.protocol in ["http", "https"]:
+        if self.root.is_http:
             bulk_dir = await self.load_from_bulk_export(resources)
             input_root = store.Root(bulk_dir.name)
         else:

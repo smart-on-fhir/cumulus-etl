@@ -277,8 +277,11 @@ def user_term_to_pattern(term: str) -> re.Pattern:
 
 
 def process_input_dir(folder: str) -> str:
-    if folder == "%EXAMPLE-NLP%" and not os.path.exists(folder):
-        return os.path.join(os.path.dirname(__file__), "etl/studies/example/ndjson")
+    root = store.Root(folder)
+    if not root.is_http and not root.exists(folder):
+        if folder == "%EXAMPLE-NLP%":
+            return os.path.join(os.path.dirname(__file__), "etl/studies/example/ndjson")
+        errors.fatal(f"Input folder '{folder}' does not exist.", errors.FOLDER_DOES_NOT_EXIST)
     return folder
 
 
