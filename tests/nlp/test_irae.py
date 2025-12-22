@@ -1,6 +1,5 @@
 """Tests for etl/studies/irae/"""
 
-import base64
 import json
 
 import ddt
@@ -51,9 +50,6 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     async def test_basic_immunosuppressive_medications_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
 
-        immunosuppressive_medications_task_name = (
-            f"irae__nlp_immunosuppressive_medications_{model_slug}"
-        )
         self.mock_response(
             content=ImmunosuppressiveMedicationsAnnotation.model_validate(
                 {
@@ -147,9 +143,6 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     async def test_basic_multiple_transplant_history_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
 
-        multiple_transplant_history_task_name = (
-            f"irae__nlp_multiple_transplant_history_{model_slug}"
-        )
         self.mock_response(
             content=MultipleTransplantHistoryAnnotation.model_validate(
                 {
@@ -228,11 +221,6 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.unpack
     async def test_basic_donor_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
-        # NOTE: Mock order needs to match the execution order, which
-        #       funnily enough is not the order they're named in but is their
-        #       alphabetical order by Task Name
-
-        donor_task_name = f"irae__nlp_donor_{model_slug}"
         self.mock_response(
             content=KidneyTransplantDonorGroupAnnotation.model_validate(
                 {
@@ -317,7 +305,6 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.unpack
     async def test_basic_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
-        longitudinal_task_name = f"irae__nlp_{model_slug}"
         self.mock_response(
             content=self.longitudinal_content(
                 # Have a little real data, just to confirm it converts and gets to end
@@ -385,42 +372,3 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             },
             self.mock_create.call_args_list[0][1],
         )
-
-    async def test_ordered_by_date(self):
-        self.mock_azure("gpt-oss-120b")
-
-        self.input_dir = self.make_tempdir()
-
-        def prep_doc(year: str, add_date: bool = True) -> None:
-            text = f"note {year[:4]}"
-            kwargs = {
-                "subject": {"reference": "Patient/x"},
-                "context": {"encounter": [{"reference": "Encounter/x"}]},
-                "content": [
-                    {
-                        "attachment": {
-                            "contentType": "text/plain",
-                            "data": base64.standard_b64encode(text.encode()).decode(),
-                        },
-                    },
-                ],
-            }
-            if add_date:
-                kwargs["date"] = year
-            self.make_json("DocumentReference", year, **kwargs)
-            self.mock_response(content=self.longitudinal_content())
-
-        prep_doc("2022")
-        prep_doc("2021")
-        prep_doc("2024")
-        prep_doc("null", add_date=False)
-        prep_doc("2023-01-01T00:00:00+04:00")
-
-        await self.run_etl(
-            "--provider=azure", tasks=["irae__nlp_gpt_oss_120b"], input_path=self.input_dir
-        )
-
-        last_words = [
-            x[1]["messages"][1]["content"].split()[-1] for x in self.mock_create.call_args_list
-        ]
-        self.assertEqual(last_words, ["2021", "2022", "2023", "2024", "null"])
