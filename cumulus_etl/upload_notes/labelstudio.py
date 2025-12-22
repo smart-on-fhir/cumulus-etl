@@ -37,7 +37,7 @@ class Highlight:
 
 @dataclasses.dataclass
 class LabelStudioNote:
-    """Holds all the data that Label Studio will need for a single note (or a single grouped encounter note)"""
+    """Holds all the data that Label Studio will need for a single note (or a grouped note)"""
 
     unique_id: str  # used to uniquely identify this note on the server
     patient_id: str
@@ -47,14 +47,16 @@ class LabelStudioNote:
     text: str = ""  # text of the note, sent to Label Studio
     date: datetime.datetime | None = None  # date of the note
 
-    # A title is only used when combining notes into one big encounter note. It's not sent to Label Studio.
-    title: str = ""
+    # A header holds some user-visible metadata to show above each note.
+    # It's not sent to Label Studio.
+    header: str = ""
 
-    # Doc mappings is a dict of real DocRef ID -> anonymized DocRef ID of all contained notes, in order
+    # Doc mappings is an ordered dict of real ID -> anonymized ID of all contained notes
     doc_mappings: dict[str, str] = dataclasses.field(default_factory=dict)
 
-    # Doc spans indicate which bits of the text come from which DocRef - it will map real DocRef ID to a pair of
-    # "first character" (0-based) and "last character" (0-based, exclusive) - just like cTAKES match text spans.
+    # Doc spans indicate which bits of the text come from which note - it will map a real ID to a
+    # pair of "first character" (0-based) and "last character" (0-based, exclusive) - just like
+    # cTAKES match text spans.
     doc_spans: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
 
     # Matches found by cTAKES
