@@ -181,19 +181,17 @@ class TreatmentPhase(StrEnum):
 
 
 def drug_type_field(default=None, drug_type=None) -> str | None:
-    return Field(default=default, description=drug_type_desc(drug_type))
+    return Field(
+        default=default,
+        description=f"Extract the {drug_type} class or therapy modality documented for this medication, if present",
+    )
 
 
 def ingredient_field(default=None, ingredient=None) -> str | None:
-    return Field(default=default, description=ingredient_desc(ingredient))
-
-
-def drug_type_desc(drug_type: str) -> str:
-    return f"Extract the {drug_type} class or therapy modality documented for this medication, if present"
-
-
-def ingredient_desc(ingredient: str) -> str:
-    return f"Extract the {ingredient} ingredient documented for this medication, if present"
+    return Field(
+        default=default,
+        description=f"Extract the {ingredient} ingredient documented for this medication, if present",
+    )
 
 
 ###############################################################################
