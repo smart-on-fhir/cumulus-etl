@@ -4,6 +4,9 @@ on:
     branches: ["main"]
     paths: ["docs/**"]
 
+permissions:  # restrict by default, add more permissions in jobs that need them
+  contents: read
+
 jobs:
   update-docs:
     name: Update Cumulus docs

@@ -4,6 +4,9 @@ on:
   release:
     types: [created]
 
+permissions:  # restrict by default, add more permissions in jobs that need them
+  contents: read
+
 jobs:
   push_to_docker_hub:
     name: Build and push image

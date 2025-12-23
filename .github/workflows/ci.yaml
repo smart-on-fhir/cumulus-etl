@@ -13,6 +13,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
+permissions:  # restrict by default, add more permissions in jobs that need them
+  contents: read
+
 jobs:
   unittest:
     name: unit tests
@@ -22,6 +25,10 @@ jobs:
         # Don't go crazy with the Python versions as the test suite is a beast.
         # Just test the minimum version we support.
         python-version: ["3.11"]
+
+    permissions:
+      contents: read
+      pull-requests: write  # for coverage action to add comments
 
     steps:
       - uses: actions/checkout@v6
