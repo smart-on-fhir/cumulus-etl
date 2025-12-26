@@ -87,6 +87,7 @@ async def read_notes_from_ndjson(
     dirname: str,
     codebook: deid.Codebook,
     *,
+    src_dir: str,
     get_unique_id: Callable[[dict], str],
 ) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
@@ -113,14 +114,7 @@ async def read_notes_from_ndjson(
             print(f"Skipping {note_ref}: {text}")
             continue
 
-        default_title = "Document"
-        codings = []
-        if resource["resourceType"] == "DiagnosticReport":
-            codings = resource.get("code", {}).get("coding", [])
-        elif resource["resourceType"] == "DocumentReference":
-            codings = resource.get("type", {}).get("coding", [])
-        title = codings[0].get("display", default_title) if codings else default_title
-
+        # Grab a bunch of the metadata
         unique_id = get_unique_id(resource)
         patient_id = resource.get("subject", {}).get("reference", "").removeprefix("Patient/")
         anon_patient_id = patient_id and codebook.fake_id("Patient", patient_id)
@@ -129,6 +123,41 @@ async def read_notes_from_ndjson(
         anon_note_id = codebook.fake_id(resource["resourceType"], resource["id"])
         doc_mappings = {note_ref: f"{resource['resourceType']}/{anon_note_id}"}
         doc_spans = {note_ref: (0, len(text))}
+        date = nlp.get_note_date(resource)
+
+        # Prepare header
+        header = "########################################\n"
+
+        # Header: resource type
+        if resource["resourceType"] == "DiagnosticReport":
+            header += "# Diagnostic Report\n"
+        else:
+            header += "# Document\n"  # keep it generic (and no "Reference" - we have the note!)
+
+        # Header: type
+        doctype = "unknown"
+        if resource["resourceType"] == "DiagnosticReport":
+            doctype = fhir.get_concept_user_text(resource.get("code")) or doctype
+        elif resource["resourceType"] == "DocumentReference":
+            doctype = fhir.get_concept_user_text(resource.get("type")) or doctype
+        header += f"# Type: {doctype}\n"
+
+        # Header: date
+        if not date:
+            date_string = "unknown"
+        elif date.tzinfo:
+            # aware datetime, with hours/minutes (using original timezone, not local)
+            date_string = f"{date:%x %X}"  # locale-based date + time
+        else:
+            # non-aware datetime, only show the date (fhir spec says times must have timezones)
+            date_string = f"{date:%x}"  # locale-based date
+        header += f"# Date: {date_string}\n"
+
+        # Header: roles
+        roles = fhir.get_clinical_note_role_info(resource, src_dir)
+        header += "\n".join(f"# {line}" for line in roles.splitlines()) + "\n"
+
+        header += "########################################"
 
         notes.append(
             LabelStudioNote(
@@ -139,9 +168,9 @@ async def read_notes_from_ndjson(
                 anon_encounter_id,
                 doc_mappings=doc_mappings,
                 doc_spans=doc_spans,
-                title=title,
+                header=header,
                 text=text,
-                date=nlp.get_note_date(resource),
+                date=date,
             )
         )
 
@@ -239,21 +268,9 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
         for note in group_notes:
             grouped_doc_mappings.update(note.doc_mappings)
 
-            if not note.date:
-                date_string = "Unknown time"
-            elif note.date.tzinfo:
-                # aware datetime, with hours/minutes (using original timezone, not local)
-                date_string = f"{note.date:%x %X}"  # locale-based date + time
-            else:
-                # non-aware datetime, only show the date (fhir spec says times must have timezones)
-                date_string = f"{note.date:%x}"  # locale-based date
-
             if grouped_text:
                 grouped_text += "\n\n\n"
-                grouped_text += "########################################\n########################################\n"
-            grouped_text += f"{note.title}\n"
-            grouped_text += f"{date_string}\n"
-            grouped_text += "########################################\n########################################\n\n\n"
+            grouped_text += f"{note.header}\n\n\n"
             offset = len(grouped_text)
             grouped_text += note.text
 
@@ -461,7 +478,11 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
         with deid.Codebook(args.dir_phi) as codebook:
             ndjson_folder = await gather_resources(client, root_input, codebook, args)
             notes = await read_notes_from_ndjson(
-                client, ndjson_folder.name, codebook, get_unique_id=get_unique_id
+                client,
+                ndjson_folder.name,
+                codebook,
+                get_unique_id=get_unique_id,
+                src_dir=args.dir_input,
             )
 
             await run_nlp(notes, args)

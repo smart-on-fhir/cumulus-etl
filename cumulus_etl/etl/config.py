@@ -41,7 +41,7 @@ class JobConfig:
         deleted_ids: dict[str, set[str]] | None = None,
         resource_filter: deid.FilterFunc = None,
     ):
-        self._dir_input_orig = dir_input_orig
+        self.dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid
         self._dir_output = dir_output
         self.dir_phi = dir_phi
@@ -81,7 +81,7 @@ class JobConfig:
 
     def as_json(self):
         return {
-            "dir_input": self._dir_input_orig,  # the original folder, rather than the temp dir holding deid files
+            "dir_input": self.dir_input_orig,  # the original folder, rather than the temp dir holding deid files
             "dir_output": self._dir_output,
             "dir_phi": self.dir_phi,
             "path": self.path_config(),

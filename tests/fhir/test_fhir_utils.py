@@ -228,3 +228,107 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
             [mock.call("GET", reference)] if expected_result else [],
             mock_client.request.call_args_list,
         )
+
+    def test_role_info_wrong_type(self):
+        with self.assertRaisesRegex(ValueError, "Condition is not a supported clinical note type"):
+            fhir.get_clinical_note_role_info({"resourceType": "Condition"}, "/tmp/nope")
+
+    def test_role_info_bad_person_link_ignored(self):
+        info = fhir.get_clinical_note_role_info(
+            {
+                "resourceType": "DocumentReference",
+                "author": [{"display": "Missing link"}, {"reference": "Practitioner/A"}],
+            },
+            "/tmp/nope",
+        )
+        self.assertEqual(info, "Authors:\n* Practitioner/A")
+
+    def test_role_info_wrong_role_target_ignored(self):
+        tmpdir = self.make_tempdir()
+
+        with common.NdjsonWriter(f"{tmpdir}/roles.ndjson") as writer:
+            writer.write(
+                {
+                    "resourceType": "PractitionerRole",
+                    "practitioner": {"reference": "Organization/A"},
+                    "code": [{"text": "Wrong Type"}],
+                }
+            )
+            writer.write(
+                {
+                    "resourceType": "PractitionerRole",
+                    "practitioner": {"display": "No ref"},
+                    "code": [{"text": "No Ref"}],
+                }
+            )
+            writer.write(
+                {
+                    "resourceType": "PractitionerRole",
+                    "practitioner": {"reference": "Practitioner/A"},
+                    "code": [{"text": "Right"}],
+                }
+            )
+
+        info = fhir.get_clinical_note_role_info(
+            {"resourceType": "DocumentReference", "author": [{"reference": "Practitioner/A"}]},
+            tmpdir,
+        )
+        self.assertEqual(info, "Authors:\n* Practitioner/A\n  - Role: Right")
+
+    def test_role_info_names(self):
+        tmpdir = self.make_tempdir()
+
+        with common.NdjsonWriter(f"{tmpdir}/people.ndjson") as writer:
+            writer.write(
+                {
+                    "resourceType": "Practitioner",
+                    "id": "NoNames",
+                }
+            )
+            writer.write(
+                {
+                    "resourceType": "Practitioner",
+                    "id": "Official",
+                    "name": [
+                        {"use": "temp", "text": "temp"},
+                        {"use": "old", "text": "old"},
+                        {"use": "usual", "text": "usual"},
+                        {"use": "official", "text": "official"},
+                    ],
+                }
+            )
+            writer.write(
+                {
+                    "resourceType": "Practitioner",
+                    "id": "Usual",
+                    "name": [
+                        {"use": "temp", "text": "temp"},
+                        {"use": "old", "text": "old"},
+                        {"use": "usual", "text": "usual"},
+                    ],
+                }
+            )
+            writer.write(
+                {
+                    "resourceType": "Practitioner",
+                    "id": "Other",
+                    "name": [
+                        {"use": "temp", "text": "temp"},
+                        {"use": "old", "text": "old"},
+                    ],
+                }
+            )
+
+        info = fhir.get_clinical_note_role_info(
+            {
+                "resourceType": "DiagnosticReport",
+                "performer": [
+                    {"reference": "Practitioner/NoNames"},
+                    {"reference": "Practitioner/Official"},
+                    {"reference": "Practitioner/Usual"},
+                    {"reference": "Practitioner/Other"},
+                ],
+            },
+            tmpdir,
+        )
+        self.assertEqual(info, "Performers:\n* Practitioner/NoNames\n* official\n* usual\n* temp")
