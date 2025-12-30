@@ -5,19 +5,6 @@ import ddt
 from cumulus_etl.etl.studies.glioma.glioma_med_models import drug_type_field, ingredient_field
 from tests import utils
 
-# def drug_type_field(default=None, drug_type=None) -> str | None:
-#     return Field(
-#         default=default,
-#         description=f"Extract the {drug_type} class or therapy modality documented for this medication, if present",
-#     )
-
-
-# def ingredient_field(default=None, ingredient=None) -> str | None:
-#     return Field(
-#         default=default,
-#         description=f"Extract the {ingredient} ingredient documented for this medication, if present",
-#     )
-
 
 @ddt.ddt
 class TestGliomaMedModelHelpers(utils.AsyncTestCase):
