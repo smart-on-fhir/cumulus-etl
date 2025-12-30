@@ -187,13 +187,6 @@ def drug_type_field(default=None, drug_type=None) -> str | None:
     )
 
 
-def ingredient_field(default=None, ingredient=None) -> str | None:
-    return Field(
-        default=default,
-        description=f"Extract the {ingredient} ingredient documented for this medication, if present",
-    )
-
-
 ###############################################################################
 # Template
 ###############################################################################
