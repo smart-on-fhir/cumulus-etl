@@ -2,8 +2,7 @@
 
 import ddt
 
-from cumulus_etl.etl.studies import covid_symptom
-from cumulus_etl.etl.studies.glioma.glioma_med_models import ingredient_field, drug_type_field
+from cumulus_etl.etl.studies.glioma.glioma_med_models import drug_type_field, ingredient_field
 from tests import utils
 
 # def drug_type_field(default=None, drug_type=None) -> str | None:
