@@ -1,16 +1,13 @@
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
-from cumulus_etl.etl.studies.irae.irae_base_models import SpanAugmentedMention
-
-GTS_SYSTEM = "http://terminology.hl7.org/CodeSystem/v3-GTSAbbreviation"
+from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
 
 ###############################################################################
-# Timing related to MedicationRequest.frequency
-
-
+# Generic
+###############################################################################
 class RxFrequency(StrEnum):
     QD = "QD"  # 1X (once daily)
     BID = "BID"  # 2X (twice daily)
@@ -30,8 +27,6 @@ class RxFrequency(StrEnum):
 
 ###############################################################################
 # MedicationRequest.status
-
-
 class RxStatus(StrEnum):
     """
     Medication Status (including Intent because chart review is NOT always identical to Med Request)
@@ -170,8 +165,6 @@ class RxQuantity(SpanAugmentedMention):
 
 ###############################################################################
 # Treatment Phase
-
-
 class TreatmentPhase(StrEnum):
     """
     Treatment Phase
@@ -194,17 +187,9 @@ def drug_type_field(default=None, drug_type=None) -> str | None:
     )
 
 
-def ingredient_field(default=None, ingredient=None) -> str | None:
-    return Field(
-        default=default,
-        description=f"Extract the {ingredient} ingredient documented for this medication, if present",
-    )
-
-
 ###############################################################################
-# Base class for Medication Mentions
-
-
+# Template
+###############################################################################
 class MedicationMention(SpanAugmentedMention):
     """
     https://build.fhir.org/valueset-medicationrequest-status.html
@@ -265,99 +250,20 @@ class MedicationMention(SpanAugmentedMention):
     )
 
 
-##########################################################
-#
-#           Immunosuppression ** DRUG CLASS **
-#
-##########################################################
-class RxClassImmunosuppression(StrEnum):
-    """
-    RxClass Immunosuppression
-    """
-
-    ANTIMET = "Anti-Metabolite (ANTIMET)"
-    CNI = "Calcineurin Inhibitor (CNI)"
-    STEROID = "Corticosteroid (CS)"
-    MTOR = "mTOR Inhibitor (MTOR)"
-    COSTIM = "Costimulation Blocker/blockade (COSTIM)"
-    IVIG = "Immunoglobulin (IVIG)"
-    POLYCLONAL = "Polyclonal antibody (e.g., ATG, ALG)"
-    MONOCLONAL = "Monoclonal antibody (mAb, e.g., basiliximab, rituximab)"
-    OTHER = "Other immunosuppressive drug"
-    NONE = "None of the above"
-
-
-class RxIngredientImmunosuppression(StrEnum):
-    """
-    The specific immunosuppressive drug ingredient
-    """
-
-    # ANTIMET Types
-    AZA = "Azathioprine"
-    MMF = "Mycophenolate Mofetil"
-    ANTIMET_OTHER = "Other anti-metabolite ingredient"
-    # CNI Types
-    CYA = "Cyclosporine"
-    TAC = "Tacrolimus"
-    CNI_OTHER = "Other calcineurin inhibitor ingredient"
-    # STEROID Types
-    MEDROL = "Methylprednisolone"
-    PDL = "Prednisolone"
-    PRED = "Prednisone"
-    STEROID_OTHER = "Other corticosteroid ingredient"
-    # COSTIM Types
-    BEL = "Belatacept"
-    ABA = "Abatacept"
-    COSTIM_OTHER = "Other Costimulation blocker ingredient"
-    # IVIG Types
-    IVIG = "Intravenous Immunoglobulin (IVIG)"
-    CYTOGAM = "Cytogam (CMV-specific hyperimmune globulin)"
-    IVIG_OTHER = "Other immunoglobulin therapy"
-    # MTOR Types
-    EVE = "Everolimus"
-    SRL = "Sirolimus"
-    MTOR_OTHER = "Other mTOR inhibitor ingredient"
-    # MONOCLONAL Types
-    ALEM = "Alemtuzumab"
-    BASI = "Basiliximab"
-    DAC = "Daclizumab"
-    RTX = "Rituximab"
-    MONOCLONAL_OTHER = "Other Monoclonal antibody drug"
-    # POLYCLONAL Types
-    ATG = "Antithymocyte Globulin (ATG)"
-    POLYCLONAL_OTHER = "Other polyclonal antibodies ingredient"
-    NONE = "None of the above"
-
-
-class ImmunosuppressiveMedicationMention(MedicationMention):
-    """
-    Mentions of ImmunosuppressiveMedications for this given chart.
-    """
-
-    drug_class: RxClassImmunosuppression = drug_type_field(
-        default=RxClassImmunosuppression.NONE,
-        drug_type="Immunosuppressive drug class or therapy modality",
-    )
-
-    ingredient: RxIngredientImmunosuppression = ingredient_field(
-        default=RxIngredientImmunosuppression.NONE,
-        ingredient="Specific immunosuppressive drug ingredient",
-    )
-
-
-##############################################################################
-# Aggregated Annotation and Mention Classes
-#
-# This is the top-level structure for the pydantic models used in IRAE tasks.
 ###############################################################################
+# Treatment: RxClass Cancer
+###############################################################################
+class RxClassCancer(StrEnum):
+    CHEMO = "Cytotoxic chemotherapy"
+    CHECKPOINT = "Checkpoint inhibitors, especially PD-1, PDL-1, CTLA-4"
+    CYTOKINE = "Cytokine therapy, especially IL-2 and interferon alpha"
+    CAR_T = "Chimeric antigen receptor (CAR-T)"
+    OTHER = "Other drug indicated for treatment of cancer(s)"
+    NONE = "None of the above"
 
 
-class ImmunosuppressiveMedicationsAnnotation(BaseModel):
-    """
-    All mentions of ImmunosuppressiveMedications for this given chart.
-    """
-
-    immunosuppressive_medication_mentions: list[ImmunosuppressiveMedicationMention] = Field(
-        default_factory=list,
-        description="All mentions of ImmunosuppressiveMedications for this given chart.",
-    )
+###############################################################################
+# Cancer Medication Mention
+###############################################################################
+class CancerMedicationMention(MedicationMention):
+    rx_class: RxClassCancer = drug_type_field(default=RxClassCancer.NONE, drug_type="Cancer drug")
