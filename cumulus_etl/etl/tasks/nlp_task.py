@@ -272,9 +272,8 @@ class BaseModelTask(BaseNlpTask):
             "%JSON-SCHEMA%", json.dumps(cls.response_format.model_json_schema())
         )
 
-    @classmethod
-    def get_user_prompt(cls, note_text: str) -> str:
-        prompt = cls.user_prompt or "%CLINICAL-NOTE%"
+    def get_user_prompt(self, note_text: str) -> str:
+        prompt = self.user_prompt or "%CLINICAL-NOTE%"
         return prompt.replace("%CLINICAL-NOTE%", note_text)
 
     def post_process(self, parsed: dict, details: NoteDetails) -> None:

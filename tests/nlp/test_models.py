@@ -236,6 +236,29 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             batch.rows[0]["result"]["dsa_mention"]["spans"], [(0, 4), (0, 11), (14, 19)]
         )
 
+    async def test_practitioner_specialty(self):
+        note = i2b2_mock_data.documentreference()
+        note["author"] = [{"reference": "PractitionerRole/1"}]
+        self.make_json("DocumentReference", "1", **note)
+        self.make_json(
+            "PractitionerRole",
+            "1",
+            specialty=[{"coding": [{"display": "Nurse"}]}],
+        )
+
+        self.mock_azure("gpt-4o")
+        self.mock_response()
+        await irae.IraeLongitudinalGpt4oTask(self.job_config, self.scrubber).run()
+
+        self.assertEqual(self.mock_create.call_count, 1)
+        self.assertEqual(
+            "Evaluate the following clinical document for kidney "
+            "transplant variables and outcomes.\n"
+            "Here is the clinical document for you to analyze:\n\n"
+            "Chief complaint: fever and chills. Denies cough.",
+            self.mock_create.call_args_list[0][1]["messages"][1]["content"],
+        )
+
     async def test_span_conversion_after_failed_span_match(self):
         # Regression test for span matching continuing after a failed match for list-based
         # annotation class

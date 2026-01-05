@@ -119,6 +119,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         patient_id: str | None = None,
         date: str | None = None,
         period_start: str | None = None,
+        authors: list[str] | None = None,
     ) -> dict:
         docref = {
             "resourceType": "DocumentReference",
@@ -149,6 +150,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         if period_start:
             docref["context"]["period"] = {"start": period_start}
 
+        if authors:
+            docref["author"] = [{"reference": a} for a in authors]
+
         return docref
 
     @staticmethod
@@ -160,6 +164,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         patient_id: str | None = None,
         date: str | None = None,
         period_start: str | None = None,
+        authors: list[str] | None = None,
     ) -> dict:
         dxreport = {
             "resourceType": "DiagnosticReport",
@@ -187,6 +192,9 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         if period_start:
             dxreport["effectivePeriod"] = {"start": period_start}
+
+        if authors:
+            dxreport["performer"] = [{"reference": a} for a in authors]
 
         return dxreport
 
@@ -216,16 +224,36 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         return set(itertools.chain.from_iterable(n.doc_mappings.keys() for n in notes))
 
     @staticmethod
-    def wrap_note(title: str, text: str, first: bool = True, date: str | None = None) -> str:
+    def wrap_note(
+        doctype: str,
+        text: str,
+        first: bool = True,
+        date: str | None = None,
+        dxreport: bool = False,
+        # tuple here is the person's name with their list of roles
+        people: list[tuple[str, list[str]]] | None = None,
+    ) -> str:
         """Format a note in the expected output format, with header"""
+        res_type = "Diagnostic Report" if dxreport else "Document"
+        person_type = "Performers" if dxreport else "Authors"
+
+        if people:
+            roles = ""
+            for person in people:
+                roles += f"\n# * {person[0]}"
+                for role in person[1]:
+                    roles += f"\n#   - {role}"
+        else:
+            roles = " unknown"
+
         finalized = ""
         if not first:
             finalized += "\n\n\n"
-            finalized += "########################################\n"
-            finalized += "########################################\n"
-        finalized += f"{title}\n"
-        finalized += f"{date or 'Unknown time'}\n"
         finalized += "########################################\n"
+        finalized += f"# {res_type}\n"
+        finalized += f"# Type: {doctype}\n"
+        finalized += f"# Date: {date or 'unknown'}\n"
+        finalized += f"# {person_type}:{roles}\n"
         finalized += "########################################\n\n\n"
         finalized += text.strip()
         return finalized
@@ -359,13 +387,19 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(
             [
                 self.wrap_note(
-                    "Ultrasonography of abdomen", "Notes for fever", date="12/01/12 12:00:00"
+                    "Abdominal Ultrasound",
+                    "Notes for fever",
+                    date="12/01/12 12:00:00",
+                    dxreport=True,
+                    people=[("Practitioner/example", ["Specialty: General medical practice"])],
                 )
                 + self.wrap_note("Admission MD", "Notes for fever", date="06/23/21", first=False),
                 self.wrap_note(
-                    "Computed tomography (CT) of head and neck",
+                    "CT of head-neck",
                     "Notes! for fever",
                     date="12/01/12 12:00:00",
+                    dxreport=True,
+                    people=[("Organization/f203", [])],
                 )
                 + self.wrap_note("Admission MD", "Notes! for fever", date="06/24/21", first=False),
             ],
@@ -373,8 +407,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         )
         self.assertEqual(
             {
-                "begin": 135,
-                "end": 138,
+                "begin": 246,
+                "end": 249,
                 "text": "for",
                 "polarity": 0,
                 "conceptAttributes": [
@@ -425,7 +459,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 "PatAnon",
                 "EncID",
                 "EncAnon",
-                title="My Title",
+                header="My Title",
                 text="John Smith called on 10/13/2010",
             )
         ]
@@ -443,7 +477,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             expected_text = "**** ***** called on 10/13/2010"  # we don't philter dates
         else:
             expected_text = "John Smith called on 10/13/2010"
-        self.assertEqual(self.wrap_note("My Title", expected_text), task.text)
+        self.assertIn(expected_text, task.text)
 
     async def test_philter_label(self):
         notes = [
@@ -453,7 +487,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 "PatAnon",
                 "EncID",
                 "EncAnon",
-                title="My Title",
+                header="My Title",
                 text="John Smith called on 10/13/2010",
             )
         ]
@@ -464,8 +498,8 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(1, len(tasks))
         task = tasks[0]
 
-        # High span numbers because we insert some header text
-        self.assertEqual({106: 110, 111: 116}, task.philter_map)
+        # Higher span numbers because we insert some header text
+        self.assertEqual({11: 15, 16: 21}, task.philter_map)
 
     async def test_grouped_datetime(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -506,11 +540,15 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         # The order will be oldest->newest (None placed last)
         self.assertEqual(
-            self.wrap_note("Document", "DocRef 3", date="01/01/18")
-            + self.wrap_note("Document", "DocRef 2", date="01/03/18 13:10:10", first=False)
-            + self.wrap_note("Document", "DxRep 1", date="01/03/18 13:10:50", first=False)
-            + self.wrap_note("Document", "DxRep 2", date="01/03/18 13:10:51", first=False)
-            + self.wrap_note("Document", "DocRef 1", first=False),
+            self.wrap_note("unknown", "DocRef 3", date="01/01/18")
+            + self.wrap_note("unknown", "DocRef 2", date="01/03/18 13:10:10", first=False)
+            + self.wrap_note(
+                "unknown", "DxRep 1", date="01/03/18 13:10:50", first=False, dxreport=True
+            )
+            + self.wrap_note(
+                "unknown", "DxRep 2", date="01/03/18 13:10:51", first=False, dxreport=True
+            )
+            + self.wrap_note("unknown", "DocRef 1", first=False),
             note.text,
         )
 
@@ -535,30 +573,30 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         )
 
         # Did we mark the internal docref spans correctly?
-        first_span = (106, 120)
-        second_span = (311, 325)
-        self.assertEqual("What's up doc?", note.text[first_span[0] : first_span[1]])
-        self.assertEqual("What's up doc?", note.text[second_span[0] : second_span[1]])
+        first_span = (146, 160)
+        second_span = (309, 323)
         self.assertEqual(
             {"DocumentReference/D1": first_span, "DocumentReference/D2": second_span},
             note.doc_spans,
         )
+        self.assertEqual("What's up doc?", note.text[first_span[0] : first_span[1]])
+        self.assertEqual("What's up doc?", note.text[second_span[0] : second_span[1]])
 
         # Did we edit cTAKES results correctly?
-        match1a = (106, 112)
-        match1b = (113, 115)
-        match1c = (116, 120)
-        match2a = (311, 317)
-        match2b = (318, 320)
-        match2c = (321, 325)
+        match1a = (146, 152)
+        match1b = (153, 155)
+        match1c = (156, 160)
+        match2a = (309, 315)
+        match2b = (316, 318)
+        match2c = (319, 323)
+        spans = {x.span().key() for x in note.ctakes_matches}
+        self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)
         self.assertEqual("What's", note.text[match1a[0] : match1a[1]])
         self.assertEqual("up", note.text[match1b[0] : match1b[1]])
         self.assertEqual("doc?", note.text[match1c[0] : match1c[1]])
         self.assertEqual("What's", note.text[match2a[0] : match2a[1]])
         self.assertEqual("up", note.text[match2b[0] : match2b[1]])
         self.assertEqual("doc?", note.text[match2c[0] : match2c[1]])
-        spans = {x.span().key() for x in note.ctakes_matches}
-        self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)
 
     async def test_docrefs_without_encounters_are_included(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -656,16 +694,16 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(
             [highlight.span for highlight in tasks[0].highlights],
             [
-                (129, 132),
-                (133, 135),
-                (142, 148),
-                (162, 164),
-                (165, 171),
-                (386, 389),
-                (390, 392),
-                (399, 405),
-                (419, 421),
-                (422, 428),
+                (169, 172),
+                (173, 175),
+                (182, 188),
+                (202, 204),
+                (205, 211),
+                (384, 387),
+                (388, 390),
+                (397, 403),
+                (417, 419),
+                (420, 426),
             ],
         )
         self.assertEqual({highlight.origin for highlight in tasks[0].highlights}, {"Cumulus"})
@@ -684,7 +722,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(len(tasks[0].highlights), 3)
         self.assertEqual(
             [highlight.span for highlight in tasks[0].highlights],
-            [(106, 109), (120, 123), (125, 128)],
+            [(146, 149), (160, 163), (165, 168)],
         )
 
     async def test_label_by_csv(self):
@@ -708,12 +746,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual(
             tasks[0].highlights,
             [
-                Highlight("number", (106, 109), "me"),
-                Highlight("number", (110, 113), "you"),
-                Highlight("single", (106, 109), "you"),
+                Highlight("number", (146, 149), "me"),
+                Highlight("number", (150, 153), "you"),
+                Highlight("single", (146, 149), "you"),
             ],
         )
-        self.assertEqual(tasks[1].highlights, [Highlight("number", (106, 111), "you")])
+        self.assertEqual(tasks[1].highlights, [Highlight("number", (146, 151), "you")])
 
     async def test_label_by_anon_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -737,14 +775,14 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             [
                 Highlight(
                     "test",
-                    (110, 113),
+                    (162, 165),
                     "Cumulus",
                     sublabel_name="My Choice",
                     sublabel_value="My Value",
                 )
             ],
         )
-        self.assertEqual(tasks[1].highlights, [Highlight("test", (106, 109), "custom")])
+        self.assertEqual(tasks[1].highlights, [Highlight("test", (146, 149), "custom")])
 
     async def test_label_by_athena_table(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -758,7 +796,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(len(tasks), 1)
-        self.assertEqual(tasks[0].highlights, [Highlight("my-label", (106, 111), "Cumulus")])
+        self.assertEqual(tasks[0].highlights, [Highlight("my-label", (158, 163), "Cumulus")])
 
     async def test_label_by_multiple(self):
         with self.assert_fatal_exit(errors.MULTIPLE_LABELING_ARGS):
@@ -813,4 +851,92 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
                 ["DocumentReference/D2"],
                 ["DocumentReference/D4"],
             ],
+        )
+
+    async def test_authors_in_header(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(f"{tmpdir}/dxreport.ndjson") as writer:
+                writer.write(
+                    TestUploadNotes.make_dxreport(
+                        "D1", authors=["Practitioner/pA", "Organization/oA"]
+                    )
+                )
+            with common.NdjsonWriter(f"{tmpdir}/docref.ndjson") as writer:
+                writer.write(
+                    TestUploadNotes.make_docref(
+                        "D1", authors=["PractitionerRole/rA", "PractitionerRole/rB"]
+                    )
+                )
+            with common.NdjsonWriter(f"{tmpdir}/people.ndjson") as writer:
+                writer.write(
+                    {
+                        "resourceType": "Practitioner",
+                        "id": "pA",
+                        "name": [{"text": "A. Last"}],
+                    }
+                )
+                writer.write(
+                    {
+                        "resourceType": "Practitioner",
+                        "id": "pB",
+                        "name": [{"text": "B. Last"}],
+                    }
+                )
+            with common.NdjsonWriter(f"{tmpdir}/roles.ndjson") as writer:
+                writer.write(
+                    {
+                        "resourceType": "PractitionerRole",
+                        "id": "rA",
+                        "practitioner": {"reference": "Practitioner/pA"},
+                        "code": [
+                            {"coding": [{"display": "A.Role1a"}, {"display": "A.Role1b"}]},
+                            {"text": "A.Role2"},
+                        ],
+                    }
+                )
+                writer.write(
+                    {
+                        "resourceType": "PractitionerRole",
+                        "id": "rA.2",
+                        "practitioner": {"reference": "Practitioner/pA"},
+                        "specialty": [{"text": "A.Spec1"}],
+                    }
+                )
+                writer.write(
+                    {
+                        "resourceType": "PractitionerRole",
+                        "id": "rB",
+                        "practitioner": {"reference": "Practitioner/pB"},
+                        "code": [{"text": "B.Role1"}],
+                        "specialty": [{"text": "B.Spec1"}],
+                    }
+                )
+
+            await self.run_upload_notes(input_path=tmpdir, philter="disable")
+
+        tasks = self.ls_client.push_tasks.call_args[0][0]
+        self.assertEqual(
+            [
+                self.wrap_note(
+                    "unknown",
+                    "What's up doc?",
+                    date="unknown",
+                    dxreport=True,
+                    people=[
+                        ("A. Last", ["Role: A.Role1a", "Role: A.Role2", "Specialty: A.Spec1"]),
+                        ("Organization/oA", []),
+                    ],
+                )
+                + self.wrap_note(
+                    "unknown",
+                    "What's up doc?",
+                    date="unknown",
+                    first=False,
+                    people=[
+                        ("A. Last", ["Role: A.Role1a", "Role: A.Role2"]),  # no A.Spec1
+                        ("B. Last", ["Role: B.Role1", "Specialty: B.Spec1"]),
+                    ],
+                ),
+            ],
+            [t.text for t in tasks],
         )

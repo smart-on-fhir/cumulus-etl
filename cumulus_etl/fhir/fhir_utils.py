@@ -339,3 +339,144 @@ async def get_clinical_note(client: cfs.FhirClient, resource: dict) -> str:
 
     _save_cached_note(resource, note)
     return note
+
+
+def get_concept_user_text(concept: dict | None) -> str | None:
+    concept = concept or {}
+
+    # First try overall text, if provided
+    if text := concept.get("text"):
+        return text
+    else:
+        # Else use first display value we see (no need to grab multiples, they will be
+        # redundant inside the same concept)
+        for coding in concept.get("coding", []):
+            if display := coding.get("display"):
+                return display
+
+    return None
+
+
+def get_concept_list_user_text(concepts: list[dict] | None) -> set[str]:
+    results = set()
+
+    if concepts is None:
+        return results
+
+    for concept in concepts:
+        if text := get_concept_user_text(concept):
+            results.add(text)
+
+    return results
+
+
+def _get_human_name(names: list[dict] | None) -> str | None:
+    if names is None:
+        return None
+
+    def name_priority(name: dict) -> int:
+        match name.get("use"):
+            case "official":
+                return 2
+            case "usual":
+                return 1
+            case _:
+                return 0
+
+    names = sorted(names, key=name_priority, reverse=True)
+
+    for name in names:
+        if text := name.get("text"):
+            return text
+
+    return None
+
+
+def get_clinical_note_role_info(note: dict, src_dir: str) -> str:
+    # Gather author/performer info
+    match note.get("resourceType"):
+        case "DiagnosticReport":
+            title = "Performers:"
+            people_refs = note.get("performer", [])
+        case "DocumentReference":
+            title = "Authors:"
+            people_refs = note.get("author", [])
+        case _:
+            raise ValueError(f"{note.get('resourceType')} is not a supported clinical note type.")
+
+    # Parse the refs
+    people_sorted = []
+    for ref in people_refs:
+        try:
+            people_sorted.append(unref_resource(ref))
+        except ValueError:
+            pass
+    people = set(people_sorted)  # just in case there are repeats
+
+    # Search through all our source PractitionerRole resources for matches.
+    # This is a little slow, since we don't cache anything, but it's usually used in contexts like
+    # uploading notes or NLP, where the number of documents is hopefully not enormous.
+    # Likewise, the number of PractitionerRoles is hopefully not enormous either.
+    found = {}
+    for row in cfs.read_multiline_json_from_dir(src_dir, "PractitionerRole"):
+        for person in people:
+            person_type, person_id = person
+
+            # Grab the pointer to the related Practitioner
+            try:
+                pract_type, pract_id = unref_resource(row.get("practitioner"))
+                if pract_type != "Practitioner":
+                    pract_id = None
+            except ValueError:
+                pract_type, pract_id = None, None
+
+            # Does this PractitionerRole match our person?
+            match person_type:
+                case "PractitionerRole":
+                    is_match = person_id == row.get("id")
+                case "Practitioner":
+                    is_match = person_id == pract_id
+                case _:
+                    is_match = False
+
+            if is_match:
+                # Find some display texts for this Role, folding it in to existing data
+                # (Since there could be multiple Roles for the same Practitioner)
+                found_data = found.setdefault(person, {})
+                found_data["pract_id"] = pract_id
+                found_role = found_data.setdefault("role", set())
+                found_role |= get_concept_list_user_text(row.get("code"))
+                found_specialty = found_data.setdefault("specialty", set())
+                found_specialty |= get_concept_list_user_text(row.get("specialty"))
+                break
+
+    # Insert any Practitioners we know about but didn't find as Roles
+    for person in people:
+        person_type, person_id = person
+        if person_type == "Practitioner" and person not in found:
+            found[person] = {"pract_id": person_id}
+
+    # Now go over Practitioners to find the actual human name to use
+    for row in cfs.read_multiline_json_from_dir(src_dir, "Practitioner"):
+        for person, data in found.items():
+            if data["pract_id"] == row.get("id"):
+                data["name"] = _get_human_name(row.get("name"))
+                break
+
+    # Now combine all the metadata we found into a giant string
+    info = title
+    if not people_sorted:
+        info += " unknown"
+    for person in people_sorted:
+        found_data = found.get(person, {})
+        name = found_data.get("name") or f"{person[0]}/{person[1]}"
+        roles = found_data.get("role")
+        specialties = found_data.get("specialty")
+
+        info += f"\n* {name}"
+        for role in sorted(roles or []):
+            info += f"\n  - Role: {role}"
+        for specialty in sorted(specialties or []):
+            info += f"\n  - Specialty: {specialty}"
+
+    return info
