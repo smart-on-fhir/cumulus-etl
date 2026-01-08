@@ -40,7 +40,7 @@ async def etl_job(
     return summary_list
 
 
-def add_common_etl_args(parser: argparse.ArgumentParser, batch_size: int = 200_000) -> None:
+def add_common_etl_args(parser: argparse.ArgumentParser, batch_size: int = 100_000) -> None:
     parser.add_argument("dir_input", metavar="/path/to/input")
     parser.add_argument("dir_output", metavar="/path/to/output")
     parser.add_argument("dir_phi", metavar="/path/to/phi")
