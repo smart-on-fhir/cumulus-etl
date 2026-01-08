@@ -34,7 +34,7 @@ So the larger it is, the more memory will be used and the larger the output file
 
 We've found `--batch-size=100000` works well for 16GB of memory.
 And `--batch-size=500000` works well for 32GB of memory.
-(You might have expected the number to simply double, but there is overhead.)
+(You might have expected the number to simply double, but there is some static overhead.)
 
 Mileage may vary though, depending on how your FHIR data is formatted.
 And some resources are naturally smaller than others.
@@ -44,8 +44,8 @@ experiment to find what works for your environment.
 (Running out of memory will look like a sudden closing of the app.
 Docker will just immediately shut the container down when it runs out.)
 
-If you are using an AWS EC2 instance, we recommend an `m5.xlarge` instance for 16GB,
-or `m5.2xlarge` for 32GB.
+If you are using an AWS EC2 instance, we recommend an `r8g.xlarge` (four cores, 32GB)
+and using a 500k batch size.
 
 ## Disk Consumption
 
