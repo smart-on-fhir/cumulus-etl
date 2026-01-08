@@ -269,6 +269,7 @@ class Scrubber:
             allowed_extensions = {
                 ### Base spec extensions
                 ### (See https://www.hl7.org/fhir/R4/extensibility-registry.html)
+                "http://hl7.org/fhir/StructureDefinition/annotationType",
                 "http://hl7.org/fhir/StructureDefinition/condition-assertedDate",
                 "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
                 "http://hl7.org/fhir/StructureDefinition/derivation-reference",
@@ -276,6 +277,8 @@ class Scrubber:
                 "http://hl7.org/fhir/StructureDefinition/individual-pronouns",
                 "http://hl7.org/fhir/StructureDefinition/iso21090-PQ-translation",
                 "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+                "http://hl7.org/fhir/StructureDefinition/patient-preferenceType",
+                "http://hl7.org/fhir/StructureDefinition/patient-proficiency",
                 "http://hl7.org/fhir/StructureDefinition/workflow-supportingInfo",
                 "http://hl7.org/fhir/5.0/StructureDefinition/extension-DocumentReference.attester",
                 ### US Core extensions
@@ -304,6 +307,7 @@ class Scrubber:
                 "http://electronichealth.se/fhir/StructureDefinition/NLLRegistrationBasis",
                 ### Epic extensions
                 "http://open.epic.com/FHIR/StructureDefinition/extension/accidentrelated",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/basis-at-begin-exam",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/calculated-pronouns-to-use-for-text",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-attached-media",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-authentication-instant",
@@ -313,7 +317,9 @@ class Scrubber:
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-post-procedure-diagnosis",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-pre-procedure-diagnosis",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-service",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/data-conversion-warning",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/edd-at-begin-exam",
+                "http://open.epic.com/FHIR/StructureDefinition/extension/historical-fhir-id",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/ip-admit-datetime",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
                 "http://open.epic.com/FHIR/StructureDefinition/extension/log-level-procedure-codes",
@@ -368,6 +374,8 @@ class Scrubber:
                 "http://open.epic.com/FHIR/StructureDefinition/extension/lab-e-signature",
                 # Epic extension with internal team names, low clinical relevance but w/ PHI risk
                 "http://open.epic.com/FHIR/StructureDefinition/extension/team-name",
+                # Epic extension with freeform text. Supposed to be technical, but might have PHI?
+                "http://open.epic.com/FHIR/StructureDefinition/extension/technical-details",
             }
             url = value.get("url")
             if url not in allowed_extensions:
