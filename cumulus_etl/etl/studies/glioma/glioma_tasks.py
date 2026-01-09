@@ -16,9 +16,9 @@ from cumulus_etl.etl.studies.glioma.glioma_doctype_models import (
 
 class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
     # Task Version History:
-    # ** 1 (2026-01): TEMP HACKY IMPLEMENTATION. TO REVERT LATER **
+    # ** 2000 (2026-01): TEMP HACKY IMPLEMENTATION. TO REVERT LATER **
     # ** 0 (2025-12): Initial version **
-    task_version = 1
+    task_version = 2000
 
     system_prompt = (
         "You are a clinical chart reviewer for a study examining the efficacy of various "
