@@ -6,6 +6,11 @@ from cumulus_etl.etl.studies.glioma.glioma_models import (
     GliomaCaseAnnotation,
 )
 
+# TEMPORARY HACKY IMPLEMENTATION: Overriding the actual annotation with the DocumentTypeAnnotation
+from cumulus_etl.etl.studies.glioma.glioma_doctype_models import (
+    DocumentTypeAnnotation,
+)
+
 ###############################################################################
 # Base IRAE Tasks
 # These base classes define common behavior and prompts for the IRAE study tasks.
@@ -14,8 +19,9 @@ from cumulus_etl.etl.studies.glioma.glioma_models import (
 
 class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
     # Task Version History:
+    # ** 1 (2026-01): TEMP HACKY IMPLEMENTATION. TO REVERT LATER **
     # ** 0 (2025-12): Initial version **
-    task_version = 0
+    task_version = 1
 
     system_prompt = (
         "You are a clinical chart reviewer for a study examining the efficacy of various "
@@ -44,7 +50,7 @@ class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
         "%CLINICAL-NOTE%"
     )
 
-    response_format = GliomaCaseAnnotation
+    response_format = DocumentTypeAnnotation
 
 
 ###############################################################################

@@ -17,14 +17,14 @@ class TopographyMention(SpanAugmentedMention):
     represents the primary tumor or a metastatic tumor.
     """
 
-    code: ICDOTopographyCode = Field(
+    code: ICDOTopographyCode | None = Field(
         None,
         description=(
             "ICD-O topography code (Cxx or Cxx.x) for the anatomic site of the malignant neoplasm, "
             "e.g., C18.0 for cecum."
         ),
     )
-    display: str = Field(
+    display: str | None = Field(
         None,
         description="Human-readable ICD-O anatomic site description corresponding to the topography code.",
     )
@@ -44,13 +44,13 @@ class MorphologyMention(SpanAugmentedMention):
     squamous cell carcinoma, lymphoma) combined with the behavior code.
     """
 
-    code: ICDOMorphologyCode = Field(
+    code: ICDOMorphologyCode | None = Field(
         None,
         description=(
             "ICD-O morphology code (M-####/x). Example: 8140/3 = Adenocarcinoma, NOS (malignant)."
         ),
     )
-    display: str = Field(
+    display: str | None = Field(
         None, description="Human-readable ICD-O histologic type (e.g., 'Adenocarcinoma, NOS')."
     )
 
@@ -68,10 +68,12 @@ class ICDOBehaviorCode(StrEnum):
 
 
 class BehaviorMention(SpanAugmentedMention):
-    code: ICDOBehaviorCode = Field(
+    code: ICDOBehaviorCode | None = Field(
         None, description="ICD-O slash behavior code (e.g., /3 = malignant primary site)."
     )
-    display: str = Field(None, description="Human-readable description of the cancer behavior.")
+    display: str | None = Field(
+        None, description="Human-readable description of the cancer behavior."
+    )
 
 
 ###############################################################################
@@ -97,10 +99,12 @@ class GradeMention(SpanAugmentedMention):
       9 = Grade cannot be assessed
     """
 
-    code: GradeCode = Field(
+    code: GradeCode | None = Field(
         None, description="ICD-O tumor differentiation grade (1, 2, 3, 4, or 9)."
     )
-    display: str = Field(None, description="Human-readable ICD-O description of the tumor grade.")
+    display: str | None = Field(
+        None, description="Human-readable ICD-O description of the tumor grade."
+    )
 
 
 ###############################################################################
@@ -179,4 +183,6 @@ class ClinicalStageMention(SpanAugmentedMention):
     code: ClinicalStage = Field(
         None, description="ICD-O / AJCC clinical stage group (0, IA, IB, IIA, IIB, IIIA, IIIB, IV)."
     )
-    display: str = Field(None, description="Human-readable description of the clinical stage.")
+    display: str | None = Field(
+        None, description="Human-readable description of the clinical stage."
+    )
