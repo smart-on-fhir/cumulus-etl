@@ -54,8 +54,9 @@ class DocumentTypeMention(SpanAugmentedMention):
         description="Is this document/note administrative and lacking clinical significance relevant to pLGG?",
     )
 
-    doc_type_confidence: float | None = Field(
-        None, description="LLM confidence score (0-1) for the document type classification."
+    doc_type_confidence: int | None = Field(
+        None,
+        description="LLM confidence score (0-100) for the document type classification, with 100 being the highest confidence.",
     )
 
 
