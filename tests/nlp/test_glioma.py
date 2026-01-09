@@ -4,7 +4,7 @@ import json
 
 import ddt
 
-from cumulus_etl.etl.studies.glioma.glioma_tasks import GliomaCaseAnnotation
+from cumulus_etl.etl.studies.glioma.glioma_models import GliomaCaseAnnotation
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
