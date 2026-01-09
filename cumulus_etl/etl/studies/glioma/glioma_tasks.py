@@ -2,9 +2,6 @@
 
 from cumulus_etl import nlp
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.studies.glioma.glioma_models import (
-    GliomaCaseAnnotation,
-)
 
 # TEMPORARY HACKY IMPLEMENTATION: Overriding the actual annotation with the DocumentTypeAnnotation
 from cumulus_etl.etl.studies.glioma.glioma_doctype_models import (
