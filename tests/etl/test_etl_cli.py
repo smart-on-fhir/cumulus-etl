@@ -401,6 +401,21 @@ class TestEtlJobFlow(BaseEtlSimple):
             with self.assert_fatal_exit(errors.FOLDER_DOES_NOT_EXIST):
                 await self.run_etl(tasks=["patient"], input_path=f"{tmpdir}/nope")
 
+    async def test_only_medications(self):
+        """Verify that we grab Medication resources even if there are now MedReqs"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(f"{tmpdir}/meds.ndjson", "w", encoding="utf8") as f:
+                json.dump({"resourceType": "Medication", "id": "A"}, f)
+            await self.run_etl(tasks=["medicationrequest"], input_path=tmpdir)
+
+        self.assertEqual(
+            common.read_json(f"{self.output_path}/medication/medication.000.ndjson"),
+            {
+                "resourceType": "Medication",
+                "id": "8d8b9d06d541788bd60025396b5814f4c9a7d9eae912da48f25ec34ac4d592e8",
+            },
+        )
+
 
 class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""

@@ -85,7 +85,7 @@ class MedicationRequestTask(tasks.EtlTask):
     """Write MedicationRequest resources and associated Medication resources"""
 
     name: ClassVar = "medicationrequest"
-    resource: ClassVar = "MedicationRequest"
+    resource: ClassVar = {"Medication", "MedicationRequest"}
 
     # We may write to a second Medication table as we go.
     # MedicationRequest can have inline medications via CodeableConcepts, or external Medication
@@ -97,7 +97,7 @@ class MedicationRequestTask(tasks.EtlTask):
     outputs: ClassVar = [
         # Write medication out first, to avoid a moment where links are broken
         tasks.OutputTable(name="medication", resource_type="Medication"),
-        tasks.OutputTable(),
+        tasks.OutputTable(resource_type="MedicationRequest"),
     ]
 
     def __init__(self, *args, **kwargs):
@@ -174,7 +174,7 @@ class MedicationRequestTask(tasks.EtlTask):
         # Load in any local Medication resources first. This lets the user prepare the linked
         # Medications ahead of time and feed them in alongside the MedicationRequests.
         # We'll note the IDs and avoid downloading them later when we do the MedicationRequests.
-        resources = ["Medication", self.resource]
+        resources = ["Medication", "MedicationRequest"]
         for resource in self.read_ndjson(progress=progress, resources=resources):
             orig_resource = copy.deepcopy(resource)
             if not self.scrubber.scrub_resource(resource):
