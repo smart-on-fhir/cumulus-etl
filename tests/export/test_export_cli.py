@@ -51,7 +51,8 @@ class TestExportCLI(utils.AsyncTestCase):
         """Verify that we do the expected task filtering as requested"""
         await self.run_export(*args)
         if expected_resources == ["*default*"]:
-            expected_resources = sorted(t.resource for t in get_default_tasks())
+            all_res_types = set().union(*(t.get_resource_types() for t in get_default_tasks()))
+            expected_resources = sorted(all_res_types)
         self.assertEqual(
             expected_resources,
             self.loader_mock.load_from_bulk_export.call_args.args[0],

@@ -118,10 +118,9 @@ def print_config(
 async def check_available_resources(
     loader: loaders.Loader,
     *,
-    requested_resources: set[str],
+    selected_tasks: list[type[task_factory.AnyTask]],
     args: argparse.Namespace,
     is_default_tasks: bool,
-    nlp: bool,
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
     # available in the input root.
@@ -132,20 +131,22 @@ async def check_available_resources(
     # Reconciling is helpful for performance reasons (don't need to finalize untouched tables),
     # UX reasons (can tell user if they made a CLI mistake), and completion tracking (don't
     # mark a resource as complete if we didn't even export it)
+    all_possible_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
+
     has_allow_missing = hasattr(args, "allow_missing_resources")
     if has_allow_missing and args.allow_missing_resources:
-        return requested_resources
+        return all_possible_resources
 
     detected = await loader.detect_resources()
     if detected is None:
-        return requested_resources  # likely we haven't run bulk export yet
+        return all_possible_resources  # likely we haven't run bulk export yet
 
-    missing_resources = requested_resources - detected
-    available_resources = requested_resources & detected
+    available_resources = all_possible_resources & detected
 
-    if nlp and available_resources:
-        # As long as there is any resource for NLP to read from, we'll take it
-        return available_resources
+    missing_resources = set()
+    for task in selected_tasks:
+        if not task.get_resource_types() & detected:
+            missing_resources |= task.get_resource_types()
 
     if missing_resources:
         for resource in sorted(missing_resources):
@@ -200,15 +201,15 @@ async def run_pipeline(
         for task in selected_tasks:
             await task.init_check()
 
-    # Combine all task resource sets into one big set of required resources
-    required_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
+    # Combine all task resource sets into one big set of requested resources
+    requested_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
 
     # Create a client to talk to a FHIR server.
     # This is useful even if we aren't doing a bulk export, because some resources like
     # DocumentReference can still reference external resources on the server (like the document
     # text). If we don't need this client (e.g. we're using local data and don't download any
     # attachments), this is a no-op.
-    client = fhir.create_fhir_client_for_cli(args, root_input, required_resources)
+    client = fhir.create_fhir_client_for_cli(args, root_input, requested_resources)
 
     async with client:
         if args.input_format == "i2b2":
@@ -218,18 +219,17 @@ async def run_pipeline(
                 root_input, client=client, **(ndjson_args or {})
             )
 
-        required_resources = await check_available_resources(
+        available_resources = await check_available_resources(
             config_loader,
             args=args,
             is_default_tasks=is_default_tasks,
-            requested_resources=required_resources,
-            nlp=nlp,
+            selected_tasks=selected_tasks,
         )
         # Drop any tasks that we didn't find resources for
-        selected_tasks = [t for t in selected_tasks if t.get_resource_types() & required_resources]
+        selected_tasks = [t for t in selected_tasks if t.get_resource_types() & available_resources]
 
         # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
-        loader_results = await config_loader.load_resources(required_resources)
+        loader_results = await config_loader.load_resources(available_resources)
 
         scrubber, config_args = await prep_scrubber(client, loader_results)
         validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
