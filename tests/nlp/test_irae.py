@@ -4,12 +4,6 @@ import json
 
 import ddt
 
-from cumulus_etl.etl.studies.irae.irae_tasks import (
-    ImmunosuppressiveMedicationsAnnotation,
-    KidneyTransplantDonorGroupAnnotation,
-    KidneyTransplantLongitudinalAnnotation,
-    MultipleTransplantHistoryAnnotation,
-)
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
@@ -21,8 +15,24 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
 
     DATA_ROOT = "irae"
 
-    @staticmethod
-    def longitudinal_content(**kwargs):
+    @classmethod
+    def donor_model(cls):
+        return cls.load_pydantic_model("irae/donor.json")
+
+    @classmethod
+    def history_model(cls):
+        return cls.load_pydantic_model("irae/history.json")
+
+    @classmethod
+    def longitudinal_model(cls):
+        return cls.load_pydantic_model("irae/longitudinal.json")
+
+    @classmethod
+    def meds_model(cls):
+        return cls.load_pydantic_model("irae/meds.json")
+
+    @classmethod
+    def longitudinal_content(cls, **kwargs):
         content = {
             "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
             "rx_compliance_mention": {"has_mention": False, "spans": []},
@@ -38,7 +48,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
             "deceased_mention": {"has_mention": False, "spans": []},
         }
         content.update(kwargs)
-        return KidneyTransplantLongitudinalAnnotation.model_validate(content)
+        return cls.longitudinal_model().model_validate(content)
 
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
@@ -51,7 +61,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         self.mock_azure(model_id)
 
         self.mock_response(
-            content=ImmunosuppressiveMedicationsAnnotation.model_validate(
+            content=self.meds_model().model_validate(
                 {
                     "immunosuppressive_medication_mentions": [
                         {
@@ -111,8 +121,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
                         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
-                        "Pydantic Schema:\n"
-                        + json.dumps(ImmunosuppressiveMedicationsAnnotation.model_json_schema()),
+                        "Pydantic Schema:\n" + json.dumps(self.meds_model().model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -126,9 +135,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": OpenAIProvider.pydantic_to_response_format(
-                    ImmunosuppressiveMedicationsAnnotation
-                ),
+                "response_format": OpenAIProvider.pydantic_to_response_format(self.meds_model()),
             },
             self.mock_create.call_args_list[0][1],
         )
@@ -144,7 +151,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         self.mock_azure(model_id)
 
         self.mock_response(
-            content=MultipleTransplantHistoryAnnotation.model_validate(
+            content=self.history_model().model_validate(
                 {
                     "multiple_transplant_history_mention": {
                         "multiple_transplant_history": True,
@@ -190,8 +197,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
                         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
-                        "Pydantic Schema:\n"
-                        + json.dumps(MultipleTransplantHistoryAnnotation.model_json_schema()),
+                        "Pydantic Schema:\n" + json.dumps(self.history_model().model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -205,9 +211,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": OpenAIProvider.pydantic_to_response_format(
-                    MultipleTransplantHistoryAnnotation
-                ),
+                "response_format": OpenAIProvider.pydantic_to_response_format(self.history_model()),
             },
             self.mock_create.call_args_list[0][1],
         )
@@ -222,7 +226,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     async def test_basic_donor_etl(self, model_slug, model_id):
         self.mock_azure(model_id)
         self.mock_response(
-            content=KidneyTransplantDonorGroupAnnotation.model_validate(
+            content=self.donor_model().model_validate(
                 {
                     "donor_transplant_date_mention": {"has_mention": False, "spans": []},
                     "donor_type_mention": {"has_mention": False, "spans": []},
@@ -274,8 +278,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.\n"
                         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
-                        "Pydantic Schema:\n"
-                        + json.dumps(KidneyTransplantDonorGroupAnnotation.model_json_schema()),
+                        "Pydantic Schema:\n" + json.dumps(self.donor_model().model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -289,9 +292,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": OpenAIProvider.pydantic_to_response_format(
-                    KidneyTransplantDonorGroupAnnotation
-                ),
+                "response_format": OpenAIProvider.pydantic_to_response_format(self.donor_model()),
             },
             self.mock_create.call_args_list[0][1],
         )
@@ -352,7 +353,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
                         "Pydantic Schema:\n"
-                        + json.dumps(KidneyTransplantLongitudinalAnnotation.model_json_schema()),
+                        + json.dumps(self.longitudinal_model().model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -367,7 +368,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
                 "temperature": 0,
                 "timeout": 120,
                 "response_format": OpenAIProvider.pydantic_to_response_format(
-                    KidneyTransplantLongitudinalAnnotation
+                    self.longitudinal_model()
                 ),
             },
             self.mock_create.call_args_list[0][1],

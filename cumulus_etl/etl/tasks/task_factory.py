@@ -1,13 +1,15 @@
 """Finds and creates ETL tasks"""
 
 import inspect
+import os
 import sys
 from collections.abc import Iterable
 from typing import TypeVar
 
 from cumulus_etl import cli_utils, errors
-from cumulus_etl.etl.studies import covid_symptom, example, glioma, irae
-from cumulus_etl.etl.tasks import basic_tasks
+from cumulus_etl.etl import studies
+from cumulus_etl.etl.studies import covid_symptom
+from cumulus_etl.etl.tasks import basic_tasks, nlp_task
 
 AnyTask = TypeVar("AnyTask", bound="EtlTask")  # noqa: F821
 
@@ -31,11 +33,12 @@ def get_classes_from_module(module) -> list[type[AnyTask]]:
 
 
 def get_nlp_tasks() -> list[type[AnyTask]]:
+    study_root = os.path.dirname(studies.__file__)
     return [
         *get_classes_from_module(covid_symptom),
-        *get_classes_from_module(example),
-        *get_classes_from_module(glioma),
-        *get_classes_from_module(irae),
+        *nlp_task.parse_nlp_config("example_nlp", f"{study_root}/example/tasks.toml"),
+        *nlp_task.parse_nlp_config("glioma", f"{study_root}/glioma/tasks.toml"),
+        *nlp_task.parse_nlp_config("irae", f"{study_root}/irae/tasks.toml"),
     ]
 
 

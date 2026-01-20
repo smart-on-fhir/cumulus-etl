@@ -1,0 +1,290 @@
+{
+  "$defs": {
+    "ImmunosuppressiveMedicationMention": {
+      "description": "Mentions of ImmunosuppressiveMedications for this given chart.",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/RxStatus",
+          "default": "None of the above",
+          "description": "What is the status of this medication?"
+        },
+        "category": {
+          "$ref": "#/$defs/RxCategory",
+          "default": "None of the above",
+          "description": "In which healthcare setting is this medication prescribed/administered?"
+        },
+        "route": {
+          "$ref": "#/$defs/RxRoute",
+          "default": "None of the above",
+          "description": "What is the the route of administration for this medication?"
+        },
+        "phase": {
+          "$ref": "#/$defs/TreatmentPhase",
+          "default": "None of the above",
+          "description": "What is the treatment phase for this medication?"
+        },
+        "expected_supply_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Number of days the medication supply is supposed to last (stale dating the prescription)",
+          "title": "Expected Supply Days"
+        },
+        "number_of_repeats_allowed": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "number of times (aka refills or repeats) that the patient can receive the prescribed medication",
+          "title": "Number Of Repeats Allowed"
+        },
+        "frequency": {
+          "$ref": "#/$defs/RxFrequency",
+          "default": "None of the above",
+          "description": "What is the frequency of this medication?"
+        },
+        "start_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Start date of the prescribed or administered medication",
+          "title": "Start Date"
+        },
+        "end_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "End date of the prescribed or administered medication",
+          "title": "End Date"
+        },
+        "quantity_unit": {
+          "$ref": "#/$defs/RxQuantityUnit",
+          "default": "None of the above",
+          "description": "Medication prescribed unit"
+        },
+        "quantity_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Numeric amount of medication prescribed or administered (FHIR Quantity.value)",
+          "title": "Quantity Value"
+        },
+        "drug_class": {
+          "$ref": "#/$defs/RxClassImmunosuppression",
+          "default": "None of the above",
+          "description": "Extract the Immunosuppressive drug class or therapy modality class or therapy modality documented for this medication, if present"
+        },
+        "ingredient": {
+          "$ref": "#/$defs/RxIngredientImmunosuppression",
+          "default": "None of the above",
+          "description": "Extract the Specific immunosuppressive drug ingredient ingredient documented for this medication, if present"
+        }
+      },
+      "title": "ImmunosuppressiveMedicationMention",
+      "type": "object"
+    },
+    "RxCategory": {
+      "description": "https://build.fhir.org/valueset-medicationrequest-admin-location.html",
+      "enum": [
+        "Medication ordered/administered during an inpatient/acute care setting",
+        "Medication ordered/administered during an outpatient setting",
+        "Medication ordered/consumed by the patient in their home (including long term care, nursing homes, etc)",
+        "None of the above"
+      ],
+      "title": "RxCategory",
+      "type": "string"
+    },
+    "RxClassImmunosuppression": {
+      "description": "RxClass Immunosuppression",
+      "enum": [
+        "Anti-Metabolite (ANTIMET)",
+        "Calcineurin Inhibitor (CNI)",
+        "Corticosteroid (CS)",
+        "mTOR Inhibitor (MTOR)",
+        "Costimulation Blocker/blockade (COSTIM)",
+        "Immunoglobulin (IVIG)",
+        "Polyclonal antibody (e.g., ATG, ALG)",
+        "Monoclonal antibody (mAb, e.g., basiliximab, rituximab)",
+        "Other immunosuppressive drug",
+        "None of the above"
+      ],
+      "title": "RxClassImmunosuppression",
+      "type": "string"
+    },
+    "RxFrequency": {
+      "enum": [
+        "QD",
+        "BID",
+        "TID",
+        "QID",
+        "QOD",
+        "Q6H",
+        "Q8H",
+        "Q12H",
+        "WEEKLY",
+        "Q2W",
+        "Q4W",
+        "MONTHLY",
+        "OTHER",
+        "None of the above"
+      ],
+      "title": "RxFrequency",
+      "type": "string"
+    },
+    "RxIngredientImmunosuppression": {
+      "description": "The specific immunosuppressive drug ingredient",
+      "enum": [
+        "Azathioprine",
+        "Mycophenolate Mofetil",
+        "Other anti-metabolite ingredient",
+        "Cyclosporine",
+        "Tacrolimus",
+        "Other calcineurin inhibitor ingredient",
+        "Methylprednisolone",
+        "Prednisolone",
+        "Prednisone",
+        "Other corticosteroid ingredient",
+        "Belatacept",
+        "Abatacept",
+        "Other Costimulation blocker ingredient",
+        "Intravenous Immunoglobulin (IVIG)",
+        "Cytogam (CMV-specific hyperimmune globulin)",
+        "Other immunoglobulin therapy",
+        "Everolimus",
+        "Sirolimus",
+        "Other mTOR inhibitor ingredient",
+        "Alemtuzumab",
+        "Basiliximab",
+        "Daclizumab",
+        "Rituximab",
+        "Other Monoclonal antibody drug",
+        "Antithymocyte Globulin (ATG)",
+        "Other polyclonal antibodies ingredient",
+        "None of the above"
+      ],
+      "title": "RxIngredientImmunosuppression",
+      "type": "string"
+    },
+    "RxQuantityUnit": {
+      "enum": [
+        "mg",
+        "g",
+        "ug",
+        "kg",
+        "mL",
+        "L",
+        "U",
+        "[iU]",
+        "{tablet}",
+        "{capsule}",
+        "{puff}",
+        "{patch}",
+        "{suppository}",
+        "mg/mL",
+        "mg/kg",
+        "U/kg",
+        "ug/kg/min",
+        "h",
+        "min",
+        "d",
+        "None of the above"
+      ],
+      "title": "RxQuantityUnit",
+      "type": "string"
+    },
+    "RxRoute": {
+      "description": "Route of Administration can \"help\" (but not deterministic) for drug metadata, examples\n* Injection --> antibody for induction/rescue therapy\n* Topical --> skin lesions\n* Inhalation --> Steroid\nhttps://build.fhir.org/valueset-route-codes.html",
+      "enum": [
+        "Oral (includes swallowed and sublingual routes)",
+        "Nasogastric/Feeding tube (NG/PEG)",
+        "Injection (IV, SC, or IM)",
+        "Inhalation (respiratory route)",
+        "Topical (skin or mucosal surface)",
+        "None of the above"
+      ],
+      "title": "RxRoute",
+      "type": "string"
+    },
+    "RxStatus": {
+      "description": "Medication Status (including Intent because chart review is NOT always identical to Med Request)\nhttps://build.fhir.org/valueset-medicationrequest-status.html\nhttps://build.fhir.org/valueset-medicationrequest-intent.html",
+      "enum": [
+        "Medication order is active (currently prescribed and intended for ongoing use).",
+        "Medication is planned/ordered/prescribed but therapy has not yet started.",
+        "Medication course is finished (all doses given or intended duration completed).",
+        "Medication was stopped or permanently discontinued before completion.",
+        "Medication order was canceled/withdrawn before any doses were administered.",
+        "Medication is temporarily paused (on-hold, suspended, or interrupted).",
+        "None of the above"
+      ],
+      "title": "RxStatus",
+      "type": "string"
+    },
+    "TreatmentPhase": {
+      "description": "Treatment Phase",
+      "enum": [
+        "Induction therapy",
+        "Maintenance therapy",
+        "Rescue therapy",
+        "None of the above"
+      ],
+      "title": "TreatmentPhase",
+      "type": "string"
+    }
+  },
+  "description": "All mentions of ImmunosuppressiveMedications for this given chart.",
+  "properties": {
+    "immunosuppressive_medication_mentions": {
+      "description": "All mentions of ImmunosuppressiveMedications for this given chart.",
+      "items": {
+        "$ref": "#/$defs/ImmunosuppressiveMedicationMention"
+      },
+      "title": "Immunosuppressive Medication Mentions",
+      "type": "array"
+    }
+  },
+  "title": "ImmunosuppressiveMedicationsAnnotation",
+  "type": "object"
+}

@@ -1,6 +1,4 @@
 from cumulus_etl import errors
-from cumulus_etl.etl.studies.example.example_tasks import AgeMention
-from cumulus_etl.etl.studies.irae.irae_tasks import KidneyTransplantDonorGroupAnnotation
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 
@@ -15,7 +13,8 @@ class TestNlpCli(NlpModelTestCase, BaseEtlSimple):
                 tasks=["example_nlp__nlp_gpt_oss_120b", "example_nlp__nlp_llama4_scout"]
             )
 
-        irae = KidneyTransplantDonorGroupAnnotation.model_validate(
+        donor_model = self.load_pydantic_model("irae/donor.json")
+        irae = donor_model.model_validate(
             {
                 "donor_transplant_date_mention": {"has_mention": False, "spans": []},
                 "donor_type_mention": {"has_mention": False, "spans": []},
@@ -31,8 +30,9 @@ class TestNlpCli(NlpModelTestCase, BaseEtlSimple):
             }
         )
 
-        self.mock_response(content=AgeMention(has_mention=True, age=10))
-        self.mock_response(content=AgeMention(has_mention=True, age=10))
+        age_model = self.load_pydantic_model("example/age.json")
+        self.mock_response(content=age_model(has_mention=True, age=10))
+        self.mock_response(content=age_model(has_mention=True, age=10))
         self.mock_response(content=irae)
         self.mock_response(content=irae)
 

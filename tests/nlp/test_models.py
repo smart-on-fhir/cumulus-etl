@@ -19,16 +19,14 @@ import pyarrow
 import pydantic
 
 from cumulus_etl import common, errors, nlp
-from cumulus_etl.etl.studies import covid_symptom, irae
-from cumulus_etl.etl.studies.example.example_tasks import AgeMention
-from cumulus_etl.etl.studies.irae.irae_tasks import (
-    ImmunosuppressiveMedicationsAnnotation,
-    KidneyTransplantLongitudinalAnnotation,
-)
+from cumulus_etl.etl.studies import covid_symptom
+from cumulus_etl.etl.tasks import task_factory
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests import i2b2_mock_data
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
+
+NLP_TASKS = task_factory.get_nlp_tasks()
 
 
 @ddt.ddt
@@ -37,27 +35,14 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
 
     MODEL_ID = "openai/gpt-oss-120b"
 
-    @staticmethod
-    def default_kidney(**kwargs) -> KidneyTransplantLongitudinalAnnotation:
-        model_dict = {
-            "rx_therapeutic_status_mention": {"has_mention": False, "spans": []},
-            "rx_compliance_mention": {"has_mention": False, "spans": []},
-            "dsa_mention": {"has_mention": False, "spans": []},
-            "infection_mention": {"has_mention": False, "spans": []},
-            "viral_infection_mention": {"has_mention": False, "spans": []},
-            "bacterial_infection_mention": {"has_mention": False, "spans": []},
-            "fungal_infection_mention": {"has_mention": False, "spans": []},
-            "graft_rejection_mention": {"has_mention": False, "spans": []},
-            "graft_failure_mention": {"has_mention": False, "spans": []},
-            "ptld_mention": {"has_mention": False, "spans": []},
-            "cancer_mention": {"has_mention": False, "spans": []},
-            "deceased_mention": {"has_mention": False, "spans": []},
-        }
+    @classmethod
+    def default_age(cls, **kwargs) -> pydantic.BaseModel:
+        model_dict = {"has_mention": False, "spans": [], "age": 21}
         model_dict.update(kwargs)
-        return KidneyTransplantLongitudinalAnnotation.model_validate(model_dict)
+        return cls.load_pydantic_model("example/age.json").model_validate(model_dict)
 
     def default_content(self) -> pydantic.BaseModel:
-        return self.default_kidney()
+        return self.default_age()
 
     def prep_docs(self, docref: dict | None = None):
         """Create two docs for input"""
@@ -65,8 +50,22 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.make_json("DocumentReference", "1", **docref)
         self.make_json("DocumentReference", "2", **i2b2_mock_data.documentreference("bar"))
 
+    @staticmethod
+    def example_task():
+        for task in NLP_TASKS:
+            if task.name == "example_nlp__nlp_gpt_oss_120b":
+                return task
+        assert False, "Could not find example NLP task"
+
+    @staticmethod
+    def irae_task():
+        for task in NLP_TASKS:
+            if task.name == "irae__nlp_immunosuppressive_medications_gpt_oss_120b":
+                return task
+        assert False, "Could not find irae NLP task"
+
     async def assert_failed_doc(self, msg: str):
-        task = irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber)
+        task = self.example_task()(self.job_config, self.scrubber)
         with self.assertLogs(level="WARN") as cm:
             await task.run()
 
@@ -121,11 +120,11 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.assertFalse(os.path.exists(f"{self.phi_dir}/nlp-cache"))
 
         self.mock_response()
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
-        # NOTE: `vX` here needs to be updated as BaseLongitudinalIraeTask task_version changes
-        cache_dir = f"{self.phi_dir}/nlp-cache/irae__nlp_gpt_oss_120b_v6/06ee"
+        # NOTE: `vX` here needs to be updated as the example_nlp task_version changes
+        cache_dir = f"{self.phi_dir}/nlp-cache/example_nlp__nlp_gpt_oss_120b_v1/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
             common.read_json(cache_file),
@@ -135,13 +134,13 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             },
         )
 
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
         self.assertEqual(self.mock_create.call_count, 1)
 
         # Confirm that if we remove the cache file, we call the endpoint again
         self.mock_response()
         os.remove(cache_file)
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
         self.assertEqual(self.mock_create.call_count, 2)
 
     async def test_init_check_unreachable(self):
@@ -149,34 +148,34 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.mock_client.models.list = self.mock_model_list(error=True)
 
         with self.assertRaises(SystemExit) as cm:
-            await irae.IraeLongitudinalGptOss120bTask.init_check()
+            await self.example_task().init_check()
         self.assertEqual(errors.SERVICE_MISSING, cm.exception.code)
 
     async def test_init_check_config(self):
         """Verify we check the server properties"""
         # Happy path
-        await irae.IraeLongitudinalGptOss120bTask.init_check()
+        await self.example_task().init_check()
 
         # Random error bubbles up
         self.mock_client.models.list = mock.MagicMock(side_effect=SystemExit)
         with self.assertRaises(SystemExit):
-            await irae.IraeLongitudinalGptOss120bTask.init_check()
+            await self.example_task().init_check()
 
         # Bad model ID
         self.mock_client.models.list = self.mock_model_list("bogus-model")
         with self.assert_fatal_exit(errors.SERVICE_MISSING):
-            await irae.IraeLongitudinalGptOss120bTask.init_check()
+            await self.example_task().init_check()
 
     async def test_output_fields(self):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
         self.mock_response()
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
         del batch.rows[0]["result"]  # don't bother testing the NLP serialization, that's elsewhere
-        # NOTE: task_version in the assertion below needs updating as the Longitudinal task changes
+        # NOTE: task_version in the assertion below needs updating as the example task changes
         self.assertEqual(
             batch.rows[0],
             {
@@ -188,7 +187,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
                 "6beb306dc5b91513f353ecdb6aaedee8a9864b3a2f20d91f0d5b27510152acf2",
                 "generated_on": "2021-09-14T21:23:45+00:00",
                 "system_fingerprint": "test-fp",
-                "task_version": 6,
+                "task_version": 1,
             },
         )
 
@@ -199,13 +198,13 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             **i2b2_mock_data.documentreference("Test   \n  lines  "),
         )
         self.mock_response()
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.mock_create.call_count, 1)
         kwargs = self.mock_create.call_args.kwargs
         for message in kwargs["messages"]:
             if message["role"] == "user":
-                self.assertIn("\nTest\n  lines", message["content"])
+                self.assertIn("Test\n  lines", message["content"])
                 break
         else:
             assert False, "No user message found"
@@ -217,47 +216,20 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
             **i2b2_mock_data.documentreference("Test   NOTE. !Hello!"),
         )
 
+        example = self.example_task()
         self.mock_response(
-            content=self.default_kidney(
-                dsa_mention={
-                    "spans": ["Test", "TEST  \n Note.", " !Hello!\n", "nope"],
-                    "has_mention": True,
-                    "dsa_history": True,
-                    "dsa": "None of the above",
-                }
+            content=example.response_format(
+                spans=["Test", "TEST  \n Note.", " !Hello!\n", "nope"],
+                has_mention=True,
+                age=21,
             )
         )
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await example(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
-        self.assertEqual(
-            batch.rows[0]["result"]["dsa_mention"]["spans"], [(0, 4), (0, 11), (14, 19)]
-        )
-
-    async def test_practitioner_specialty(self):
-        note = i2b2_mock_data.documentreference()
-        note["author"] = [{"reference": "PractitionerRole/1"}]
-        self.make_json("DocumentReference", "1", **note)
-        self.make_json(
-            "PractitionerRole",
-            "1",
-            specialty=[{"coding": [{"display": "Nurse"}]}],
-        )
-
-        self.mock_azure("gpt-4o")
-        self.mock_response()
-        await irae.IraeLongitudinalGpt4oTask(self.job_config, self.scrubber).run()
-
-        self.assertEqual(self.mock_create.call_count, 1)
-        self.assertEqual(
-            "Evaluate the following clinical document for kidney "
-            "transplant variables and outcomes.\n"
-            "Here is the clinical document for you to analyze:\n\n"
-            "Chief complaint: fever and chills. Denies cough.",
-            self.mock_create.call_args_list[0][1]["messages"][1]["content"],
-        )
+        self.assertEqual(batch.rows[0]["result"]["spans"], [(0, 4), (0, 11), (14, 19)])
 
     async def test_span_conversion_after_failed_span_match(self):
         # Regression test for span matching continuing after a failed match for list-based
@@ -270,7 +242,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         # Response to mock is a list-based annotation class with one span that won't match
         # followed by others that will match
         self.mock_response(
-            content=ImmunosuppressiveMedicationsAnnotation.model_validate(
+            content=self.load_pydantic_model("irae/meds.json").model_validate(
                 {
                     "immunosuppressive_medication_mentions": [
                         {
@@ -328,9 +300,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
                 }
             )
         )
-        await irae.IraeImmunosuppressiveMedicationsGptOss120bTask(
-            self.job_config, self.scrubber
-        ).run()
+        await self.irae_task()(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -350,17 +320,15 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         )
 
     async def test_span_conversion_in_schema(self):
-        schema = irae.IraeLongitudinalGptOss120bTask.get_schema(None, [])
-        result_index = schema.get_field_index("result")
-        result_type = schema.field(result_index).type
-        dsa_index = result_type.get_field_index("dsa_mention")  # spot check one of the structs
-        dsa_type = result_type.field(dsa_index).type
-        spans_index = dsa_type.get_field_index("spans")
-        span_type = dsa_type.field(spans_index).type
+        schema = self.example_task().get_schema(None, [])
+        age_index = schema.get_field_index("age")
+        age_type = schema.field(age_index).type
+        spans_index = age_type.get_field_index("spans")
+        span_type = age_type.field(spans_index).type
         self.assertEqual(span_type, pyarrow.list_(pyarrow.list_(pyarrow.int32(), 2)))
 
         # Also test a slightly different task, with a list in the mix
-        schema = irae.IraeImmunosuppressiveMedicationsGptOss120bTask.get_schema(None, [])
+        schema = self.irae_task().get_schema(None, [])
         result_index = schema.get_field_index("result")
         result_type = schema.field(result_index).type
         med_index = result_type.get_field_index("immunosuppressive_medication_mentions")
@@ -404,22 +372,21 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
     async def test_bedrock_text_parsing(self, text):
         self.make_json("DocumentReference", "1", **i2b2_mock_data.documentreference("foo"))
         self.mock_bedrock()
-        content = self.default_kidney(dsa_mention={"spans": ["foo"], "has_mention": True})
+        content = self.default_age(spans=["foo"], has_mention=True)
         content_text = content.model_dump_json()
         self.mock_response(content=text.replace("%CONTENT%", content_text))
 
-        await irae.IraeLongitudinalClaudeSonnet45Task(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
         self.assertEqual(
-            batch.rows[0]["result"]["dsa_mention"],
+            batch.rows[0]["result"],
             {
                 "spans": [(0, 3)],
                 "has_mention": True,
-                "dsa_history": False,
-                "dsa": "None of the above",
+                "age": 21,
             },
         )
 
@@ -428,9 +395,9 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.mock_bedrock()
         self.mock_response()
         # Also test that we handle Claude's injected parameter parent
-        self.mock_response(content={"parameter": self.default_kidney().model_dump()})
+        self.mock_response(content={"parameter": self.default_content().model_dump()})
 
-        await irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber).run()
+        await self.example_task()(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
@@ -471,7 +438,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.mock_response(usage=(1, 2, 4, 8))
         self.mock_response(usage=(16, 32, 64, 128))
 
-        task = irae.IraeLongitudinalGptOss120bTask(self.job_config, self.scrubber)
+        task = self.example_task()(self.job_config, self.scrubber)
         await task.run()
 
         self.assertEqual(
@@ -538,8 +505,12 @@ class TestAzureNLPTasks(NlpModelTestCase, BaseEtlSimple):
             httpx.Response(status_code=200, text="\n".join(contents)),
         )
 
+    @classmethod
+    def age_model(cls):
+        return cls.load_pydantic_model("example/age.json")
+
     def default_content(self) -> pydantic.BaseModel:
-        return AgeMention(has_mention=True, age=10)
+        return self.age_model()(has_mention=True, age=10)
 
     @ddt.data(
         # env vars to set, success
@@ -690,8 +661,11 @@ class TestAzureNLPTasks(NlpModelTestCase, BaseEtlSimple):
         with self.assertLogs(level="WARNING") as logs:
             await self.run_etl("--batch", "--provider=azure", tasks=["example_nlp__nlp_gpt4o"])
 
+        # Skip any other nonsense, like asyncio warnings about timing or deprecations
+        log_output = list(filter(lambda x: x.startswith("WARNING:root:"), logs.output))
+
         self.assertEqual(
-            logs.output,
+            log_output,
             [
                 "WARNING:root:Batch did not complete, got status: 'failed'",
                 "WARNING:root:Error from NLP: error1",

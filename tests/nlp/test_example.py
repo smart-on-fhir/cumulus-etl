@@ -3,7 +3,6 @@
 import ddt
 import pydantic
 
-from cumulus_etl.etl.studies.example.example_tasks import AgeMention
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 
@@ -12,8 +11,12 @@ from tests.nlp.utils import NlpModelTestCase
 class TestExampleTask(NlpModelTestCase, BaseEtlSimple):
     """Test case for example tasks"""
 
+    @classmethod
+    def age_model(cls):
+        return cls.load_pydantic_model("example/age.json")
+
     def default_content(self) -> pydantic.BaseModel:
-        return AgeMention(has_mention=True, spans=["year-old"], age=20)
+        return self.age_model()(has_mention=True, spans=["year-old"], age=20)
 
     @ddt.data(
         ("example_nlp__nlp_gpt_oss_120b", "gpt-oss-120b"),

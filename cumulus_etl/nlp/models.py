@@ -62,7 +62,7 @@ class PromptResponse:
     def to_dict(self) -> dict:
         serialized = dataclasses.asdict(self)
         serialized["answer"] = self.answer.model_dump(
-            round_trip=True, exclude_unset=True, by_alias=True
+            round_trip=True, exclude_unset=True, by_alias=True, mode="json"
         )
         return serialized
 
@@ -487,6 +487,8 @@ class Model:
     # Fields for subclasses to fill in
     ##################################
 
+    CONFIG_ID = None  # official model name in NLP config files
+
     AZURE_ID = None  # model name in MS Azure
     AZURE_PRICES: TokenPrices | None = None
     AZURE_BATCHES = True  # turns on batch support
@@ -657,6 +659,7 @@ class Model:
 
 
 class Gpt35Model(Model):  # deprecated, do not use in new code (doesn't support many features)
+    CONFIG_ID = "gpt35"
     AZURE_ID = "gpt-35-turbo-0125"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
@@ -670,6 +673,7 @@ class Gpt35Model(Model):  # deprecated, do not use in new code (doesn't support 
 
 
 class Gpt4Model(Model):
+    CONFIG_ID = "gpt4"
     AZURE_ID = "gpt-4"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
@@ -682,6 +686,7 @@ class Gpt4Model(Model):
 
 
 class Gpt4oModel(Model):
+    CONFIG_ID = "gpt4o"
     AZURE_ID = "gpt-4o"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
@@ -694,6 +699,7 @@ class Gpt4oModel(Model):
 
 
 class Gpt5Model(Model):
+    CONFIG_ID = "gpt5"
     AZURE_ID = "gpt-5"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
@@ -707,6 +713,7 @@ class Gpt5Model(Model):
 
 
 class GptOss120bModel(Model):
+    CONFIG_ID = "gpt-oss-120b"
     AZURE_ID = "gpt-oss-120b"
     AZURE_BATCHES = False
     # AZURE_PRICES = TokenPrices(...)  # TODO: find online
@@ -723,6 +730,7 @@ class GptOss120bModel(Model):
 
 
 class Llama4ScoutModel(Model):
+    CONFIG_ID = "llama4-scout"
     AZURE_ID = "Llama-4-Scout-17B-16E-Instruct"
     AZURE_BATCHES = False
     # AZURE_PRICES = TokenPrices(...)  # TODO: find online
@@ -740,6 +748,7 @@ class Llama4ScoutModel(Model):
 
 
 class ClaudeSonnet45Model(Model):
+    CONFIG_ID = "claude-sonnet45"
     BEDROCK_ID = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
     BEDROCK_PRICES = TokenPrices(
         # https://aws.amazon.com/bedrock/pricing/ for us-east-1

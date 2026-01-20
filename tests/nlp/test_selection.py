@@ -8,7 +8,6 @@ import ddt
 import pydantic
 
 from cumulus_etl import common, errors
-from cumulus_etl.etl.studies.example.example_tasks import AgeMention, ExampleGptOss120bTask
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 
@@ -27,7 +26,7 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
         )
 
     def default_content(self) -> pydantic.BaseModel:
-        return AgeMention()
+        return self.load_pydantic_model("example/age.json")()
 
     def make_docs(self, docs: list[tuple[str, str]], res_type: str) -> None:
         with common.NdjsonWriter(f"{self.tmpdir}/{res_type}.ndjson") as writer:
@@ -305,8 +304,7 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
         self.assertEqual(self.mock_create.call_count, 0)
 
     @mock.patch("rich.get_console")
-    @mock.patch.object(ExampleGptOss120bTask, "run", side_effect=RuntimeError)
-    async def test_selection_count_prompt(self, mock_run, mock_get_console):
+    async def test_selection_count_prompt(self, mock_get_console):
         # Pretend to be an interactive TTY
         console = mock.MagicMock()
         console.is_interactive = True
@@ -323,12 +321,14 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
                 await self.run_etl("--select-by-word=doc2")
 
         # Test can continue with actual answer
-        with self.assertRaises(RuntimeError):
-            with mock.patch("builtins.input", return_value="y"):
-                await self.run_etl("--select-by-word=doc2")
+        self.mock_response()
+        self.mock_response()
+        with mock.patch("builtins.input", return_value="y"):
+            await self.run_etl("--select-by-word=doc2")
 
         shutil.rmtree(self.output_path)  # clean it up
 
         # Test can continue with skip arg
-        with self.assertRaises(RuntimeError):
-            await self.run_etl("--select-by-word=doc2", "--allow-large-selection")
+        self.mock_response()
+        self.mock_response()
+        await self.run_etl("--select-by-word=doc2", "--allow-large-selection")
