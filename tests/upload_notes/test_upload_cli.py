@@ -445,7 +445,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             self.assertEqual([], task.ctakes_matches)
 
     @ddt.data(
-        ({}, True),  # default args
+        ({}, False),  # default args
         ({"philter": "redact"}, True),
         ({"philter": "disable"}, False),
         ({"no_philter": True}, False),

@@ -35,7 +35,8 @@ but the rest of this guide will mostly deal with the `upload-notes` mode itself.
 
 At its core, upload mode is just another ETL (extract, transform, load) operation.
 1. It extracts DiagnosticReport and/or DocumentReference resources from your EHR.
-2. It transforms the contained notes via `philter` (and optionally NLP).
+2. By default, it does no transformation, but you can enable some with `--philter=redact`
+   or `--nlp`.
 3. It loads the results into Label Studio.
 
 ### Minimal Command Line
@@ -158,10 +159,8 @@ These all expect a certain format:
 
 ## Philter
 
-You may not need `philter` processing.
-Simply pass `--philter=disable` and it will be skipped.
-
-Or alternatively, pass `--philter=label` to highlight rather than redact detected PHI.
+You can scrub PHI from notes using Philter by passing `--philter=redact` or
+simply highlight the PHI with `--philter=label`.
 
 ## Label Studio
 
