@@ -501,7 +501,7 @@ class TestDeltaLake(utils.AsyncTestCase):
         self.patch("delta.DeltaTable.forPath", return_value=mock_table)
 
         with self.assertLogs(level="ERROR") as logs:
-            DeltaLakeFormat(self.root, "patient").delete_records("a")
+            DeltaLakeFormat(self.root, "patient").delete_records({"a"})
 
         self.assertEqual(len(logs.output), 1)
         self.assertTrue(
@@ -509,3 +509,24 @@ class TestDeltaLake(utils.AsyncTestCase):
                 "ERROR:root:Could not delete IDs from Delta Lake table patient\n"
             )
         )
+
+    def test_delete_records_are_batched(self):
+        mock_table = mock.MagicMock(spec=["delete"])
+        self.patch("delta.DeltaTable.forPath", return_value=mock_table)
+
+        ids = [str(x) for x in range(110_000)]
+        DeltaLakeFormat(self.root, "patient").delete_records(ids)
+
+        def make_batch_condition(start: int, stop: int) -> str:
+            ids = [str(x) for x in range(start, stop)]
+            id_list = "', '".join(ids)
+            return f"id in ('{id_list}')"
+
+        batch1 = make_batch_condition(0, 50_000)
+        batch2 = make_batch_condition(50_000, 100_000)
+        batch3 = make_batch_condition(100_000, 110_000)
+
+        self.assertEqual(mock_table.delete.call_count, 3)
+        self.assertEqual(mock_table.delete.call_args_list[0][0][0], batch1)
+        self.assertEqual(mock_table.delete.call_args_list[1][0][0], batch2)
+        self.assertEqual(mock_table.delete.call_args_list[2][0][0], batch3)
