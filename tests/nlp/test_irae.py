@@ -10,7 +10,7 @@ from tests.nlp.utils import NlpModelTestCase
 
 
 @ddt.ddt
-class TestIraeTass(NlpModelTestCase, BaseEtlSimple):
+class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     """Test case for Irae tasks"""
 
     DATA_ROOT = "irae"
