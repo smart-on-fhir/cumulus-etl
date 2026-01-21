@@ -105,16 +105,7 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
 
     @classmethod
     def glioma_progression_annotation(cls, **kwargs):
-        content = {
-            "topography_mention": {"has_mention": False, "spans": []},
-            "morphology_mention": {"has_mention": False, "spans": []},
-            "behavior_mention": {"has_mention": False, "spans": []},
-            "grade_mention": {"has_mention": False, "spans": []},
-            "target_genetic_test_mention": [],
-            "variant_mention": [],
-            "cancer_medication_mention": [],
-            "surgery_mention": [],
-        }
+        content = {"glioma_progression_mention": []}
         content.update(kwargs)
         return cls.glioma_progression_annotation_model().model_validate(content)
 
