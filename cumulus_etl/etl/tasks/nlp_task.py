@@ -2,24 +2,27 @@
 
 import copy
 import dataclasses
+import enum
 import json
 import logging
 import os
 import re
 import string
 import sys
+import tomllib
 import types
 import typing
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from typing import ClassVar
 
 import cumulus_fhir_support as cfs
+import jambo
 import pyarrow
 import pydantic
 import rich.progress
 import rich.table
 
-from cumulus_etl import common, fhir, nlp, store
+from cumulus_etl import common, errors, fhir, nlp, store
 from cumulus_etl.etl import tasks
 
 ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
@@ -224,7 +227,9 @@ class BaseModelTask(BaseNlpTask):
     async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
         response = await self.model.prompt(self.make_prompt(details))
 
-        parsed = response.answer.model_dump(mode="json")
+        # Pass serialize_as_any=True so we don't get warnings about finding strings when it
+        # expected an Enum (all our enums are strings and default values are often strings)
+        parsed = response.answer.model_dump(mode="json", serialize_as_any=True)
         self.post_process(parsed, details)
 
         return {
@@ -309,21 +314,27 @@ class BaseModelTask(BaseNlpTask):
     def _convert_type_to_pyarrow(cls, annotation) -> pyarrow.DataType:
         # Since we only need to handle a small amount of possible types, we just do this ourselves
         # rather than relying on an external library.
-        if origin := typing.get_origin(annotation):  # e.g. "UnionType" or "list"
+        if origin := typing.get_origin(annotation):  # e.g. "Annotated", "UnionType", "list"
             sub_type = typing.get_args(annotation)[0]
-            if issubclass(origin, types.UnionType):
+            if origin is typing.Union or origin is types.UnionType:
                 # This is gonna be something like "str | None" so just grab first arg.
                 # We mark all our fields are nullable at the pyarrow layer.
                 return cls._convert_type_to_pyarrow(sub_type)
             elif issubclass(origin, list):
-                # Note: does not handle struct types underneath yet
                 return pyarrow.list_(cls._convert_type_to_pyarrow(sub_type))
-        elif issubclass(annotation, str):
+            elif origin is typing.Annotated:
+                annotation = sub_type
+            else:
+                raise ValueError(f"Unsupported type {annotation}")  # pragma: no cover
+
+        if issubclass(annotation, str):
             return pyarrow.string()
         elif issubclass(annotation, bool):
             return pyarrow.bool_()
         elif issubclass(annotation, int):
             return pyarrow.int32()
+        elif issubclass(annotation, enum.Enum):
+            return pyarrow.string()  # for now, assume all enums are strings
         elif issubclass(annotation, pydantic.BaseModel):
             return cls.convert_pydantic_fields_to_pyarrow(annotation.model_fields)
 
@@ -357,8 +368,9 @@ class BaseModelTaskWithSpans(BaseModelTask):
                     all_found &= all([self._process_dict(v, details) for v in value])
                 continue
 
+            old_spans = value or []
             new_spans = []
-            for span in value:
+            for span in old_spans:
                 # Now we need to find this span in the original text.
                 # However, LLMs like to mess with us, and the span is not always accurate to the
                 # original text (e.g. whitespace, case, punctuation differences).
@@ -415,3 +427,81 @@ class BaseModelTaskWithSpans(BaseModelTask):
                     children[index] = field.with_type(pyarrow.list_(cls._convert_schema(sub_type)))
 
         return pyarrow.struct(children)
+
+
+def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskWithSpans]]:
+    with open(path, "rb") as f:
+        config = tomllib.load(f)
+
+    # First, grab any shared config, which will be used if a task doesn't define its own keys
+    shared = config.get("shared", {})
+    fallback_system_prompt = shared.get("system-prompt")
+    fallback_user_prompt = shared.get("user-prompt")
+    fallback_models = shared.get("models", [])
+
+    tasks = []
+
+    for task_def in config.get("task", []):
+        name = task_def.get("name")
+        name = f"_{name}" if name else ""
+        version = task_def.get("version", 0)
+        response_schema = task_def.get("response-schema")
+        model_system_prompt = task_def.get("system-prompt", fallback_system_prompt)
+        model_user_prompt = task_def.get("user-prompt", fallback_user_prompt)
+        models = task_def.get("models", fallback_models)
+
+        # Check for required fields
+        if not response_schema:
+            raise ValueError("The 'response-schema' key is required for each task")
+        if not model_system_prompt:
+            raise ValueError("The 'system-prompt' key is required for each task")
+        if not models:
+            raise ValueError("The 'models' key is required for each task")
+
+        model_system_prompt = model_system_prompt.strip()
+        model_user_prompt = model_user_prompt and model_user_prompt.strip()
+
+        # Be strict here, just for safety's sake, can ease up if needed later
+        if "/" in response_schema:
+            raise ValueError("response-schema must be a simple filename, no path elements")
+        # Load and parse the response JSON schema into a pydantic model
+        schema_path = os.path.join(os.path.dirname(path), response_schema)
+        with open(schema_path, "rb") as f:
+            response_schema = json.load(f)
+
+        # We are currently using the Python project `jambo`, but it's a new project, less than a
+        # year old. If it becomes obsolete, we can reimplement the parts we care about by maybe
+        # adapting the StackOverflow answers below and augmenting it with (at least) $defs/$ref
+        # support. It wouldn't be pretty, but...
+        # https://stackoverflow.com/questions/73841072/
+        model_response_format = jambo.SchemaConverter.build(response_schema)
+
+        # Make a new ETL task for each model
+        for model in models:
+            task_name = f"{prefix}__nlp{name}_{model.replace('-', '_')}"
+
+            # Find the requested NLP model
+            for model_class in nlp.ALL_MODELS:
+                if model_class.CONFIG_ID == model:
+                    break
+            else:
+                raise ValueError(f"Unrecognized model name '{model}'.")
+
+            class DynamicTask(BaseModelTaskWithSpans):
+                name = task_name
+                task_version = version
+                client_class = model_class
+                system_prompt = model_system_prompt
+                user_prompt = model_user_prompt
+                response_format = model_response_format
+
+            tasks.append(DynamicTask)
+
+    return tasks
+
+
+def parse_nlp_config(prefix: str, path: str) -> list[type[BaseModelTaskWithSpans]]:
+    try:
+        return _parse_nlp_config_helper(prefix, path)
+    except Exception as exc:
+        errors.fatal(f"Could not parse '{os.path.basename(path)}': {exc}", errors.ARGS_INVALID)

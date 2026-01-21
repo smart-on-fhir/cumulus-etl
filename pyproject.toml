@@ -2,13 +2,11 @@
 name = "cumulus-etl"
 requires-python = ">= 3.11"
 dependencies = [
-    # Manually specify aiobotocore with a boto3 extra, to avoid some dependency hell.
-    # (fsspec -> s3fs -> aiobotocore -> botocore are all tightly pinned - adding the boto3 here
+    # Manually specify aiobotocore with a minimum version, to avoid some dependency hell.
+    # (fsspec -> s3fs -> aiobotocore -> botocore are all tightly pinned - adding the version here
     # avoids a lot of backtracking on pip's part to old versions for some reason).
     # Search "fsspec aiobotocore boto3" for more details and other frustrated people.
-    # (The 2.14.0 lower bound is to help the resolver align with our boto3 requirements quicker.)
-    # Once s3fs makes a release that allows aiobotocore 3.0.0, we might be able to remove this line?
-    "aiobotocore[boto3] >= 2.14.0, < 3",
+    "aiobotocore >= 3",
     "boto3 >= 1.34.131",
     "ctakesclient >= 5.1",
     "cumulus-fhir-support >= 1.8",
@@ -16,6 +14,7 @@ dependencies = [
     "fsspec[http,s3]",
     "httpx",
     "inscriptis",
+    "jambo >= 0.1.7",
     "label-studio-sdk >= 2",
     "nltk >= 3.9",
     "openai",

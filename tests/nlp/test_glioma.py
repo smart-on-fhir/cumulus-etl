@@ -4,7 +4,6 @@ import json
 
 import ddt
 
-from cumulus_etl.etl.studies.glioma.glioma_tasks import GliomaCaseAnnotation
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
@@ -16,8 +15,12 @@ class TestGliomaTask(NlpModelTestCase, BaseEtlSimple):
 
     DATA_ROOT = "glioma"
 
-    @staticmethod
-    def glioma_case_annotation(**kwargs):
+    @classmethod
+    def get_case_model(cls):
+        return cls.load_pydantic_model("glioma/case.json")
+
+    @classmethod
+    def glioma_case_annotation(cls, **kwargs):
         content = {
             "topography_mention": {"has_mention": False, "spans": []},
             "morphology_mention": {"has_mention": False, "spans": []},
@@ -29,7 +32,7 @@ class TestGliomaTask(NlpModelTestCase, BaseEtlSimple):
             "surgery_mention": [],
         }
         content.update(kwargs)
-        return GliomaCaseAnnotation.model_validate(content)
+        return cls.get_case_model().model_validate(content)
 
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
@@ -87,7 +90,8 @@ class TestGliomaTask(NlpModelTestCase, BaseEtlSimple):
                         "4. Answer patient outcomes with strongest available documented evidence:\n"
                         "5. Always produce structured JSON that conforms to the Pydantic schema provided below.\n"
                         "\n"
-                        "Pydantic Schema:\n" + json.dumps(GliomaCaseAnnotation.model_json_schema()),
+                        "Pydantic Schema:\n"
+                        + json.dumps(self.get_case_model().model_json_schema()),
                     },
                     {
                         "role": "user",
@@ -100,7 +104,9 @@ class TestGliomaTask(NlpModelTestCase, BaseEtlSimple):
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": OpenAIProvider.pydantic_to_response_format(GliomaCaseAnnotation),
+                "response_format": OpenAIProvider.pydantic_to_response_format(
+                    self.get_case_model()
+                ),
             },
             self.mock_create.call_args_list[0][1],
         )

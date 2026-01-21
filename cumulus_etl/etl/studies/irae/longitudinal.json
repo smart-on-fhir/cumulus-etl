@@ -1,0 +1,542 @@
+{
+  "$defs": {
+    "BacterialInfectionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "bacterial_infection_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of a bacterial infection?",
+          "title": "Bacterial Infection History",
+          "type": "boolean"
+        },
+        "bacterial_infection": {
+          "$ref": "#/$defs/BacterialInfectionPresent",
+          "default": "None of the above",
+          "description": "What evidence documents bacterial infection as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "BacterialInfectionMention",
+      "type": "object"
+    },
+    "BacterialInfectionPresent": {
+      "enum": [
+        "Bacterial infection confirmed by laboratory test or imaging, bacterial infection diagnosis was 'confirmed' or 'positive', or reduced immunosuppression due to bacterial infection",
+        "Bacterial infection is suspected, likely, cannot be ruled out, bacterial infection is a differential diagnosis or bacterial test result is pending",
+        "None of the above"
+      ],
+      "title": "BacterialInfectionPresent",
+      "type": "string"
+    },
+    "CancerMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "cancer_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of cancer?",
+          "title": "Cancer History",
+          "type": "boolean"
+        },
+        "cancer": {
+          "$ref": "#/$defs/CancerPresent",
+          "default": "None of the above",
+          "description": "What evidence documents cancer as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "CancerMention",
+      "type": "object"
+    },
+    "CancerPresent": {
+      "description": "Notice: Cancer treatments may also be used in 'rescue' therapy (DSA/graft rejection).\nPTLD is a type of cancer. PTLD is a lymphoma and thus not treated with \"surgical excision\".\nSkin cancer (of which there are many types carcinoma and melanoma) is treated with surgical excision.",
+      "enum": [
+        "Biopsy proven or pathology proven cancer",
+        "Cancer was 'diagnosed', 'confirmed' or 'positive'",
+        "Cancer is presumed, suspected, likely, cannot be ruled out, biopsy of any lesion, or treatment with chemotherapy/radiation",
+        "None of the above"
+      ],
+      "title": "CancerPresent",
+      "type": "string"
+    },
+    "DSAMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "dsa_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of donor specific antibodies (DSA)?",
+          "title": "Dsa History",
+          "type": "boolean"
+        },
+        "dsa": {
+          "$ref": "#/$defs/DSAPresent",
+          "default": "None of the above",
+          "description": "What evidence documents donor specific antibodies (DSA) as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "DSAMention",
+      "type": "object"
+    },
+    "DSAPresent": {
+      "description": "Notice: DSA is strongly related to `GraftRejectionPresent`.\n\nTreatment of DSA includes immunosuppressive drugs, IVIG, and plasmapheresis (PLEX).\n\nTreatment with immunosuppressive drugs does *NOT* imply SUSPECTED DSA,\nas many of immunosuppressive drugs are routinely used for \"maintenance\" therapy.\n\nIVIG and plasmapheresis (PLEX) during the post-transplant (post induction) phase DOES imply\n--> DSAPresent >  SUSPECTED (and possibly CONFIRMED)\n--> `GraftRejectionPresent` > SUSPECTED (and possibly CONFIRMED or BIOPSY_PROVEN)",
+      "enum": [
+        "DSA diagnostic test positive, DSA diagnosis 'confirmed' or 'positive', or increase in immunosuppression due to DSA",
+        "DSA suspected, DSA likely, DSA cannot be ruled out, DSA test result pending, or treatment with IVIG/plasmapheresis",
+        "None of the above"
+      ],
+      "title": "DSAPresent",
+      "type": "string"
+    },
+    "DeceasedMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "deceased": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Does the present encounter document that the patient is deceased?",
+          "title": "Deceased"
+        },
+        "deceased_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "If the patient is deceased, include the date the patient became deceased. Use YYYY-MM-DD format if possible. Use None if there is no date recorded or if the patient is not observed as deceased.",
+          "title": "Deceased Date"
+        }
+      },
+      "title": "DeceasedMention",
+      "type": "object"
+    },
+    "FungalInfectionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "fungal_infection_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of a fungal infection?",
+          "title": "Fungal Infection History",
+          "type": "boolean"
+        },
+        "fungal_infection": {
+          "$ref": "#/$defs/FungalInfectionPresent",
+          "default": "None of the above",
+          "description": "What evidence documents fungal infection as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "FungalInfectionMention",
+      "type": "object"
+    },
+    "FungalInfectionPresent": {
+      "enum": [
+        "Fungal infection confirmed by laboratory test or imaging, fungal infection diagnosis was 'confirmed' or 'positive', or reduced immunosuppression due to fungal infection",
+        "Fungal infection is suspected, likely, cannot be ruled out, fungal infection is a differential diagnosis or fungal test result is pending",
+        "None of the above"
+      ],
+      "title": "FungalInfectionPresent",
+      "type": "string"
+    },
+    "GraftFailureMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "graft_failure_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of kidney graft failure?",
+          "title": "Graft Failure History",
+          "type": "boolean"
+        },
+        "graft_failure": {
+          "$ref": "#/$defs/GraftFailurePresent",
+          "default": "None of the above",
+          "description": "What evidence documents kidney graft failure as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "GraftFailureMention",
+      "type": "object"
+    },
+    "GraftFailurePresent": {
+      "enum": [
+        "Kidney graft has failed or kidney graft loss",
+        "Kidney graft failure presumed, suspected, likely, or cannot be ruled out",
+        "None of the above"
+      ],
+      "title": "GraftFailurePresent",
+      "type": "string"
+    },
+    "GraftRejectionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "graft_rejection_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of kidney graft rejection?",
+          "title": "Graft Rejection History",
+          "type": "boolean"
+        },
+        "graft_rejection": {
+          "$ref": "#/$defs/GraftRejectionPresent",
+          "default": "None of the above",
+          "description": "What evidence documents kidney graft rejection as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "GraftRejectionMention",
+      "type": "object"
+    },
+    "GraftRejectionPresent": {
+      "description": "Notice: Graft rejection is strongly related to `DSAPresent`.\n\nTreatment of graft rejection includes immunosuppressive drugs, IVIG, and plasmapheresis (PLEX).\n\nTreatment with immunosuppressive drugs does *NOT* imply outcome is SUSPECTED,\nas many of immunosuppressive drugs are routinely used for \"maintenance\" therapy.\n\nIVIG and plasmapheresis (PLEX) during the post-transplant (post induction) phase DOES imply\n--> `GraftRejectionPresent` > SUSPECTED (and possibly CONFIRMED or BIOPSY_PROVEN)\n--> DSAPresent >  SUSPECTED (and possibly CONFIRMED)",
+      "enum": [
+        "Biopsy proven kidney graft rejection or pathology proven kidney graft rejection",
+        "Kidney graft rejection was 'diagnosed', 'confirmed' or 'positive'",
+        "Kidney graft rejection presumed, suspected, likely, cannot be ruled out, biopsy result pending, or treatment with IVIG/plasmapheresis",
+        "None of the above"
+      ],
+      "title": "GraftRejectionPresent",
+      "type": "string"
+    },
+    "InfectionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "infection_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of an infection?",
+          "title": "Infection History",
+          "type": "boolean"
+        },
+        "infection": {
+          "$ref": "#/$defs/InfectionPresent",
+          "default": "None of the above",
+          "description": "What evidence documents infection as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "InfectionMention",
+      "type": "object"
+    },
+    "InfectionPresent": {
+      "enum": [
+        "Infection confirmed by laboratory test or imaging, infection diagnosis was 'confirmed' or 'positive', or reduced immunosuppression due to infection",
+        "Infection is suspected, likely, cannot be ruled out, infection is a differential diagnosis or infectious test result is pending",
+        "None of the above"
+      ],
+      "title": "InfectionPresent",
+      "type": "string"
+    },
+    "PTLDMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ptld_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of post transplant lymphoproliferative disorder (PTLD)?",
+          "title": "Ptld History",
+          "type": "boolean"
+        },
+        "ptld": {
+          "$ref": "#/$defs/PTLDPresent",
+          "default": "None of the above",
+          "description": "What evidence documents post transplant lymphoproliferative disorder (PTLD) as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "PTLDMention",
+      "type": "object"
+    },
+    "PTLDPresent": {
+      "description": "Notice: PTLD treatments may also be used in 'rescue' therapy (DSA/graft rejection) or other cancers.\nOne notable difference from other cancers (such as skin cancer) is the absence of \"surgical excision\" (lymphoma).",
+      "enum": [
+        "Biopsy proven or pathology proven PTLD",
+        "PTLD was 'diagnosed', 'confirmed' or 'positive' or viral positive lymphoma",
+        "PTLD presumed, suspected, likely, cannot be ruled out, PTLD biopsy result pending, or treatment with chemotherapy/radiation",
+        "None of the above"
+      ],
+      "title": "PTLDPresent",
+      "type": "string"
+    },
+    "RxCompliance": {
+      "enum": [
+        "Patient is documented as compliant with immunosuppressive medications.",
+        "Patient is documented as only partially compliant with immunosuppressive medications.",
+        "Patient is documented as noncompliant with immunosuppressive medications.",
+        "None of the above"
+      ],
+      "title": "RxCompliance",
+      "type": "string"
+    },
+    "RxComplianceMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_compliance": {
+          "$ref": "#/$defs/RxCompliance",
+          "default": "None of the above",
+          "description": "In the present encounter, is the patient documented as compliant with immunosuppressive medications?"
+        }
+      },
+      "title": "RxComplianceMention",
+      "type": "object"
+    },
+    "RxTherapeuticStatus": {
+      "enum": [
+        "Immunosuppression levels are documented as therapeutic, adequate, or within target range.",
+        "Immunosuppression levels are documented as subtherapeutic, insufficient, or below target range.",
+        "Immunosuppression levels are documented as supratherapeutic, above therapeutic level, or above target range.",
+        "None of the above"
+      ],
+      "title": "RxTherapeuticStatus",
+      "type": "string"
+    },
+    "RxTherapeuticStatusMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_therapeutic_status": {
+          "$ref": "#/$defs/RxTherapeuticStatus",
+          "default": "None of the above",
+          "description": "In the present encounter, what is the documented immunosuppression level?"
+        }
+      },
+      "title": "RxTherapeuticStatusMention",
+      "type": "object"
+    },
+    "ViralInfectionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "viral_infection_history": {
+          "default": false,
+          "description": "Does the patient have a past medical history of a viral infection?",
+          "title": "Viral Infection History",
+          "type": "boolean"
+        },
+        "viral_infection": {
+          "$ref": "#/$defs/ViralInfectionPresent",
+          "default": "None of the above",
+          "description": "What evidence documents viral infection as current, active, or being evaluated/treated now?"
+        }
+      },
+      "title": "ViralInfectionMention",
+      "type": "object"
+    },
+    "ViralInfectionPresent": {
+      "enum": [
+        "Viral infection confirmed by laboratory test or imaging, viral infection diagnosis was 'confirmed' or 'positive', or reduced immunosuppression due to viral infection",
+        "Viral infection is suspected, likely, cannot be ruled out, viral infection is a differential diagnosis or viral test result is pending",
+        "None of the above"
+      ],
+      "title": "ViralInfectionPresent",
+      "type": "string"
+    }
+  },
+  "description": "An object-model for annotations of immune related adverse event (IRAE)\nobservations found in a patient's chart, relating specifically to kidney\ntransplants.\n\nThis class only includes longitudinally variable mentions, i.e. those\nthat can change over time, such as therapeutic status, compliance, infections,\ngraft rejection/failure, DSA, PTLD, cancer, and deceased status.\n\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "properties": {
+    "rx_therapeutic_status_mention": {
+      "$ref": "#/$defs/RxTherapeuticStatusMention"
+    },
+    "rx_compliance_mention": {
+      "$ref": "#/$defs/RxComplianceMention"
+    },
+    "dsa_mention": {
+      "$ref": "#/$defs/DSAMention"
+    },
+    "infection_mention": {
+      "$ref": "#/$defs/InfectionMention"
+    },
+    "viral_infection_mention": {
+      "$ref": "#/$defs/ViralInfectionMention"
+    },
+    "bacterial_infection_mention": {
+      "$ref": "#/$defs/BacterialInfectionMention"
+    },
+    "fungal_infection_mention": {
+      "$ref": "#/$defs/FungalInfectionMention"
+    },
+    "graft_rejection_mention": {
+      "$ref": "#/$defs/GraftRejectionMention"
+    },
+    "graft_failure_mention": {
+      "$ref": "#/$defs/GraftFailureMention"
+    },
+    "ptld_mention": {
+      "$ref": "#/$defs/PTLDMention"
+    },
+    "cancer_mention": {
+      "$ref": "#/$defs/CancerMention"
+    },
+    "deceased_mention": {
+      "$ref": "#/$defs/DeceasedMention"
+    }
+  },
+  "required": [
+    "rx_therapeutic_status_mention",
+    "rx_compliance_mention",
+    "dsa_mention",
+    "infection_mention",
+    "viral_infection_mention",
+    "bacterial_infection_mention",
+    "fungal_infection_mention",
+    "graft_rejection_mention",
+    "graft_failure_mention",
+    "ptld_mention",
+    "cancer_mention",
+    "deceased_mention"
+  ],
+  "title": "KidneyTransplantLongitudinalAnnotation",
+  "type": "object"
+}

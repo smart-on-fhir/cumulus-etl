@@ -1,7 +1,9 @@
+import json
 import os
 from unittest import mock
 
 import httpx
+import jambo
 import openai
 import pydantic
 from openai.types import chat, completion_usage
@@ -67,6 +69,14 @@ class NlpModelTestCase(TaskTestCase):
                 yield mock_answer
 
         return async_list
+
+    @staticmethod
+    def load_pydantic_model(path: str) -> pydantic.BaseModel:
+        root = os.path.dirname(__file__)
+        full_path = f"{root}/../../cumulus_etl/etl/studies/{path}"
+        with open(full_path, "rb") as f:
+            json_schema = json.load(f)
+        return jambo.SchemaConverter.build(json_schema)
 
     def default_content(self) -> pydantic.BaseModel:
         class EmptyModel(pydantic.BaseModel):

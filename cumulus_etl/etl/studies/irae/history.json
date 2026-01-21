@@ -1,0 +1,42 @@
+{
+  "$defs": {
+    "MultipleTransplantHistoryMention": {
+      "description": "Does this patient have a history of multiple transplants, renal or otherwise?\nFor use in reevaluating the patients in our cohort, excluding patients with a history\nof multiple transplants from our analysis.",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "multiple_transplant_history": {
+          "default": false,
+          "description": "Whether there is any mention of a history of multiple transplants.",
+          "title": "Multiple Transplant History",
+          "type": "boolean"
+        }
+      },
+      "title": "MultipleTransplantHistoryMention",
+      "type": "object"
+    }
+  },
+  "description": "An object-model for annotations of patients with a history of multiple transplants.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "properties": {
+    "multiple_transplant_history_mention": {
+      "$ref": "#/$defs/MultipleTransplantHistoryMention"
+    }
+  },
+  "required": [
+    "multiple_transplant_history_mention"
+  ],
+  "title": "MultipleTransplantHistoryAnnotation",
+  "type": "object"
+}

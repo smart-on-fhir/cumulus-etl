@@ -1,0 +1,79 @@
+[shared]
+system-prompt = """
+You are a clinical chart reviewer for a kidney transplant outcomes study.
+Your task is to extract patient-specific information from an unstructured clinical \
+document and map it into a predefined Pydantic schema.
+
+Core Rules:
+1. Base all assertions ONLY on patient-specific information in the clinical document.
+   - Never negate or exclude information just because it is not mentioned.
+   - Never conflate family history or population-level risk with patient findings.
+   - Do not count past medical history, prior episodes, or family history.
+2. Do not invent or infer facts beyond what is documented.
+3. Maintain high fidelity to the clinical document language when citing spans.
+4. Answer patient outcomes with strongest available documented evidence:
+    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.
+5. Always produce structured JSON that conforms to the Pydantic schema provided below.
+
+Pydantic Schema:
+%JSON-SCHEMA%
+"""
+
+user-prompt = """
+Evaluate the following clinical document for kidney transplant variables and outcomes.
+Here is the clinical document for you to analyze:
+
+%CLINICAL-NOTE%
+"""
+
+models = [
+    "claude-sonnet45",
+    "gpt4o",
+    "gpt5",
+    "gpt-oss-120b",
+    "llama4-scout",
+]
+
+[[task]]
+name = "donor"
+# Version History:
+# ** 7 (2025-12): Serostatus mentions added
+# ** 6 (2025-11): Pydantic updates (donors refer to 1st transplant;
+#                 POD inference guidance; new multiple transplant task) **
+# ** 5 (2025-10): Update pydantic model (biological relation;
+#                 Defaults for SpanAugmentedMention properties) **
+# ** 4 (2025-10): Initial version**
+version = 7
+response-schema = "donor.json"
+
+[[task]]
+name = "immunosuppressive_medications"
+# Version History:
+# ** 6 (2025-12): Initial version
+version = 6
+response-schema = "meds.json"
+
+[[task]]
+# This is the longitudinal task, but doesn't use a name at all, since we started this before
+# adding other tasks and don't want to make a new table for it.
+# name = "longitudinal"
+
+# Version History:
+# ** 6 (2025-11): Pydantic updates (donors refer to 1st transplant;
+#                 POD inference guidance; new multiple transplant task) **
+# ** 5 (2025-10): Update pydantic model (biological relation;
+#                 Defaults for SpanAugmentedMention properties) **
+# ** 4 (2025-10): Split into donor & longitudinal tasks **
+# ** 3 (2025-10): New serialized format **
+# ** 2 (2025-09): Updated prompt and schema **
+# ** 1 (2025-08): Updated prompt **
+# ** 0 (2025-08): Initial version **
+version = 6
+response-schema = "longitudinal.json"
+
+[[task]]
+name = "multiple_transplant_history"
+# Version History:
+# ** 6 (2025-12): Initial version
+version = 6
+response-schema = "history.json"

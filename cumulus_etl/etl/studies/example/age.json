@@ -1,0 +1,39 @@
+{
+  "properties": {
+    "has_mention": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Has Mention"
+    },
+    "spans": {
+      "description": "Supporting text spans",
+      "items": {
+        "type": "string"
+      },
+      "title": "Spans",
+      "type": "array"
+    },
+    "age": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The age of the patient",
+      "title": "Age"
+    }
+  },
+  "title": "AgeMention",
+  "type": "object"
+}

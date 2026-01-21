@@ -33,3 +33,13 @@ from .watcher import (
     check_term_exists_cnlpt,
     restart_ctakes_with_bsv,
 )
+
+ALL_MODELS = [
+    ClaudeSonnet45Model,
+    Gpt4Model,
+    Gpt4oModel,
+    Gpt5Model,
+    Gpt35Model,
+    GptOss120bModel,
+    Llama4ScoutModel,
+]
