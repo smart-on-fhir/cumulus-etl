@@ -45,7 +45,7 @@ version = 1
 
 [[task]]
 name = "document_type"
-response-schema = "glioma-document-types-annotation.json"
+response-schema = "glioma-document-type-annotation.json"
 # Version History:
 # ** 1 (2026-01): Initial version
 version = 1

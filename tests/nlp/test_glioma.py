@@ -43,7 +43,7 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
     # Static methods for generating various annotation classes and instances
     @classmethod
     def glioma_document_type_annotation_model(cls):
-        return cls.load_pydantic_model("glioma/glioma-document-types-annotation.json")
+        return cls.load_pydantic_model("glioma/glioma-document-type-annotation.json")
 
     @classmethod
     def glioma_document_type_annotation(cls, **kwargs):
@@ -167,7 +167,7 @@ Here is the clinical document for you to analyze:
                 **annotation_data
             ),
             {},
-            "glioma-document-types-output.ndjson",
+            "glioma-document-type-output.ndjson",
         ),
         (
             lambda test_cls: test_cls.glioma_diagnosis_annotation_model(),
