@@ -51,9 +51,9 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.make_json("DocumentReference", "2", **i2b2_mock_data.documentreference("bar"))
 
     @staticmethod
-    def example_task():
+    def example_task(model: str = "gpt_oss_120b"):
         for task in NLP_TASKS:
-            if task.name == "example_nlp__nlp_gpt_oss_120b":
+            if task.name == f"example_nlp__nlp_{model}":
                 return task
         assert False, "Could not find example NLP task"
 
@@ -376,7 +376,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         content_text = content.model_dump_json()
         self.mock_response(content=text.replace("%CONTENT%", content_text))
 
-        await self.example_task()(self.job_config, self.scrubber).run()
+        await self.example_task("claude_sonnet45")(self.job_config, self.scrubber).run()
 
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]

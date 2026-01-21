@@ -3,6 +3,7 @@
 import contextlib
 import datetime
 import filecmp
+import io
 import json
 import os
 import tempfile
@@ -84,11 +85,18 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         return patcher.start()
 
     @contextlib.contextmanager
-    def assert_fatal_exit(self, code: int | None = None):
+    def assert_fatal_exit(self, code: int | None = None, msg: str | None = None):
+        stderr = io.StringIO()
         with self.assertRaises(SystemExit) as cm:
-            yield
+            if msg is None:
+                yield
+            else:
+                with contextlib.redirect_stderr(stderr):
+                    yield
         if code is not None:
             self.assertEqual(cm.exception.code, code)
+        if msg is not None:
+            self.assertIn(msg, stderr.getvalue())
 
 
 class TreeCompareMixin(unittest.TestCase):
