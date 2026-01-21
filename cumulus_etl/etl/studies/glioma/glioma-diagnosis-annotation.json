@@ -1,0 +1,452 @@
+{
+  "$defs": {
+    "AgeAtDiagnosisMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "age_years": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Age at glioma diagnosis in years, if explicitly stated.",
+          "title": "Age Years"
+        }
+      },
+      "title": "AgeAtDiagnosisMention",
+      "type": "object"
+    },
+    "BehaviorMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ICDOBehaviorCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ICD-O slash behavior code (e.g., /3 = malignant primary site)."
+        },
+        "display": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable description of the cancer behavior.",
+          "title": "Display"
+        }
+      },
+      "title": "BehaviorMention",
+      "type": "object"
+    },
+    "GradeCode": {
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "9"
+      ],
+      "title": "GradeCode",
+      "type": "string"
+    },
+    "GradeMention": {
+      "description": "ICD-O Oncology Grade (Tumor cell differentiation grade).\n\nGrade reflects how closely the tumor cells resemble normal tissue:\n  1 = Well differentiated\n  2 = Moderately differentiated\n  3 = Poorly differentiated\n  4 = Undifferentiated / Anaplastic\n  9 = Grade cannot be assessed",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GradeCode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ICD-O tumor differentiation grade (1, 2, 3, 4, or 9)."
+        },
+        "display": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable ICD-O description of the tumor grade.",
+          "title": "Display"
+        }
+      },
+      "title": "GradeMention",
+      "type": "object"
+    },
+    "ICDOBehaviorCode": {
+      "enum": [
+        "/0",
+        "/1",
+        "/2",
+        "/3",
+        "/6",
+        "/9"
+      ],
+      "title": "ICDOBehaviorCode",
+      "type": "string"
+    },
+    "MorphologyMention": {
+      "description": "ICD-O Oncology Morphology (Histology + Behavior).\n\nMorphology represents the microscopic tumor cell type (e.g., adenocarcinoma,\nsquamous cell carcinoma, lymphoma) combined with the behavior code.",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}/[0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ICD-O morphology code (M-####/x). Example: 8140/3 = Adenocarcinoma, NOS (malignant).",
+          "title": "Code"
+        },
+        "display": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable ICD-O histologic type (e.g., 'Adenocarcinoma, NOS').",
+          "title": "Display"
+        }
+      },
+      "title": "MorphologyMention",
+      "type": "object"
+    },
+    "NF1Status": {
+      "enum": [
+        "NOT_MENTIONED",
+        "POSITIVE",
+        "SUSPECTED",
+        "NEGATIVE",
+        "MENTIONED_BUT_UNKNOWN"
+      ],
+      "title": "NF1Status",
+      "type": "string"
+    },
+    "NF1StatusMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "nf1_status": {
+          "$ref": "#/$defs/NF1Status",
+          "default": "NOT_MENTIONED",
+          "description": "Whether NF1 is present."
+        }
+      },
+      "title": "NF1StatusMention",
+      "type": "object"
+    },
+    "TopographyMention": {
+      "description": "ICD-O Oncology topography for a cancer lesion, plus whether this site\nrepresents the primary tumor or a metastatic tumor.",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "code": {
+          "anyOf": [
+            {
+              "pattern": "^C\\d{2}(\\.\\d)?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ICD-O topography code (Cxx or Cxx.x) for the anatomic site of the malignant neoplasm, e.g., C18.0 for cecum.",
+          "title": "Code"
+        },
+        "display": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable ICD-O anatomic site description corresponding to the topography code.",
+          "title": "Display"
+        }
+      },
+      "title": "TopographyMention",
+      "type": "object"
+    },
+    "TumorLocation": {
+      "enum": [
+        "NOT_MENTIONED",
+        "CEREBELLUM",
+        "BRAINSTEM",
+        "OPTIC_PATHWAY",
+        "HYPOTHALAMUS",
+        "OPTIC_PATHWAY_HYPOTHALAMIC",
+        "THALAMUS",
+        "OTHER"
+      ],
+      "title": "TumorLocation",
+      "type": "string"
+    },
+    "TumorLocationMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "location": {
+          "$ref": "#/$defs/TumorLocation",
+          "default": "NOT_MENTIONED",
+          "description": "Primary tumor anatomic location."
+        }
+      },
+      "title": "TumorLocationMention",
+      "type": "object"
+    },
+    "TumorMassEffect": {
+      "enum": [
+        "NOT_MENTIONED",
+        "NONE",
+        "MASS_EFFECT_PRESENT",
+        "HYDROCEPHALUS",
+        "MIDLINE_SHIFT",
+        "IMPENDING_HERNIATION",
+        "OTHER"
+      ],
+      "title": "TumorMassEffect",
+      "type": "string"
+    },
+    "TumorRegion": {
+      "enum": [
+        "NOT_MENTIONED",
+        "POSTERIOR_FOSSA",
+        "DIENCEPHALIC",
+        "CEREBRAL_HEMISPHERE",
+        "SPINAL",
+        "OTHER"
+      ],
+      "title": "TumorRegion",
+      "type": "string"
+    },
+    "TumorRegionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "region": {
+          "$ref": "#/$defs/TumorRegion",
+          "default": "NOT_MENTIONED",
+          "description": "Tumor region or anatomic compartment (e.g., posterior fossa, diencephalic)."
+        }
+      },
+      "title": "TumorRegionMention",
+      "type": "object"
+    },
+    "TumorSizeMassEffectMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "mass_effect": {
+          "$ref": "#/$defs/TumorMassEffect",
+          "default": "NOT_MENTIONED",
+          "description": "Whether MRI/CT describes mass effect or hydrocephalus."
+        },
+        "size_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Free-text size description (e.g., '3.2 x 2.1 x 2.4 cm') if present.",
+          "title": "Size Text"
+        }
+      },
+      "title": "TumorSizeMassEffectMention",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "age_at_diagnosis_mention": {
+      "$ref": "#/$defs/AgeAtDiagnosisMention"
+    },
+    "tumor_location_mention": {
+      "$ref": "#/$defs/TumorLocationMention"
+    },
+    "tumor_region_mention": {
+      "$ref": "#/$defs/TumorRegionMention"
+    },
+    "tumor_size_mention": {
+      "$ref": "#/$defs/TumorSizeMassEffectMention"
+    },
+    "topography_mention": {
+      "$ref": "#/$defs/TopographyMention"
+    },
+    "morphology_mention": {
+      "$ref": "#/$defs/MorphologyMention"
+    },
+    "behavior_mention": {
+      "$ref": "#/$defs/BehaviorMention"
+    },
+    "grade_mention": {
+      "$ref": "#/$defs/GradeMention"
+    },
+    "nf1_status_mention": {
+      "$ref": "#/$defs/NF1StatusMention"
+    }
+  },
+  "required": [
+    "age_at_diagnosis_mention",
+    "tumor_location_mention",
+    "tumor_region_mention",
+    "tumor_size_mention",
+    "topography_mention",
+    "morphology_mention",
+    "behavior_mention",
+    "grade_mention",
+    "nf1_status_mention"
+  ],
+  "title": "GliomaDiagnosisAnnotation",
+  "type": "object"
+}

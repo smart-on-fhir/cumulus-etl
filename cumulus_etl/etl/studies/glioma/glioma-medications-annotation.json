@@ -1,0 +1,244 @@
+{
+  "$defs": {
+    "GliomaChemotherapyClass": {
+      "enum": [
+        "NOT_MENTIONED",
+        "ALKYLATING_AGENT",
+        "PLATINUM_AGENT",
+        "VINCA_ALKALOID",
+        "TOP1_INHIBITOR",
+        "ANTIMETABOLITE",
+        "MULTI_AGENT_CHEMOTHERAPY",
+        "OTHER"
+      ],
+      "title": "GliomaChemotherapyClass",
+      "type": "string"
+    },
+    "GliomaChemotherapyMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "chemotherapy_class": {
+          "$ref": "#/$defs/GliomaChemotherapyClass",
+          "default": "NOT_MENTIONED",
+          "description": "Glioma chemotherapy drug class"
+        },
+        "chemotherapy_regimen": {
+          "$ref": "#/$defs/GliomaChemotherapyRegimen",
+          "default": "NOT_MENTIONED",
+          "description": "Glioma chemotherapy regimen"
+        },
+        "status": {
+          "$ref": "#/$defs/RxStatus",
+          "default": "Medication status was not mentioned.",
+          "description": "Glioma chemotherapy status (active/completed/stopped/etc)"
+        },
+        "treatment_phase": {
+          "$ref": "#/$defs/RxTreatmentPhase",
+          "default": "NOT_MENTIONED",
+          "description": "Glioma chemotherapy treatment phase"
+        },
+        "treatment_response": {
+          "$ref": "#/$defs/RxResponse",
+          "default": "NOT_MENTIONED",
+          "description": "What was the glioma chemotherapy response?"
+        },
+        "toxicity_severity": {
+          "$ref": "#/$defs/RxToxicitySeverity",
+          "default": "NOT_MENTIONED",
+          "description": "What was the toxicity severity of glioma chemotherapy?"
+        },
+        "treatment_discontinued": {
+          "$ref": "#/$defs/RxDiscontinued",
+          "default": "NOT_MENTIONED",
+          "description": "Was glioma chemotherapy discontinued?"
+        }
+      },
+      "title": "GliomaChemotherapyMention",
+      "type": "object"
+    },
+    "GliomaChemotherapyRegimen": {
+      "enum": [
+        "NOT_MENTIONED",
+        "CARBOPLATIN",
+        "CARBOPLATIN_VINCRISTINE",
+        "VINBLASTINE",
+        "TPCV",
+        "BEVACIZUMAB_IRINOTECAN",
+        "BEVACIZUMAB",
+        "OTHER"
+      ],
+      "title": "GliomaChemotherapyRegimen",
+      "type": "string"
+    },
+    "GliomaTargetedTherapy": {
+      "enum": [
+        "NOT_MENTIONED",
+        "MEK_INHIBITOR",
+        "BRAF_INHIBITOR",
+        "BRAF_MEK_COMBINATION",
+        "PAN_RAF_INHIBITOR",
+        "FGFR_INHIBITOR",
+        "NTRK_INHIBITOR",
+        "ALK_INHIBITOR",
+        "ROS1_INHIBITOR",
+        "RET_INHIBITOR",
+        "MTOR_INHIBITOR",
+        "IDH_INHIBITOR",
+        "OTHER"
+      ],
+      "title": "GliomaTargetedTherapy",
+      "type": "string"
+    },
+    "GliomaTargetedTherapyMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "targeted_therapy": {
+          "$ref": "#/$defs/GliomaTargetedTherapy",
+          "default": "NOT_MENTIONED",
+          "description": "Glioma targeted therapy"
+        },
+        "status": {
+          "$ref": "#/$defs/RxStatus",
+          "default": "Medication status was not mentioned.",
+          "description": "Glioma targeted therapy status (active/completed/stopped/etc)"
+        },
+        "treatment_phase": {
+          "$ref": "#/$defs/RxTreatmentPhase",
+          "default": "NOT_MENTIONED",
+          "description": "Glioma targeted therapy treatment phase"
+        },
+        "treatment_response": {
+          "$ref": "#/$defs/RxResponse",
+          "default": "NOT_MENTIONED",
+          "description": "What was the glioma targeted therapy treatment response?"
+        },
+        "treatment_discontinued": {
+          "$ref": "#/$defs/RxDiscontinued",
+          "default": "NOT_MENTIONED",
+          "description": "Was glioma targeted therapy discontinued, and why?"
+        },
+        "toxicity_severity": {
+          "$ref": "#/$defs/RxToxicitySeverity",
+          "default": "NOT_MENTIONED",
+          "description": "What was the toxicity severity of glioma targeted therapy?"
+        }
+      },
+      "title": "GliomaTargetedTherapyMention",
+      "type": "object"
+    },
+    "RxDiscontinued": {
+      "enum": [
+        "NOT_MENTIONED",
+        "PROGRESSION",
+        "TOXICITY",
+        "LACK_OF_RESPONSE",
+        "COMPLETED_PLANNED_THERAPY",
+        "PATIENT_PREFERENCE",
+        "TRANSITION_TO_TRIAL",
+        "OTHER"
+      ],
+      "title": "RxDiscontinued",
+      "type": "string"
+    },
+    "RxResponse": {
+      "enum": [
+        "NOT_MENTIONED",
+        "COMPLETE_RESPONSE",
+        "PARTIAL_RESPONSE",
+        "MINOR_RESPONSE",
+        "STABLE_DISEASE",
+        "PROGRESSIVE_DISEASE",
+        "MIXED_RESPONSE",
+        "PSEUDOPROGRESSION",
+        "NOT_EVALUABLE"
+      ],
+      "title": "RxResponse",
+      "type": "string"
+    },
+    "RxStatus": {
+      "description": "Medication Status (including Intent because chart review is NOT always identical to Med Request)\nhttps://build.fhir.org/valueset-medicationrequest-status.html\nhttps://build.fhir.org/valueset-medicationrequest-intent.html",
+      "enum": [
+        "Medication order is active (currently prescribed and intended for ongoing use).",
+        "Medication is planned/ordered/prescribed but therapy has not yet started.",
+        "Medication course is finished (all doses given or intended duration completed).",
+        "Medication was stopped or permanently discontinued before completion.",
+        "Medication order was canceled/withdrawn before any doses were administered.",
+        "Medication is temporarily paused (on-hold, suspended, or interrupted).",
+        "None of the above",
+        "Medication status was not mentioned."
+      ],
+      "title": "RxStatus",
+      "type": "string"
+    },
+    "RxToxicitySeverity": {
+      "enum": [
+        "NOT_MENTIONED",
+        "MILD",
+        "MODERATE",
+        "SEVERE",
+        "DOSE_LIMITING",
+        "OTHER"
+      ],
+      "title": "RxToxicitySeverity",
+      "type": "string"
+    },
+    "RxTreatmentPhase": {
+      "description": "Treatment Phase",
+      "enum": [
+        "NOT_MENTIONED",
+        "Induction therapy",
+        "Maintenance therapy",
+        "Rescue therapy",
+        "None of the above"
+      ],
+      "title": "RxTreatmentPhase",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "chemotherapy_mention": {
+      "description": "All mentions of pLGG chemotherapy",
+      "items": {
+        "$ref": "#/$defs/GliomaChemotherapyMention"
+      },
+      "title": "Chemotherapy Mention",
+      "type": "array"
+    },
+    "targeted_therapy_mention": {
+      "description": "All mentions of glioma targeted therapy",
+      "items": {
+        "$ref": "#/$defs/GliomaTargetedTherapyMention"
+      },
+      "title": "Targeted Therapy Mention",
+      "type": "array"
+    }
+  },
+  "title": "GliomaMedicationsAnnotation",
+  "type": "object"
+}

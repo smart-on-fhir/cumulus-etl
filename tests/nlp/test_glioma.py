@@ -8,15 +8,6 @@ from typing import Any, ClassVar
 import ddt
 import pydantic
 
-from cumulus_etl.etl.studies.glioma.glioma_tasks import (
-    BaseGliomaTask,
-    GliomaDiagnosisAnnotation,
-    GliomaDocumentTypeAnnotation,
-    GliomaGeneAnnotation,
-    GliomaMedicationsAnnotation,
-    GliomaProgressionAnnotation,
-    GliomaSurgicalAnnotation,
-)
 from cumulus_etl.nlp.models import OpenAIProvider
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
@@ -27,14 +18,14 @@ ModelOption = tuple[
 ]
 
 TaskOption = tuple[
-    # The Annotation model of interest
-    type[pydantic.BaseModel],
+    # Annotation model of interest
+    Callable[[Any], type[pydantic.BaseModel]],
     # Return the task_name given the model of interest
     Callable[[str], str],
     # The system prompt given a particular annotation class
-    str,
+    Callable[[Any], str],
     # Return the user prompt given some note text
-    Callable[[str], str],
+    Callable[[Any, str], str],
     # Return an instance of the relevant annotation class given the Test class and the data
     Callable[[Any, dict], pydantic.BaseModel],
     # The annotation_data we want to use for this test
@@ -49,18 +40,25 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
     """Test case for Glioma tasks"""
 
     #######################################################
-    # Static methods for generating various
-    # annotation classes
-    @staticmethod
-    def glioma_document_type_annotation(**kwargs):
+    # Static methods for generating various annotation classes and instances
+    @classmethod
+    def glioma_document_types_annotation_model(cls):
+        return cls.load_pydantic_model("glioma/glioma-document-types-annotation.json")
+
+    @classmethod
+    def glioma_document_types_annotation(cls, **kwargs):
         content = {
             "glioma_doc_type_mention": [],
         }
         content.update(kwargs)
-        return GliomaDocumentTypeAnnotation.model_validate(content)
+        return cls.glioma_document_types_annotation_model().model_validate(content)
 
-    @staticmethod
-    def glioma_diagnosis_annotation(**kwargs):
+    @classmethod
+    def glioma_diagnosis_annotation_model(cls):
+        return cls.load_pydantic_model("glioma/glioma-diagnosis-annotation.json")
+
+    @classmethod
+    def glioma_diagnosis_annotation(cls, **kwargs):
         content = {
             "age_at_diagnosis_mention": {"has_mention": False, "spans": []},
             "tumor_location_mention": {"has_mention": False, "spans": []},
@@ -73,28 +71,40 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
             "nf1_status_mention": {"has_mention": False, "spans": []},
         }
         content.update(kwargs)
-        return GliomaDiagnosisAnnotation.model_validate(content)
+        return cls.glioma_diagnosis_annotation_model().model_validate(content)
 
-    @staticmethod
-    def glioma_gene_annotation(**kwargs):
+    @classmethod
+    def glioma_gene_annotation_model(cls):
+        return cls.load_pydantic_model("glioma/glioma-gene-annotation.json")
+
+    @classmethod
+    def glioma_gene_annotation(cls, **kwargs):
         content = {
             "molecular_driver_mention": [],
             "genetic_variant_mention": [],
         }
         content.update(kwargs)
-        return GliomaGeneAnnotation.model_validate(content)
+        return cls.glioma_gene_annotation_model().model_validate(content)
 
-    @staticmethod
-    def glioma_medications_annotation(**kwargs):
+    @classmethod
+    def glioma_medications_annotation_model(cls):
+        return cls.load_pydantic_model("glioma/glioma-medications-annotation.json")
+
+    @classmethod
+    def glioma_medications_annotation(cls, **kwargs):
         content = {
             "chemotherapy_mention": [],
             "targeted_therapy_mention": [],
         }
         content.update(kwargs)
-        return GliomaMedicationsAnnotation.model_validate(content)
+        return cls.glioma_medications_annotation_model().model_validate(content)
 
-    @staticmethod
-    def glioma_progression_annotation(**kwargs):
+    @classmethod
+    def glioma_progression_annotation_model(cls):
+        return cls.load_pydantic_model("glioma/glioma-progression-annotation.json")
+
+    @classmethod
+    def glioma_progression_annotation(cls, **kwargs):
         content = {
             "topography_mention": {"has_mention": False, "spans": []},
             "morphology_mention": {"has_mention": False, "spans": []},
@@ -106,17 +116,45 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
             "surgery_mention": [],
         }
         content.update(kwargs)
-        return GliomaProgressionAnnotation.model_validate(content)
+        return cls.glioma_progression_annotation_model().model_validate(content)
 
-    @staticmethod
-    def glioma_surgical_annotation(**kwargs):
+    @classmethod
+    def glioma_surgical_annotation_model(cls):
+        return cls.load_pydantic_model("glioma/glioma-surgical-annotation.json")
+
+    @classmethod
+    def glioma_surgical_annotation(cls, **kwargs):
         content = {
             "surgical_type_mention": {"has_mention": False, "spans": []},
             "approach_mention": {"has_mention": False, "spans": []},
             "extent_of_resection_mention": {"has_mention": False, "spans": []},
         }
         content.update(kwargs)
-        return GliomaSurgicalAnnotation.model_validate(content)
+        return cls.glioma_surgical_annotation_model().model_validate(content)
+
+    # Path to relevant Tasks files
+    SYSTEM_PROMPT = """You are a clinical chart reviewer for a study examining the efficacy of various \
+treatments for pediatric low-grade glioma (pLGG) across various pathological/genetic \
+subtypes.
+Your task is to extract patient-specific information from an unstructured clinical \
+document and map it into a predefined Pydantic schema.
+
+Core Rules:
+1. Base all assertions ONLY on patient-specific information in the clinical document.
+   - Never negate or exclude information just because it is not mentioned.
+   - Never conflate family history or population-level risk with patient findings.
+   - Do not count past medical history, prior episodes, or family history.
+2. Do not invent or infer facts beyond what is documented.
+3. Maintain high fidelity to the clinical document language when citing spans.
+4. Answer patient outcomes with strongest available documented evidence:
+5. Always produce structured JSON that conforms to the Pydantic schema provided below.
+
+Pydantic Schema:
+%JSON-SCHEMA%"""
+    USER_PROMPT = """Evaluate the following clinical document for glioma variables and outcomes.
+Here is the clinical document for you to analyze:
+
+%CLINICAL-NOTE%"""
 
     DATA_ROOT = "glioma"
     SUPPORTED_MODELS: ClassVar[list[ModelOption]] = [
@@ -127,12 +165,27 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
     ]
     TEST_TASK_OPTIONS: ClassVar[list[TaskOption]] = [
         (
-            GliomaDiagnosisAnnotation,
-            lambda model: f"glioma__nlp_diagnosis_{model}",
-            BaseGliomaTask.system_prompt.replace(
-                "%JSON-SCHEMA%", json.dumps(GliomaDiagnosisAnnotation.model_json_schema())
+            lambda test_cls: test_cls.glioma_document_types_annotation_model(),
+            lambda model: f"glioma__nlp_document_types_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.glioma_document_types_annotation_model().model_json_schema()),
             ),
-            lambda note_text: BaseGliomaTask.user_prompt.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.glioma_document_types_annotation(
+                **annotation_data
+            ),
+            {},
+            "glioma-document-types-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.glioma_diagnosis_annotation_model(),
+            lambda model: f"glioma__nlp_diagnosis_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.glioma_diagnosis_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
             lambda test_cls, annotation_data: test_cls.glioma_diagnosis_annotation(
                 **annotation_data
             ),
@@ -140,12 +193,25 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
             "glioma-diagnosis-output.ndjson",
         ),
         (
-            GliomaMedicationsAnnotation,
-            lambda model: f"glioma__nlp_medications_{model}",
-            BaseGliomaTask.system_prompt.replace(
-                "%JSON-SCHEMA%", json.dumps(GliomaMedicationsAnnotation.model_json_schema())
+            lambda test_cls: test_cls.glioma_gene_annotation_model(),
+            lambda model: f"glioma__nlp_gene_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.glioma_gene_annotation_model().model_json_schema()),
             ),
-            lambda note_text: BaseGliomaTask.user_prompt.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.glioma_gene_annotation(**annotation_data),
+            {},
+            "glioma-gene-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.glioma_medications_annotation_model(),
+            lambda model: f"glioma__nlp_medications_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.glioma_medications_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
             lambda test_cls, annotation_data: test_cls.glioma_medications_annotation(
                 **annotation_data
             ),
@@ -153,36 +219,13 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
             "glioma-medications-output.ndjson",
         ),
         (
-            GliomaSurgicalAnnotation,
-            lambda model: f"glioma__nlp_surgical_{model}",
-            BaseGliomaTask.system_prompt.replace(
-                "%JSON-SCHEMA%", json.dumps(GliomaSurgicalAnnotation.model_json_schema())
-            ),
-            lambda note_text: BaseGliomaTask.user_prompt.replace("%CLINICAL-NOTE%", note_text),
-            lambda test_cls, annotation_data: test_cls.glioma_surgical_annotation(
-                **annotation_data
-            ),
-            {},
-            "glioma-surgical-output.ndjson",
-        ),
-        (
-            GliomaGeneAnnotation,
-            lambda model: f"glioma__nlp_gene_{model}",
-            BaseGliomaTask.system_prompt.replace(
-                "%JSON-SCHEMA%", json.dumps(GliomaGeneAnnotation.model_json_schema())
-            ),
-            lambda note_text: BaseGliomaTask.user_prompt.replace("%CLINICAL-NOTE%", note_text),
-            lambda test_cls, annotation_data: test_cls.glioma_gene_annotation(**annotation_data),
-            {},
-            "glioma-gene-output.ndjson",
-        ),
-        (
-            GliomaProgressionAnnotation,
+            lambda test_cls: test_cls.glioma_progression_annotation_model(),
             lambda model: f"glioma__nlp_progression_{model}",
-            BaseGliomaTask.system_prompt.replace(
-                "%JSON-SCHEMA%", json.dumps(GliomaProgressionAnnotation.model_json_schema())
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.glioma_progression_annotation_model().model_json_schema()),
             ),
-            lambda note_text: BaseGliomaTask.user_prompt.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
             lambda test_cls, annotation_data: test_cls.glioma_progression_annotation(
                 **annotation_data
             ),
@@ -190,17 +233,18 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
             "glioma-progression-output.ndjson",
         ),
         (
-            GliomaDocumentTypeAnnotation,
-            lambda model: f"glioma__nlp_document_type_{model}",
-            BaseGliomaTask.system_prompt.replace(
-                "%JSON-SCHEMA%", json.dumps(GliomaDocumentTypeAnnotation.model_json_schema())
+            lambda test_cls: test_cls.glioma_surgical_annotation_model(),
+            lambda model: f"glioma__nlp_surgical_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.glioma_surgical_annotation_model().model_json_schema()),
             ),
-            lambda note_text: BaseGliomaTask.user_prompt.replace("%CLINICAL-NOTE%", note_text),
-            lambda test_cls, annotation_data: test_cls.glioma_document_type_annotation(
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.glioma_surgical_annotation(
                 **annotation_data
             ),
             {},
-            "glioma-document-type-output.ndjson",
+            "glioma-surgical-output.ndjson",
         ),
     ]
 
@@ -217,9 +261,9 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
         self,
         model_slug,
         model_id,
-        annotation_cls,
+        get_annotation_cls,
         get_task_name_for_model,
-        system_prompt,
+        get_system_prompt,
         get_user_prompt,
         get_sample_annotation,
         annotation_data,
@@ -227,9 +271,11 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
     ):
         self.mock_azure(model_id)
         note_text = "Test glioma note with mention of Grade II cancer"
+        content = get_sample_annotation(self, annotation_data)
+
         self.mock_response(
             # Needs the class to generate the sample annotation using the relevant helper method
-            content=get_sample_annotation(self, annotation_data)
+            content=content
         )
         glioma_task_name = get_task_name_for_model(model_slug)
 
@@ -248,21 +294,23 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
         self.assertEqual(self.mock_create.call_count, 1)
         self.assertEqual(
             {
+                "model": model_id,
                 "messages": [
                     {
                         "role": "system",
-                        "content": system_prompt,
+                        "content": get_system_prompt(self),
                     },
                     {
                         "role": "user",
-                        "content": get_user_prompt(note_text),
+                        "content": get_user_prompt(self, note_text),
                     },
                 ],
-                "model": model_id,
                 "seed": 12345,
                 "temperature": 0,
                 "timeout": 120,
-                "response_format": OpenAIProvider.pydantic_to_response_format(annotation_cls),
+                "response_format": OpenAIProvider.pydantic_to_response_format(
+                    get_annotation_cls(self)
+                ),
             },
             self.mock_create.call_args_list[0][1],
-        )  # This assertion is incorrect and needs to be fixed.
+        )
