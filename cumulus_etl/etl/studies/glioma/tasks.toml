@@ -44,7 +44,7 @@ response-schema = "glioma-diagnosis-annotation.json"
 version = 1
 
 [[task]]
-name = "document_types"
+name = "document_type"
 response-schema = "glioma-document-types-annotation.json"
 # Version History:
 # ** 1 (2026-01): Initial version

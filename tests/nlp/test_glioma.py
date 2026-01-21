@@ -42,16 +42,16 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
     #######################################################
     # Static methods for generating various annotation classes and instances
     @classmethod
-    def glioma_document_types_annotation_model(cls):
+    def glioma_document_type_annotation_model(cls):
         return cls.load_pydantic_model("glioma/glioma-document-types-annotation.json")
 
     @classmethod
-    def glioma_document_types_annotation(cls, **kwargs):
+    def glioma_document_type_annotation(cls, **kwargs):
         content = {
             "glioma_doc_type_mention": [],
         }
         content.update(kwargs)
-        return cls.glioma_document_types_annotation_model().model_validate(content)
+        return cls.glioma_document_type_annotation_model().model_validate(content)
 
     @classmethod
     def glioma_diagnosis_annotation_model(cls):
@@ -156,14 +156,14 @@ Here is the clinical document for you to analyze:
     ]
     TEST_TASK_OPTIONS: ClassVar[list[TaskOption]] = [
         (
-            lambda test_cls: test_cls.glioma_document_types_annotation_model(),
-            lambda model: f"glioma__nlp_document_types_{model}",
+            lambda test_cls: test_cls.glioma_document_type_annotation_model(),
+            lambda model: f"glioma__nlp_document_type_{model}",
             lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
                 "%JSON-SCHEMA%",
-                json.dumps(test_cls.glioma_document_types_annotation_model().model_json_schema()),
+                json.dumps(test_cls.glioma_document_type_annotation_model().model_json_schema()),
             ),
             lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
-            lambda test_cls, annotation_data: test_cls.glioma_document_types_annotation(
+            lambda test_cls, annotation_data: test_cls.glioma_document_type_annotation(
                 **annotation_data
             ),
             {},
