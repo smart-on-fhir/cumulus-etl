@@ -2,27 +2,35 @@
 
 from cumulus_etl import nlp
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.studies.glioma.glioma_models import (
-    GliomaCaseAnnotation,
+from cumulus_etl.etl.studies.glioma.glioma_diagnosis_models import (
+    GliomaDiagnosisAnnotation,
 )
-
-# TEMPORARY HACKY IMPLEMENTATION: Overriding the actual annotation with the DocumentTypeAnnotation
 from cumulus_etl.etl.studies.glioma.glioma_doctype_models import (
-    DocumentTypeAnnotation,
+    GliomaDocumentTypeAnnotation,
+)
+from cumulus_etl.etl.studies.glioma.glioma_gene_models import (
+    GliomaGeneAnnotation,
+)
+from cumulus_etl.etl.studies.glioma.glioma_med_models import (
+    GliomaMedicationsAnnotation,
+)
+from cumulus_etl.etl.studies.glioma.glioma_progression_models import (
+    GliomaProgressionAnnotation,
+)
+from cumulus_etl.etl.studies.glioma.glioma_surgery_models import (
+    GliomaSurgicalAnnotation,
 )
 
 ###############################################################################
-# Base IRAE Tasks
-# These base classes define common behavior and prompts for the IRAE study tasks.
+# Base Glioma Tasks
+# These base classes define common behavior and prompts for the Glioma study tasks.
 ###############################################################################
 
 
 class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
     # Task Version History:
-    # ** 1 (2026-01): TEMP HACKY IMPLEMENTATION. TO REVERT LATER **
+    # **   (2026-01): Task split, versions moved to subclasses
     # ** 0 (2025-12): Initial version **
-    task_version = 1
-
     system_prompt = (
         "You are a clinical chart reviewer for a study examining the efficacy of various "
         "treatments for pediatric low-grade glioma (pLGG) across various pathological/genetic "
@@ -50,8 +58,6 @@ class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
         "%CLINICAL-NOTE%"
     )
 
-    response_format = DocumentTypeAnnotation
-
 
 ###############################################################################
 # Model-Specific Tasks
@@ -63,29 +69,216 @@ class BaseGliomaTask(tasks.BaseModelTaskWithSpans):
 #   - GptOss120b
 #   - Llama4Scout
 #   - ClaudeSonnet45
+#
+# There are 7 glioma tasks:
+#   - Document Type Classification
+#   - Diagnosis Related Information Extraction
+#   - Genetic Marker and Molecular Driver Information Extraction
+#   - Glioma Drugs - Chemotherapy and Targeted Therapy Information Extraction
+#   - Progression Related Information Extraction
+#   - Surgery Related Information Extraction
 ###############################################################################
 
 
-class GliomaGpt4oTask(BaseGliomaTask):
-    name = "glioma__nlp_gpt4o"
+class BaseGliomaDocumentTypeTask(BaseGliomaTask):
+    # Task Version History:
+    # **   (2026-01): Task split, versions moved to subclasses
+    task_version = 1
+    response_format = GliomaDocumentTypeAnnotation
+
+
+class BaseGliomaDiagnosisTask(BaseGliomaTask):
+    # Task Version History:
+    # **   (2026-01): Task split, versions moved to subclasses
+    task_version = 1
+    response_format = GliomaDiagnosisAnnotation
+
+
+class BaseGliomaGeneTask(BaseGliomaTask):
+    # Task Version History:
+    # **   (2026-01): Task split, versions moved to subclasses
+    task_version = 1
+    response_format = GliomaGeneAnnotation
+
+
+class BaseGliomaMedicationsTask(BaseGliomaTask):
+    # Task Version History:
+    # **   (2026-01): Task split, versions moved to subclasses
+    task_version = 1
+    response_format = GliomaMedicationsAnnotation
+
+
+class BaseGliomaProgressionTask(BaseGliomaTask):
+    # Task Version History:
+    # **   (2026-01): Task split, versions moved to subclasses
+    task_version = 1
+    response_format = GliomaProgressionAnnotation
+
+
+class BaseGliomaSurgicalTask(BaseGliomaTask):
+    # Task Version History:
+    # **   (2026-01): Task split, versions moved to subclasses
+    task_version = 1
+    response_format = GliomaSurgicalAnnotation
+
+
+###############################################################################
+# GliomaDocumentTypeTasks
+class GliomaDocumentTypeTaskGpt4oTask(BaseGliomaDocumentTypeTask):
+    name = "glioma__nlp_document_type_gpt4o"
     client_class = nlp.Gpt4oModel
 
 
-class GliomaGpt5Task(BaseGliomaTask):
-    name = "glioma__nlp_gpt5"
+class GliomaDocumentTypeTaskGpt5Task(BaseGliomaDocumentTypeTask):
+    name = "glioma__nlp_document_type_gpt5"
     client_class = nlp.Gpt5Model
 
 
-class GliomaGptOss120bTask(BaseGliomaTask):
-    name = "glioma__nlp_gpt_oss_120b"
+class GliomaDocumentTypeTaskGptOss120bTask(BaseGliomaDocumentTypeTask):
+    name = "glioma__nlp_document_type_gpt_oss_120b"
     client_class = nlp.GptOss120bModel
 
 
-class GliomaLlama4ScoutTask(BaseGliomaTask):
-    name = "glioma__nlp_llama4_scout"
+class GliomaDocumentTypeTaskLlama4ScoutTask(BaseGliomaDocumentTypeTask):
+    name = "glioma__nlp_document_type_llama4_scout"
     client_class = nlp.Llama4ScoutModel
 
 
-class GliomaClaudeSonnet45Task(BaseGliomaTask):
-    name = "glioma__nlp_claude_sonnet45"
+class GliomaDocumentTypeTaskClaudeSonnet45Task(BaseGliomaDocumentTypeTask):
+    name = "glioma__nlp_document_type_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+
+
+###############################################################################
+# GliomaDiagnosisTasks
+class GliomaDiagnosisTaskGpt4oTask(BaseGliomaDiagnosisTask):
+    name = "glioma__nlp_diagnosis_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
+class GliomaDiagnosisTaskGpt5Task(BaseGliomaDiagnosisTask):
+    name = "glioma__nlp_diagnosis_gpt5"
+    client_class = nlp.Gpt5Model
+
+
+class GliomaDiagnosisTaskGptOss120bTask(BaseGliomaDiagnosisTask):
+    name = "glioma__nlp_diagnosis_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
+class GliomaDiagnosisTaskLlama4ScoutTask(BaseGliomaDiagnosisTask):
+    name = "glioma__nlp_diagnosis_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+
+
+class GliomaDiagnosisTaskClaudeSonnet45Task(BaseGliomaDiagnosisTask):
+    name = "glioma__nlp_diagnosis_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+
+
+###############################################################################
+# GliomaGeneTasks
+class GliomaGeneTaskGpt4oTask(BaseGliomaGeneTask):
+    name = "glioma__nlp_gene_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
+class GliomaGeneTaskGpt5Task(BaseGliomaGeneTask):
+    name = "glioma__nlp_gene_gpt5"
+    client_class = nlp.Gpt5Model
+
+
+class GliomaGeneTaskGptOss120bTask(BaseGliomaGeneTask):
+    name = "glioma__nlp_gene_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
+class GliomaGeneTaskLlama4ScoutTask(BaseGliomaGeneTask):
+    name = "glioma__nlp_gene_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+
+
+class GliomaGeneTaskClaudeSonnet45Task(BaseGliomaGeneTask):
+    name = "glioma__nlp_gene_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+
+
+###############################################################################
+# GliomaMedicationsTasks
+class GliomaMedicationsTaskGpt4oTask(BaseGliomaMedicationsTask):
+    name = "glioma__nlp_medications_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
+class GliomaMedicationsTaskGpt5Task(BaseGliomaMedicationsTask):
+    name = "glioma__nlp_medications_gpt5"
+    client_class = nlp.Gpt5Model
+
+
+class GliomaMedicationsTaskGptOss120bTask(BaseGliomaMedicationsTask):
+    name = "glioma__nlp_medications_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
+class GliomaMedicationsTaskLlama4ScoutTask(BaseGliomaMedicationsTask):
+    name = "glioma__nlp_medications_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+
+
+class GliomaMedicationsTaskClaudeSonnet45Task(BaseGliomaMedicationsTask):
+    name = "glioma__nlp_medications_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+
+
+###############################################################################
+# GliomaProgressionTasks
+class GliomaProgressionTaskGpt4oTask(BaseGliomaProgressionTask):
+    name = "glioma__nlp_progression_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
+class GliomaProgressionTaskGpt5Task(BaseGliomaProgressionTask):
+    name = "glioma__nlp_progression_gpt5"
+    client_class = nlp.Gpt5Model
+
+
+class GliomaProgressionTaskGptOss120bTask(BaseGliomaProgressionTask):
+    name = "glioma__nlp_progression_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
+class GliomaProgressionTaskLlama4ScoutTask(BaseGliomaProgressionTask):
+    name = "glioma__nlp_progression_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+
+
+class GliomaProgressionTaskClaudeSonnet45Task(BaseGliomaProgressionTask):
+    name = "glioma__nlp_progression_claude_sonnet45"
+    client_class = nlp.ClaudeSonnet45Model
+
+
+###############################################################################
+# GliomaSurgicalTasks
+class GliomaSurgicalTaskGpt4oTask(BaseGliomaSurgicalTask):
+    name = "glioma__nlp_surgical_gpt4o"
+    client_class = nlp.Gpt4oModel
+
+
+class GliomaSurgicalTaskGpt5Task(BaseGliomaSurgicalTask):
+    name = "glioma__nlp_surgical_gpt5"
+    client_class = nlp.Gpt5Model
+
+
+class GliomaSurgicalTaskGptOss120bTask(BaseGliomaSurgicalTask):
+    name = "glioma__nlp_surgical_gpt_oss_120b"
+    client_class = nlp.GptOss120bModel
+
+
+class GliomaSurgicalTaskLlama4ScoutTask(BaseGliomaSurgicalTask):
+    name = "glioma__nlp_surgical_llama4_scout"
+    client_class = nlp.Llama4ScoutModel
+
+
+class GliomaSurgicalTaskClaudeSonnet45Task(BaseGliomaSurgicalTask):
+    name = "glioma__nlp_surgical_claude_sonnet45"
     client_class = nlp.ClaudeSonnet45Model

@@ -12,8 +12,9 @@ Design notes:
 """
 
 from enum import StrEnum
-from typing import Optional
+
 from pydantic import BaseModel, Field
+
 from cumulus_etl.etl.studies.glioma.glioma_base_models import SpanAugmentedMention
 
 
@@ -53,16 +54,17 @@ class DocumentTypeMention(SpanAugmentedMention):
         description="Is this document/note administrative and lacking clinical significance relevant to pLGG?",
     )
 
-    doc_type_confidence: Optional[float] = Field(
-        None, description="LLM confidence score (0-1) for the document type classification."
+    doc_type_confidence: int | None = Field(
+        None,
+        description="LLM confidence score (0-100) for the document type classification, with 100 being the highest confidence.",
     )
 
 
 # ------------------------------------------------------------------------------
 # Annotation BaseModel
 # ------------------------------------------------------------------------------
-class DocumentTypeAnnotation(BaseModel):
-    doc_type: list[DocumentTypeMention] = Field(
+class GliomaDocumentTypeAnnotation(BaseModel):
+    glioma_doc_type_mention: list[DocumentTypeMention] = Field(
         default_factory=list, description="All document type mentions"
     )
 
