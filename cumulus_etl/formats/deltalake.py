@@ -5,6 +5,7 @@ See https://delta.io/
 """
 
 import contextlib
+import itertools
 import logging
 import os
 import tempfile
@@ -139,11 +140,17 @@ class DeltaLakeFormat(Format):
         if not table:
             return
 
-        try:
-            id_list = "', '".join(ids)
-            table.delete(f"id in ('{id_list}')")
-        except Exception:
-            logging.exception("Could not delete IDs from Delta Lake table %s", self.dbname)
+        # Break ID list up into chunks, just in case we get a ton of them.
+        # Huge lists can cause OOM errors inside the delta lake code.
+        # 50k is an arbitrary limit, picked to be quite safe from what I've seen.
+        # Issues seem to appear around 200k.
+        id_iter = iter(ids)
+        while batch := tuple(itertools.islice(id_iter, 50_000)):
+            try:
+                id_list = "', '".join(batch)
+                table.delete(f"id in ('{id_list}')")
+            except Exception:
+                logging.exception("Could not delete IDs from Delta Lake table %s", self.dbname)
 
     def finalize(self) -> None:
         """Performs any necessary cleanup after all batches have been written"""
