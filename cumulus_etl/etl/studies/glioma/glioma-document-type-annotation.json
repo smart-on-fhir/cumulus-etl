@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "DocumentType": {
+      "enum": [
+        "Radiology report: MRI brain/spine, CT Head, or MR spectroscopy",
+        "Oncology consult, oncology progress note, or neuro-oncology note type",
+        "Neurology consult, neurology progress note, or Neuropsychology note type",
+        "Neurosurgery consult, progress note, or operative report",
+        "Ophthalmology or neuro-ophthalmology consult or progress note",
+        "Endocrinology consult or progress note",
+        "Genetics, molecular pathology, cytogenetics, or sequencing report",
+        "Surgical pathology report",
+        "Biopsy pathology report",
+        "Tumor board or multidisciplinary conference note",
+        "Admission note",
+        "Discharge summary",
+        "Emergency department note",
+        "Medication order",
+        "Medication administration or infusion center note",
+        "Chemotherapy treatment plan, protocol, or regimen",
+        "Pharmacy note",
+        "Adverse event or drug toxicity note",
+        "Clinical trial consent, enrollment, or protocol",
+        "None of the above"
+      ],
+      "title": "DocumentType",
+      "type": "string"
+    },
+    "DocumentTypeMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "doc_type": {
+          "$ref": "#/$defs/DocumentType",
+          "default": "None of the above",
+          "description": "What type of document/note is this?"
+        },
+        "is_administrative": {
+          "default": false,
+          "description": "Is this document/note administrative and lacking clinical significance relevant to pLGG?",
+          "title": "Is Administrative",
+          "type": "boolean"
+        },
+        "doc_type_confidence": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "LLM confidence score (0-100) for the document type classification, with 100 being the highest confidence.",
+          "title": "Doc Type Confidence"
+        }
+      },
+      "title": "DocumentTypeMention",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "glioma_doc_type_mention": {
+      "description": "All document type mentions",
+      "items": {
+        "$ref": "#/$defs/DocumentTypeMention"
+      },
+      "title": "Glioma Doc Type Mention",
+      "type": "array"
+    }
+  },
+  "title": "GliomaDocumentTypeAnnotation",
+  "type": "object"
+}

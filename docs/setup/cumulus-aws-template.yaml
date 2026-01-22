@@ -253,6 +253,57 @@ Resources:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/irae__nlp_llama4_scout"
             CreateNativeDeltaTable: True
             WriteManifest: False
+          # 
+          # Glioma Tables
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_document_type_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_document_type_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_document_type_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_document_type_llama4_scout"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_document_type_claude_sonnet45"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_diagnosis_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_diagnosis_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_diagnosis_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_diagnosis_llama4_scout"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_diagnosis_claude_sonnet45"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_gene_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_gene_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_gene_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_gene_llama4_scout"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_gene_claude_sonnet45"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_medications_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_medications_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_medications_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_medications_llama4_scout"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_medications_claude_sonnet45"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_progression_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_progression_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_progression_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_progression_llama4_scout"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_progression_claude_sonnet45"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          - DeltaTables:
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_surgical_gpt4o"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_surgical_gpt5"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_surgical_gpt_oss_120b"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_surgical_llama4_scout"
+              - !Sub "s3://${S3Bucket}/${EtlSubdir}/glioma__nlp_surgical_claude_sonnet45"
+            CreateNativeDeltaTable: True
+            WriteManifest: False
+          # Example NLP Tables
           - DeltaTables:
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/example_nlp__nlp_claude_sonnet45"
               - !Sub "s3://${S3Bucket}/${EtlSubdir}/example_nlp__nlp_gpt4"

@@ -1,0 +1,278 @@
+{
+  "$defs": {
+    "GeneticVariantInterpretation": {
+      "enum": [
+        "BENIGN",
+        "LIKELY BENIGN",
+        "VARIANT OF UNKNOWN SIGNIFICANCE",
+        "PATHOGENIC",
+        "LIKELY PATHOGENIC",
+        "NOT MENTIONED"
+      ],
+      "title": "GeneticVariantInterpretation",
+      "type": "string"
+    },
+    "GeneticVariantMention": {
+      "description": "Clinical interpretation of genetic variant",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "hgnc_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "HGNC/HUGO gene naming convention",
+          "title": "Hgnc Name"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/GeneticVariantInterpretation",
+          "default": "NOT MENTIONED",
+          "description": "Clinical interpretation of genetic variant or genetic test result"
+        },
+        "hgvs_variant": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "HGVS variant string (e.g., NM_004333.6(BRAF):c.1799T>A).",
+          "title": "Hgvs Variant"
+        }
+      },
+      "title": "GeneticVariantMention",
+      "type": "object"
+    },
+    "MolecularDriverMention": {
+      "description": "Minimal set of clinically actionable genetic alterations for glioma.",
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "braf_altered": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "BRAF alteration is present (any type).",
+          "title": "Braf Altered"
+        },
+        "braf_v600e": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "BRAF V600E mutation is present.",
+          "title": "Braf V600E"
+        },
+        "braf_fusion": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": " BRAF fusion (e.g., KIAA1549-BRAF) is present.",
+          "title": "Braf Fusion"
+        },
+        "idh_mutant": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "IDH1 or IDH2 mutation is present.",
+          "title": "Idh Mutant"
+        },
+        "h3k27m_mutant": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Histone H3 K27M (H3-3A or H3C2) mutation is present.",
+          "title": "H3K27M Mutant"
+        },
+        "tp53_altered": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "TP53 mutation or loss is present.",
+          "title": "Tp53 Altered"
+        },
+        "cdkn2a_deleted": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "CDKN2A deletion is present.",
+          "title": "Cdkn2A Deleted"
+        },
+        "nf1_mapk_activation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "NF1 MAPK activation is present.",
+          "title": "Nf1 Mapk Activation"
+        },
+        "other_raf_alteration": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Other RAF alteration is present.",
+          "title": "Other Raf Alteration"
+        },
+        "fgfr_alteration": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "FGFR alteration is present.",
+          "title": "Fgfr Alteration"
+        },
+        "ntrk_fusion": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "NTRK fusion is present.",
+          "title": "Ntrk Fusion"
+        },
+        "alk_fusion": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ALK fusion is present.",
+          "title": "Alk Fusion"
+        },
+        "ros1_fusion": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ROS1 fusion is present.",
+          "title": "Ros1 Fusion"
+        }
+      },
+      "title": "MolecularDriverMention",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "molecular_driver_mention": {
+      "description": "All mentions of pLGG Molecular drivers",
+      "items": {
+        "$ref": "#/$defs/MolecularDriverMention"
+      },
+      "title": "Molecular Driver Mention",
+      "type": "array"
+    },
+    "genetic_variant_mention": {
+      "description": "All mentions of pLGG genetic variants",
+      "items": {
+        "$ref": "#/$defs/GeneticVariantMention"
+      },
+      "title": "Genetic Variant Mention",
+      "type": "array"
+    }
+  },
+  "title": "GliomaGeneAnnotation",
+  "type": "object"
+}

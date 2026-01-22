@@ -1,8 +1,4 @@
-[[task]]
-# Version History:
-# ** 0 (2025-12): Initial version **
-version = 0
-
+[shared]
 system-prompt = """
 You are a clinical chart reviewer for a study examining the efficacy of various \
 treatments for pediatric low-grade glioma (pLGG) across various pathological/genetic \
@@ -39,4 +35,45 @@ models = [
     "llama4-scout",
 ]
 
-response-schema = "case.json"
+
+[[task]]
+name = "diagnosis"
+response-schema = "glioma-diagnosis-annotation.json"
+# Version History:
+# ** 1 (2026-01): Initial version
+version = 1
+
+[[task]]
+name = "document_type"
+response-schema = "glioma-document-type-annotation.json"
+# Version History:
+# ** 1 (2026-01): Initial version
+version = 1
+
+[[task]]
+name = "gene"
+response-schema = "glioma-gene-annotation.json"
+# Version History:
+# ** 1 (2026-01): Initial version
+version = 1
+
+[[task]]
+name = "medications"
+response-schema = "glioma-medications-annotation.json"
+# Version History:
+# ** 1 (2026-01): Initial version
+version = 1
+
+[[task]]
+name = "progression"
+response-schema = "glioma-progression-annotation.json"
+# Version History:
+# ** 1 (2026-01): Initial version
+version = 1
+
+[[task]]
+name = "surgical"
+response-schema = "glioma-surgical-annotation.json"
+# Version History:
+# ** 1 (2026-01): Initial version
+version = 1

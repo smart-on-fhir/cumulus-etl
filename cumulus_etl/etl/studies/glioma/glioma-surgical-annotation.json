@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "SurgicalApproach": {
+      "enum": [
+        "OPEN",
+        "AWAKE",
+        "ENDOSCOPIC",
+        "STEREOTACTIC",
+        "LASER",
+        "KEYHOLE",
+        "NOT_MENTIONED"
+      ],
+      "title": "SurgicalApproach",
+      "type": "string"
+    },
+    "SurgicalApproachMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "approach": {
+          "$ref": "#/$defs/SurgicalApproach",
+          "default": "NOT_MENTIONED",
+          "description": "Technical approach used during the surgery (open, awake, stereotactic, laser)."
+        }
+      },
+      "title": "SurgicalApproachMention",
+      "type": "object"
+    },
+    "SurgicalExtentOfResection": {
+      "enum": [
+        "GROSS_TOTAL",
+        "SUBTOTAL",
+        "PARTIAL",
+        "BIOPSY_ONLY",
+        "SUPRATOTAL",
+        "NOT_APPLICABLE",
+        "UNRESECTABLE",
+        "NOT_MENTIONED"
+      ],
+      "title": "SurgicalExtentOfResection",
+      "type": "string"
+    },
+    "SurgicalExtentOfResectionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "extent_of_resection": {
+          "$ref": "#/$defs/SurgicalExtentOfResection",
+          "default": "NOT_MENTIONED",
+          "description": "Reported extent of tumor resection."
+        }
+      },
+      "title": "SurgicalExtentOfResectionMention",
+      "type": "object"
+    },
+    "SurgicalType": {
+      "enum": [
+        "BIOPSY",
+        "RESECTION",
+        "DEBULKING",
+        "ABLATION",
+        "ENDOSCOPIC",
+        "CRANIOTOMY",
+        "OTHER",
+        "NOT_MENTIONED"
+      ],
+      "title": "SurgicalType",
+      "type": "string"
+    },
+    "SurgicalTypeMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "surgical_type": {
+          "$ref": "#/$defs/SurgicalType",
+          "default": "NOT_MENTIONED",
+          "description": "High-level categorization of the surgery (biopsy, resection, ablation, etc.)"
+        }
+      },
+      "title": "SurgicalTypeMention",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "surgical_type_mention": {
+      "$ref": "#/$defs/SurgicalTypeMention"
+    },
+    "approach_mention": {
+      "$ref": "#/$defs/SurgicalApproachMention"
+    },
+    "extent_of_resection_mention": {
+      "$ref": "#/$defs/SurgicalExtentOfResectionMention"
+    }
+  },
+  "required": [
+    "surgical_type_mention",
+    "approach_mention",
+    "extent_of_resection_mention"
+  ],
+  "title": "GliomaSurgicalAnnotation",
+  "type": "object"
+}

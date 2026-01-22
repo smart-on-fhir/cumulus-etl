@@ -1,0 +1,591 @@
+{
+  "$defs": {
+    "AgeAtProgressionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "age_years": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Age at glioma disease progression in years, if explicitly stated.",
+          "title": "Age Years"
+        }
+      },
+      "title": "AgeAtProgressionMention",
+      "type": "object"
+    },
+    "ClinicalTrialAvailability": {
+      "enum": [
+        "NOT_MENTIONED",
+        "AVAILABLE_AND_ELIGIBLE",
+        "AVAILABLE_NOT_ELIGIBLE",
+        "NOT_AVAILABLE",
+        "OTHER"
+      ],
+      "title": "ClinicalTrialAvailability",
+      "type": "string"
+    },
+    "ClinicalTrialAvailabilityMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "trial_status": {
+          "$ref": "#/$defs/ClinicalTrialAvailability",
+          "default": "NOT_MENTIONED",
+          "description": "Whether a clinical trial is available/considered."
+        }
+      },
+      "title": "ClinicalTrialAvailabilityMention",
+      "type": "object"
+    },
+    "EndocrineFunctionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "endocrine_status": {
+          "$ref": "#/$defs/EndocrineStatus",
+          "default": "NOT_MENTIONED",
+          "description": "Endocrine function/dysfunction signals."
+        }
+      },
+      "title": "EndocrineFunctionMention",
+      "type": "object"
+    },
+    "EndocrineStatus": {
+      "enum": [
+        "NOT_MENTIONED",
+        "NORMAL",
+        "DYSFUNCTION_PRESENT",
+        "DIABETES_INSIPIDUS",
+        "PITUITARY_DEFICIENCY",
+        "HYPOTHALAMIC_DYSFUNCTION",
+        "OTHER"
+      ],
+      "title": "EndocrineStatus",
+      "type": "string"
+    },
+    "GliomaChemotherapyClass": {
+      "enum": [
+        "NOT_MENTIONED",
+        "ALKYLATING_AGENT",
+        "PLATINUM_AGENT",
+        "VINCA_ALKALOID",
+        "TOP1_INHIBITOR",
+        "ANTIMETABOLITE",
+        "MULTI_AGENT_CHEMOTHERAPY",
+        "OTHER"
+      ],
+      "title": "GliomaChemotherapyClass",
+      "type": "string"
+    },
+    "GliomaChemotherapyRegimen": {
+      "enum": [
+        "NOT_MENTIONED",
+        "CARBOPLATIN",
+        "CARBOPLATIN_VINCRISTINE",
+        "VINBLASTINE",
+        "TPCV",
+        "BEVACIZUMAB_IRINOTECAN",
+        "BEVACIZUMAB",
+        "OTHER"
+      ],
+      "title": "GliomaChemotherapyRegimen",
+      "type": "string"
+    },
+    "GliomaProgressionMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "age_at_progression": {
+          "$ref": "#/$defs/AgeAtProgressionMention"
+        },
+        "progression_type": {
+          "$ref": "#/$defs/ProgressionTypeMention"
+        },
+        "regrowth_pattern": {
+          "$ref": "#/$defs/RegrowthPatternMention"
+        },
+        "symptom_burden": {
+          "$ref": "#/$defs/SymptomBurdenMention"
+        },
+        "visual_status": {
+          "$ref": "#/$defs/VisualAcuityMention"
+        },
+        "neurocognitive_risk": {
+          "$ref": "#/$defs/NeurocognitiveRiskMention"
+        },
+        "endocrine_function": {
+          "$ref": "#/$defs/EndocrineFunctionMention"
+        },
+        "therapy_line": {
+          "$ref": "#/$defs/TherapyLineNumberMention"
+        },
+        "therapy_modality": {
+          "$ref": "#/$defs/TherapyModalityMention"
+        },
+        "prior_exposure": {
+          "$ref": "#/$defs/PriorTherapyExposureMention"
+        },
+        "clinical_trial": {
+          "$ref": "#/$defs/ClinicalTrialAvailabilityMention"
+        },
+        "radiotherapy_exposure_history": {
+          "$ref": "#/$defs/RadiotherapyExposureHistoryMention"
+        }
+      },
+      "required": [
+        "age_at_progression",
+        "progression_type",
+        "regrowth_pattern",
+        "symptom_burden",
+        "visual_status",
+        "neurocognitive_risk",
+        "endocrine_function",
+        "therapy_line",
+        "therapy_modality",
+        "prior_exposure",
+        "clinical_trial",
+        "radiotherapy_exposure_history"
+      ],
+      "title": "GliomaProgressionMention",
+      "type": "object"
+    },
+    "GliomaTargetedTherapy": {
+      "enum": [
+        "NOT_MENTIONED",
+        "MEK_INHIBITOR",
+        "BRAF_INHIBITOR",
+        "BRAF_MEK_COMBINATION",
+        "PAN_RAF_INHIBITOR",
+        "FGFR_INHIBITOR",
+        "NTRK_INHIBITOR",
+        "ALK_INHIBITOR",
+        "ROS1_INHIBITOR",
+        "RET_INHIBITOR",
+        "MTOR_INHIBITOR",
+        "IDH_INHIBITOR",
+        "OTHER"
+      ],
+      "title": "GliomaTargetedTherapy",
+      "type": "string"
+    },
+    "NeurocognitiveRisk": {
+      "enum": [
+        "NOT_MENTIONED",
+        "LOW",
+        "MODERATE",
+        "HIGH",
+        "IMPAIRED_BASELINE",
+        "OTHER"
+      ],
+      "title": "NeurocognitiveRisk",
+      "type": "string"
+    },
+    "NeurocognitiveRiskMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "risk": {
+          "$ref": "#/$defs/NeurocognitiveRisk",
+          "default": "NOT_MENTIONED",
+          "description": "Neurocognitive risk/impairment cues (baseline or treatment-related)."
+        }
+      },
+      "title": "NeurocognitiveRiskMention",
+      "type": "object"
+    },
+    "PriorTherapyExposureMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "prior_modalities": {
+          "description": "Previously received modalities (surgery/chemo/targeted/RT/trial).",
+          "items": {
+            "$ref": "#/$defs/TherapyModality"
+          },
+          "title": "Prior Modalities",
+          "type": "array"
+        },
+        "prior_chemo_class": {
+          "description": "Named prior chemotherapy class if stated.",
+          "items": {
+            "$ref": "#/$defs/GliomaChemotherapyClass"
+          },
+          "title": "Prior Chemo Class",
+          "type": "array"
+        },
+        "prior_chemo_regimen": {
+          "description": "Named prior chemotherapy regimen if stated.",
+          "items": {
+            "$ref": "#/$defs/GliomaChemotherapyRegimen"
+          },
+          "title": "Prior Chemo Regimen",
+          "type": "array"
+        },
+        "prior_targeted": {
+          "description": "Named prior targeted regimens if stated.",
+          "items": {
+            "$ref": "#/$defs/GliomaTargetedTherapy"
+          },
+          "title": "Prior Targeted",
+          "type": "array"
+        }
+      },
+      "title": "PriorTherapyExposureMention",
+      "type": "object"
+    },
+    "ProgressionType": {
+      "enum": [
+        "NOT_MENTIONED",
+        "BOTH",
+        "RADIOGRAPHIC",
+        "FUNCTIONAL",
+        "SUSPECTED",
+        "NONE"
+      ],
+      "title": "ProgressionType",
+      "type": "string"
+    },
+    "ProgressionTypeMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "progression": {
+          "$ref": "#/$defs/ProgressionType",
+          "default": "NOT_MENTIONED",
+          "description": "Radiographic/functional progression status as stated."
+        }
+      },
+      "title": "ProgressionTypeMention",
+      "type": "object"
+    },
+    "RadiotherapyExposureHistory": {
+      "enum": [
+        "NOT_MENTIONED",
+        "EXPOSED",
+        "NOT_EXPOSED",
+        "UNKNOWN"
+      ],
+      "title": "RadiotherapyExposureHistory",
+      "type": "string"
+    },
+    "RadiotherapyExposureHistoryMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "has_prior_radiotherapy": {
+          "$ref": "#/$defs/RadiotherapyExposureHistory",
+          "default": "NOT_MENTIONED",
+          "description": "Whether patient has prior radiotherapy exposure."
+        }
+      },
+      "title": "RadiotherapyExposureHistoryMention",
+      "type": "object"
+    },
+    "RegrowthPattern": {
+      "enum": [
+        "NOT_MENTIONED",
+        "PROGRESSION",
+        "REBOUND_AFTER_STOPPING_TARGETED",
+        "RESISTANCE_ON_TARGETED",
+        "PSEUDOPROGRESSION_SUSPECTED",
+        "OTHER"
+      ],
+      "title": "RegrowthPattern",
+      "type": "string"
+    },
+    "RegrowthPatternMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "regrowth_pattern": {
+          "$ref": "#/$defs/RegrowthPattern",
+          "default": "NOT_MENTIONED",
+          "description": "Pattern of regrowth on/off therapy (progression vs rebound vs resistance)."
+        }
+      },
+      "title": "RegrowthPatternMention",
+      "type": "object"
+    },
+    "SymptomBurden": {
+      "enum": [
+        "NOT_MENTIONED",
+        "SEIZURES",
+        "HEADACHE",
+        "FOCAL_NEURO_DEFICIT",
+        "VISUAL_SYMPTOMS",
+        "ENDOCRINE_SYMPTOMS",
+        "INCREASED_ICP",
+        "OTHER"
+      ],
+      "title": "SymptomBurden",
+      "type": "string"
+    },
+    "SymptomBurdenMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "symptom_burden": {
+          "description": "Symptoms attributed to the tumor; may include multiple.",
+          "items": {
+            "$ref": "#/$defs/SymptomBurden"
+          },
+          "title": "Symptom Burden",
+          "type": "array"
+        }
+      },
+      "title": "SymptomBurdenMention",
+      "type": "object"
+    },
+    "TherapyLineNumber": {
+      "enum": [
+        "NOT_MENTIONED",
+        "FIRST_LINE",
+        "SECOND_LINE",
+        "THIRD_LINE",
+        "FOURTH_LINE_OR_GREATER"
+      ],
+      "title": "TherapyLineNumber",
+      "type": "string"
+    },
+    "TherapyLineNumberMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "line_number": {
+          "$ref": "#/$defs/TherapyLineNumber",
+          "default": "NOT_MENTIONED",
+          "description": "Line of therapy in the overall treatment sequence (first-line, second-line, third-line, etc.)."
+        }
+      },
+      "title": "TherapyLineNumberMention",
+      "type": "object"
+    },
+    "TherapyModality": {
+      "enum": [
+        "NOT_MENTIONED",
+        "OBSERVATION",
+        "SURGERY",
+        "CHEMOTHERAPY",
+        "TARGETED_THERAPY",
+        "RADIOTHERAPY",
+        "CLINICAL_TRIAL"
+      ],
+      "title": "TherapyModality",
+      "type": "string"
+    },
+    "TherapyModalityMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "therapy_modality": {
+          "$ref": "#/$defs/TherapyModality",
+          "default": "NOT_MENTIONED",
+          "description": "Line of therapy."
+        }
+      },
+      "title": "TherapyModalityMention",
+      "type": "object"
+    },
+    "VisualAcuityMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "visual_status": {
+          "$ref": "#/$defs/VisualStatus",
+          "default": "NOT_MENTIONED",
+          "description": "Directionality of visual function over time."
+        }
+      },
+      "title": "VisualAcuityMention",
+      "type": "object"
+    },
+    "VisualStatus": {
+      "enum": [
+        "NOT_MENTIONED",
+        "STABLE",
+        "DECLINING",
+        "IMPROVING",
+        "SEVERE_LOSS",
+        "OTHER"
+      ],
+      "title": "VisualStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "glioma_progression_mention": {
+      "description": "All glioma disease progressions aggregated for each line of therapy",
+      "items": {
+        "$ref": "#/$defs/GliomaProgressionMention"
+      },
+      "title": "Glioma Progression Mention",
+      "type": "array"
+    }
+  },
+  "title": "GliomaProgressionAnnotation",
+  "type": "object"
+}
