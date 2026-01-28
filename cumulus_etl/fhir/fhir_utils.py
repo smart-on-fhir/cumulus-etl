@@ -253,6 +253,10 @@ async def _get_note_from_attachment(client: cfs.FhirClient, attachment: dict) ->
     #     to sha1...)
     #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
     if "url" in attachment:
+        if not client:
+            raise ValueError(
+                "Cannot download attachment url, because no connection information was provided."
+            )
         response = await request_attachment(client, attachment)
         return response.text
 

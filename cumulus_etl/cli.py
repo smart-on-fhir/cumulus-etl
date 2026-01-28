@@ -9,7 +9,7 @@ import tempfile
 
 import rich.logging
 
-from cumulus_etl import common, etl, export, inliner, upload_notes
+from cumulus_etl import common, etl, export, inliner, sample, upload_notes
 from cumulus_etl.etl import convert, init, nlp
 
 
@@ -22,6 +22,7 @@ class Command(enum.Enum):
     INIT = "init"
     INLINE = "inline"
     NLP = "nlp"
+    SAMPLE = "sample"
     UPLOAD_NOTES = "upload-notes"
 
     # Why isn't this part of Enum directly...?
@@ -75,6 +76,8 @@ async def main(argv: list[str]) -> None:
         run_method = inliner.run_inline
     elif subcommand == Command.NLP.value:
         run_method = nlp.run_nlp
+    elif subcommand == Command.SAMPLE.value:
+        run_method = sample.run_sample
     else:
         parser.description = "Extract, transform, and load FHIR data."
         if not subcommand:
