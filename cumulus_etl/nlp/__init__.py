@@ -14,7 +14,12 @@ from .models import (
     TokenStats,
     set_nlp_config,
 )
-from .selection import CsvMatcher, add_note_selection, get_note_filter, query_athena_table
+from .selection import (
+    CsvMatcher,
+    add_note_selection,
+    get_note_filter,
+    query_athena_table,
+)
 from .utils import (
     cache_checksum,
     cache_metadata_read,
@@ -23,6 +28,7 @@ from .utils import (
     cache_wrapper,
     cache_write,
     get_note_date,
+    get_note_encounter_id,
     get_note_info,
     get_note_subject_ref,
     is_note_valid,

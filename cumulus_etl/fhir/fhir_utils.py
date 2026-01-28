@@ -234,7 +234,7 @@ async def request_attachment(client: cfs.FhirClient, attachment: dict) -> httpx.
     )
 
 
-async def _get_note_from_attachment(client: cfs.FhirClient, attachment: dict) -> str:
+async def _get_note_from_attachment(client: cfs.FhirClient | None, attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -253,6 +253,10 @@ async def _get_note_from_attachment(client: cfs.FhirClient, attachment: dict) ->
     #     to sha1...)
     #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
     if "url" in attachment:
+        if not client:
+            raise ValueError(
+                "Cannot download attachment url, because no connection information was provided."
+            )
         response = await request_attachment(client, attachment)
         return response.text
 
@@ -276,7 +280,7 @@ def _save_cached_note(resource: dict, note: str) -> None:
     common.write_text(note_path, note)
 
 
-async def get_clinical_note(client: cfs.FhirClient, resource: dict) -> str:
+async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> str:
     """
     Returns the clinical note contained in or referenced by the given resource.
 
