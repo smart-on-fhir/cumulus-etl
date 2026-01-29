@@ -37,6 +37,7 @@ def define_sample_parser(parser: argparse.ArgumentParser) -> None:
         help="which columns to print (options are note, subject, encounter; default is just note)",
     )
 
+    cli_utils.add_aws(parser, athena=True)
     nlp.add_note_selection(parser)
 
     group = parser.add_argument_group("sampling")
