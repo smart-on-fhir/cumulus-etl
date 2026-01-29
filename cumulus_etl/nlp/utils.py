@@ -41,16 +41,25 @@ def get_note_info(note: dict) -> tuple[str, str, str]:
     Raises KeyError if any of them aren't present.
     """
     note_ref = f"{note['resourceType']}/{note['id']}"
-    encounters = note.get("context", {}).get("encounter", [])
-    if not encounters:  # check for dxreport encounter field
-        encounters = [note["encounter"]] if "encounter" in note else []
-    if not encounters:
+    encounter_id = get_note_encounter_id(note)
+    if not encounter_id:
         raise KeyError(f"No encounters for note '{note_ref}'")
-    _, encounter_id = fhir.unref_resource(encounters[0])
     subject_ref = get_note_subject_ref(note)
     if not subject_ref:
         raise KeyError(f"No subject for note '{note_ref}'")
     return note_ref, encounter_id, subject_ref
+
+
+def get_note_encounter_id(note: dict) -> str | None:
+    """Returns the encounter ID of a note"""
+    encounters = note.get("context", {}).get("encounter", [])
+    if not encounters:  # check for dxreport encounter field
+        encounters = [note["encounter"]] if "encounter" in note else []
+    if encounters:
+        _, encounter_id = fhir.unref_resource(encounters[0])
+        return encounter_id
+    else:
+        return None
 
 
 def get_note_subject_ref(note: dict) -> str | None:

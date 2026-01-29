@@ -133,6 +133,10 @@ class CsvMatcher:
             res_id = patient_id
 
         if self._is_anon:
+            if not codebook:
+                errors.fatal(
+                    "A PHI folder must be provided to process anonymous IDs.", errors.ARGS_INVALID
+                )
             res_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
 
         return self._id_pools[res_type].get(res_id)
