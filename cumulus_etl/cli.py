@@ -64,9 +64,7 @@ async def main(argv: list[str]) -> None:
         prog += f" {subcommand}"  # to make --help look nicer
     parser = argparse.ArgumentParser(prog=prog)
 
-    if subcommand == Command.UPLOAD_NOTES.value:
-        run_method = upload_notes.run_upload_notes
-    elif subcommand == Command.CONVERT.value:
+    if subcommand == Command.CONVERT.value:
         run_method = convert.run_convert
     elif subcommand == Command.EXPORT.value:
         run_method = export.run_export
@@ -78,6 +76,8 @@ async def main(argv: list[str]) -> None:
         run_method = nlp.run_nlp
     elif subcommand == Command.SAMPLE.value:
         run_method = sample.run_sample
+    elif subcommand == Command.UPLOAD_NOTES.value:
+        run_method = upload_notes.run_upload_notes
     else:
         parser.description = "Extract, transform, and load FHIR data."
         if not subcommand:
@@ -85,7 +85,7 @@ async def main(argv: list[str]) -> None:
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
             parser.description += "\n\nother commands available:\n"
             parser.description += (
-                "  convert\n  export\n  init\n  inline\n  nlp\n sample\n upload-notes"
+                "  convert\n  export\n  init\n  inline\n  nlp\n  sample \n  upload-notes"
             )
         run_method = etl.run_etl
 
