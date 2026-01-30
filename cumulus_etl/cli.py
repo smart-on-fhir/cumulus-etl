@@ -84,7 +84,9 @@ async def main(argv: list[str]) -> None:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
             parser.description += "\n\nother commands available:\n"
-            parser.description += "  convert\n  export\n  init\n  inline\n  nlp\n  upload-notes"
+            parser.description += (
+                "  convert\n  export\n  init\n  inline\n  nlp\n sample\n upload-notes"
+            )
         run_method = etl.run_etl
 
     with tempfile.TemporaryDirectory() as tempdir:
