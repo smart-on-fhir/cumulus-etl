@@ -179,16 +179,17 @@ def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
     yield from cfs.read_multiline_json(path, fsspec_fs=root.fs)
 
 
-def read_resource_ndjson(
+def read_resource_ndjson_with_details(
     root: store.Root, resources: str | set[str], warn_if_empty: bool = False
-) -> Iterator[dict]:
+) -> Iterator[tuple[str, dict]]:
     """
-    Grabs all ndjson files from a folder, of a particular resource type.
+    Grabs all ndjson files from a folder, of a particular resource type. With details.
     """
     if isinstance(resources, str):
         resources = {resources}
     for filename in ls_resources(root, resources, warn_if_empty=warn_if_empty):
-        for line in cfs.read_multiline_json(filename, fsspec_fs=root.fs):
+        for data in cfs.read_multiline_json_with_details(filename, fsspec_fs=root.fs):
+            line = data["json"]
             # Sanity check the incoming NDJSON - who knows what could happen and we should surface
             # a nice message about it. This *could* be very noisy on the console if there are a lot
             # of rows, but hopefully this is a very rare occurence and one that should be fixed
@@ -200,7 +201,19 @@ def read_resource_ndjson(
             ):
                 logging.warning(f"Encountered invalid or unexpected FHIR: `{line}`")
                 continue  # skip it
-            yield line
+            yield filename, data
+
+
+def read_resource_ndjson(
+    root: store.Root, resources: str | set[str], warn_if_empty: bool = False
+) -> Iterator[dict]:
+    """
+    Grabs all ndjson files from a folder, of a particular resource type.
+    """
+    for _path, data in read_resource_ndjson_with_details(
+        root, resources, warn_if_empty=warn_if_empty
+    ):
+        yield data["json"]
 
 
 def write_rows_to_ndjson(path: str, rows: list[dict], sparse: bool = False) -> None:

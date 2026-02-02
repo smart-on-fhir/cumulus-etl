@@ -11,7 +11,7 @@ import cumulus_fhir_support as cfs
 import httpx
 import inscriptis
 
-from cumulus_etl import common, errors
+from cumulus_etl import errors
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -263,35 +263,12 @@ async def _get_note_from_attachment(client: cfs.FhirClient | None, attachment: d
     raise ValueError("No data or url field present")
 
 
-def _get_cached_note_path(resource: dict) -> str:
-    return f"{common.get_temp_dir('notes')}/{resource['resourceType']}.{resource['id']}.txt"
-
-
-def _get_cached_note(resource: dict) -> str | None:
-    note_path = _get_cached_note_path(resource)
-    try:
-        return common.read_text(note_path)
-    except FileNotFoundError:
-        return None
-
-
-def _save_cached_note(resource: dict, note: str) -> None:
-    note_path = _get_cached_note_path(resource)
-    common.write_text(note_path, note)
-
-
 async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> str:
     """
     Returns the clinical note contained in or referenced by the given resource.
 
     It will try to find the simplest version (plain text) or convert html to plain text if needed.
-
-    This also caches the note for the duration of the ETL, to avoid redundant downloads.
     """
-    note = _get_cached_note(resource)
-    if note is not None:
-        return note
-
     match resource["resourceType"]:
         case "DiagnosticReport":
             attachments = resource.get("presentedForm", [])
@@ -341,7 +318,6 @@ async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> st
     # Hopefully not many notes are using actual Spanish.
     note = note.replace("¿", " ")
 
-    _save_cached_note(resource, note)
     return note
 
 
