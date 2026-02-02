@@ -125,10 +125,10 @@ async def scan_notes(
     filter_func = nlp.get_note_filter(None, args)
     for path, data in details:
         resource = data["json"]
-        # First, make sure it has available text.
-        # We only want to sample notes with text.
+
+        # First, make sure it has available text. We only want to sample notes with text.
         try:
-            await fhir.get_clinical_note(None, resource)
+            fhir.get_clinical_note_attachment(resource)
         except Exception:  # noqa: S112
             continue
 
