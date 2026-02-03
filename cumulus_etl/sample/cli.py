@@ -1,6 +1,7 @@
 """Find a random sample of clinical notes"""
 
 import argparse
+import contextlib
 import json
 import random
 import sys
@@ -10,6 +11,33 @@ import cumulus_fhir_support as cfs
 import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
+
+
+class MultiResourceWriter:
+    def __init__(self, export_path: str | None):
+        self.export_path = export_path
+        self.stack = contextlib.ExitStack()
+        self.writers = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stack.close()
+
+    def write(self, resource: dict) -> None:
+        if not self.export_path:
+            return
+
+        res_type = resource["resourceType"]
+        writer = self.writers.get(res_type)
+        if not writer:
+            ndjson_path = f"{self.export_path}/{res_type}.ndjson.gz"
+            writer = common.NdjsonWriter(ndjson_path, compressed=True)
+            self.writers[res_type] = writer
+            self.stack.push(writer)
+
+        writer.write(resource)
 
 
 def define_sample_parser(parser: argparse.ArgumentParser) -> None:
@@ -83,15 +111,6 @@ def csv_row(resource: dict, columns: list[str]) -> str:
     if "encounter" in columns:
         line.append(nlp.get_note_encounter_id(resource) or "")
     return ",".join(line)
-
-
-def add_to_export_dir(resource: dict, export_dir: str | None) -> None:
-    if not export_dir:
-        return
-
-    path = f"{export_dir}/{resource['resourceType']}.ndjson.gz"
-    with common.NdjsonWriter(path, append=True, compressed=True) as writer:
-        writer.write(resource)
 
 
 async def sample(source: AsyncIterable, count: int) -> list:
@@ -200,12 +219,13 @@ async def sample_main(args: argparse.Namespace) -> None:
     with rich.get_console().status("Sampling…"):
         notes = await prep_and_sample(args)
 
-    # Print the CSV
-    print(csv_header(columns), file=output)
-    for resource in notes:
-        print(csv_row(resource, csv_header(columns)), file=output)
-        add_to_export_dir(resource, export_path)
-    output.flush()
+    # Print the CSV and write out exports
+    with MultiResourceWriter(export_path) as writer:
+        print(csv_header(columns), file=output)
+        for resource in notes:
+            print(csv_row(resource, csv_header(columns)), file=output)
+            writer.write(resource)
+        output.flush()
 
 
 async def run_sample(parser: argparse.ArgumentParser, argv: list[str]) -> None:

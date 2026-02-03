@@ -245,6 +245,7 @@ class NdjsonWriter:
         self._append = append
         self._compressed = compressed
         self._file = None
+        self._inner_file = None
         if allow_empty:
             self._ensure_file()
 
@@ -255,13 +256,16 @@ class NdjsonWriter:
         if self._file:
             self._file.close()
             self._file = None
+        if self._inner_file:
+            self._inner_file.close()
+            self._inner_file = None
 
     def _ensure_file(self):
         if not self._file:
             mode = "a" if self._append else "w"
             if self._compressed:
-                inner_file = self._root.fs.open(self._root.path, mode + "b")
-                self._file = gzip.open(inner_file, mode + "t", encoding="utf8")
+                self._inner_file = self._root.fs.open(self._root.path, mode + "b")
+                self._file = gzip.open(self._inner_file, mode + "t", encoding="utf8")
             else:
                 self._file = self._root.fs.open(self._root.path, mode + "t", encoding="utf8")
 
