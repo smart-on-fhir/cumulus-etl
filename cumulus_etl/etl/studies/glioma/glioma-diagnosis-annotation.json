@@ -135,6 +135,45 @@
       "title": "GradeMention",
       "type": "object"
     },
+    "Histology": {
+      "enum": [
+        "NOT_MENTIONED",
+        "PILOCYTIC_ASTROCYTOMA",
+        "PILOMYXOID_ASTROCYTOMA",
+        "DIFFUSE_ASTROCYTOMA",
+        "GANGLIOGLIOMA",
+        "DNET",
+        "OTHER_LGG",
+        "UNKNOWN"
+      ],
+      "title": "Histology",
+      "type": "string"
+    },
+    "HistologyMention": {
+      "properties": {
+        "has_mention": {
+          "default": false,
+          "description": "Whether there is any mention of this variable in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The text spans where this variable is mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "histology": {
+          "$ref": "#/$defs/Histology",
+          "default": "NOT_MENTIONED",
+          "description": "Histologic subtype if stated."
+        }
+      },
+      "title": "HistologyMention",
+      "type": "object"
+    },
     "ICDOBehaviorCode": {
       "enum": [
         "/0",
@@ -423,6 +462,9 @@
     "topography_mention": {
       "$ref": "#/$defs/TopographyMention"
     },
+    "histology_mention": {
+      "$ref": "#/$defs/HistologyMention"
+    },
     "morphology_mention": {
       "$ref": "#/$defs/MorphologyMention"
     },
@@ -442,6 +484,7 @@
     "tumor_region_mention",
     "tumor_size_mention",
     "topography_mention",
+    "histology_mention",
     "morphology_mention",
     "behavior_mention",
     "grade_mention",
