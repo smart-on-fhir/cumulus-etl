@@ -40,6 +40,7 @@ models = [
 name = "diagnosis"
 response-schema = "glioma-diagnosis-annotation.json"
 # Version History:
+# ** 2 (2026-02): Updated model to include histology information
 # ** 1 (2026-01): Initial version
 version = 1
 
@@ -75,5 +76,6 @@ version = 1
 name = "surgical"
 response-schema = "glioma-surgical-annotation.json"
 # Version History:
+# ** 2 (2026-02): Annotation class now has helpful description
 # ** 1 (2026-01): Initial version
 version = 1
