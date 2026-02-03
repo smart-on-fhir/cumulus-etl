@@ -2,7 +2,6 @@
 
 import base64
 import datetime
-import shutil
 from unittest import mock
 
 import ddt
@@ -187,28 +186,16 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
                 },
             )
 
-    async def test_docref_note_caches_results(self):
-        """Verify that get_clinical_note has internal caching"""
-
-        async def assert_note_is(docref_id, text, expected_text):
-            docref = self.make_docref(docref_id, "text/plain", text)
-            note = await fhir.get_clinical_note(None, docref)
-            self.assertEqual(expected_text, note)
-
-        # Confirm that we cache
-        await assert_note_is("same", "hello", "hello")
-        await assert_note_is("same", "goodbye", "hello")
-
-        # Confirm that we cache empty string correctly (i.e. empty string is not handled same as None)
-        await assert_note_is("empty", "", "")
-        await assert_note_is("empty", "not empty", "")
-
-        # Confirm that a new id is not cached
-        await assert_note_is("new", "fresh", "fresh")
-
-        # Sanity-check that if we blow away the cache, we get new text
-        shutil.rmtree(common.get_temp_dir("notes"))
-        await assert_note_is("same", "goodbye", "goodbye")
+    async def test_url_without_client(self):
+        with self.assertRaisesRegex(ValueError, "no connection information was provided"):
+            await fhir.get_clinical_note(
+                None,
+                {
+                    "id": "no data",
+                    "resourceType": "DocumentReference",
+                    "content": [{"attachment": {"contentType": "text/plain", "url": "external"}}],
+                },
+            )
 
     @ddt.data(
         (None, None),

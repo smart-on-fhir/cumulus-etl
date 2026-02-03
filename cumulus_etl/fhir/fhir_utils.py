@@ -260,7 +260,9 @@ async def _get_note_from_attachment(client: cfs.FhirClient | None, attachment: d
         response = await request_attachment(client, attachment)
         return response.text
 
-    raise ValueError("No data or url field present")
+    # Shouldn't ever get here, because get_clinical_note_attachment already checks this,
+    # but just in case...
+    raise ValueError("No data or url field present")  # pragma: no cover
 
 
 def get_clinical_note_attachment(resource: dict) -> dict:
@@ -298,7 +300,7 @@ def get_clinical_note_attachment(resource: dict) -> dict:
 
     attachment = attachments[best_attachment_index]
 
-    if not attachment.get("data") and attachment.get("url"):
+    if attachment.get("data") is None and not attachment.get("url"):
         raise ValueError("No data or url field present")
 
     return attachments[best_attachment_index]

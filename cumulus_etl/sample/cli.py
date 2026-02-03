@@ -7,7 +7,6 @@ import random
 import sys
 from collections.abc import AsyncIterable, Iterable, Iterator
 
-import cumulus_fhir_support as cfs
 import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
@@ -146,9 +145,11 @@ async def scan_notes(
     for path, data in details:
         resource = data["json"]
 
-        # First, make sure it has available text. We only want to sample notes with text.
+        # First, make sure it has available text. We only want to sample notes with inlined text.
         try:
-            fhir.get_clinical_note_attachment(resource)
+            attachment = fhir.get_clinical_note_attachment(resource)
+            if attachment.get("data") is None:
+                continue
         except Exception:  # noqa: S112
             continue
 
