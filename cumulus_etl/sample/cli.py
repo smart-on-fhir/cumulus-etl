@@ -1,6 +1,7 @@
 """Find a random sample of clinical notes"""
 
 import argparse
+import json
 import random
 import sys
 from collections.abc import AsyncIterable, Iterable, Iterator
@@ -141,9 +142,16 @@ def read_notes(
     locations: Iterable[tuple[str, int]],
 ) -> Iterator[dict]:
     """Returns resources for each provided path/offset location"""
-    for path, offset in locations:
-        reader = cfs.read_multiline_json_with_details(path, fsspec_fs=root.fs, offset=offset)
-        yield next(reader)["json"]
+    # First, group up and sort locations, so that we don't need to decompress the same file a bunch
+    file_offsets = {}
+    for path, offset in sorted(locations):
+        file_offsets.setdefault(path, []).append(offset)
+
+    for path, offsets in file_offsets.items():
+        with root.fs.open(path, compression="infer") as f:
+            for offset in offsets:
+                f.seek(offset)
+                yield json.loads(f.readline())
 
 
 async def prep_and_sample(args: argparse.Namespace) -> Iterator[dict]:
