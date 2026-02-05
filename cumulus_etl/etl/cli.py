@@ -14,7 +14,12 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     """Fills out an argument parser with all the ETL options."""
     parser.usage = "%(prog)s [OPTION]... INPUT OUTPUT PHI"
 
-    pipeline.add_common_etl_args(parser)
+    parser.add_argument("dir_input", metavar="/path/to/input")
+    parser.add_argument("dir_output", metavar="/path/to/output")
+    parser.add_argument("dir_phi", metavar="/path/to/phi")
+
+    pipeline.add_common_etl_args(parser, outputs=["deltalake", "ndjson"])
+    parser.add_argument("--comment", help="add the comment to the log file")
     parser.add_argument(
         "--version", action="version", version=f"cumulus-etl {cumulus_etl.__version__}"
     )

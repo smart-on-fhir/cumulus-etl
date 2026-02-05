@@ -31,11 +31,12 @@ class Codebook:
     yourself.
     """
 
-    def __init__(self, codebook_dir: str | None = None):
+    def __init__(self, codebook_dir: str | None = None, *, cache_ids: bool = True):
         """
         :param codebook_dir: saved codebook path or None (initialize empty)
+        :param cache_ids: whether to save new encounter/patient IDs seen to a cached mapping file
         """
-        self.db = CodebookDB(codebook_dir)
+        self.db = CodebookDB(codebook_dir, cache_ids=cache_ids)
 
     def __enter__(self):
         return self
@@ -90,7 +91,7 @@ class Codebook:
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
 
-    def __init__(self, codebook_dir: str | None = None):
+    def __init__(self, codebook_dir: str | None = None, *, cache_ids: bool = True):
         """
         Create a codebook database.
 
@@ -100,15 +101,13 @@ class CodebookDB:
         https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2244902
 
         :param codebook_dir: folder to load from (optional)
+        :param cache_ids: whether to load/write to the ID mapping file
         """
         self.settings: dict = {
             # If you change the saved format, bump this number and add your new format loader in _load_saved()
             "version": 1,
         }
-        self.cached_mapping = {
-            "Patient": {},
-            "Encounter": {},
-        }
+        self.cached_mapping = {} if cache_ids else None
         self.codebook_dir = codebook_dir
 
         # Tracks whether we need to write out our settings or mappings
@@ -122,6 +121,7 @@ class CodebookDB:
                 )
             except (FileNotFoundError, PermissionError):
                 pass
+        if codebook_dir and cache_ids:
             try:
                 self.cached_mapping = common.read_json(
                     os.path.join(codebook_dir, "codebook-cached-mappings.json")
@@ -199,6 +199,7 @@ class CodebookDB:
         # Only save if we don't have a legacy mapping, so that we don't have both in memory at the same time.
         if (
             cache_mapping
+            and self.cached_mapping is not None
             and self.cached_mapping.setdefault(resource_type, {}).get(real_id) != fake_id
         ):
             # We expect the IDs to always be identical. The above check is mostly concerned with None != fake_id,
@@ -266,7 +267,7 @@ class CodebookDB:
             self.settings_modified = False
             saved = True
 
-        if self.mappings_modified:
+        if self.mappings_modified and self.cached_mapping is not None:
             cached_mapping_path = os.path.join(self.codebook_dir, "codebook-cached-mappings.json")
             common.write_json(cached_mapping_path, self.cached_mapping)
             self.mappings_modified = False

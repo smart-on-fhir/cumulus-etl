@@ -282,9 +282,9 @@ class TestCovidSymptomEtl(BaseEtlSimple):
 
     async def test_basic_run(self):
         await self.run_etl(tasks=["covid_symptom__nlp_results"])
-        self.assert_output_equal()
+        self.assert_output_equal(check_job_config=False)
 
     async def test_term_exists_task(self):
         # This one isn't even tagged for the study - we only want this upon request
         await self.run_etl(tasks=["covid_symptom__nlp_results_term_exists"])
-        self.assert_output_equal("term-exists")
+        self.assert_output_equal("term-exists", check_job_config=False)

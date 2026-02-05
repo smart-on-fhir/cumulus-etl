@@ -71,6 +71,22 @@ class NlpModelTestCase(TaskTestCase):
 
         return async_list
 
+    def result_path(self, table_name: str, ver: int | None = None) -> str:
+        study, topic = table_name.split("__")
+        top = f"{self.output_path}/{study}"
+
+        if ver is None:
+            # to avoid having to manually specify the version number, which changes from time to
+            # time, just use the first one we find, if there's only one.
+            subdirs = os.listdir(top)
+            self.assertEqual(len(subdirs), 1)
+            self.assertTrue(subdirs[0].startswith(f"{topic}_v"))
+            subdir = subdirs[0]
+        else:
+            subdir = f"{topic}_v{ver}"
+
+        return f"{top}/{subdir}/{subdir}.000.ndjson"
+
     @staticmethod
     def load_pydantic_model(path: str) -> pydantic.BaseModel:
         root = os.path.dirname(__file__)

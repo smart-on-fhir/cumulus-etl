@@ -23,7 +23,7 @@ def define_init_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     parser.add_argument("dir_output", metavar="/path/to/output")
-    cli_utils.add_output_format(parser)
+    cli_utils.add_output_format(parser, choices=["deltalake", "ndjson"])
 
     cli_utils.add_aws(parser)
 

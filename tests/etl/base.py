@@ -96,9 +96,13 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         os.makedirs(self.phi_path)
         shutil.copy(os.path.join(self.root_path, "codebook.json"), self.phi_path)
 
-    def assert_output_equal(self, folder: str = "output"):
+    def assert_output_equal(self, folder: str = "output", check_job_config: bool = True):
         """Compares the etl output with the expected json structure"""
-        self.assert_etl_output_equal(os.path.join(self.root_path, folder), self.output_path)
+        self.assert_etl_output_equal(
+            os.path.join(self.root_path, folder),
+            self.output_path,
+            check_job_config=check_job_config,
+        )
 
 
 class TaskTestCase(utils.AsyncTestCase):

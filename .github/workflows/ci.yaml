@@ -107,7 +107,7 @@ jobs:
             --task covid_symptom__nlp_results
 
           # Compare results
-          export OUTDIR=$DATADIR/run-output/covid_symptom__nlp_results
+          export OUTDIR=$DATADIR/run-output/covid_symptom/nlp_results_v4
           sudo chown -R $(id -u) $OUTDIR
           sed -i 's/"generated_on":"[^"]*",//g' $OUTDIR/*.ndjson
           diff -upr $DATADIR/expected-output $OUTDIR

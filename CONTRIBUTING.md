@@ -65,3 +65,11 @@ A reviewer will be looking for things like:
 
 Once approved, you can merge your PR yourself as long as the other GitHub tests pass.
 Congratulations, and thank you!
+
+## Restrictions on generative AI usage
+
+At this time we are not accepting code contributions from generative AI due to
+potential licensing issues and the increased burden of review on maintainers.
+
+We also ask that generative AI not be used to write content in issues/PRs, and reserve
+the right to close issues without response in cases where it has been obviously applied.

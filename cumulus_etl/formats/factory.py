@@ -2,7 +2,8 @@
 
 from .base import Format
 from .deltalake import DeltaLakeFormat
-from .ndjson import NdjsonFormat
+from .ndjson import NdjsonFormat, NlpNdjsonFormat
+from .parquet import NlpParquetFormat
 
 
 def get_format_class(name: str) -> type[Format]:
@@ -12,6 +13,9 @@ def get_format_class(name: str) -> type[Format]:
     classes = {
         "deltalake": DeltaLakeFormat,
         "ndjson": NdjsonFormat,
+        # NLP output works a little differently (allows existing content, different output dir name)
+        "nlp-ndjson": NlpNdjsonFormat,
+        "nlp-parquet": NlpParquetFormat,
     }
     try:
         return classes[name]

@@ -37,6 +37,7 @@ class JobConfig:
         export_url: str | None = None,
         deleted_ids: dict[str, set[str]] | None = None,
         resource_filter: deid.FilterFunc = None,
+        format_kwargs: dict | None = None,
     ):
         self.dir_input_orig = dir_input_orig
         self.dir_input = dir_input_deid
@@ -62,9 +63,10 @@ class JobConfig:
         self._output_root = store.Root(self._dir_output, create=True)
         self._format_class = formats.get_format_class(self._output_format)
         self._format_class.initialize_class(self._output_root)
+        self._format_kwargs = format_kwargs or {}
 
     def create_formatter(self, dbname: str, **kwargs) -> formats.Format:
-        return self._format_class(self._output_root, dbname, **kwargs)
+        return self._format_class(self._output_root, dbname, **self._format_kwargs, **kwargs)
 
     def path_config(self) -> str:
         return os.path.join(self.dir_job_config(), "job_config.json")
@@ -139,7 +141,7 @@ def latest_codebook_id_from_configs(output_root: store.Root) -> str | None:
     return _latest_config(output_root).get("codebook_id")
 
 
-def validate_output_folder(output_root: store.Root, codebook_id: str) -> None:
+def validate_etl_output_folder(output_root: store.Root, codebook_id: str) -> None:
     """
     Confirm the user isn't trying to use different PHI folders for the same output folder.
 
