@@ -304,3 +304,8 @@ def prompt(msg: str, override: bool = False) -> PromptResponse:
         return PromptResponse.APPROVED
     else:
         raise SystemExit(0)
+
+
+def plural(single: str, plural: str, count: int) -> str:
+    target = single if count == 1 else plural
+    return target.replace("%d", f"{count:,}")

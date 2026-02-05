@@ -112,12 +112,14 @@ def csv_row(resource: dict, columns: list[str]) -> str:
     return ",".join(line)
 
 
-async def sample(source: AsyncIterable, count: int) -> list:
+async def sample(source: AsyncIterable, count: int) -> tuple[list, int]:
     """
     Randomly pick 'count' elements from 'source'
 
     This is the "Algorithm R" from https://en.wikipedia.org/wiki/Reservoir_sampling,
     picked for its simplicity.
+
+    Returns the list of sampled items, and a total count of examined items.
     """
     reservoir = []
     idx = 0
@@ -129,7 +131,7 @@ async def sample(source: AsyncIterable, count: int) -> list:
             if j < count:
                 reservoir[j] = item
         idx += 1
-    return reservoir
+    return reservoir, idx
 
 
 async def scan_notes(
@@ -140,10 +142,15 @@ async def scan_notes(
     res_types: set[str] | None = None,
 ) -> Iterator[tuple[str, int]]:
     """Returns (path, byte offset) for each file that matches our criteria"""
-    details = common.read_resource_ndjson_with_details(root_input, res_types, warn_if_empty=True)
+    details = common.read_resource_ndjson_with_details(root_input, res_types)
     filter_func = nlp.get_note_filter(None, args)
+
+    total_count = 0
+    text_count = 0
+    filtered_count = 0
     for path, data in details:
         resource = data["json"]
+        total_count += 1
 
         # First, make sure it has available text. We only want to sample notes with inlined text.
         try:
@@ -153,8 +160,33 @@ async def scan_notes(
         except Exception:  # noqa: S112
             continue
 
+        text_count += 1
         if not filter_func or await filter_func(codebook, resource):
             yield path, data["byte_offset"]
+            filtered_count += 1
+
+    if not total_count:
+        errors.fatal(
+            "No notes found. "
+            "Make sure you’re pointing at a folder with DiagnosticReport or DocumentReference "
+            "resource files inside it.",
+            errors.NOTES_NOT_FOUND,
+        )
+    if not text_count:
+        errors.fatal(
+            "No notes with text attachment data found. "
+            "Make sure that you’ve first downloaded and inlined any URL-based attachments with "
+            "the SMART Fetch tool, like so:\n\n"
+            "  smart-fetch hydrate --tasks inline …\n\n"
+            "See https://docs.smarthealthit.org/cumulus/fetch/ for more information.",
+            errors.NOTES_NOT_FOUND_WITH_TEXT,
+        )
+    if not filtered_count:
+        errors.fatal(
+            "No notes were selected by the provided --select-by-* arguments. "
+            "Make sure that you have the right folder and the right arguments.",
+            errors.NOTES_NOT_FOUND_WITH_FILTER,
+        )
 
 
 def read_notes(
@@ -174,7 +206,7 @@ def read_notes(
                 yield json.loads(f.readline())
 
 
-async def prep_and_sample(args: argparse.Namespace) -> Iterator[dict]:
+async def prep_and_sample(args: argparse.Namespace) -> tuple[Iterator[dict], int]:
     # Normalize the various CLI arguments
     args.dir_input = cli_utils.process_input_dir(args.dir_input)
     root_input = store.Root(args.dir_input)
@@ -190,10 +222,10 @@ async def prep_and_sample(args: argparse.Namespace) -> Iterator[dict]:
 
     # Do the actual random sample
     random.seed(args.seed)
-    sampled = await sample(locations, args.count)
+    sampled, selected_count = await sample(locations, args.count)
 
     # Read the notes back from the saved locations
-    return read_notes(root_input, sampled)
+    return read_notes(root_input, sampled), selected_count
 
 
 async def sample_main(args: argparse.Namespace) -> None:
@@ -201,6 +233,9 @@ async def sample_main(args: argparse.Namespace) -> None:
     store.set_user_fs_options(vars(args))
 
     # Check CLI args
+    if args.count <= 0:
+        errors.fatal(f"Count must be a positive number, not '{args.count}'.", errors.ARGS_INVALID)
+
     if args.output == "-":
         output = sys.stdout
     else:
@@ -218,15 +253,32 @@ async def sample_main(args: argparse.Namespace) -> None:
 
     # Do the sampling
     with rich.get_console().status("Sampling…"):
-        notes = await prep_and_sample(args)
+        notes, selected_count = await prep_and_sample(args)
 
     # Print the CSV and write out exports
+    found_count = 0
     with MultiResourceWriter(export_path) as writer:
         print(csv_header(columns), file=output)
         for resource in notes:
+            found_count += 1
             print(csv_row(resource, csv_header(columns)), file=output)
             writer.write(resource)
         output.flush()
+
+    if output == sys.stdout and sys.stdout.isatty():
+        # If we are showing the CSV direct to the console, create a little visual space before the
+        # following warnings.
+        rich.print("", file=sys.stderr)  # pragma: no cover
+
+    if found_count < args.count:
+        note_phrase = cli_utils.plural("%d note was", "%d notes were", found_count)
+        errors.fatal(
+            f"Warning: only {note_phrase} found to sample, rather than {args.count:,}.",
+            errors.NOTES_TOO_FEW,
+        )
+
+    note_word = cli_utils.plural("note", "notes", found_count)
+    rich.print(f"Sampled {found_count:,} (of {selected_count:,}) {note_word}.", file=sys.stderr)
 
 
 async def run_sample(parser: argparse.ArgumentParser, argv: list[str]) -> None:
