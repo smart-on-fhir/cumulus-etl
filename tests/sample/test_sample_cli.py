@@ -44,7 +44,7 @@ class TestSample(AsyncTestCase):
         self.assert_output("note_ref\nDocumentReference/44\n")
 
         await self.run_sample(count=2)  # confirm we can get more
-        self.assert_output("note_ref\nDocumentReference/44\nDocumentReference/43\n")
+        self.assert_output("note_ref\nDocumentReference/43\nDocumentReference/44\n")
 
         await self.run_sample(seed=5)  # confirm different seed changes results
         self.assert_output("note_ref\nDiagnosticReport/ultrasound\n")

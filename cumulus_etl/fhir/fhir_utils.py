@@ -11,7 +11,7 @@ import cumulus_fhir_support as cfs
 import httpx
 import inscriptis
 
-from cumulus_etl import common, errors
+from cumulus_etl import errors
 
 # A relative reference is something like Patient/123 or Patient?identifier=http://hl7.org/fhir/sid/us-npi|9999999299
 # (vs a contained reference that starts with # or an absolute URL reference like http://example.org/Patient/123)
@@ -260,38 +260,12 @@ async def _get_note_from_attachment(client: cfs.FhirClient | None, attachment: d
         response = await request_attachment(client, attachment)
         return response.text
 
-    raise ValueError("No data or url field present")
+    # Shouldn't ever get here, because get_clinical_note_attachment already checks this,
+    # but just in case...
+    raise ValueError("No data or url field present")  # pragma: no cover
 
 
-def _get_cached_note_path(resource: dict) -> str:
-    return f"{common.get_temp_dir('notes')}/{resource['resourceType']}.{resource['id']}.txt"
-
-
-def _get_cached_note(resource: dict) -> str | None:
-    note_path = _get_cached_note_path(resource)
-    try:
-        return common.read_text(note_path)
-    except FileNotFoundError:
-        return None
-
-
-def _save_cached_note(resource: dict, note: str) -> None:
-    note_path = _get_cached_note_path(resource)
-    common.write_text(note_path, note)
-
-
-async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> str:
-    """
-    Returns the clinical note contained in or referenced by the given resource.
-
-    It will try to find the simplest version (plain text) or convert html to plain text if needed.
-
-    This also caches the note for the duration of the ETL, to avoid redundant downloads.
-    """
-    note = _get_cached_note(resource)
-    if note is not None:
-        return note
-
+def get_clinical_note_attachment(resource: dict) -> dict:
     match resource["resourceType"]:
         case "DiagnosticReport":
             attachments = resource.get("presentedForm", [])
@@ -307,7 +281,6 @@ async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> st
     # Find the best attachment to use, based on mimetype.
     # We prefer basic text documents, to avoid confusing cTAKES with extra formatting (like <body>).
     best_attachment_index = -1
-    best_attachment_mimetype = None
     best_attachment_priority = 0
     for index, attachment in enumerate(attachments):
         if "contentType" in attachment:
@@ -315,7 +288,6 @@ async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> st
             priority = _mimetype_priority(mimetype)
             if priority > best_attachment_priority:
                 best_attachment_priority = priority
-                best_attachment_mimetype = mimetype
                 best_attachment_index = index
 
     if best_attachment_index < 0:
@@ -326,22 +298,38 @@ async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> st
         # But note that if we do, we'll need to handle downloading Binary FHIR objects, in addition to arbitrary URLs.
         raise ValueError("No textual mimetype found")
 
-    note = await _get_note_from_attachment(client, attachments[best_attachment_index])
+    attachment = attachments[best_attachment_index]
 
-    if best_attachment_mimetype in ("text/html", "application/xhtml+xml"):
-        # An HTML note can confuse/stall cTAKES and also makes philtering difficult.
-        # It may include mountains of spans/styling or inline base64 images that aren't relevant to our interests.
-        # Upload Notes and ETL modes thus both prefer to work with plain text.
+    if attachment.get("data") is None and not attachment.get("url"):
+        raise ValueError("No data or url field present")
+
+    return attachments[best_attachment_index]
+
+
+async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> str:
+    """
+    Returns the clinical note contained in or referenced by the given resource.
+
+    It will try to find the simplest version (plain text) or convert html to plain text if needed.
+    """
+    attachment = get_clinical_note_attachment(resource)
+    note = await _get_note_from_attachment(client, attachment)
+
+    mimetype, _ = parse_content_type(attachment["contentType"])
+    if mimetype in ("text/html", "application/xhtml+xml"):
+        # An HTML note can confuse/stall NLP and also makes philtering difficult.
+        # It may include mountains of spans/styling or inline base64 images that aren't relevant
+        # to our interests. Upload Notes and ETL modes thus both prefer to work with plain text.
         #
-        # Inscriptis makes a very readable version of the note, with a focus on maintaining the HTML layout,
-        # which is especially helpful for upload-notes (and maybe also helps NLP by avoiding odd line breaks).
+        # Inscriptis makes a very readable version of the note, with a focus on maintaining the
+        # HTML layout, which is especially helpful for upload-notes (and maybe also helps NLP by
+        # avoiding odd line breaks).
         note = inscriptis.get_text(note)
 
     # Strip this "line feed" character that often shows up in notes and is confusing for NLP.
     # Hopefully not many notes are using actual Spanish.
     note = note.replace("¿", " ")
 
-    _save_cached_note(resource, note)
     return note
 
 

@@ -179,16 +179,17 @@ def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
     yield from cfs.read_multiline_json(path, fsspec_fs=root.fs)
 
 
-def read_resource_ndjson(
+def read_resource_ndjson_with_details(
     root: store.Root, resources: str | set[str], warn_if_empty: bool = False
-) -> Iterator[dict]:
+) -> Iterator[tuple[str, dict]]:
     """
-    Grabs all ndjson files from a folder, of a particular resource type.
+    Grabs all ndjson files from a folder, of a particular resource type. With details.
     """
     if isinstance(resources, str):
         resources = {resources}
     for filename in ls_resources(root, resources, warn_if_empty=warn_if_empty):
-        for line in cfs.read_multiline_json(filename, fsspec_fs=root.fs):
+        for data in cfs.read_multiline_json_with_details(filename, fsspec_fs=root.fs):
+            line = data["json"]
             # Sanity check the incoming NDJSON - who knows what could happen and we should surface
             # a nice message about it. This *could* be very noisy on the console if there are a lot
             # of rows, but hopefully this is a very rare occurence and one that should be fixed
@@ -200,7 +201,19 @@ def read_resource_ndjson(
             ):
                 logging.warning(f"Encountered invalid or unexpected FHIR: `{line}`")
                 continue  # skip it
-            yield line
+            yield filename, data
+
+
+def read_resource_ndjson(
+    root: store.Root, resources: str | set[str], warn_if_empty: bool = False
+) -> Iterator[dict]:
+    """
+    Grabs all ndjson files from a folder, of a particular resource type.
+    """
+    for _path, data in read_resource_ndjson_with_details(
+        root, resources, warn_if_empty=warn_if_empty
+    ):
+        yield data["json"]
 
 
 def write_rows_to_ndjson(path: str, rows: list[dict], sparse: bool = False) -> None:
@@ -232,6 +245,7 @@ class NdjsonWriter:
         self._append = append
         self._compressed = compressed
         self._file = None
+        self._inner_file = None
         if allow_empty:
             self._ensure_file()
 
@@ -242,13 +256,16 @@ class NdjsonWriter:
         if self._file:
             self._file.close()
             self._file = None
+        if self._inner_file:
+            self._inner_file.close()
+            self._inner_file = None
 
     def _ensure_file(self):
         if not self._file:
             mode = "a" if self._append else "w"
             if self._compressed:
-                inner_file = self._root.fs.open(self._root.path, mode + "b")
-                self._file = gzip.open(inner_file, mode + "t", encoding="utf8")
+                self._inner_file = self._root.fs.open(self._root.path, mode + "b")
+                self._file = gzip.open(self._inner_file, mode + "t", encoding="utf8")
             else:
                 self._file = self._root.fs.open(self._root.path, mode + "t", encoding="utf8")
 

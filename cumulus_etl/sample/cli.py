@@ -1,11 +1,42 @@
 """Find a random sample of clinical notes"""
 
 import argparse
+import contextlib
+import json
 import random
 import sys
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Iterable, Iterator
+
+import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
+
+
+class MultiResourceWriter:
+    def __init__(self, export_path: str | None):
+        self.export_path = export_path
+        self.stack = contextlib.ExitStack()
+        self.writers = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.stack.close()
+
+    def write(self, resource: dict) -> None:
+        if not self.export_path:
+            return
+
+        res_type = resource["resourceType"]
+        writer = self.writers.get(res_type)
+        if not writer:
+            ndjson_path = f"{self.export_path}/{res_type}.ndjson.gz"
+            writer = common.NdjsonWriter(ndjson_path, compressed=True)
+            self.writers[res_type] = writer
+            self.stack.push(writer)
+
+        writer.write(resource)
 
 
 def define_sample_parser(parser: argparse.ArgumentParser) -> None:
@@ -81,15 +112,6 @@ def csv_row(resource: dict, columns: list[str]) -> str:
     return ",".join(line)
 
 
-def add_to_export_dir(resource: dict, export_dir: str | None) -> None:
-    if not export_dir:
-        return
-
-    path = f"{export_dir}/{resource['resourceType']}.ndjson.gz"
-    with common.NdjsonWriter(path, append=True, compressed=True) as writer:
-        writer.write(resource)
-
-
 async def sample(source: AsyncIterable, count: int) -> list:
     """
     Randomly pick 'count' elements from 'source'
@@ -110,35 +132,75 @@ async def sample(source: AsyncIterable, count: int) -> list:
     return reservoir
 
 
-async def read_notes(
+async def scan_notes(
     root_input: store.Root,
     *,
     args: argparse.Namespace,
     codebook: deid.Codebook | None = None,
     res_types: set[str] | None = None,
-):
-    resources = common.read_resource_ndjson(root_input, res_types, warn_if_empty=True)
+) -> Iterator[tuple[str, int]]:
+    """Returns (path, byte offset) for each file that matches our criteria"""
+    details = common.read_resource_ndjson_with_details(root_input, res_types, warn_if_empty=True)
     filter_func = nlp.get_note_filter(None, args)
-    for resource in resources:
-        # First, make sure it has available text.
-        # We only want to sample notes with text.
+    for path, data in details:
+        resource = data["json"]
+
+        # First, make sure it has available text. We only want to sample notes with inlined text.
         try:
-            await fhir.get_clinical_note(None, resource)
+            attachment = fhir.get_clinical_note_attachment(resource)
+            if attachment.get("data") is None:
+                continue
         except Exception:  # noqa: S112
             continue
 
         if not filter_func or await filter_func(codebook, resource):
-            yield resource
+            yield path, data["byte_offset"]
+
+
+def read_notes(
+    root: store.Root,
+    locations: Iterable[tuple[str, int]],
+) -> Iterator[dict]:
+    """Returns resources for each provided path/offset location"""
+    # First, group up and sort locations, so that we don't need to decompress the same file a bunch
+    file_offsets = {}
+    for path, offset in sorted(locations):
+        file_offsets.setdefault(path, []).append(offset)
+
+    for path, offsets in file_offsets.items():
+        with root.fs.open(path, compression="infer") as f:
+            for offset in offsets:
+                f.seek(offset)
+                yield json.loads(f.readline())
+
+
+async def prep_and_sample(args: argparse.Namespace) -> Iterator[dict]:
+    # Normalize the various CLI arguments
+    args.dir_input = cli_utils.process_input_dir(args.dir_input)
+    root_input = store.Root(args.dir_input)
+
+    res_types = set(args.type.split(",")) & {"DiagnosticReport", "DocumentReference"}
+    if not res_types:
+        errors.fatal("No valid types selected", errors.ARGS_INVALID)
+
+    codebook = args.phi_dir and deid.Scrubber(args.phi_dir).codebook
+
+    # Prepare note location iterator (storing only locations to save memory)
+    locations = scan_notes(root_input, args=args, res_types=res_types, codebook=codebook)
+
+    # Do the actual random sample
+    random.seed(args.seed)
+    sampled = await sample(locations, args.count)
+
+    # Read the notes back from the saved locations
+    return read_notes(root_input, sampled)
 
 
 async def sample_main(args: argparse.Namespace) -> None:
     # record filesystem options like --s3-region before creating Roots
     store.set_user_fs_options(vars(args))
 
-    # Normalize the various CLI arguments
-    args.dir_input = cli_utils.process_input_dir(args.dir_input)
-    root_input = store.Root(args.dir_input)
-
+    # Check CLI args
     if args.output == "-":
         output = sys.stdout
     else:
@@ -154,25 +216,17 @@ async def sample_main(args: argparse.Namespace) -> None:
     if not columns:
         errors.fatal("No valid columns selected", errors.ARGS_INVALID)
 
-    res_types = set(args.type.split(",")) & {"DiagnosticReport", "DocumentReference"}
-    if not res_types:
-        errors.fatal("No valid types selected", errors.ARGS_INVALID)
+    # Do the sampling
+    with rich.get_console().status("Sampling…"):
+        notes = await prep_and_sample(args)
 
-    codebook = args.phi_dir and deid.Scrubber(args.phi_dir).codebook
-
-    # Prepare note iterator
-    notes = read_notes(root_input, args=args, res_types=res_types, codebook=codebook)
-
-    # Do the actual random sample
-    random.seed(args.seed)
-    sampled = await sample(notes, args.count)
-
-    # Print the CSV
-    print(csv_header(columns), file=output)
-    for resource in sampled:
-        print(csv_row(resource, csv_header(columns)), file=output)
-        add_to_export_dir(resource, export_path)
-    output.flush()
+    # Print the CSV and write out exports
+    with MultiResourceWriter(export_path) as writer:
+        print(csv_header(columns), file=output)
+        for resource in notes:
+            print(csv_row(resource, csv_header(columns)), file=output)
+            writer.write(resource)
+        output.flush()
 
 
 async def run_sample(parser: argparse.ArgumentParser, argv: list[str]) -> None:
