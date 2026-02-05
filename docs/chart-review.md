@@ -13,11 +13,8 @@ Chart review is a critical part of study validation.
 Cumulus ETL offers an upload mode,
 where it sends clinical notes to your own [Label Studio](https://labelstud.io/)
 instance for expert review.
-Along the way, it can mark the note with NLP results and/or anonymize the note with
+Along the way, it can pre-mark the note with labels and/or anonymize the note with
 [philter](https://github.com/SironaMedical/philter-lite).
-
-This is useful for not just actual chart reviews, but also for developing a custom NLP dictionary.
-You can feed Cumulus ETL a custom NLP dictionary, review how it performs, and iterate upon it.
 
 ## Preliminaries
 
@@ -34,8 +31,8 @@ but the rest of this guide will mostly deal with the `upload-notes` mode itself.
 ## Basic Operation
 
 At its core, upload mode is just another ETL (extract, transform, load) operation.
-1. It extracts DiagnosticReport and/or DocumentReference resources from your EHR.
-2. It transforms the contained notes via `philter` (and optionally NLP).
+1. It extracts DiagnosticReport and/or DocumentReference resources from a folder of NDJSON.
+2. It transforms the contained notes via `philter` (and optionally labeling it).
 3. It loads the results into Label Studio.
 
 ### Minimal Command Line

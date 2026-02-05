@@ -39,7 +39,6 @@ class TestUploadLabelStudio(AsyncTestCase):
     def make_note(
         *,
         unique_id: str = "unique",
-        ctakes: bool = True,
         philter_label: bool = True,
         **kwargs,
     ) -> LabelStudioNote:
@@ -55,10 +54,6 @@ class TestUploadLabelStudio(AsyncTestCase):
             text=text,
             **kwargs,
         )
-        if ctakes:
-            note.ctakes_matches = ctakesmock.fake_ctakes_extract(note.text).list_match(
-                polarity=Polarity.pos
-            )
         if philter_label:
             matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
             note.philter_map = {m.begin: m.end for m in matches}
@@ -66,18 +61,7 @@ class TestUploadLabelStudio(AsyncTestCase):
 
     @staticmethod
     async def push_tasks(*notes, **kwargs) -> None:
-        client = LabelStudioClient(
-            "https://localhost/ls",
-            "apikey",
-            14,
-            {
-                # These two CUIs are in our standard mock cTAKES response
-                "C0033774": "Itch",
-                "C0027497": "Nausea",
-                # The third is demonstrates that unmatched CUIs are not generally pushed
-                "C0028081": "Night Sweats",
-            },
-        )
+        client = LabelStudioClient("https://localhost/ls", "apikey", 14)
         await client.push_tasks(notes, **kwargs)
 
     def get_pushed_task(self) -> dict:
@@ -87,7 +71,15 @@ class TestUploadLabelStudio(AsyncTestCase):
         return imported_tasks[0].model_dump(exclude_unset=True)
 
     async def test_basic_push(self):
-        await self.push_tasks(self.make_note(date=datetime.datetime(2010, 10, 10)))
+        await self.push_tasks(
+            self.make_note(
+                date=datetime.datetime(2010, 10, 10),
+                highlights=[
+                    Highlight("Nausea", (7, 11), "X"),
+                    Highlight("Itch", (12, 16), "X"),
+                ],
+            )
+        )
         self.assertEqual(
             {
                 "data": {
@@ -104,11 +96,10 @@ class TestUploadLabelStudio(AsyncTestCase):
                 },
                 "predictions": [
                     {
-                        "model_version": "cTAKES",
+                        "model_version": "X",
                         "result": [
-                            # Note that fever does not show up,
-                            # as it was not in our initial CUI mapping (in push_tasks)
                             {
+                                "id": "f98b3822a358f79ea0eafcda2a7088b2",
                                 "from_name": "mylabel",
                                 "to_name": "mytext",
                                 "type": "labels",
@@ -121,6 +112,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 },
                             },
                             {
+                                "id": "6e1304d876c85c1a912908835876d876",
                                 "from_name": "mylabel",
                                 "to_name": "mytext",
                                 "type": "labels",
@@ -181,7 +173,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_no_predictions(self):
-        await self.push_tasks(self.make_note(ctakes=False, philter_label=False))
+        await self.push_tasks(self.make_note(philter_label=False))
         self.assertEqual(
             {
                 "data": {
@@ -209,7 +201,14 @@ class TestUploadLabelStudio(AsyncTestCase):
             <{label_type} name="mylabel" toName="mytext" value="$mylabel"/>
             <Text name="mytext" value="$mytext"/>
         </View>""")
-        await self.push_tasks(self.make_note())
+        await self.push_tasks(
+            self.make_note(
+                highlights=[
+                    Highlight("Itch", (7, 11), "X"),
+                    Highlight("Nausea", (20, 30), "X"),
+                ],
+            )
+        )
         self.assertEqual(
             {
                 "text": "Normal note text",
@@ -230,7 +229,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_dynamic_labels_no_predictions(self):
-        await self.push_tasks(self.make_note(ctakes=False, philter_label=False))
+        await self.push_tasks(self.make_note(philter_label=False))
         self.assertEqual(
             {
                 "text": "Normal note text",
@@ -285,7 +284,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             <Choices name="Sub1" toName="mytext"/>,
             <TextArea name="Sub2" toName="mytext"/>,
         </View>""")
-        note = self.make_note(philter_label=False, ctakes=False)
+        note = self.make_note(philter_label=False)
         note.highlights = [
             Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
             Highlight("Label1", (12, 16), "First Source", sublabel_name="Sub1", sublabel_value="A"),
@@ -432,7 +431,7 @@ class TestUploadLabelStudio(AsyncTestCase):
         )
 
     async def test_unrecognized_label_name(self):
-        note = self.make_note(philter_label=False, ctakes=False)
+        note = self.make_note(philter_label=False)
         note.highlights = [
             Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
         ]
@@ -446,7 +445,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             <Text name="mytext" value="$mytext"/>
             <Bogus name="Sub1" toName="mytext"/>,
         </View>""")
-        note = self.make_note(philter_label=False, ctakes=False)
+        note = self.make_note(philter_label=False)
         note.highlights = [
             Highlight("Label1", (7, 11), "First Source", sublabel_name="Sub1", sublabel_value="A"),
         ]
@@ -454,10 +453,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             await self.push_tasks(note)
 
     async def test_push_in_batches(self):
-        notes = [
-            self.make_note(philter_label=False, ctakes=False, unique_id=str(num))
-            for num in range(501)
-        ]
+        notes = [self.make_note(philter_label=False, unique_id=str(num)) for num in range(501)]
         await self.push_tasks(*notes)
 
         # Confirm we searched in batches

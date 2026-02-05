@@ -91,15 +91,12 @@ services:
     profiles:
       - covid-symptom
       - covid-symptom-gpu
-      - upload-notes
-      - upload-notes-gpu
 
   cnlpt-negation:
     extends: common-base
     image: smartonfhir/cnlp-transformers:negation-0.6.1-cpu
     profiles:
       - covid-symptom
-      - upload-notes
     networks:
       - cumulus-etl
 
@@ -109,7 +106,6 @@ services:
     platform: linux/amd64
     profiles:
       - covid-symptom-gpu
-      - upload-notes-gpu
     networks:
       - cumulus-etl
     deploy:

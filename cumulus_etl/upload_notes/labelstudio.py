@@ -8,7 +8,6 @@ import math
 import re
 from collections.abc import AsyncIterator, Collection, Iterable
 
-import ctakesclient
 import label_studio_sdk as ls
 import label_studio_sdk.data_manager as lsdm
 
@@ -59,11 +58,6 @@ class LabelStudioNote:
     # cTAKES match text spans.
     doc_spans: dict[str, tuple[int, int]] = dataclasses.field(default_factory=dict)
 
-    # Matches found by cTAKES
-    ctakes_matches: list[ctakesclient.typesystem.MatchText] = dataclasses.field(
-        default_factory=list
-    )
-
     # Matches found by word search or csv
     highlights: list[Highlight] = dataclasses.field(default_factory=list)
 
@@ -74,11 +68,10 @@ class LabelStudioNote:
 class LabelStudioClient:
     """Client to talk to Label Studio"""
 
-    def __init__(self, url: str, api_key: str, project_id: int, cui_labels: dict[str, str]):
+    def __init__(self, url: str, api_key: str, project_id: int):
         self._client = ls.LabelStudio(base_url=url, api_key=api_key)
         self._project = self._client.projects.get(project_id)
         self._labels_name = self._get_first_labels_config_name()
-        self._cui_labels = dict(cui_labels)
 
     async def push_tasks(
         self, notes: Collection[LabelStudioNote], *, overwrite: bool = False
@@ -181,7 +174,6 @@ class LabelStudioClient:
         # Label Studio needs to see *something* here
         self._update_used_labels(task, [])
 
-        self._format_ctakes_predictions(task, note)
         self._format_highlights_predictions(task, note)
         self._format_philter_predictions(task, note)
 
@@ -232,28 +224,6 @@ class LabelStudioClient:
 
         match["value"][field] = list(labels)
         return match
-
-    def _format_ctakes_predictions(self, task: ls.ImportApiRequest, note: LabelStudioNote) -> None:
-        if not note.ctakes_matches:
-            return
-
-        prediction = ls.PredictionRequest.construct(model_version="cTAKES", result=[])
-
-        used_labels = set()
-        for match in note.ctakes_matches:
-            matched_labels = {
-                self._cui_labels.get(concept.cui) for concept in match.conceptAttributes
-            }
-            # drop the result of a concept not being in our bsv label set
-            matched_labels.discard(None)
-            if matched_labels:
-                prediction.result.append(
-                    self._format_match(match.begin, match.end, match.text, matched_labels)
-                )
-                used_labels.update(matched_labels)
-        task.predictions.append(prediction)
-
-        self._update_used_labels(task, used_labels)
 
     def _format_highlights_predictions(
         self, task: ls.ImportApiRequest, note: LabelStudioNote

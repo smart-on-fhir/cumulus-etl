@@ -12,7 +12,6 @@ import ddt
 
 from cumulus_etl import cli, common, errors
 from cumulus_etl.upload_notes.labelstudio import Highlight, LabelStudioClient, LabelStudioNote
-from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
 
 # These are pre-computed fake IDs using the salt "1234"
@@ -26,7 +25,7 @@ ANON_44 = "7a1f76190039b872a3016843e1712048cef3787931c000f0ea66b15962ccf65d"
 
 
 @ddt.ddt
-class TestUploadNotes(CtakesMixin, AsyncTestCase):
+class TestUploadNotes(AsyncTestCase):
     """Tests for high-level upload-notes support."""
 
     def setUp(self):
@@ -39,9 +38,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.input_path = os.path.join(self.datadir, "simple/input")
         self.phi_path = os.path.join(tmpdir, "phi")
         self.export_path = os.path.join(tmpdir, "export")
-
-        self.bsv_path = os.path.join(tmpdir, "ctakes.bsv")
-        common.write_text(self.bsv_path, "C0028081|T184|42984000|SNOMEDCT_US|night sweats|Sweats")
 
         self.token_path = os.path.join(tmpdir, "ls-token.txt")
         common.write_text(self.token_path, "abc123")
@@ -77,7 +73,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         phi_path=None,
         anon_docrefs=None,
         docrefs=None,
-        nlp=True,
         philter=None,
         no_philter=None,
         overwrite=False,
@@ -88,8 +83,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             input_path or self.input_path,
             "https://localhost/labelstudio",
             phi_path or self.phi_path,
-            f"--ctakes-overrides={self.ctakes_overrides.name}",
-            f"--symptoms-bsv={self.bsv_path}",
             f"--export-to={self.export_path}",
             "--ls-project=21",
             f"--ls-token={self.token_path}",
@@ -100,8 +93,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             args += ["--select-by-anon-csv", anon_docrefs]
         if docrefs:
             args += ["--select-by-csv", docrefs]
-        if nlp:
-            args += ["--nlp"]
         if philter:
             args += ["--philter", philter]
         if no_philter:
@@ -357,7 +348,7 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
 
         # Confirm we passed LS args down to the Label Studio client
         self.assertEqual(
-            [mock.call("https://localhost/labelstudio", "abc123", 21, {"C0028081": "Sweats"})],
+            [mock.call("https://localhost/labelstudio", "abc123", 21)],
             self.ls_client_mock.call_args_list,
         )
 
@@ -405,44 +396,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             ],
             [t.text for t in tasks],
         )
-        self.assertEqual(
-            {
-                "begin": 246,
-                "end": 249,
-                "text": "for",
-                "polarity": 0,
-                "conceptAttributes": [
-                    {
-                        "code": "386661006",
-                        "cui": "C0015967",
-                        "codingScheme": "SNOMEDCT_US",
-                        "tui": "T184",
-                    },
-                    {
-                        "code": "50177009",
-                        "cui": "C0015967",
-                        "codingScheme": "SNOMEDCT_US",
-                        "tui": "T184",
-                    },
-                ],
-                "type": "SignSymptomMention",
-            },
-            tasks[0].ctakes_matches[0].as_json(),
-        )
 
     @ddt.data(True, False)
     async def test_overwrite(self, overwrite):
         """Verify we pass down --overwrite correctly"""
         await self.run_upload_notes(overwrite=overwrite)
         self.assertEqual(overwrite, self.ls_client.push_tasks.call_args[1]["overwrite"])
-
-    async def test_disabled_nlp(self):
-        await self.run_upload_notes(nlp=False)
-
-        tasks = self.ls_client.push_tasks.call_args[0][0]
-        self.assertGreater(len(tasks), 0)
-        for task in tasks:
-            self.assertEqual([], task.ctakes_matches)
 
     @ddt.data(
         ({}, True),  # default args
@@ -469,9 +428,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         tasks = self.ls_client.push_tasks.call_args[0][0]
         self.assertEqual(1, len(tasks))
         task = tasks[0]
-
-        # Regardless of philter, we keep the original cTAKES match text
-        self.assertEqual({"John", "Smith", "called"}, {m.text for m in task.ctakes_matches})
 
         if expect_redacted:
             expected_text = "**** ***** called on 10/13/2010"  # we don't philter dates
@@ -582,22 +538,6 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
         self.assertEqual("What's up doc?", note.text[first_span[0] : first_span[1]])
         self.assertEqual("What's up doc?", note.text[second_span[0] : second_span[1]])
 
-        # Did we edit cTAKES results correctly?
-        match1a = (146, 152)
-        match1b = (153, 155)
-        match1c = (156, 160)
-        match2a = (309, 315)
-        match2b = (316, 318)
-        match2c = (319, 323)
-        spans = {x.span().key() for x in note.ctakes_matches}
-        self.assertEqual({match1a, match1b, match1c, match2a, match2b, match2c}, spans)
-        self.assertEqual("What's", note.text[match1a[0] : match1a[1]])
-        self.assertEqual("up", note.text[match1b[0] : match1b[1]])
-        self.assertEqual("doc?", note.text[match1c[0] : match1c[1]])
-        self.assertEqual("What's", note.text[match2a[0] : match2a[1]])
-        self.assertEqual("up", note.text[match2b[0] : match2b[1]])
-        self.assertEqual("doc?", note.text[match2c[0] : match2c[1]])
-
     async def test_docrefs_without_encounters_are_included(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
@@ -643,22 +583,12 @@ class TestUploadNotes(CtakesMixin, AsyncTestCase):
             ],
         )
 
-    @mock.patch("cumulus_etl.nlp.restart_ctakes_with_bsv", new=lambda *_: False)
-    async def test_nlp_restart_failure_is_noticed(self):
-        with self.assertRaises(SystemExit) as cm:
-            await self.run_upload_notes()
-        self.assertEqual(cm.exception.code, errors.CTAKES_OVERRIDES_INVALID)
-
-    @mock.patch("cumulus_etl.nlp.check_ctakes")
-    @mock.patch("cumulus_etl.nlp.check_negation_cnlpt")
     @mock.patch("cumulus_etl.cli_utils.is_url_available")
-    async def test_init_checks(self, mock_url, mock_cnlpt, mock_ctakes):
+    async def test_init_checks(self, mock_url):
         # Start with error case for our URL check (against label studio)
         mock_url.return_value = False
         with self.assertRaises(SystemExit) as cm:
             await self.run_upload_notes(skip_init_checks=False)
-        self.assertEqual(mock_ctakes.call_count, 1)
-        self.assertEqual(mock_cnlpt.call_count, 1)
         self.assertEqual(mock_url.call_count, 1)
         self.assertEqual(cm.exception.code, errors.LABEL_STUDIO_MISSING)
 
