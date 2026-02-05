@@ -90,6 +90,10 @@ class TestSample(AsyncTestCase):
         with self.assert_fatal_exit(errors.ARGS_INVALID):
             await self.run_sample(args=["--columns=barcode"])
 
+    async def test_bad_count(self):
+        with self.assert_fatal_exit(errors.ARGS_INVALID):
+            await self.run_sample(count=-1)
+
     async def test_only_samples_text_notes(self):
         notedir = f"{self.tmpdir}/notes"
         os.makedirs(notedir)
@@ -117,9 +121,21 @@ class TestSample(AsyncTestCase):
                 }
             )
 
-        await self.run_sample(input_path=notedir, count=2)
+        with self.assert_fatal_exit(errors.NOTES_TOO_FEW):
+            await self.run_sample(input_path=notedir, count=2)
         # Asked for two, but only one got picked because the non-text notes were skipped
         self.assert_output("note_ref\nDocumentReference/with-text\n")
+
+    async def test_error_with_no_notes(self):
+        with self.assert_fatal_exit(errors.NOTES_NOT_FOUND):
+            await self.run_sample(input_path=self.tmpdir)
+
+    async def test_error_with_no_text_notes(self):
+        with common.NdjsonWriter(f"{self.tmpdir}/docrefs.ndjson") as writer:
+            writer.write({"resourceType": "DocumentReference", "id": "no-text"})
+
+        with self.assert_fatal_exit(errors.NOTES_NOT_FOUND_WITH_TEXT):
+            await self.run_sample(input_path=self.tmpdir)
 
     async def test_errors_out_with_anon_but_no_phi_dir(self):
         # Write an anon csv that won't match anything, but that's fine
@@ -128,7 +144,11 @@ class TestSample(AsyncTestCase):
         with self.assert_fatal_exit(errors.ARGS_INVALID):
             await self.run_sample(args=[f"--select-by-anon-csv={self.tmpdir}/anon.csv"])
 
-        await self.run_sample(
-            args=[f"--select-by-anon-csv={self.tmpdir}/anon.csv", f"--phi-dir={self.tmpdir}/phi"]
-        )
-        self.assert_output("note_ref\n")  # no matches, but no failure either
+        # Now it works, but just doesn't find anything
+        with self.assert_fatal_exit(errors.NOTES_NOT_FOUND_WITH_FILTER):
+            await self.run_sample(
+                args=[
+                    f"--select-by-anon-csv={self.tmpdir}/anon.csv",
+                    f"--phi-dir={self.tmpdir}/phi",
+                ]
+            )
