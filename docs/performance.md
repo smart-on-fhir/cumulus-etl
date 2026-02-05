@@ -18,10 +18,10 @@ It will also talk a bit about the minimum hardware requirements you'll want.
 Cumulus ETL can be tuned to use more or less memory.
 It can squeeze by with very little, if you tell it to use less memory.
 
-The trade-off to using less memory is that the output files will be smaller,
+The trade-off to using less memory is that the process will take longer,
 because Cumulus ETL will hold smaller batches in memory.
-This in turn means that the Athena queries against them may take more time.
-Which means they cost more.
+The cost of writing a batch to a Delta Lake is roughly the same regardless of size,
+so the more you can squeeze in at once, the better.
 
 ### Batch Size
 
