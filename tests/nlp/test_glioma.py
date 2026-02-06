@@ -65,6 +65,7 @@ class TestGliomaTasks(NlpModelTestCase, BaseEtlSimple):
             "tumor_region_mention": {"has_mention": False, "spans": []},
             "tumor_size_mention": {"has_mention": False, "spans": []},
             "topography_mention": {"has_mention": False, "spans": []},
+            "histology_mention": {"has_mention": False, "spans": []},
             "morphology_mention": {"has_mention": False, "spans": []},
             "behavior_mention": {"has_mention": False, "spans": []},
             "grade_mention": {"has_mention": False, "spans": []},

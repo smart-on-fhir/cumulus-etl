@@ -117,6 +117,7 @@
       "type": "object"
     }
   },
+  "description": "Most recent surgery related to the patient's glioma.",
   "properties": {
     "surgical_type_mention": {
       "$ref": "#/$defs/SurgicalTypeMention"
