@@ -118,6 +118,17 @@ def _atomic_open(path: str, mode: str, **kwargs) -> TextIO:
         yield stack.enter_context(root.fs.open(path, mode=mode, encoding="utf8", **kwargs))
 
 
+def safe_delete(path: str) -> None:
+    """
+    Deletes the path and skips any errors about it (like not found or permission denied)
+    """
+    root = store.Root(path)
+    try:
+        root.rm()
+    except Exception:
+        pass
+
+
 def read_text(path: str) -> str:
     """
     Reads data from the given path, in text format
@@ -149,8 +160,11 @@ def read_json(path: str) -> Any:
     :return: message: coded message
     """
     logging.debug("read_json() %s", path)
+    compressed = path.endswith(".gz")
 
-    with _atomic_open(path, "r") as f:
+    with _atomic_open(path, "rb") as f:
+        if compressed:
+            f = gzip.open(f)
         return json.load(f)
 
 
@@ -162,9 +176,15 @@ def write_json(path: str, data: Any, indent: int | None = None) -> None:
     :param indent: whether and how much to indent the output
     """
     logging.debug("write_json() %s", path)
+    compressed = path.endswith(".gz")
 
-    with _atomic_open(path, "w") as f:
-        json.dump(data, f, indent=indent)
+    if compressed:
+        with _atomic_open(path, "wb") as f:
+            with gzip.open(f, "wt") as gf:
+                json.dump(data, gf, indent=indent)
+    else:
+        with _atomic_open(path, "w") as f:
+            json.dump(data, f, indent=indent)
 
 
 @contextlib.contextmanager
@@ -172,6 +192,13 @@ def read_csv(path: str) -> csv.DictReader:
     # Python docs say to use newline="", to support quoted multi-line fields
     with _atomic_open(path, "r", newline="") as csvfile:
         yield csv.DictReader(csvfile)
+
+
+@contextlib.contextmanager
+def write_csv(path: str) -> csv.writer:
+    # Python docs say to use newline="", to support quoted multi-line fields
+    with _atomic_open(path, "w", newline="") as csvfile:
+        yield csv.writer(csvfile)
 
 
 def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:

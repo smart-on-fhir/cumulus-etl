@@ -125,7 +125,7 @@ class TestCodebookDB(utils.AsyncTestCase):
         # Verify that we saved the cached mapping to disk too
         self.assertEqual(
             expected_mapping,
-            common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")),
+            common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json.gz")),
         )
 
         db2 = CodebookDB(tmpdir)
@@ -144,7 +144,7 @@ class TestCodebookDB(utils.AsyncTestCase):
             db = CodebookDB(tmpdir)
             self.assertTrue(db.save())
             self.assertTrue(os.path.exists(f"{tmpdir}/codebook.json"))
-            self.assertFalse(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json"))
+            self.assertFalse(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json.gz"))
             codebook_mtime = os.path.getmtime(f"{tmpdir}/codebook.json")
 
             # But after a save, we are no longer modified
@@ -157,7 +157,7 @@ class TestCodebookDB(utils.AsyncTestCase):
             # Add a new patient, and we can save (because cached mapping changed)
             db.patient("1")
             self.assertTrue(db.save())
-            self.assertTrue(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json"))
+            self.assertTrue(os.path.exists(f"{tmpdir}/codebook-cached-mappings.json.gz"))
             # main codebook shouldn't be written for just mappings changes
             self.assertEqual(codebook_mtime, os.path.getmtime(f"{tmpdir}/codebook.json"))
 
@@ -188,3 +188,25 @@ class TestCodebookDB(utils.AsyncTestCase):
 
         # But we are now version 1 going forward
         self.assertEqual(1, db.settings["version"])
+
+    def test_reads_and_deletes_old_mapping_file(self):
+        tmpdir = self.make_tempdir()
+        json_path = f"{tmpdir}/codebook-cached-mappings.json"
+        common.write_json(json_path, {"Patient": {"1": "A1"}})
+
+        # Confirm that an empty book starts modified
+        db = CodebookDB(tmpdir)
+        db.patient("2")
+        self.assertTrue(db.save())
+        self.assertTrue(os.path.exists(f"{json_path}.gz"))
+        self.assertFalse(os.path.exists(json_path))
+
+        self.assertEqual(
+            common.read_json(f"{json_path}.gz"),
+            {
+                "Patient": {
+                    "1": "A1",
+                    "2": "fe735ec8b66c2d55c10f106ecf673db0a542a6930033aa13219a67edd12866fb",
+                }
+            },
+        )

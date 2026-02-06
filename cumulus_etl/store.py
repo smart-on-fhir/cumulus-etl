@@ -95,6 +95,9 @@ class Root:
     def ls(self) -> Iterator[str]:
         return self.fs.ls(self.path, detail=False)
 
+    def rm(self) -> None:
+        return self.fs.rm(self.path)
+
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
         if self.protocol == "s3":

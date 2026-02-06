@@ -123,11 +123,17 @@ class CodebookDB:
             except (FileNotFoundError, PermissionError):
                 pass
             try:
-                self.cached_mapping = common.read_json(
-                    os.path.join(codebook_dir, "codebook-cached-mappings.json")
-                )
+                with common.read_csv("codebook-cached-mappings.csv") as reader:
+                    for row in reader:
+                        self.cached_mapping[row["type"]][row["fhir_id"]] = row["anon_id"]
             except (FileNotFoundError, PermissionError):
-                pass
+                # Try older, non-compressed location
+                try:
+                    self.cached_mapping = common.read_json(
+                        os.path.join(codebook_dir, "codebook-cached-mappings.json")
+                    )
+                except (FileNotFoundError, PermissionError):
+                    pass
 
         # Initialize a unique ID for this codebook if we don't have one yet.
         # This is not a secret ID - it's referenced in the output folders.
@@ -267,8 +273,13 @@ class CodebookDB:
             saved = True
 
         if self.mappings_modified:
-            cached_mapping_path = os.path.join(self.codebook_dir, "codebook-cached-mappings.json")
-            common.write_json(cached_mapping_path, self.cached_mapping)
+            mapping_base = os.path.join(self.codebook_dir, "codebook-cached-mappings")
+            with common.write_csv(f"{mapping_base}.csv") as writer:
+                writer.write(["type", "fhir_id", "anon_id"])
+                for res_type, id_map in self.cached_mapping.items():
+                    for real, anon in id_map.items():
+                        writer.write([res_type, real, anon])
+            common.safe_delete(f"{mapping_base}.json")  # delete old json location if present
             self.mappings_modified = False
             saved = True
 
