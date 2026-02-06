@@ -29,6 +29,14 @@ ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
 TRAILING_WHITESPACE = re.compile(r"\s+$", flags=re.MULTILINE)
 
 
+@dataclasses.dataclass
+class NoteStats:
+    seen: int = 0  # on disk, available to us
+    considered: int = 0  # and passed select-by / status filters
+    with_text: int = 0  # and had text
+    with_results: int = 0  # and had a response from the NLP
+
+
 class BaseNlpTask(tasks.EtlTask):
     """Base class for any clinical-notes-based NLP task."""
 
@@ -59,6 +67,7 @@ class BaseNlpTask(tasks.EtlTask):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.seen_groups = set()
+        self.note_stats = NoteStats()
 
     def pop_current_group_values(self, table_index: int) -> set[str]:
         values = self.seen_groups
@@ -87,10 +96,13 @@ class BaseNlpTask(tasks.EtlTask):
         :returns: a tuple of original-resource, scrubbed-resource, and note text
         """
         warned_connection_error = False
+        self.note_stats = NoteStats()  # reset stats in case we're running through notes again
 
         note_filter = self.task_config.resource_filter or nlp.is_note_valid
 
         for note in self.read_ndjson(progress=progress):
+            self.note_stats.seen += 1
+
             orig_note = copy.deepcopy(note)
             can_process = (
                 await note_filter(self.scrubber.codebook, note)
@@ -100,6 +112,7 @@ class BaseNlpTask(tasks.EtlTask):
             if not can_process:
                 continue
 
+            self.note_stats.considered += 1
             try:
                 note_text = await fhir.get_clinical_note(self.task_config.client, note)
             except cfs.BadAuthArguments as exc:
@@ -117,6 +130,7 @@ class BaseNlpTask(tasks.EtlTask):
                 self.add_error(orig_note)
                 continue
 
+            self.note_stats.with_text += 1
             yield orig_note, note, note_text
 
     @staticmethod
@@ -181,6 +195,7 @@ class BaseModelTask(BaseNlpTask):
         async for details in self.prepared_notes(progress=progress):
             try:
                 if result := await self.process_note(details):
+                    self.note_stats.with_results += 1
                     yield result
             except Exception as exc:
                 logging.warning(f"NLP failed for {details.orig_note_ref}: {exc}")
@@ -244,6 +259,20 @@ class BaseModelTask(BaseNlpTask):
         }
 
     def finish_task(self) -> None:
+        super().finish_task()
+        self._print_note_stats()
+        self._print_token_usage()
+
+    def _print_note_stats(self) -> None:
+        rich.print("\n Notes processed:")
+        table = rich.table.Table("", "", box=None, show_header=False)
+        table.add_row(" Available:", f"{self.note_stats.seen:,}")
+        table.add_row(" Considered:", f"{self.note_stats.considered:,}")
+        table.add_row(" Had text:", f"{self.note_stats.with_text:,}")
+        table.add_row(" Got response:", f"{self.note_stats.with_results:,}")
+        rich.get_console().print(table)
+
+    def _print_token_usage(self) -> None:
         stats = self.model.stats
         rich.print("\n Token usage:")
         table = rich.table.Table("", "", box=None, show_header=False)

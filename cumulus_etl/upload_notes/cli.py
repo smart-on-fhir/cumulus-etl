@@ -4,12 +4,9 @@ import argparse
 import asyncio
 import dataclasses
 import datetime
-import sys
 from collections.abc import Callable, Collection
 
-import ctakesclient
 import cumulus_fhir_support as cfs
-from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
 from cumulus_etl.upload_notes import labeling, selector
@@ -24,10 +21,6 @@ def init_checks(args: argparse.Namespace):
     """Do any external service checks necessary at the start"""
     if args.skip_init_checks:
         return
-
-    if args.nlp:
-        nlp.check_ctakes()
-        nlp.check_negation_cnlpt()
 
     if not cli_utils.is_url_available(args.label_studio_url, retry=False):
         errors.fatal(
@@ -177,32 +170,6 @@ async def read_notes_from_ndjson(
     return notes
 
 
-async def run_nlp(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
-    if not args.nlp:
-        return
-
-    common.print_header("Running notes through cTAKES...")
-    if not nlp.restart_ctakes_with_bsv(args.ctakes_overrides, args.symptoms_bsv):
-        sys.exit(errors.CTAKES_OVERRIDES_INVALID)
-
-    http_client = nlp.ctakes_httpx_client()
-
-    # Run each note through cTAKES then the cNLP transformer for negation
-    for note in notes:
-        ctakes_json = await ctakesclient.client.extract(note.text, client=http_client)
-        matches = ctakes_json.list_match(polarity=Polarity.pos)
-        spans = ctakes_json.list_spans(matches)
-        cnlpt_results = await ctakesclient.transformer.list_polarity(
-            note.text,
-            spans,
-            client=http_client,
-            model=nlp.TransformerModel.NEGATION,
-        )
-        note.ctakes_matches = [
-            match for i, match in enumerate(matches) if cnlpt_results[i] == Polarity.pos
-        ]
-
-
 def philter_notes(notes: Collection[LabelStudioNote], args: argparse.Namespace) -> None:
     if args.philter == PHILTER_DISABLE:
         return
@@ -259,7 +226,6 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
     # Group up the text into one big note
     for unique_id, group_notes in by_unique_id.items():
         grouped_text = ""
-        grouped_ctakes_matches = []
         grouped_highlights = []
         grouped_philter_map = {}
         grouped_doc_mappings = {}
@@ -278,11 +244,6 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 k: (v[0] + offset, v[1] + offset) for k, v in note.doc_spans.items()
             }
             grouped_doc_spans.update(offset_doc_spans)
-
-            for match in note.ctakes_matches:
-                match.begin += offset
-                match.end += offset
-                grouped_ctakes_matches.append(match)
 
             for highlight in note.highlights:
                 span = highlight.span
@@ -303,7 +264,6 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
                 date=group_notes[0].date,
                 doc_mappings=grouped_doc_mappings,
                 doc_spans=grouped_doc_spans,
-                ctakes_matches=grouped_ctakes_matches,
                 highlights=grouped_highlights,
                 philter_map=grouped_philter_map,
             )
@@ -313,10 +273,10 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
 
 
 async def push_to_label_studio(
-    notes: Collection[LabelStudioNote], access_token: str, labels: dict, args: argparse.Namespace
+    notes: Collection[LabelStudioNote], access_token: str, args: argparse.Namespace
 ) -> None:
     common.print_header(f"Pushing {len(notes):,} charts to Label Studio.")
-    ls_client = LabelStudioClient(args.label_studio_url, access_token, args.ls_project, labels)
+    ls_client = LabelStudioClient(args.label_studio_url, access_token, args.ls_project)
     await ls_client.push_tasks(notes, overwrite=args.overwrite)
 
 
@@ -404,21 +364,6 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--anon-docrefs", dest="select_by_anon_csv", help=argparse.SUPPRESS)
     group.add_argument("--docrefs", dest="select_by_csv", help=argparse.SUPPRESS)
 
-    group = parser.add_argument_group("NLP")
-    cli_utils.add_ctakes_override(group)
-    group.add_argument(
-        "--symptoms-bsv",
-        metavar="PATH",
-        help="BSV file with concept CUIs (defaults to Covid)",
-        default=ctakesclient.filesystem.covid_symptoms_path(),
-    )
-    group.add_argument(
-        "--nlp",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="whether to run NLP on notes (disabled by default)",
-    )
-
     group = parser.add_argument_group("Label Studio")
     group.add_argument(
         "--ls-token", metavar="PATH", help="token file for Label Studio access", required=True
@@ -443,9 +388,8 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
 
     There are three major steps:
     1. Gather requested resources, reverse-engineering the original IDs if necessary
-    2. Run NLP
-    3. Run Philter
-    4. Upload to Label Studio
+    2. Run Philter
+    3. Upload to Label Studio
     """
     init_checks(args)
 
@@ -463,7 +407,6 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
         {"DiagnosticReport", "DocumentReference"},
     )
     access_token = common.read_text(args.ls_token).strip()
-    labels = ctakesclient.filesystem.map_cui_pref(args.symptoms_bsv)
 
     match args.grouping:
         case "encounter":
@@ -485,14 +428,13 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
                 src_dir=args.dir_input,
             )
 
-            await run_nlp(notes, args)
             await labeling.add_labels(codebook, notes, args)
 
-    # It's safe to philter notes after NLP because philter does not change character counts
+    # It's safe to philter notes after labeling because philter does not change character counts
     philter_notes(notes, args)
     notes = sort_notes(notes)
     notes = group_notes_by_unique_id(notes)
-    await push_to_label_studio(notes, access_token, labels, args)
+    await push_to_label_studio(notes, access_token, args)
 
 
 async def run_upload_notes(parser: argparse.ArgumentParser, argv: list[str]) -> None:
