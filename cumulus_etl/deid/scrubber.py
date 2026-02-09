@@ -47,8 +47,6 @@ class Scrubber:
     """
 
     def __init__(self, codebook_dir: str | None = None, use_philter: bool = False):
-        # Load codebook. The cached mapping file can grow quite large, so this could take close to
-        # a minute. Thus, let's provide a progress bar at least indicating we are doing this.
         self.codebook = codebook.Codebook(codebook_dir)
         self.philter = philter.Philter() if use_philter else None
         # List of ignored extensions (resource -> url -> count)
