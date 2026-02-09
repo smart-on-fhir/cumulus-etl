@@ -1,6 +1,7 @@
 """Helper methods for CLI parsing."""
 
 import argparse
+import contextlib
 import enum
 import itertools
 import os
@@ -309,3 +310,39 @@ def prompt(msg: str, override: bool = False) -> PromptResponse:
 def plural(single: str, plural: str, count: int) -> str:
     target = single if count == 1 else plural
     return target.replace("%d", f"{count:,}")
+
+
+#######################################################
+# Unused methods for manual debugging below this point.
+# pragma: no cover
+#######################################################
+
+
+@contextlib.contextmanager
+def time_it(desc: str | None = None):
+    """Tiny little timer context manager that is useful when debugging"""
+    start = time.perf_counter()
+    yield
+    end = time.perf_counter()
+    suffix = f" ({desc})" if desc else ""
+    print(f"TIME IT: {end - start:.2f}s{suffix}")
+
+
+@contextlib.contextmanager
+def mem_it(desc: str | None = None):
+    """Tiny little context manager to measure memory usage"""
+    start_tracing = not tracemalloc.is_tracing()
+    if start_tracing:
+        tracemalloc.start()
+
+    before, before_peak = tracemalloc.get_traced_memory()
+    yield
+    after, after_peak = tracemalloc.get_traced_memory()
+
+    if start_tracing:
+        tracemalloc.stop()
+
+    suffix = f" ({desc})" if desc else ""
+    if after_peak > before_peak:
+        suffix = f"{suffix} ({after_peak - before_peak:,} PEAK change)"
+    print(f"MEM IT: {after - before:,}{suffix}")

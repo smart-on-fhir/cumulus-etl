@@ -290,33 +290,3 @@ def read_delta_lake(lake_path: str, *, version: int | None = None) -> list[dict]
     # Try to sort by id, but if that doesn't exist (which happens for some completion tables),
     # just use all dict values as a sort key.
     return sorted(rows, key=lambda x: x.get("id", sorted(x.items())))
-
-
-@contextlib.contextmanager
-def time_it(desc: str | None = None):
-    """Tiny little timer context manager that is useful when debugging"""
-    start = time.perf_counter()
-    yield
-    end = time.perf_counter()
-    suffix = f" ({desc})" if desc else ""
-    print(f"TIME IT: {end - start:.2f}s{suffix}")
-
-
-@contextlib.contextmanager
-def mem_it(desc: str | None = None):
-    """Tiny little context manager to measure memory usage"""
-    start_tracing = not tracemalloc.is_tracing()
-    if start_tracing:
-        tracemalloc.start()
-
-    before, before_peak = tracemalloc.get_traced_memory()
-    yield
-    after, after_peak = tracemalloc.get_traced_memory()
-
-    if start_tracing:
-        tracemalloc.stop()
-
-    suffix = f" ({desc})" if desc else ""
-    if after_peak > before_peak:
-        suffix = f"{suffix} ({after_peak - before_peak:,} PEAK change)"
-    print(f"MEM IT: {after - before:,}{suffix}")
