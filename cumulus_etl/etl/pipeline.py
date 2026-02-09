@@ -192,6 +192,7 @@ async def run_pipeline(
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)
+    rich.print("Initializing…")
 
     if args.errors_to:
         cli_utils.confirm_dir_is_empty(store.Root(args.errors_to, create=True))
@@ -219,6 +220,7 @@ async def run_pipeline(
                 root_input, client=client, **(ndjson_args or {})
             )
 
+        rich.print("Scanning input files…")
         available_resources = await check_available_resources(
             config_loader,
             args=args,

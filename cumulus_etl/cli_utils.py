@@ -196,7 +196,8 @@ def is_url_available(url: str, retry: bool = True) -> bool:
 
 
 def make_progress_bar() -> rich.progress.Progress:
-    # The default columns use time remaining, which has felt inaccurate/less useful than a simple elapsed counter.
+    # The default columns use time remaining, which has felt inaccurate/less useful than a simple
+    # elapsed counter.
     # - The estimation logic seems rough (often jumping time around).
     # - For indeterminate bars, the estimate shows nothing.
     columns = [
@@ -206,6 +207,13 @@ def make_progress_bar() -> rich.progress.Progress:
         rich.progress.TimeElapsedColumn(),
     ]
     return rich.progress.Progress(*columns)
+
+
+@contextlib.contextmanager
+def show_indeterminate_task(progress: rich.progress.Progress, description: str):
+    task = progress.add_task(description=description, total=None)
+    yield
+    progress.update(task, completed=1, total=1)
 
 
 def expand_inline_resources(arg: Iterable[str] | None) -> set[str]:

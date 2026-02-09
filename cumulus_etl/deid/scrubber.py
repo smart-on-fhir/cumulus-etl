@@ -8,7 +8,7 @@ import rich
 import rich.padding
 import rich.tree
 
-from cumulus_etl import common, fhir
+from cumulus_etl import cli_utils, common, fhir
 from cumulus_etl.deid import codebook, mstool, philter
 
 # Record of unknown extensions (resource type -> extension URL -> count)
@@ -46,7 +46,11 @@ class Scrubber:
     """
 
     def __init__(self, codebook_dir: str | None = None, use_philter: bool = False):
-        self.codebook = codebook.Codebook(codebook_dir)
+        # Load codebook. The cached mapping file can grow quite large, so this could take close to
+        # a minute. Thus, let's provide a progress bar at least indicating we are doing this.
+        with cli_utils.make_progress_bar() as progress:
+            with cli_utils.show_indeterminate_task(progress, "Loading codebook"):
+                self.codebook = codebook.Codebook(codebook_dir)
         self.philter = philter.Philter() if use_philter else None
         # List of ignored extensions (resource -> url -> count)
         self.dropped_extensions: ExtensionCount = {}

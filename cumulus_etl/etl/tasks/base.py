@@ -139,7 +139,7 @@ class EtlTask:
             # We want to batch them up, to allow resuming from interruptions more easily.
             await self._write_tables_in_batches(entries, progress=progress, status=text_box)
 
-            with self._indeterminate_progress(progress, "Finalizing"):
+            with cli_utils.show_indeterminate_task(progress, "Finalizing"):
                 # Ensure that we touch every output table (to create them and/or to confirm schema).
                 # Consider case of Medication for an EHR that only has inline Medications inside
                 # MedicationRequest. The Medication table wouldn't get created otherwise.
@@ -173,12 +173,6 @@ class EtlTask:
     # Internal helpers
     #
     ##########################################################################################
-
-    @contextlib.contextmanager
-    def _indeterminate_progress(self, progress: rich.progress.Progress, description: str):
-        task = progress.add_task(description=description, total=None)
-        yield
-        progress.update(task, completed=1, total=1)
 
     async def _write_tables_in_batches(
         self, entries: EntryIterator, *, progress: rich.progress.Progress, status: rich.text.Text
