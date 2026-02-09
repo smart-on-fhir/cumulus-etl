@@ -12,6 +12,7 @@ import argparse
 
 import cumulus_fhir_support as cfs
 import rich
+import rich.progress
 import rich.prompt
 
 from cumulus_etl import cli_utils, common, deid, loaders, nlp, store
@@ -66,10 +67,11 @@ async def nlp_main(args: argparse.Namespace) -> None:
     nlp.set_nlp_config(args)
 
     async def prep_scrubber(
-        client: cfs.FhirClient, results: loaders.LoaderResults
+        client: cfs.FhirClient, results: loaders.LoaderResults, progress: rich.progress.Progress
     ) -> tuple[deid.Scrubber, dict]:
         res_filter = nlp.get_note_filter(client, args)
-        scrubber = deid.Scrubber(args.dir_phi)
+        with cli_utils.show_indeterminate_task(progress, "Loading codebook"):
+            scrubber = deid.Scrubber(args.dir_phi)
 
         # Let the user know how many documents got selected, so there are no big cost surprises.
         count = await check_input_size(scrubber.codebook, results.path, res_filter)

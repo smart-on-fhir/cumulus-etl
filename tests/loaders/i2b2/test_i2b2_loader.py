@@ -4,13 +4,17 @@ import os
 import shutil
 import tempfile
 
-from cumulus_etl import common, store
+from cumulus_etl import cli_utils, common, store
 from cumulus_etl.loaders.i2b2 import loader
 from tests.utils import AsyncTestCase
 
 
 class TestI2b2Loader(AsyncTestCase):
     """Test case for loading i2b2 data"""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.progress = cli_utils.make_progress_bar()
 
     async def test_missing_files(self):
         """Verify that we don't error out if files are missing, we just ignore the ones that are"""
@@ -22,7 +26,9 @@ class TestI2b2Loader(AsyncTestCase):
             vitals = f"{self.datadir}/i2b2/input/observation_fact_vitals.csv"
             shutil.copy(vitals, tmpdir)
 
-            results = await i2b2_loader.load_resources({"Observation", "Patient"})
+            results = await i2b2_loader.load_resources(
+                {"Observation", "Patient"}, progress=self.progress
+            )
 
             self.assertEqual(["Observation.1.ndjson"], os.listdir(results.path))
 
@@ -37,7 +43,7 @@ class TestI2b2Loader(AsyncTestCase):
                 "PATIENT_NUM,BIRTH_DATE\n123,1982-10-16\n123,1983-11-17\n456,2000-01-13\n",
             )
 
-            results = await i2b2_loader.load_resources({"Patient"})
+            results = await i2b2_loader.load_resources({"Patient"}, progress=self.progress)
             rows = common.read_resource_ndjson(store.Root(results.path), "Patient")
             values = [(r["id"], r["birthDate"]) for r in rows]
             self.assertEqual(values, [("123", "1982-10-16"), ("456", "2000-01-13")])
@@ -50,11 +56,11 @@ class TestI2b2Loader(AsyncTestCase):
             common.write_text(f"{tmpdir}/observation_fact_lab_views.csv", "")
 
             i2b2_loader = loader.I2b2Loader(store.Root(tmpdir))
-            resources = await i2b2_loader.detect_resources()
+            resources = await i2b2_loader.detect_resources(progress=self.progress)
 
         self.assertEqual(resources, {"Encounter", "Observation"})
 
     async def test_detect_resources_tcp(self):
         """Verify we skip trying to detect resources before exporting from oracle."""
         i2b2_loader = loader.I2b2Loader(store.Root("tcp://localhost"))
-        self.assertIsNone(await i2b2_loader.detect_resources())
+        self.assertIsNone(await i2b2_loader.detect_resources(progress=self.progress))

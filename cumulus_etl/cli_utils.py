@@ -1,6 +1,7 @@
 """Helper methods for CLI parsing."""
 
 import argparse
+import contextlib
 import enum
 import itertools
 import os
@@ -8,9 +9,11 @@ import re
 import socket
 import tempfile
 import time
+import tracemalloc
 import urllib.parse
 from collections.abc import Iterable
 
+import rich
 import rich.progress
 
 from cumulus_etl import common, errors, store
@@ -195,7 +198,8 @@ def is_url_available(url: str, retry: bool = True) -> bool:
 
 
 def make_progress_bar() -> rich.progress.Progress:
-    # The default columns use time remaining, which has felt inaccurate/less useful than a simple elapsed counter.
+    # The default columns use time remaining, which has felt inaccurate/less useful than a simple
+    # elapsed counter.
     # - The estimation logic seems rough (often jumping time around).
     # - For indeterminate bars, the estimate shows nothing.
     columns = [
@@ -205,6 +209,13 @@ def make_progress_bar() -> rich.progress.Progress:
         rich.progress.TimeElapsedColumn(),
     ]
     return rich.progress.Progress(*columns)
+
+
+@contextlib.contextmanager
+def show_indeterminate_task(progress: rich.progress.Progress, description: str):
+    task = progress.add_task(description=description, total=None)
+    yield
+    progress.update(task, completed=1, total=1)
 
 
 def expand_inline_resources(arg: Iterable[str] | None) -> set[str]:
@@ -309,3 +320,38 @@ def prompt(msg: str, override: bool = False) -> PromptResponse:
 def plural(single: str, plural: str, count: int) -> str:
     target = single if count == 1 else plural
     return target.replace("%d", f"{count:,}")
+
+
+#######################################################
+# Unused methods for manual debugging below this point.
+#######################################################
+
+
+@contextlib.contextmanager
+def time_it(desc: str | None = None):  # pragma: no cover
+    """Tiny little timer context manager that is useful when debugging"""
+    start = time.perf_counter()
+    yield
+    end = time.perf_counter()
+    suffix = f" ({desc})" if desc else ""
+    rich.print(f"TIME IT: {end - start:.2f}s{suffix}")
+
+
+@contextlib.contextmanager
+def mem_it(desc: str | None = None):  # pragma: no cover
+    """Tiny little context manager to measure memory usage"""
+    start_tracing = not tracemalloc.is_tracing()
+    if start_tracing:
+        tracemalloc.start()
+
+    before, before_peak = tracemalloc.get_traced_memory()
+    yield
+    after, after_peak = tracemalloc.get_traced_memory()
+
+    if start_tracing:
+        tracemalloc.stop()
+
+    suffix = f" ({desc})" if desc else ""
+    if after_peak > before_peak:
+        suffix = f"{suffix} ({after_peak - before_peak:,} PEAK change)"
+    rich.print(f"MEM IT: {after - before:,}{suffix}")

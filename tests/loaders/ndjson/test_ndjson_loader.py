@@ -5,7 +5,7 @@ import os
 import tempfile
 from unittest import mock
 
-from cumulus_etl import cli, common, errors, loaders, store
+from cumulus_etl import cli, cli_utils, common, errors, loaders, store
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase
 
@@ -36,6 +36,8 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter = mock.AsyncMock()
         self.mock_exporter_class.return_value = self.mock_exporter
 
+        self.progress = cli_utils.make_progress_bar()
+
     @staticmethod
     def _write_log_file(path: str, group: str, timestamp: str) -> None:
         with common.NdjsonWriter(path) as writer:
@@ -64,7 +66,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 writer.write(patient)
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            results = await loader.load_resources(["Patient"])
+            results = await loader.load_resources({"Patient"}, progress=self.progress)
 
         self.assertEqual(["Patient.ndjson"], os.listdir(results.path))
         self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
@@ -82,7 +84,7 @@ class TestNdjsonLoader(AsyncTestCase):
             self._write_log_file(f"{tmpdir}/log.2.ndjson", "G2", "2002-02-02")
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            results = await loader.load_resources([])
+            results = await loader.load_resources(set(), progress=self.progress)
 
         # We used neither log and didn't error out.
         self.assertIsNone(results.group_name)
@@ -206,7 +208,7 @@ class TestNdjsonLoader(AsyncTestCase):
         with self.assertRaises(SystemExit) as cm:
             await loaders.FhirNdjsonLoader(
                 store.Root("http://localhost:9999"), mock.AsyncMock()
-            ).load_resources({"Patient"})
+            ).load_resources({"Patient"}, progress=self.progress)
 
         self.assertEqual(1, self.mock_exporter.export.call_count)
         self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
@@ -227,7 +229,7 @@ class TestNdjsonLoader(AsyncTestCase):
             loader = loaders.FhirNdjsonLoader(
                 store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target
             )
-            results = await loader.load_resources({"Patient"})
+            results = await loader.load_resources({"Patient"}, progress=self.progress)
 
             # Confirm export folder still has the data (and log) we created above in the mock
             self.assertTrue(os.path.isdir(target))
@@ -253,7 +255,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter.export.side_effect = fake_export
 
         loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock())
-        results = await loader.load_resources({"Patient"})
+        results = await loader.load_resources({"Patient"}, progress=self.progress)
 
         # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
         self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
@@ -267,7 +269,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir
             )
             with self.assertRaises(SystemExit) as cm:
-                await loader.load_resources(set())
+                await loader.load_resources(set(), progress=self.progress)
         self.assertEqual(cm.exception.code, errors.FOLDER_NOT_EMPTY)
 
     async def test_export_to_folder_not_local(self):
@@ -276,7 +278,7 @@ class TestNdjsonLoader(AsyncTestCase):
             store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo"
         )
         with self.assertRaises(SystemExit) as cm:
-            await loader.load_resources(set())
+            await loader.load_resources(set(), progress=self.progress)
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
 
     async def test_inlining_but_no_export_to(self):
@@ -287,7 +289,7 @@ class TestNdjsonLoader(AsyncTestCase):
             inline=True,
         )
         with self.assertRaises(SystemExit) as cm:
-            await loader.load_resources(set())
+            await loader.load_resources(set(), progress=self.progress)
         self.assertEqual(cm.exception.code, errors.INLINE_WITHOUT_FOLDER)
 
     @mock.patch("cumulus_etl.inliner.inliner")
@@ -302,7 +304,7 @@ class TestNdjsonLoader(AsyncTestCase):
             inline_mimetypes={"a/b"},
             inline_resources={"DocumentReference"},
         )
-        await loader.load_resources({"Patient"})
+        await loader.load_resources({"Patient"}, progress=self.progress)
         self.assertEqual(mock_inliner.call_count, 1)
         self.assertEqual(mock_inliner.call_args[0][1].path, tmpdir)
         self.assertEqual(mock_inliner.call_args[0][2], {"DocumentReference"})
@@ -348,7 +350,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 },
             )
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            results = await loader.load_resources({"Patient"})
+            results = await loader.load_resources({"Patient"}, progress=self.progress)
 
         self.assertEqual(results.deleted_ids, {"Patient": {"pat1"}, "Condition": {"con1", "con2"}})
 
@@ -360,6 +362,6 @@ class TestNdjsonLoader(AsyncTestCase):
             common.write_json(f"{tmpdir}/c.ndjson", {"id": "A", "resourceType": "Condition"})
 
             loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
-            resources = await loader.detect_resources()
+            resources = await loader.detect_resources(progress=self.progress)
 
         self.assertEqual(resources, {"Condition", "Patient"})

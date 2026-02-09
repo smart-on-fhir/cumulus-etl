@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from cumulus_etl import common
+from cumulus_etl import cli_utils, common
 from cumulus_etl.deid.mstool import MSTOOL_CMD, run_mstool
 from tests.utils import AsyncTestCase, TreeCompareMixin
 
@@ -20,6 +20,7 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
     def setUp(self):
         super().setUp()
         self.data_path = os.path.join(self.datadir, "mstool")
+        self.progress = cli_utils.make_progress_bar()
 
     def combine_json(self, input_dir: str, output_dir: str) -> None:
         """
@@ -56,7 +57,7 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             self.combine_json(input_path, f"{tmpdir}/input")
             self.combine_json(output_path, f"{tmpdir}/expected")
-            await run_mstool(f"{tmpdir}/input", f"{tmpdir}/output")
+            await run_mstool(f"{tmpdir}/input", f"{tmpdir}/output", progress=self.progress)
             dircmp = filecmp.dircmp(f"{tmpdir}/expected", f"{tmpdir}/output", ignore=[])
             self.assert_file_tree_equal(dircmp)
 
@@ -66,7 +67,7 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
             with tempfile.TemporaryDirectory() as output_dir:
                 common.write_text(os.path.join(input_dir, "Condition.ndjson"), "foobar")
                 with self.assertRaises(SystemExit):
-                    await run_mstool(input_dir, output_dir)
+                    await run_mstool(input_dir, output_dir, progress=self.progress)
 
     async def test_bad_fhir(self):
         """Confirms that parsable files with bad FHIR throw an error"""
@@ -74,7 +75,7 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
             with tempfile.TemporaryDirectory() as output_dir:
                 common.write_json(os.path.join(input_dir, "Condition.ndjson"), {})
                 with self.assertRaises(SystemExit):
-                    await run_mstool(input_dir, output_dir)
+                    await run_mstool(input_dir, output_dir, progress=self.progress)
 
 
 # Separate class here from the above, because this doesn't need the MS tool installed
@@ -92,11 +93,6 @@ class TestMicrosoftToolWrapper(AsyncTestCase):
 
     async def test_progress(self):
         """Confirms that we poll for progress as we go"""
-        mock_progress = mock.MagicMock()
-        mock_wrapper = mock.MagicMock()
-        mock_wrapper.__enter__.return_value = mock_progress
-        self.patch("cumulus_etl.cli_utils.make_progress_bar", return_value=mock_wrapper)
-
         # We are going to stage 3 different checkpoints:
         # - a couple bytes written
         # - first file in place, a couple bytes of second
@@ -131,9 +127,10 @@ class TestMicrosoftToolWrapper(AsyncTestCase):
         )
         self.patch("os.path.getsize", side_effect=fake_getsize)
 
-        await run_mstool("/in", "/out")
+        progress = mock.MagicMock()
+        await run_mstool("/in", "/out", progress=progress)
 
-        self.assertEqual(mock_progress.update.call_count, 3)
-        self.assertEqual(mock_progress.update.call_args_list[0].kwargs, {"completed": 3 / 20})
-        self.assertEqual(mock_progress.update.call_args_list[1].kwargs, {"completed": 13 / 20})
-        self.assertEqual(mock_progress.update.call_args_list[2].kwargs, {"completed": 1})
+        self.assertEqual(progress.update.call_count, 3)
+        self.assertEqual(progress.update.call_args_list[0].kwargs, {"completed": 3 / 20})
+        self.assertEqual(progress.update.call_args_list[1].kwargs, {"completed": 13 / 20})
+        self.assertEqual(progress.update.call_args_list[2].kwargs, {"completed": 1})

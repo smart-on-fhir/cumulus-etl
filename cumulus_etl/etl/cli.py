@@ -6,6 +6,7 @@ import shutil
 import sys
 
 import cumulus_fhir_support as cfs
+import rich.progress
 
 import cumulus_etl
 from cumulus_etl import cli_utils, deid, errors, loaders
@@ -137,14 +138,15 @@ async def etl_main(args: argparse.Namespace) -> None:
     }
 
     async def prep_scrubber(
-        _client: cfs.FhirClient, results: loaders.LoaderResults
+        _client: cfs.FhirClient, results: loaders.LoaderResults, progress: rich.progress.Progress
     ) -> tuple[deid.Scrubber, dict]:
         # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
         export_group, export_datetime = handle_completion_args(args, results)
 
-        results.directory = await deid.Scrubber.scrub_bulk_data(results.path)
+        results.directory = await deid.Scrubber.scrub_bulk_data(results.path, progress=progress)
 
-        scrubber = deid.Scrubber(args.dir_phi, use_philter=args.philter)
+        with cli_utils.show_indeterminate_task(progress, "Loading codebook"):
+            scrubber = deid.Scrubber(args.dir_phi, use_philter=args.philter)
 
         return scrubber, {"export_group_name": export_group, "export_datetime": export_datetime}
 

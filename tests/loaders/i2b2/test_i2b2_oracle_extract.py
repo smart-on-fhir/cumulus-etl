@@ -3,7 +3,7 @@
 import os
 from unittest import mock
 
-from cumulus_etl import common, store
+from cumulus_etl import cli_utils, common, store
 from cumulus_etl.loaders.i2b2 import loader
 from cumulus_etl.loaders.i2b2.oracle import extract, query
 from tests import i2b2_mock_data
@@ -16,6 +16,8 @@ class TestOracleExtraction(AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.maxDiff = None
+
+        self.progress = cli_utils.make_progress_bar()
 
         # Mock all the sql connection/cursor/execution stuff
         connect_patcher = mock.patch("cumulus_etl.loaders.i2b2.oracle.extract.connect")
@@ -93,7 +95,9 @@ class TestOracleExtraction(AsyncTestCase):
 
         root = store.Root("tcp://localhost/foo")
         oracle_loader = loader.I2b2Loader(root)
-        results = await oracle_loader.load_resources({"Condition", "Encounter", "Patient"})
+        results = await oracle_loader.load_resources(
+            {"Condition", "Encounter", "Patient"}, progress=self.progress
+        )
 
         # Check results
         self.assertEqual(
