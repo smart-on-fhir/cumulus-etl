@@ -9,7 +9,7 @@ import rich.padding
 import rich.progress
 import rich.tree
 
-from cumulus_etl import cli_utils, common, fhir
+from cumulus_etl import common, fhir
 from cumulus_etl.deid import codebook, mstool, philter
 
 # Record of unknown extensions (resource type -> extension URL -> count)

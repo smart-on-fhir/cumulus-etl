@@ -11,7 +11,7 @@ import sys
 
 import rich.progress
 
-from cumulus_etl import cli_utils, errors
+from cumulus_etl import errors
 
 MSTOOL_CMD = "Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool"
 

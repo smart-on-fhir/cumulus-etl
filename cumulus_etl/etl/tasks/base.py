@@ -1,6 +1,5 @@
 """ETL tasks"""
 
-import contextlib
 import dataclasses
 import os
 from collections.abc import AsyncIterator, Iterator

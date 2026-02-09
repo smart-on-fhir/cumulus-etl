@@ -9,6 +9,7 @@ import re
 import socket
 import tempfile
 import time
+import tracemalloc
 import urllib.parse
 from collections.abc import Iterable
 
