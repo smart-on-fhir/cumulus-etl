@@ -12,6 +12,7 @@ import time
 import urllib.parse
 from collections.abc import Iterable
 
+import rich
 import rich.progress
 
 from cumulus_etl import common, errors, store
@@ -322,22 +323,21 @@ def plural(single: str, plural: str, count: int) -> str:
 
 #######################################################
 # Unused methods for manual debugging below this point.
-# pragma: no cover
 #######################################################
 
 
 @contextlib.contextmanager
-def time_it(desc: str | None = None):
+def time_it(desc: str | None = None):  # pragma: no cover
     """Tiny little timer context manager that is useful when debugging"""
     start = time.perf_counter()
     yield
     end = time.perf_counter()
     suffix = f" ({desc})" if desc else ""
-    print(f"TIME IT: {end - start:.2f}s{suffix}")
+    rich.print(f"TIME IT: {end - start:.2f}s{suffix}")
 
 
 @contextlib.contextmanager
-def mem_it(desc: str | None = None):
+def mem_it(desc: str | None = None):  # pragma: no cover
     """Tiny little context manager to measure memory usage"""
     start_tracing = not tracemalloc.is_tracing()
     if start_tracing:
@@ -353,4 +353,4 @@ def mem_it(desc: str | None = None):
     suffix = f" ({desc})" if desc else ""
     if after_peak > before_peak:
         suffix = f"{suffix} ({after_peak - before_peak:,} PEAK change)"
-    print(f"MEM IT: {after - before:,}{suffix}")
+    rich.print(f"MEM IT: {after - before:,}{suffix}")
