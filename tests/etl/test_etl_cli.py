@@ -16,7 +16,7 @@ import ddt
 import respx
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import common, errors, loaders, store
+from cumulus_etl import cli_utils, common, errors, loaders, store
 from cumulus_etl.etl import context
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
@@ -61,7 +61,7 @@ class TestEtlJobFlow(BaseEtlSimple):
         """Verify we remove all downloaded PHI even if interrupted"""
         internal_phi_dir = None
 
-        def fake_scrub(phi_dir: str):
+        def fake_scrub(phi_dir: str, progress):
             # Save this dir path
             nonlocal internal_phi_dir
             internal_phi_dir = phi_dir
@@ -104,10 +104,10 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_single_task(self):
         # Grab all observations before we mock anything
         observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
-            {"Observation"}
+            {"Observation"}, progress=cli_utils.make_progress_bar()
         )
 
-        def fake_load_resources(internal_self, resources):
+        def fake_load_resources(internal_self, resources, progress):
             del internal_self
             # Confirm we only tried to load one resource
             self.assertEqual({"Observation"}, resources)
@@ -127,10 +127,10 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
         loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
-            {"Observation", "Patient"}
+            {"Observation", "Patient"}, progress=cli_utils.make_progress_bar()
         )
 
-        def fake_load_resources(internal_self, resources):
+        def fake_load_resources(internal_self, resources, progress):
             del internal_self
             # Confirm we only tried to load two resources
             self.assertEqual({"Observation", "Patient"}, resources)
@@ -278,7 +278,7 @@ class TestEtlJobFlow(BaseEtlSimple):
         """Verify that we parse completion args with the correct fallbacks and checks."""
         # Grab all observations before we mock anything
         observations = await loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
-            {"Observation"}
+            {"Observation"}, progress=cli_utils.make_progress_bar()
         )
         observations.group_name = loader_vals[0]
         observations.export_datetime = loader_vals[1]

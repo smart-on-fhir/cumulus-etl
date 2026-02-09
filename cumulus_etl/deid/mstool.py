@@ -9,6 +9,8 @@ import glob
 import os
 import sys
 
+import rich.progress
+
 from cumulus_etl import cli_utils, errors
 
 MSTOOL_CMD = "Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool"
@@ -18,7 +20,7 @@ def config_path() -> str:
     return os.path.join(os.path.dirname(__file__), "ms-config.json")
 
 
-async def run_mstool(input_dir: str, output_dir: str) -> None:
+async def run_mstool(input_dir: str, output_dir: str, *, progress: rich.progress.Progress) -> None:
     """
     Runs Microsoft's Anonymizer tool on the input directory and puts the results in the output directory
 
@@ -34,7 +36,7 @@ async def run_mstool(input_dir: str, output_dir: str) -> None:
         stderr=asyncio.subprocess.PIPE,
     )
 
-    _, stderr = await _wait_for_completion(process, input_dir, output_dir)
+    _, stderr = await _wait_for_completion(process, input_dir, output_dir, progress)
 
     if process.returncode != 0:
         print(
@@ -45,28 +47,30 @@ async def run_mstool(input_dir: str, output_dir: str) -> None:
 
 
 async def _wait_for_completion(
-    process: asyncio.subprocess.Process, input_dir: str, output_dir: str
+    process: asyncio.subprocess.Process,
+    input_dir: str,
+    output_dir: str,
+    progress: rich.progress.Progress,
 ) -> (str, str):
     """Waits for the MS tool to finish, with a nice little progress bar, returns stdout and stderr"""
     stdout, stderr = None, None
 
-    with cli_utils.make_progress_bar() as progress:
-        task = progress.add_task("De-identifying data", total=1)
-        target = _count_file_sizes(f"{input_dir}/*.ndjson")
+    task = progress.add_task("De-identifying data", total=1)
+    target = _count_file_sizes(f"{input_dir}/*.ndjson")
 
-        while process.returncode is None:
-            try:
-                # Wait for completion for a moment
-                stdout, stderr = await asyncio.wait_for(process.communicate(), 1)
-            except TimeoutError:
-                # MS tool isn't done yet, let's calculate percentage finished so far,
-                # by comparing full PHI and de-identified file sizes.
-                # They won't perfectly match up (de-id should be smaller), but it's something.
-                current = _count_file_sizes(f"{output_dir}/*")
-                percentage = _compare_file_sizes(target, current)
-                progress.update(task, completed=percentage)
+    while process.returncode is None:
+        try:
+            # Wait for completion for a moment
+            stdout, stderr = await asyncio.wait_for(process.communicate(), 1)
+        except TimeoutError:
+            # MS tool isn't done yet, let's calculate percentage finished so far,
+            # by comparing full PHI and de-identified file sizes.
+            # They won't perfectly match up (de-id should be smaller), but it's something.
+            current = _count_file_sizes(f"{output_dir}/*")
+            percentage = _compare_file_sizes(target, current)
+            progress.update(task, completed=percentage)
 
-        progress.update(task, completed=1)
+    progress.update(task, completed=1)
 
     return stdout, stderr
 

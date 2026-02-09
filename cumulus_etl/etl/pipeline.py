@@ -121,6 +121,7 @@ async def check_available_resources(
     selected_tasks: list[type[task_factory.AnyTask]],
     args: argparse.Namespace,
     is_default_tasks: bool,
+    progress: rich.progress.Progress,
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
     # available in the input root.
@@ -137,7 +138,7 @@ async def check_available_resources(
     if has_allow_missing and args.allow_missing_resources:
         return all_possible_resources
 
-    detected = await loader.detect_resources()
+    detected = await loader.detect_resources(progress=progress)
     if detected is None:
         return all_possible_resources  # likely we haven't run bulk export yet
 
@@ -172,7 +173,8 @@ async def run_pipeline(
     ndjson_args: dict | None = None,
     i2b2_args: dict | None = None,
     prep_scrubber: Callable[
-        [cfs.FhirClient, loaders.LoaderResults], Awaitable[tuple[deid.Scrubber, dict]]
+        [cfs.FhirClient, loaders.LoaderResults, rich.progress.Progress],
+        Awaitable[tuple[deid.Scrubber, dict]],
     ],
 ) -> None:
     # record filesystem options like --s3-region before creating Roots
@@ -192,13 +194,13 @@ async def run_pipeline(
 
     # Print configuration
     print_config(args, job_datetime, selected_tasks)
-    rich.print("Initializing…")
 
     if args.errors_to:
         cli_utils.confirm_dir_is_empty(store.Root(args.errors_to, create=True))
 
     # Check that cTAKES is running and any other services or binaries we require
     if not args.skip_init_checks:
+        rich.print("Initializing…")
         for task in selected_tasks:
             await task.init_check()
 
@@ -220,21 +222,27 @@ async def run_pipeline(
                 root_input, client=client, **(ndjson_args or {})
             )
 
-        rich.print("Scanning input files…")
-        available_resources = await check_available_resources(
-            config_loader,
-            args=args,
-            is_default_tasks=is_default_tasks,
-            selected_tasks=selected_tasks,
-        )
-        # Drop any tasks that we didn't find resources for
-        selected_tasks = [t for t in selected_tasks if t.get_resource_types() & available_resources]
+        with cli_utils.make_progress_bar() as progress:
+            available_resources = await check_available_resources(
+                config_loader,
+                args=args,
+                is_default_tasks=is_default_tasks,
+                selected_tasks=selected_tasks,
+                progress=progress,
+            )
 
-        # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
-        loader_results = await config_loader.load_resources(available_resources)
+            # Drop any tasks that we didn't find resources for
+            selected_tasks = [
+                t for t in selected_tasks if t.get_resource_types() & available_resources
+            ]
 
-        scrubber, config_args = await prep_scrubber(client, loader_results)
-        validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
+            # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
+            loader_results = await config_loader.load_resources(
+                available_resources, progress=progress
+            )
+
+            scrubber, config_args = await prep_scrubber(client, loader_results, progress)
+            validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
 
         # Prepare config for jobs
         config = JobConfig(

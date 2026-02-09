@@ -6,6 +6,7 @@ from typing import Any
 
 import rich
 import rich.padding
+import rich.progress
 import rich.tree
 
 from cumulus_etl import cli_utils, common, fhir
@@ -48,9 +49,7 @@ class Scrubber:
     def __init__(self, codebook_dir: str | None = None, use_philter: bool = False):
         # Load codebook. The cached mapping file can grow quite large, so this could take close to
         # a minute. Thus, let's provide a progress bar at least indicating we are doing this.
-        with cli_utils.make_progress_bar() as progress:
-            with cli_utils.show_indeterminate_task(progress, "Loading codebook"):
-                self.codebook = codebook.Codebook(codebook_dir)
+        self.codebook = codebook.Codebook(codebook_dir)
         self.philter = philter.Philter() if use_philter else None
         # List of ignored extensions (resource -> url -> count)
         self.dropped_extensions: ExtensionCount = {}
@@ -58,7 +57,9 @@ class Scrubber:
         self.skipped_modifer_extensions: ExtensionCount = {}
 
     @staticmethod
-    async def scrub_bulk_data(input_dir: str) -> tempfile.TemporaryDirectory:
+    async def scrub_bulk_data(
+        input_dir: str, *, progress: rich.progress.Progress
+    ) -> tempfile.TemporaryDirectory:
         """
         Bulk de-identification of all input data
 
@@ -67,7 +68,7 @@ class Scrubber:
         :returns: a temporary directory holding the de-identified results, in FHIR ndjson format
         """
         tmpdir = tempfile.TemporaryDirectory()
-        await mstool.run_mstool(input_dir, tmpdir.name)
+        await mstool.run_mstool(input_dir, tmpdir.name, progress=progress)
         return tmpdir
 
     def scrub_resource(
