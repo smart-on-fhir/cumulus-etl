@@ -23,7 +23,7 @@ dependencies = [
     "pyarrow",
     "pyathena",
     "pydantic",
-    "pyspark < 4.1",  # TODO: investigate why 4.1 breaks things
+    "pyspark < 4.2",  # TODO: investigate why 4.1 breaks things
     "rich",
 ]
 authors = [
