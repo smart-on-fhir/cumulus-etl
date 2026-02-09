@@ -83,17 +83,22 @@ def ls_resources(root: store.Root, resources: set[str], warn_if_empty: bool = Fa
     )
 
     if warn_if_empty:
-        # Invert the {path: type} found_files dictionary into {type: [paths...]}
-        type_to_files = defaultdict(list)
-        for k, v in found_files.items():
-            type_to_files[v].append(k)
-
-        # Now iterate expected types and warn if we didn't see any of them
-        for resource in sorted(resources):
-            if not type_to_files.get(resource):
-                logging.warning("No %s files found in %s", resource, root.path)
+        warn_on_missing_resources(found_files, resources)
 
     return list(found_files)
+
+
+def warn_on_missing_resources(found_files: dict[str, str | None], resources: set[str]) -> None:
+    """Warns if any expected resources are missing from the results of cfs.list_* calls"""
+    # Invert the {path: type} found_files dictionary into {type: [paths...]}
+    type_to_files = defaultdict(list)
+    for k, v in found_files.items():
+        type_to_files[v].append(k)
+
+    # Now iterate expected types and warn if we didn't see any of them
+    for resource in sorted(resources):
+        if not type_to_files.get(resource):
+            logging.warning("No %s files found", resource)
 
 
 ###############################################################################

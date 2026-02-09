@@ -49,6 +49,11 @@ class FhirNdjsonLoader(base.Loader):
         self.inline = inline
         self.inline_resources = inline_resources
         self.inline_mimetypes = inline_mimetypes
+        self.detected_files = None
+
+    @staticmethod
+    def _scan_files(root: store.Root) -> dict[str, str | None]:
+        return cfs.list_multiline_json_in_dir(root.path, fsspec_fs=root.fs, recursive=True)
 
     async def detect_resources(self) -> set[str] | None:
         if self.root.is_http:
@@ -56,10 +61,8 @@ class FhirNdjsonLoader(base.Loader):
             # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
             return None
 
-        found_files = cfs.list_multiline_json_in_dir(
-            self.root.path, fsspec_fs=self.root.fs, recursive=True
-        )
-        return {resource for resource in found_files.values() if resource}
+        self.detected_files = self._scan_files(self.root)
+        return {resource for resource in self.detected_files.values() if resource}
 
     async def load_resources(self, resources: set[str]) -> base.LoaderResults:
         # Are we doing a bulk FHIR export from a server?
@@ -74,19 +77,29 @@ class FhirNdjsonLoader(base.Loader):
                 )
             input_root = self.root
 
+        # Scan for files if needed (usually this is cached from a detect_resources() call, but it
+        # might not be in bulk export mode or if --allow-missing-resources was passed
+        found_files = self.detected_files
+        if found_files is None:
+            found_files = self._scan_files(input_root)
+        common.warn_on_missing_resources(found_files, resources)
+
+        # Gather filenames of interest
+        target_types = resources | fhir.linked_resources(resources)
+        filenames = [path for path, res_type in found_files.items() if res_type in target_types]
+
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
-        # We do this even if the files are local, because the next step in our pipeline is the MS deid tool,
-        # and it will just process *everything* in a directory. So if there are other *.ndjson sitting next to our
-        # target resources, they'll get processed by the MS tool and that slows down running a single task with
-        # "--task" a lot. (Or it'll be invalid FHIR ndjson like our log.ndjson and the MS tool will complain.)
+        # We do this even if the files are local, because the next step in our pipeline is the MS
+        # deid tool, and it will just process *everything* in a directory. So if there are other
+        # *.ndjson sitting next to our target resources, they'll get processed by the MS tool and
+        # that slows down running a single task with "--task" a lot. (Or it'll be invalid FHIR
+        # ndjson like our log.ndjson and the MS tool will complain.)
         #
-        # This uses more disk space temporarily (copied files will get deleted once the MS tool is done and this
-        # TemporaryDirectory gets discarded), but that seems reasonable.
+        # This uses more disk space temporarily (copied files will get deleted once the MS tool is
+        # done and this TemporaryDirectory gets discarded), but that seems reasonable.
         print("Copying input files…")
         tmpdir = tempfile.TemporaryDirectory()
-        filenames = common.ls_resources(input_root, resources, warn_if_empty=True)
-        filenames += common.ls_resources(input_root, fhir.linked_resources(resources))
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
             # Decompress any *.gz files, because the MS tool can't understand them
