@@ -93,7 +93,7 @@ class Root:
         return self.fs.put(lpath, rpath, recursive=recursive)
 
     def ls(self) -> Iterator[str]:
-        return self.fs.ls(self.path, detail=False)
+        return (self.fs.unstrip_protocol(path) for path in self.fs.ls(self.path, detail=False))
 
     def makedirs(self, path: str) -> None:
         """Ensures the given path and all parents are created"""
