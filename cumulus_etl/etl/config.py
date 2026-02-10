@@ -133,7 +133,7 @@ def _latest_config(output_root: store.Root) -> dict:
     try:
         config_root = store.Root(output_root.joinpath("JobConfig"))
         timestamp_dirs = sorted(config_root.ls(), reverse=True)
-        config_path = config_root.joinpath(f"{timestamp_dirs[0]}/job_config.json")
+        config_path = f"{timestamp_dirs[0]}/job_config.json"
         return common.read_json(config_path)
     except Exception:
         return {}
