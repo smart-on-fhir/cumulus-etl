@@ -157,8 +157,9 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertEqual(cm.exception.code, errors.TASK_MISMATCH)
 
     async def test_nlp_needs_task_arg(self):
-        with self.assert_fatal_exit(2):
+        with self.assertRaises(SystemExit) as cm:
             await self.run_etl(nlp=True)  # missing --task
+        self.assertEqual(cm.exception.code, 2)
 
     async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""

@@ -13,7 +13,7 @@ import ddt
 import httpx
 import respx
 
-from cumulus_etl import cli, common, errors, store
+from cumulus_etl import cli, common, store
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser, BulkExportLogWriter
 from tests import utils
@@ -346,8 +346,8 @@ class TestBulkExporter(utils.AsyncTestCase, utils.FhirClientMixin):
             headers={"Accept": "application/fhir+ndjson"},
         ).respond(text=con1)
 
-        with self.assertRaisesRegex(
-            errors.FatalError, "Errors occurred during export:\n - err1\n - err2\n - err3\n - err4"
+        with self.assert_fatal_exit(
+            msg="Errors occurred during export:\n - err1\n - err2\n - err3\n - err4"
         ):
             await self.export()
 

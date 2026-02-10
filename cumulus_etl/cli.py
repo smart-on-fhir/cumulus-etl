@@ -9,7 +9,7 @@ import tempfile
 
 import rich.logging
 
-from cumulus_etl import common, etl, export, inliner, sample, upload_notes
+from cumulus_etl import common, errors, etl, export, inliner, sample, upload_notes
 from cumulus_etl.etl import convert, init, nlp
 
 
@@ -94,8 +94,15 @@ async def main(argv: list[str]) -> None:
         await run_method(parser, argv)
 
 
-def main_cli():
-    asyncio.run(main(sys.argv[1:]))  # pragma: no cover
+def main_cli():  # pragma: no cover
+    try:
+        asyncio.run(main(sys.argv[1:]))
+    except errors.FatalError as exc:
+        stderr = rich.console.Console(stderr=True)
+        stderr.print(exc.message, style="bold red", highlight=False)
+        if exc.details:
+            stderr.print(rich.padding.Padding.indent(exc.details, 2), highlight=False)
+        raise
 
 
 if __name__ == "__main__":

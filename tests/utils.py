@@ -3,7 +3,6 @@
 import contextlib
 import datetime
 import filecmp
-import io
 import json
 import os
 import tempfile
@@ -16,6 +15,7 @@ import respx
 import time_machine
 from jwcrypto import jwk
 
+from cumulus_etl import errors
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
 
 # Pass a non-UTC time to time-machine to help notice any bad timezone handling.
@@ -84,17 +84,12 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     @contextlib.contextmanager
     def assert_fatal_exit(self, code: int | None = None, msg: str | None = None):
-        stderr = io.StringIO()
-        with self.assertRaises(SystemExit) as cm:
-            if msg is None:
-                yield
-            else:
-                with contextlib.redirect_stderr(stderr):
-                    yield
+        with self.assertRaises(errors.FatalError) as cm:
+            yield
         if code is not None:
-            self.assertEqual(cm.exception.code, code)
+            self.assertEqual(cm.exception.status, code)
         if msg is not None:
-            self.assertIn(msg, stderr.getvalue())
+            self.assertIn(msg, cm.exception.message)
 
 
 class TreeCompareMixin(unittest.TestCase):

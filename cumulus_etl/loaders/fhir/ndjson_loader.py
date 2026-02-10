@@ -145,22 +145,18 @@ class FhirNdjsonLoader(base.Loader):
                 errors.INLINE_WITHOUT_FOLDER,
             )
 
-        try:
-            bulk_exporter = BulkExporter(
-                self.client,
-                resources,
-                self.root.path,
-                target_dir.name,
-                since=self.since,
-                until=self.until,
-                type_filter=self.type_filter,
-                resume=self.resume,
-                prefer_url_resources=prefer_url_resources,
-            )
-            await bulk_exporter.export()
-
-        except errors.FatalError as exc:
-            errors.fatal(str(exc), errors.BULK_EXPORT_FAILED)
+        bulk_exporter = BulkExporter(
+            self.client,
+            resources,
+            self.root.path,
+            target_dir.name,
+            since=self.since,
+            until=self.until,
+            type_filter=self.type_filter,
+            resume=self.resume,
+            prefer_url_resources=prefer_url_resources,
+        )
+        await bulk_exporter.export()
 
         if self.inline:
             common.print_header()
