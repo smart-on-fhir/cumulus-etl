@@ -234,9 +234,10 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
 
         # Try with rejection of prompt
         self.mock_athena(["a"] * 50_002)
-        with self.assert_fatal_exit(0):
+        with self.assertRaises(SystemExit) as cm:
             with mock.patch("builtins.input", return_value=""):  # default no
                 await self.run_etl("--select-by-athena-table=db.cohort__test")
+        self.assertEqual(cm.exception.code, 0)
 
         # Try with acceptance of prompt
         self.mock_athena(["a"] * 50_002)

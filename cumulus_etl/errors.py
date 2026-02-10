@@ -1,9 +1,6 @@
 """Exception classes and error handling"""
 
-import sys
 from typing import NoReturn
-
-import rich.console
 
 # Error return codes, mostly just distinguished for the benefit of tests.
 # These start at 10 just to leave some room for future use.
@@ -58,18 +55,28 @@ NOTES_NOT_FOUND_WITH_FILTER = 57
 NOTES_TOO_FEW = 58
 
 
-class FatalError(Exception):
-    """An unrecoverable error"""
+class FatalError(SystemExit):
+    """
+    An unrecoverable error.
+
+    Raising an error this way instead of calling printing and/or calling sys.exit() ourselves is
+    nice for two reasons:
+    - Easier to catch/handle/inspect in tests
+    - Lets rich live regions (like progress bars) finish before printing our message, which might
+      otherwise get eaten up by rich's rendering.
+    """
+
+    def __init__(self, message: str, status: int, details: str = ""):
+        super().__init__(status)
+        self.message = message
+        self.status = status
+        self.details = details
 
 
 class FhirConnectionConfigError(FatalError):
     """We needed to connect to a FHIR server but are not configured correctly"""
 
 
-def fatal(message: str, status: int, extra: str = "") -> NoReturn:
-    """Convenience method to exit the program with a user-friendly error message a test-friendly status code"""
-    stderr = rich.console.Console(stderr=True)
-    stderr.print(message, style="bold red", highlight=False)
-    if extra:
-        stderr.print(rich.padding.Padding.indent(extra, 2), highlight=False)
-    sys.exit(status)  # raises a SystemExit exception
+def fatal(message: str, status: int, details: str = "") -> NoReturn:
+    """Exits the program with a user-friendly error message and a test-friendly status code"""
+    raise FatalError(message, status, details=details)

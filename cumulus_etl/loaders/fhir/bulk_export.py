@@ -198,7 +198,10 @@ class BulkExporter:
         # all the files the server DID give us. Servers may have lots of ignorable errors that
         # need human review, before passing back to us as input ndjson.
         if error_texts:
-            raise errors.FatalError("\n - ".join(["Errors occurred during export:", *error_texts]))
+            errors.fatal(
+                "\n - ".join(["Errors occurred during export:", *error_texts]),
+                errors.BULK_EXPORT_FAILED,
+            )
 
     ##############################################################################################
     #

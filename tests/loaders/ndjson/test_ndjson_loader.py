@@ -203,15 +203,14 @@ class TestNdjsonLoader(AsyncTestCase):
 
     async def test_fatal_errors_are_fatal(self):
         """Verify that when a FatalError is raised, we do really quit"""
-        self.mock_exporter.export.side_effect = errors.FatalError
+        self.mock_exporter.export.side_effect = errors.FatalError("x", errors.BULK_EXPORT_FAILED)
 
-        with self.assertRaises(SystemExit) as cm:
+        with self.assert_fatal_exit(errors.BULK_EXPORT_FAILED):
             await loaders.FhirNdjsonLoader(
                 store.Root("http://localhost:9999"), mock.AsyncMock()
             ).load_resources({"Patient"}, progress=self.progress)
 
         self.assertEqual(1, self.mock_exporter.export.call_count)
-        self.assertEqual(errors.BULK_EXPORT_FAILED, cm.exception.code)
 
     async def test_export_to_folder_happy_path(self):
         patient = {"id": "A", "resourceType": "Patient"}
