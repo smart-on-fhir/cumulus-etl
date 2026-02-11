@@ -2,7 +2,6 @@
 
 import logging
 import os
-import sys
 
 import oracledb
 
@@ -15,11 +14,11 @@ def _get_user() -> str:
     """
     user = os.environ.get("CUMULUS_SQL_USER")
     if not user:
-        print(
-            "To connect to an Oracle SQL server, please set the environment variable CUMULUS_SQL_USER",
-            file=sys.stderr,
+        errors.fatal(
+            "To connect to an Oracle SQL server, "
+            "please set the environment variable CUMULUS_SQL_USER",
+            errors.SQL_USER_MISSING,
         )
-        raise SystemExit(errors.SQL_USER_MISSING)
     return user
 
 
@@ -29,11 +28,11 @@ def _get_password() -> str:
     """
     pwd = os.environ.get("CUMULUS_SQL_PASSWORD")
     if not pwd:
-        print(
-            "To connect to an Oracle SQL server, please set the environment variable CUMULUS_SQL_PASSWORD",
-            file=sys.stderr,
+        errors.fatal(
+            "To connect to an Oracle SQL server, "
+            "please set the environment variable CUMULUS_SQL_PASSWORD",
+            errors.SQL_PASSWORD_MISSING,
         )
-        raise SystemExit(errors.SQL_PASSWORD_MISSING)
     return pwd
 
 

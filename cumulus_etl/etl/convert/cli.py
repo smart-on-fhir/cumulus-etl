@@ -11,9 +11,8 @@ from collections.abc import Callable
 from functools import partial
 
 import pyarrow
-import rich.progress
 
-from cumulus_etl import cli_utils, common, completion, errors, formats, store
+from cumulus_etl import cli_utils, common, completion, errors, feedback, formats, store
 from cumulus_etl.etl import config, tasks
 from cumulus_etl.etl.tasks import task_factory
 
@@ -56,7 +55,7 @@ def convert_folder(
     table_name: str,
     schema_func: Callable[[list[dict]], pyarrow.Schema],
     formatter: formats.Format,
-    progress: rich.progress.Progress,
+    progress: feedback.Progress,
 ) -> None:
     table_input_dir = input_root.joinpath(table_name)
     if not input_root.exists(table_input_dir):
@@ -78,11 +77,11 @@ def convert_folder(
     for ndjson_path in ndjson_paths:
         batch = make_batch(input_root, ndjson_path, schema_func)
         formatter.write_records(batch)
-        progress.update(progress_task, advance=1)
+        progress.advance(progress_task)
 
     convert_table_metadata(f"{table_input_dir}/{table_name}.meta", formatter)
     formatter.finalize()
-    progress.update(progress_task, advance=1)
+    progress.advance(progress_task)
 
 
 def convert_task_table(
@@ -91,7 +90,7 @@ def convert_task_table(
     input_root: store.Root,
     output_root: store.Root,
     formatter_class: type[formats.Format],
-    progress: rich.progress.Progress,
+    progress: feedback.Progress,
 ) -> None:
     """Converts a task's output folder (like output/observation/ or output/covid_symptom__nlp_results/)"""
 
@@ -118,7 +117,7 @@ def convert_completion(
     input_root: store.Root,
     output_root: store.Root,
     formatter_class: type[formats.Format],
-    progress: rich.progress.Progress,
+    progress: feedback.Progress,
 ) -> None:
     """Converts the etl__completion metadata table"""
     convert_folder(
@@ -148,7 +147,7 @@ def walk_tree(
 ) -> None:
     all_tasks = task_factory.get_all_tasks()
 
-    with cli_utils.make_progress_bar() as progress:
+    with feedback.Progress() as progress:
         for task in all_tasks:
             for table in task.outputs:
                 convert_task_table(task, table, input_root, output_root, formatter_class, progress)

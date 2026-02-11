@@ -8,7 +8,7 @@ from unittest import mock
 
 import pytest
 
-from cumulus_etl import cli_utils, common
+from cumulus_etl import common, feedback
 from cumulus_etl.deid.mstool import MSTOOL_CMD, run_mstool
 from tests.utils import AsyncTestCase, TreeCompareMixin
 
@@ -20,7 +20,7 @@ class TestMicrosoftTool(TreeCompareMixin, AsyncTestCase):
     def setUp(self):
         super().setUp()
         self.data_path = os.path.join(self.datadir, "mstool")
-        self.progress = cli_utils.make_progress_bar()
+        self.progress = feedback.Progress()
 
     def combine_json(self, input_dir: str, output_dir: str) -> None:
         """

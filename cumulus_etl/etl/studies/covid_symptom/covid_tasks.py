@@ -6,10 +6,9 @@ from typing import ClassVar
 import ctakesclient
 import pyarrow
 import pydantic
-import rich.progress
 from ctakesclient.transformer import TransformerModel
 
-from cumulus_etl import nlp, store
+from cumulus_etl import feedback, nlp, store
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
@@ -125,7 +124,7 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
             self.summaries[0].had_errors = True
         return success
 
-    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+    async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
 
@@ -293,7 +292,7 @@ class BaseCovidGptTask(tasks.BaseModelTask):
     )
     response_format = CovidSymptoms
 
-    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+    async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
         # This class predates some of the unified NLP code, so it uses an older format.
         # Convert from new format to the older new one here.

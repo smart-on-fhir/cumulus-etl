@@ -5,7 +5,7 @@ import os
 import tempfile
 from unittest import mock
 
-from cumulus_etl import cli, cli_utils, common, errors, loaders, store
+from cumulus_etl import cli, common, errors, feedback, loaders, store
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase
 
@@ -36,7 +36,7 @@ class TestNdjsonLoader(AsyncTestCase):
         self.mock_exporter = mock.AsyncMock()
         self.mock_exporter_class.return_value = self.mock_exporter
 
-        self.progress = cli_utils.make_progress_bar()
+        self.progress = feedback.Progress()
 
     @staticmethod
     def _write_log_file(path: str, group: str, timestamp: str) -> None:

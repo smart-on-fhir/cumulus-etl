@@ -1,11 +1,11 @@
 """Monitoring support for cTAKES and cNLP"""
 
 import contextlib
+import logging
 import os
 import select
 import shutil
 import socket
-import sys
 import tempfile
 import time
 import urllib.parse
@@ -146,13 +146,12 @@ def restart_ctakes_with_bsv(ctakes_overrides: str, bsv_path: str) -> bool:
 
     if not ctakes_overrides:
         # Graceful skipping of this feature if ctakes-override is empty (usually just in tests).
-        print("Warning: --ctakes-override is not defined.", file=sys.stderr)
+        logging.warning("Warning: --ctakes-override is not defined.")
         return False
     elif not os.path.isdir(ctakes_overrides):
-        print(
+        logging.warning(
             f"Warning: the cTAKES overrides folder does not exist at:\n  {ctakes_overrides}\n"
             "Consider using --ctakes-overrides.",
-            file=sys.stderr,
         )
         return False
 

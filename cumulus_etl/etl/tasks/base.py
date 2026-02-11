@@ -8,12 +8,11 @@ from typing import ClassVar
 import cumulus_fhir_support as cfs
 import pyarrow
 import rich.live
-import rich.progress
 import rich.table
 import rich.text
 
 import cumulus_etl
-from cumulus_etl import batching, cli_utils, common, completion, deid, formats, store
+from cumulus_etl import batching, common, completion, deid, feedback, formats, store
 from cumulus_etl.etl import config
 
 # Defined here, as syntactic sugar for when you subclass your own task and re-define read_entries()
@@ -123,7 +122,7 @@ class EtlTask:
 
         # Set up progress table with a slight left indent
         grid = rich.table.Table.grid(padding=(0, 0, 0, 1), pad_edge=True)
-        progress = cli_utils.make_progress_bar()
+        progress = feedback.Progress()
         text_box = rich.text.Text()
         grid.add_row(progress)
         grid.add_row(text_box)
@@ -138,7 +137,7 @@ class EtlTask:
             # We want to batch them up, to allow resuming from interruptions more easily.
             await self._write_tables_in_batches(entries, progress=progress, status=text_box)
 
-            with cli_utils.show_indeterminate_task(progress, "Finalizing"):
+            with progress.show_indeterminate_task("Finalizing"):
                 # Ensure that we touch every output table (to create them and/or to confirm schema).
                 # Consider case of Medication for an EHR that only has inline Medications inside
                 # MedicationRequest. The Medication table wouldn't get created otherwise.
@@ -174,7 +173,7 @@ class EtlTask:
     ##########################################################################################
 
     async def _write_tables_in_batches(
-        self, entries: EntryIterator, *, progress: rich.progress.Progress, status: rich.text.Text
+        self, entries: EntryIterator, *, progress: feedback.Progress, status: rich.text.Text
     ) -> None:
         """Writes all entries to each output tables in batches"""
 
@@ -370,7 +369,7 @@ class EtlTask:
         yield from common.read_resource_ndjson(input_root, resource)
 
     def read_ndjson(
-        self, *, progress: rich.progress.Progress | None = None, resources: list[str] | None = None
+        self, *, progress: feedback.Progress | None = None, resources: list[str] | None = None
     ) -> Iterator[dict]:
         """
         Grabs all ndjson files from a folder, of particular resource types.
@@ -402,7 +401,7 @@ class EtlTask:
                 if progress:
                     progress.advance(row_task)
 
-    async def read_entries(self, *, progress: rich.progress.Progress = None) -> EntryIterator:
+    async def read_entries(self, *, progress: feedback.Progress = None) -> EntryIterator:
         """
         Reads input entries for the job.
 

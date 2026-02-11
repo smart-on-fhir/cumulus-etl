@@ -6,9 +6,8 @@ import os
 from typing import ClassVar
 
 import pyarrow
-import rich.progress
 
-from cumulus_etl import common, completion, fhir, store
+from cumulus_etl import common, completion, feedback, fhir, store
 from cumulus_etl.etl import tasks
 
 
@@ -54,7 +53,7 @@ class EncounterTask(tasks.EtlTask):
         tasks.OutputTable(),
     ]
 
-    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+    async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         async for encounter in super().read_entries(progress=progress):
             completion_info = {
                 "encounter_id": encounter["id"],
@@ -170,7 +169,7 @@ class MedicationRequestTask(tasks.EtlTask):
 
         return medication if self.scrub_medication(medication) else None
 
-    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+    async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         # Load in any local Medication resources first. This lets the user prepare the linked
         # Medications ahead of time and feed them in alongside the MedicationRequests.
         # We'll note the IDs and avoid downloading them later when we do the MedicationRequests.
