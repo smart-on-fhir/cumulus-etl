@@ -9,9 +9,7 @@ import glob
 import os
 import sys
 
-import rich.progress
-
-from cumulus_etl import errors
+from cumulus_etl import errors, feedback
 
 MSTOOL_CMD = "Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool"
 
@@ -20,7 +18,7 @@ def config_path() -> str:
     return os.path.join(os.path.dirname(__file__), "ms-config.json")
 
 
-async def run_mstool(input_dir: str, output_dir: str, *, progress: rich.progress.Progress) -> None:
+async def run_mstool(input_dir: str, output_dir: str, *, progress: feedback.Progress) -> None:
     """
     Runs Microsoft's Anonymizer tool on the input directory and puts the results in the output directory
 
@@ -50,7 +48,7 @@ async def _wait_for_completion(
     process: asyncio.subprocess.Process,
     input_dir: str,
     output_dir: str,
-    progress: rich.progress.Progress,
+    progress: feedback.Progress,
 ) -> (str, str):
     """Waits for the MS tool to finish, with a nice little progress bar, returns stdout and stderr"""
     stdout, stderr = None, None

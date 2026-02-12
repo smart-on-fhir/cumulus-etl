@@ -2,9 +2,10 @@
 
 import inspect
 import os
-import sys
 from collections.abc import Iterable
 from typing import TypeVar
+
+import rich
 
 from cumulus_etl import cli_utils, errors
 from cumulus_etl.etl import studies
@@ -106,8 +107,8 @@ def get_selected_tasks(
     all_task_names = {t.name for t in all_tasks}
     other_task_names = {t.name for t in other_tasks}
     if unknown_names := names - all_task_names - other_task_names:
-        print(f"Unknown task '{unknown_names.pop()}' requested.", file=sys.stderr)
-        _print_task_names(all_tasks, file=sys.stderr)
+        rich.print(f"Unknown task '{unknown_names.pop()}' requested.")
+        _print_task_names(all_tasks)
         raise SystemExit(errors.TASK_UNKNOWN)
     if names - all_task_names:
         errors.fatal(
@@ -126,7 +127,7 @@ def get_selected_tasks(
     return tasks
 
 
-def _print_task_names(all_tasks: list[type[AnyTask]], *, file=sys.stdout) -> None:
+def _print_task_names(all_tasks: list[type[AnyTask]]) -> None:
     all_task_names = {t.name for t in all_tasks}
     print_names = "\n".join(sorted(f"  {key}" for key in all_task_names))
-    print(f"Valid task names:\n{print_names}", file=file)
+    rich.print(f"Valid task names:\n{print_names}")

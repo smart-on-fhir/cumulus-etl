@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import string
-import sys
 import tomllib
 import types
 import typing
@@ -19,10 +18,9 @@ import cumulus_fhir_support as cfs
 import jambo
 import pyarrow
 import pydantic
-import rich.progress
 import rich.table
 
-from cumulus_etl import common, errors, fhir, nlp, store
+from cumulus_etl import common, errors, feedback, fhir, nlp, store
 from cumulus_etl.etl import tasks
 
 ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
@@ -88,7 +86,7 @@ class BaseNlpTask(tasks.EtlTask):
         self,
         *,
         doc_check: Callable[[dict], bool] | None = None,
-        progress: rich.progress.Progress = None,
+        progress: feedback.Progress = None,
     ) -> AsyncIterator[tuple[dict, dict, str]]:
         """
         Iterate through clinical notes.
@@ -120,7 +118,7 @@ class BaseNlpTask(tasks.EtlTask):
                     # Only warn user about a misconfiguration once per task.
                     # It's not fatal because it might be intentional (partially inlined DocRefs
                     # and the other DocRefs are known failures - BCH hits this with Cerner data).
-                    print(exc, file=sys.stderr)
+                    logging.warning(str(exc))
                     warned_connection_error = True
                 self.add_error(orig_note)
                 continue
@@ -176,7 +174,7 @@ class BaseModelTask(BaseNlpTask):
     async def init_check(cls) -> None:
         await cls.client_class().post_init_check()
 
-    async def read_entries(self, *, progress: rich.progress.Progress = None) -> tasks.EntryIterator:
+    async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         cache_namespace = f"{self.name}_v{self.task_version}"
 
         # Step 1: if model supports batching, we create batches and send them off
@@ -204,7 +202,7 @@ class BaseModelTask(BaseNlpTask):
     async def prepared_notes(
         self,
         *,
-        progress: rich.progress.Progress = None,
+        progress: feedback.Progress = None,
     ) -> AsyncGenerator[NoteDetails]:
         async for orig_note, note, orig_note_text in self.read_notes(progress=progress):
             try:

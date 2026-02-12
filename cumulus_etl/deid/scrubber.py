@@ -6,10 +6,9 @@ from typing import Any
 
 import rich
 import rich.padding
-import rich.progress
 import rich.tree
 
-from cumulus_etl import common, fhir
+from cumulus_etl import common, feedback, fhir
 from cumulus_etl.deid import codebook, mstool, philter
 
 # Record of unknown extensions (resource type -> extension URL -> count)
@@ -56,7 +55,7 @@ class Scrubber:
 
     @staticmethod
     async def scrub_bulk_data(
-        input_dir: str, *, progress: rich.progress.Progress
+        input_dir: str, *, progress: feedback.Progress
     ) -> tempfile.TemporaryDirectory:
         """
         Bulk de-identification of all input data
@@ -344,8 +343,13 @@ class Scrubber:
                 # A Netherlands extension used by Epic
                 "http://nictiz.nl/fhir/StructureDefinition/BodySite-Qualifier",
                 ### Synthea extensions
+                "http://synthetichealth.github.io/synthea/bed-count-extension",
                 "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
                 "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
+                "http://synthetichealth.github.io/synthea/utilization-encounters-extension",
+                "http://synthetichealth.github.io/synthea/utilization-labs-extension",
+                "http://synthetichealth.github.io/synthea/utilization-prescriptions-extension",
+                "http://synthetichealth.github.io/synthea/utilization-procedures-extension",
             }
             # Some extensions we know about, but aren't necessary to us (they duplicate standard
             # extensions, contain PHI, or are otherwise not relevant). We don't want to warn

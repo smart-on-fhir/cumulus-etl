@@ -4,7 +4,7 @@ import os
 import shutil
 import tempfile
 
-from cumulus_etl import cli_utils, common, store
+from cumulus_etl import common, feedback, store
 from cumulus_etl.loaders.i2b2 import loader
 from tests.utils import AsyncTestCase
 
@@ -14,7 +14,7 @@ class TestI2b2Loader(AsyncTestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.progress = cli_utils.make_progress_bar()
+        self.progress = feedback.Progress()
 
     async def test_missing_files(self):
         """Verify that we don't error out if files are missing, we just ignore the ones that are"""

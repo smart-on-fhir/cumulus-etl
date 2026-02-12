@@ -9,7 +9,7 @@ from collections.abc import Generator
 
 import pyarrow
 
-from cumulus_etl import cli_utils, completion, formats, store
+from cumulus_etl import cli_utils, completion, feedback, formats, store
 from cumulus_etl.etl.tasks import task_factory
 
 
@@ -52,7 +52,7 @@ async def init_main(args: argparse.Namespace) -> None:
 
     output_root = store.Root(args.dir_output)
 
-    with cli_utils.make_progress_bar() as progress:
+    with feedback.Progress() as progress:
         # Set up progress bar
         total_steps = len(list(get_task_tables())) + 1  # extra 1 is initializing the formatter
         task = progress.add_task("Initializing tables", total=total_steps)
@@ -60,7 +60,7 @@ async def init_main(args: argparse.Namespace) -> None:
         # Initialize formatter (which can take a moment with deltalake)
         format_class = formats.get_format_class(args.output_format)
         format_class.initialize_class(output_root)
-        progress.update(task, advance=1)
+        progress.advance(task)
 
         # Create an empty JobConfig/ folder, so that the 'convert' command will recognize this
         # folder as an ETL folder.
@@ -70,7 +70,7 @@ async def init_main(args: argparse.Namespace) -> None:
         for format_kwargs, schema in get_task_tables():
             formatter = format_class(output_root, **format_kwargs)
             formatter.write_records(formats.Batch([], schema=schema))
-            progress.update(task, advance=1)
+            progress.advance(task)
 
 
 async def run_init(parser: argparse.ArgumentParser, argv: list[str]) -> None:

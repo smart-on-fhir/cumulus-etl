@@ -11,7 +11,7 @@ from collections.abc import AsyncIterator, Collection, Iterable
 import label_studio_sdk as ls
 import label_studio_sdk.data_manager as lsdm
 
-from cumulus_etl import batching, cli_utils, errors
+from cumulus_etl import batching, errors, feedback
 
 ###############################################################################
 #
@@ -128,7 +128,7 @@ class LabelStudioClient:
         self, label: str, collection: Collection, batch_size: int
     ) -> AsyncIterator[list]:
         num_batches = math.ceil(len(collection) / batch_size)
-        with cli_utils.make_progress_bar() as progress:
+        with feedback.Progress() as progress:
             progress_task = progress.add_task(label, total=num_batches)
             async for batch in batching.batch_iterate(collection, batch_size):
                 yield batch

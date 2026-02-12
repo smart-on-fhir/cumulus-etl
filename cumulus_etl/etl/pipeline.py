@@ -2,14 +2,13 @@ import argparse
 import datetime
 import logging
 import os
-import sys
 from collections.abc import Awaitable, Callable
 
 import cumulus_fhir_support as cfs
 import rich
 import rich.table
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, loaders, store
+from cumulus_etl import cli_utils, common, deid, errors, feedback, fhir, loaders, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary, validate_output_folder
 from cumulus_etl.etl.tasks import task_factory
@@ -121,7 +120,7 @@ async def check_available_resources(
     selected_tasks: list[type[task_factory.AnyTask]],
     args: argparse.Namespace,
     is_default_tasks: bool,
-    progress: rich.progress.Progress,
+    progress: feedback.Progress,
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
     # available in the input root.
@@ -173,7 +172,7 @@ async def run_pipeline(
     ndjson_args: dict | None = None,
     i2b2_args: dict | None = None,
     prep_scrubber: Callable[
-        [cfs.FhirClient, loaders.LoaderResults, rich.progress.Progress],
+        [cfs.FhirClient, loaders.LoaderResults, feedback.Progress],
         Awaitable[tuple[deid.Scrubber, dict]],
     ],
 ) -> None:
@@ -222,7 +221,7 @@ async def run_pipeline(
                 root_input, client=client, **(ndjson_args or {})
             )
 
-        with cli_utils.make_progress_bar() as progress:
+        with feedback.Progress() as progress:
             available_resources = await check_available_resources(
                 config_loader,
                 args=args,
@@ -280,7 +279,6 @@ async def run_pipeline(
     # Flag final status to user
     common.print_header()
     if any(s.had_errors for s in summaries):
-        print("🚨 One or more tasks above did not 100% complete! 🚨", file=sys.stderr)
-        raise SystemExit(errors.TASK_FAILED)
+        errors.fatal("🚨 One or more tasks above did not 100% complete! 🚨", errors.TASK_FAILED)
     else:
-        print("⭐ All tasks completed successfully! ⭐", file=sys.stderr)
+        rich.print("⭐ All tasks completed successfully! ⭐")

@@ -7,10 +7,9 @@ from functools import partial
 
 import cumulus_fhir_support as cfs
 import fsspec
-import rich.progress
 import rich.table
 
-from cumulus_etl import cli_utils, common, fhir, store
+from cumulus_etl import common, feedback, fhir, store
 from cumulus_etl.inliner import reader, writer
 
 
@@ -67,7 +66,7 @@ async def inliner(
 
     # Actually do the work
     stats = InliningStats()
-    with cli_utils.make_progress_bar() as progress:
+    with feedback.Progress() as progress:
         progress_task = progress.add_task("Inlining…", total=total_lines or total_files)
         for path in found_files:
             await _inline_one_file(
@@ -80,7 +79,7 @@ async def inliner(
                 progress_task=progress_task if total_lines else None,
             )
             if not total_lines:
-                progress.update(progress_task, advance=1)
+                progress.advance(progress_task)
 
     table = rich.table.Table(
         "",
@@ -120,8 +119,8 @@ async def _inline_one_file(
     *,
     mimetypes: set[str],
     stats: InliningStats,
-    progress: rich.progress.Progress | None,
-    progress_task: rich.progress.TaskID | None,
+    progress: feedback.Progress | None,
+    progress_task: feedback.TaskID | None,
 ) -> None:
     compressed = path.casefold().endswith(".gz")
     with tempfile.NamedTemporaryFile() as output_file:
@@ -157,8 +156,8 @@ async def _inline_one_line(
     mimetypes: set[str],
     output: writer.OrderedNdjsonWriter,
     stats: InliningStats,
-    progress: rich.progress.Progress | None,
-    progress_task: rich.progress.TaskID | None,
+    progress: feedback.Progress | None,
+    progress_task: feedback.TaskID | None,
 ) -> None:
     match resource.get("resourceType"):
         case "DiagnosticReport":
@@ -181,7 +180,7 @@ async def _inline_one_line(
 
     output.write(index, resource)
     if progress:
-        progress.update(progress_task, advance=1)
+        progress.advance(progress_task)
 
 
 async def _inline_one_attachment(

@@ -16,7 +16,7 @@ import ddt
 import respx
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import cli_utils, common, errors, loaders, store
+from cumulus_etl import common, errors, feedback, loaders, store
 from cumulus_etl.etl import context
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
@@ -104,7 +104,7 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_single_task(self):
         # Grab all observations before we mock anything
         observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
-            {"Observation"}, progress=cli_utils.make_progress_bar()
+            {"Observation"}, progress=feedback.Progress()
         )
 
         def fake_load_resources(internal_self, resources, progress):
@@ -127,7 +127,7 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
         loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
-            {"Observation", "Patient"}, progress=cli_utils.make_progress_bar()
+            {"Observation", "Patient"}, progress=feedback.Progress()
         )
 
         def fake_load_resources(internal_self, resources, progress):
@@ -279,7 +279,7 @@ class TestEtlJobFlow(BaseEtlSimple):
         """Verify that we parse completion args with the correct fallbacks and checks."""
         # Grab all observations before we mock anything
         observations = await loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
-            {"Observation"}, progress=cli_utils.make_progress_bar()
+            {"Observation"}, progress=feedback.Progress()
         )
         observations.group_name = loader_vals[0]
         observations.export_datetime = loader_vals[1]

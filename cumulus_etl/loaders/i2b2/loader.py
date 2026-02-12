@@ -7,9 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import TypeVar
 
-import rich.progress
-
-from cumulus_etl import cli_utils, common, store
+from cumulus_etl import cli_utils, common, feedback, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.i2b2 import extract, schema, transform
 from cumulus_etl.loaders.i2b2.oracle import extract as oracle_extract
@@ -36,7 +34,7 @@ class I2b2Loader(base.Loader):
         super().__init__(root)
         self.export_to = export_to
 
-    async def detect_resources(self, *, progress: rich.progress.Progress) -> set[str] | None:
+    async def detect_resources(self, *, progress: feedback.Progress) -> set[str] | None:
         if self.root.protocol in {"tcp"}:
             # We haven't done the export yet, so there are no files to inspect yet.
             # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
@@ -59,7 +57,7 @@ class I2b2Loader(base.Loader):
         }
 
     async def load_resources(
-        self, resources: set[str], *, progress: rich.progress.Progress
+        self, resources: set[str], *, progress: feedback.Progress
     ) -> base.LoaderResults:
         if self.root.protocol in ["tcp"]:
             directory = self._load_all_from_oracle(resources)

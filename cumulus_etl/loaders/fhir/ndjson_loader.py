@@ -6,9 +6,8 @@ import shutil
 import tempfile
 
 import cumulus_fhir_support as cfs
-import rich.progress
 
-from cumulus_etl import cli_utils, common, errors, fhir, inliner, store
+from cumulus_etl import cli_utils, common, errors, feedback, fhir, inliner, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
@@ -53,11 +52,11 @@ class FhirNdjsonLoader(base.Loader):
         self.detected_files = None
 
     @staticmethod
-    def _scan_files(root: store.Root, progress: rich.progress.Progress) -> dict[str, str | None]:
-        with cli_utils.show_indeterminate_task(progress, "Scanning input files"):
+    def _scan_files(root: store.Root, progress: feedback.Progress) -> dict[str, str | None]:
+        with progress.show_indeterminate_task("Scanning input files"):
             return cfs.list_multiline_json_in_dir(root.path, fsspec_fs=root.fs, recursive=True)
 
-    async def detect_resources(self, *, progress: rich.progress.Progress) -> set[str] | None:
+    async def detect_resources(self, *, progress: feedback.Progress) -> set[str] | None:
         if self.root.is_http:
             # We haven't done the export yet, so there are no files to inspect yet.
             # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
@@ -67,7 +66,7 @@ class FhirNdjsonLoader(base.Loader):
         return {resource for resource in self.detected_files.values() if resource}
 
     async def load_resources(
-        self, resources: set[str], *, progress: rich.progress.Progress
+        self, resources: set[str], *, progress: feedback.Progress
     ) -> base.LoaderResults:
         # Are we doing a bulk FHIR export from a server?
         if self.root.is_http:
@@ -107,11 +106,11 @@ class FhirNdjsonLoader(base.Loader):
         task = progress.add_task(description="Copying input files", total=len(filenames) * 2)
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
-            progress.update(task, advance=1)
+            progress.advance(task)
 
             # Decompress any *.gz files, because the MS tool can't understand them
             self._decompress_file(f"{tmpdir.name}/{os.path.basename(filename)}")
-            progress.update(task, advance=1)
+            progress.advance(task)
 
         return self.read_loader_results(input_root, tmpdir)
 

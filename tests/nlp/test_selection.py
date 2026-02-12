@@ -2,6 +2,7 @@
 
 import base64
 import shutil
+import time
 from unittest import mock
 
 import ddt
@@ -98,6 +99,13 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
             return conn
 
         connect.side_effect = fake_connect
+
+    def mock_interactive_console(self):
+        mock_get_console = self.patch("rich.get_console")
+        console = mock.MagicMock()
+        console.is_interactive = True
+        console.get_time = time.monotonic
+        mock_get_console.return_value = console
 
     async def run_etl(self, *args):
         await super().run_etl(
@@ -227,10 +235,7 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
             )
 
         # Pretend to be an interactive TTY
-        mock_get_console = self.patch("rich.get_console")
-        console = mock.MagicMock()
-        console.is_interactive = True
-        mock_get_console.return_value = console
+        self.mock_interactive_console()
 
         # Try with rejection of prompt
         self.mock_athena(["a"] * 50_002)
@@ -304,12 +309,9 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
         await self.run_etl("--select-by-word=doc2")
         self.assertEqual(self.mock_create.call_count, 0)
 
-    @mock.patch("rich.get_console")
-    async def test_selection_count_prompt(self, mock_get_console):
+    async def test_selection_count_prompt(self):
         # Pretend to be an interactive TTY
-        console = mock.MagicMock()
-        console.is_interactive = True
-        mock_get_console.return_value = console
+        self.mock_interactive_console()
 
         # Test default is negative
         with self.assertRaises(SystemExit):

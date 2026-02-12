@@ -3,13 +3,11 @@
 import argparse
 import datetime
 import shutil
-import sys
 
 import cumulus_fhir_support as cfs
-import rich.progress
 
 import cumulus_etl
-from cumulus_etl import cli_utils, deid, errors, loaders
+from cumulus_etl import cli_utils, deid, errors, feedback, loaders
 from cumulus_etl.etl import pipeline
 
 ###############################################################################
@@ -24,13 +22,12 @@ def check_mstool() -> None:
     Verifies that the MS anonymizer tool is installed in PATH.
     """
     if not shutil.which(deid.MSTOOL_CMD):
-        print(
+        errors.fatal(
             f"No executable found for {deid.MSTOOL_CMD}.\n\n"
             "Please see https://github.com/microsoft/Tools-for-Health-Data-Anonymization\n"
             "and install it into your PATH.",
-            file=sys.stderr,
+            errors.MSTOOL_MISSING,
         )
-        raise SystemExit(errors.MSTOOL_MISSING)
 
 
 ###############################################################################
@@ -138,14 +135,14 @@ async def etl_main(args: argparse.Namespace) -> None:
     }
 
     async def prep_scrubber(
-        _client: cfs.FhirClient, results: loaders.LoaderResults, progress: rich.progress.Progress
+        _client: cfs.FhirClient, results: loaders.LoaderResults, progress: feedback.Progress
     ) -> tuple[deid.Scrubber, dict]:
         # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
         export_group, export_datetime = handle_completion_args(args, results)
 
         results.directory = await deid.Scrubber.scrub_bulk_data(results.path, progress=progress)
 
-        with cli_utils.show_indeterminate_task(progress, "Loading codebook"):
+        with progress.show_indeterminate_task("Loading codebook"):
             scrubber = deid.Scrubber(args.dir_phi, use_philter=args.philter)
 
         return scrubber, {"export_group_name": export_group, "export_datetime": export_datetime}

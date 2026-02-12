@@ -4,9 +4,7 @@ import abc
 import dataclasses
 import datetime
 
-import rich.progress
-
-from cumulus_etl import common, store
+from cumulus_etl import common, feedback, store
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -48,7 +46,7 @@ class Loader(abc.ABC):
         self.root = root
 
     @abc.abstractmethod
-    async def detect_resources(self, *, progress: rich.progress.Progress) -> set[str] | None:
+    async def detect_resources(self, *, progress: feedback.Progress) -> set[str] | None:
         """
         Inspect which resources are available for use.
 
@@ -57,7 +55,7 @@ class Loader(abc.ABC):
 
     @abc.abstractmethod
     async def load_resources(
-        self, resources: set[str], *, progress: rich.progress.Progress
+        self, resources: set[str], *, progress: feedback.Progress
     ) -> LoaderResults:
         """
         Loads the listed remote resources and places them into a local folder as FHIR ndjson

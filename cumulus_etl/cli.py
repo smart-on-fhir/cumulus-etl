@@ -98,10 +98,10 @@ def main_cli():  # pragma: no cover
     try:
         asyncio.run(main(sys.argv[1:]))
     except errors.FatalError as exc:
-        stderr = rich.console.Console(stderr=True)
-        stderr.print(exc.message, style="bold red", highlight=False)
+        console = rich.get_console()
+        console.print(exc.message, style="bold red", highlight=False)
         if exc.details:
-            stderr.print(rich.padding.Padding.indent(exc.details, 2), highlight=False)
+            console.print(rich.padding.Padding.indent(exc.details, 2), highlight=False)
         raise
 
 
