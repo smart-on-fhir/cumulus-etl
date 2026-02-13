@@ -19,6 +19,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
     def setUp(self):
         super().setUp()
+        self.scrubber.mask_notes = False
         self.job_config.ctakes_overrides = self.ctakes_overrides.name
 
     async def test_prepare_failure(self):
@@ -292,7 +293,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     async def test_zero_symptoms(self):
         """Verify that we write out a marker for DocRefs we did examine, even if no symptoms appeared"""
         docref = i2b2_mock_data.documentreference()
-        docref_no_text = i2b2_mock_data.documentreference("")
+        docref_no_text = i2b2_mock_data.documentreference("none")
         self.make_json("DocumentReference", "zero-symptoms", **docref_no_text)
         self.make_json("DocumentReference", "not-examined", **docref, docStatus="preliminary")
 

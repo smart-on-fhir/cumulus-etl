@@ -4,7 +4,7 @@ Similar to a normal ETL task, but with an extra NLP focus.
 Some differences:
 - Runs only the NLP targeted tasks
 - No completion tracking
-- No bulk de-identification (i.e. no MS tool)
+- Leaves attachment data in place during scrubbing
 - Has NLP specific arguments
 """
 
@@ -70,7 +70,7 @@ async def nlp_main(args: argparse.Namespace) -> None:
     ) -> tuple[deid.Scrubber, dict]:
         res_filter = nlp.get_note_filter(client, args)
         with progress.show_indeterminate_task("Loading codebook"):
-            scrubber = deid.Scrubber(args.dir_phi)
+            scrubber = deid.Scrubber(args.dir_phi, mask_notes=False, keep_stats=False)
 
         # Let the user know how many documents got selected, so there are no big cost surprises.
         count = await check_input_size(scrubber.codebook, results.path, res_filter)

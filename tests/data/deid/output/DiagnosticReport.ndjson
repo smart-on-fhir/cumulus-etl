@@ -1,0 +1,26 @@
+{
+  "resourceType" : "DiagnosticReport",
+  "basedOn" : [{ "reference": "CarePlan/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
+  "status" : "final",
+  "category" : [{ "text": "kept" }],
+  "code" : { "text": "kept" },
+  "subject" : { "reference": "Patient/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "encounter" : { "reference": "Encounter/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "effectiveDateTime" : "2023",
+  "issued" : "2023",
+  "performer" : [{ "reference": "Practitioner/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
+  "resultsInterpreter" : [{ "reference": "Practitioner/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
+  "specimen" : [{ "reference": "Specimen/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
+  "result" : [{ "reference": "Observation/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
+  "imagingStudy" : [{ "reference": "ImagingStudy/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
+  "media" : [{
+    "link" : { "reference": "Media/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }
+  }],
+  "conclusionCode" : [{ "text": "kept" }],
+  "presentedForm" : [{ 
+    "_data": {"extension": [{
+      "url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+      "valueCode": "masked"
+    }]}
+  }]
+}

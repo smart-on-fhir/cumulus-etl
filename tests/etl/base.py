@@ -7,14 +7,12 @@ import tempfile
 from unittest import mock
 
 import cumulus_fhir_support as cfs
-import pytest
 
 from cumulus_etl import cli, common, deid
 from cumulus_etl.etl.config import JobConfig
 from tests import ctakesmock, utils
 
 
-@pytest.mark.skipif(not shutil.which(deid.MSTOOL_CMD), reason="MS tool not installed")
 class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncTestCase):
     """
     Base test case for basic runs of etl methods

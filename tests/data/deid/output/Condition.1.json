@@ -1,25 +1,20 @@
 {
   "resourceType": "Condition",
-  "id": "con1",
+  "id": "1ec47e04cbdc4cdd2afe3b3096a257859a37b9a4e29a2ce9e6cdfc1144135eaa",
   "implicitRules": "https://example.com/rules",
   "language": "en",
   "meta": {
-    "security": [{
-      "code": "REDACTED",
-      "display": "redacted",
-      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-    }],
     "versionId": "keep"
   },
   "contained": [
     {
       "resourceType": "Patient",
-      "id": "#pat",
+      "id": "44054f1fdf9d15066b3c284793257bb1ce5194b7647811a84618f218ba8e7937",
       "gender": "male"
     },
     {
       "resourceType": "CarePlan",
-      "id": "#careplan"
+      "id": "813a82cedbe959cbc471ff7e30e7b64e92611209d7c54d7c6f0e052a99594f47"
     }
   ],
 
@@ -73,13 +68,13 @@
       }
     ]
   }],
-  "subject": { "reference": "Patient/1" },
-  "encounter": { "reference": "Encounter/1" },
+  "subject": { "reference": "Patient/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "encounter": { "reference": "Encounter/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
   "onsetDateTime": "1985-07-17T17:30:49-04:00",
   "abatementDateTime": "1985-07-18T17:30:49-04:00",
   "recordedDate": "1985-06-18T17:30:49-04:00",
-  "recorder": { "reference": "Practitioner/1" },
-  "asserter": { "reference": "Practitioner/2" },
+  "recorder": { "reference": "Practitioner/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "asserter": { "reference": "Practitioner/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" },
   "stage" : [{
     "summary" : {
       "coding": [
@@ -89,7 +84,7 @@
         }
       ]
     },
-    "assessment" : [{ "reference": "Observation/1" }],
+    "assessment" : [{ "reference": "Observation/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
     "type" : {
       "coding": [
         {
@@ -108,6 +103,6 @@
         }
       ]
     }],
-    "detail" : [{ "reference": "DocumentReference/1" }]
+    "detail" : [{ "reference": "DocumentReference/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }]
   }]
 }

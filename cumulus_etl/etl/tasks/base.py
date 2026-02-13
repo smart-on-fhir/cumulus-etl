@@ -90,8 +90,6 @@ class EtlTask:
     # Incoming resource that this task operates on (will be included in bulk exports etc).
     # If any resource type in this set is available, the task will be run.
     resource: ClassVar[str | set[str]] = None
-    # whether this task needs bulk MS tool de-id run on its inputs (NLP tasks usually don't)
-    needs_bulk_deid: ClassVar[bool] = True
 
     outputs: ClassVar[list[OutputTable]] = [OutputTable()]
 

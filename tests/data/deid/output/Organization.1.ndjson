@@ -1,20 +1,6 @@
 {
   "resourceType": "Organization",
-  "meta": {
-    "security": [
-      {
-        "code": "REDACTED",
-        "display": "redacted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      },
-      {
-        "code": "ABSTRED",
-        "display": "abstracted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      }
-    ]
-  },
-  "id": "hl7",
+  "id": "e327de61d0669b95f22d9078007fa06c4583fd9f3a9b93145d6604e7feab9e1e",
   "identifier": [
     {
       "system": "http://hl7.org/fhir/sid/us-npi",
@@ -42,7 +28,7 @@
       "country": "USA"
     }
   ],
-  "partOf": {"reference": "Organization/Parent"},
+  "partOf": {"reference": "Organization/b3d4612991f07480a836526165c78fb5934caf6fd5a331938c5b9aa68f66bdfe"},
   "contact": [
     {
       "purpose": {"text": "legal"},
@@ -55,7 +41,7 @@
   ],
   "endpoint": [
     {
-      "reference": "Endpoint/example"
+      "reference": "Endpoint/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
     }
   ]
 }

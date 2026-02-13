@@ -1,0 +1,932 @@
+# "allowed" keys here must start with either a resource type name or a backbone name (like Dosage)
+# Each dot field further descends into the resource structure.
+#
+# Recognized values:
+# - Any capitalized value, representing a struct/dict node (a Resource or Element in FHIR speak)
+#   in which case we recursively look up the value in the rest of the config
+#   - These resource names can be followed by semicolons and key=value pairs to restrict allowed
+#     elements to matching resources. For example:
+#     "Identifier;system=https://example.com/;system=https://example2.com/"
+#   - CC: shortcut for CodeableConcept
+#   - Ref: shortcut for Reference
+# - val: allow this leaf-node value (will warn & skip resource if used on an Element)
+# - mask: drop this leaf-node value, but leave a data-absent-reason extension
+# - mask-note: mask unless we are operating on clinical notes (like in NLP mode)
+# - anon-id: anonymize a string ID
+# - anon-ref: anonymize a string reference (examining any sibling "type" value)
+# - year: generalize a date to just the year (used for birth dates)
+# - zip: generalize a zip code to 3 digits (unless in a low-population zip, then scrub all digits)
+# - philter: if philter is enabled, run it on this text value
+# - check-system: first check if the sibling "system" value is safe (e.g. Epic has some custom
+#   site-specific systems, which allow users to enter free text codes/display values, which may be
+#   PHI). Followed by a semicolon and then the action to take if allowed
+
+[allowed.Address] # http://hl7.org/fhir/R4/datatypes.html#Address
+_extends = "Element"
+state = "val"
+postalCode = "zip"
+country = "val"
+
+[allowed.AllergyIntolerance] # http://hl7.org/fhir/R4/allergyintolerance.html
+_extends = "DomainResource"
+# skip identifier
+clinicalStatus = "CC"
+verificationStatus = "CC"
+type = "val"
+category = "val"
+criticality = "val"
+code = "CC"
+patient = "Ref"
+encounter = "Ref"
+onsetDateTime = "val"
+onsetAge = "val"
+onsetPeriod = "val"
+onsetRange = "val"
+# skip onsetString (could philter it, but you'd just lose anything of value that way)
+recordedDate = "val"
+recorder = "Ref"
+asserter = "Ref"
+lastOccurrence = "val"
+# skip note
+reaction.substance = "CC"
+reaction.manifestation = "CC"
+# skip reaction.description
+reaction.onset = "val"
+reaction.severity = "val"
+reaction.exposureRoute = "CC"
+# skip reaction.note
+
+[allowed.Attachment] # http://hl7.org/fhir/R4/datatypes.html#Attachment
+_extends = "Element"
+contentType = "val"
+language = "val"
+data = "mask-note"
+url = "mask-note"
+size = "val"
+hash = "val"
+# skip title
+creation = "val"
+
+[allowed.BackboneElement] # http://hl7.org/fhir/R4/backboneelement.html
+_extends = "Element"
+modifierExtension = "Extension"
+
+[allowed.CodeableConcept] # http://hl7.org/fhir/R4/datatypes.html#CodeableConcept
+_extends = "Element"
+coding = "Coding"
+text = "philter"
+
+[allowed.Coding] # http://hl7.org/fhir/R4/datatypes.html#Coding
+_extends = "Element"
+system = "val"
+version = "val"
+code = "check-system;val"
+display = "check-system;philter"
+userSelected = "val"
+
+[allowed.Condition] # https://hl7.org/fhir/R4/condition.html
+_extends = "DomainResource"
+# skip identifier
+clinicalStatus = "CC"
+verificationStatus = "CC"
+category = "CC"
+severity = "CC"
+code = "CC"
+bodySite = "CC"
+subject = "Ref"
+encounter = "Ref"
+onsetDateTime = "val"
+onsetAge = "Quantity"
+onsetPeriod = "Period"
+onsetRange = "Range"
+# skip onsetString, we could run philter on it, but it would just remove anything useful we could parse
+abatementDateTime = "val"
+abatementAge = "Quantity"
+abatementPeriod = "Period"
+abatementRange = "Range"
+# skip abatementString, we could run philter on it, but it would just remove anything useful we could parse
+recordedDate = "val"
+recorder = "Ref"
+asserter = "Ref"
+stage.summary = "CC"
+stage.assessment = "Ref"
+stage.type = "CC"
+evidence.code = "CC"
+evidence.detail = "Ref"
+# skip note
+
+[allowed.Contributor] # http://hl7.org/fhir/R4/metadatatypes.html#Contributor
+_extends = "Element"
+type = "val"
+# skip name
+# skip contact
+
+[allowed.Device] # http://hl7.org/fhir/R4/device.html
+_extends = "DomainResource"
+# skip identifier
+definition = "Ref"
+udiCarrier.deviceIdentifier = "val" # caution: non-PHI freeform string
+udiCarrier.issuer = "val"
+udiCarrier.jurisdiction = "val"
+udiCarrier.carrierAIDC = "val" # caution: non-PHI freeform string
+udiCarrier.carrierHRF = "val" # caution: non-PHI freeform string
+udiCarrier.entryType = "val"
+status = "val"
+statusReason = "CC"
+distinctIdentifier = "val" # caution: non-PHI freeform string
+manufacturer = "val" # caution: non-PHI freeform string
+manufactureDate = "val"
+expirationDate = "val"
+lotNumber = "val" # caution: non-PHI freeform string
+serialNumber = "val" # caution: non-PHI freeform string
+deviceName.name = "val" # caution: non-PHI freeform string
+deviceName.type = "val"
+modelNumber = "val" # caution: non-PHI freeform string
+partNumber = "val" # caution: non-PHI freeform string
+type = "CC"
+specialization.systemType = "CC"
+specialization.version = "val" # caution: non-PHI freeform string
+version.type = "CC"
+version.component = "Identifier" # caution: non-PHI identifier
+version.value = "val" # caution: non-PHI freeform string
+property.type = "CC"
+property.valueQuantity = "Quantity"
+property.valueCode = "CC"
+patient = "Ref"
+owner = "Ref"
+# skip contact
+location = "Ref"
+# skip url
+# skip note
+safety = "CC"
+parent = "Ref"
+
+[allowed.DiagnosticReport] # https://hl7.org/fhir/R4/diagnosticreport.html
+_extends = "DomainResource"
+# skip identifier
+basedOn = "Ref"
+status = "val"
+category = "CC"
+code = "CC"
+subject = "Ref"
+encounter = "Ref"
+effectiveDateTime = "val"
+effectivePeriod = "Period"
+issued = "val"
+performer = "Ref"
+resultsInterpreter = "Ref"
+specimen = "Ref"
+result = "Ref"
+imagingStudy = "Ref"
+# skip media.comment
+media.link = "Ref"
+# skip conclusion
+conclusionCode = "CC"
+presentedForm = "Attachment"
+
+[allowed.DocumentReference] # https://hl7.org/fhir/R4/documentreference.html
+_extends = "DomainResource"
+# skip masterIdentifier
+# skip identifier
+status = "val"
+docStatus = "val"
+type = "CC"
+category = "CC"
+subject = "Ref"
+date = "val"
+author = "Ref"
+authenticator = "Ref"
+custodian = "Ref"
+relatesTo.code = "val"
+relatesTo.target = "Ref"
+# skip description
+securityLabel = "CC"
+content.attachment = "Attachment"
+content.format = "Coding"
+context.encounter = "Ref"
+context.event = "CC"
+context.period = "Period"
+context.facilityType = "CC"
+context.practiceSetting = "CC"
+context.sourcePatientInfo = "Ref"
+context.related = "Ref"
+
+[allowed.DomainResource] # http://hl7.org/fhir/R4/domainresource.html
+_extends = "Resource"
+# skip text
+contained = "Resource"
+extension = "Extension"
+modifierExtension = "Extension"
+
+[allowed.Dosage] # http://hl7.org/fhir/R4/dosage.html
+_extends = "BackboneElement"
+sequence = "val"
+# skip text
+additionalInstruction = "CC"
+# skip patientInstruction
+timing = "Timing"
+asNeededBoolean = "val"
+asNeededCodeableConcept = "CC"
+site = "CC"
+route = "CC"
+method = "CC"
+doseAndRate.type = "CC"
+doseAndRate.doseRange = "Range"
+doseAndRate.doseQuantity = "Quantity"
+doseAndRate.rateRatio = "Ratio"
+doseAndRate.rateRange = "Range"
+doseAndRate.rateQuantity = "Quantity"
+maxDosePerPeriod = "Ratio"
+maxDosePerAdministration = "Quantity"
+maxDosePerLifetime = "Quantity"
+
+[allowed.Element] # http://hl7.org/fhir/R4/element.html
+# skip id
+extension = "Extension"
+
+[allowed.Encounter] # http://hl7.org/fhir/R4/encounter.html
+_extends = "DomainResource"
+# skip identifier
+status = "val"
+statusHistory.status = "val"
+statusHistory.period = "Period"
+class = "Coding"
+classHistory.class = "Coding"
+classHistory.period = "Period"
+type = "CC"
+serviceType = "CC"
+priority = "CC"
+subject = "Ref"
+episodeOfCare = "Ref"
+basedOn = "Ref"
+participant.type = "CC"
+participant.period = "Period"
+participant.individual = "Ref"
+appointment = "Ref"
+period = "Period"
+length = "Quantity"
+reasonCode = "CC"
+reasonReference = "Ref"
+diagnosis.condition = "Ref"
+diagnosis.use = "CC"
+diagnosis.rank = "val"
+account = "Ref"
+# skip hospitalization.preAdmissionIdentifier
+hospitalization.origin = "Ref"
+hospitalization.admitSource = "CC"
+hospitalization.reAdmission = "CC"
+hospitalization.dietPreference = "CC"
+hospitalization.specialCourtesy = "CC"
+hospitalization.specialArrangement = "CC"
+hospitalization.destination = "Ref"
+hospitalization.dischargeDisposition = "CC"
+location.location = "Ref"
+location.status = "val"
+location.physicalType = "CC"
+location.period = "Period"
+serviceProvider = "Ref"
+partOf = "Ref"
+
+[allowed.Extension] # http://hl7.org/fhir/R4/extensibility.html#Extension
+_extends = "Element"
+url = "val"
+valueBase64Binary = "val"
+valueBoolean = "val"
+valueCanonical = "val"
+valueCode = "val"
+valueDate = "val"
+valueDateTime = "val"
+valueDecimal = "val"
+valueId = "anon-id"
+valueInstant = "val"
+valueInteger = "val"
+# skip valueMarkdown
+valueOid = "val"
+valuePositiveInt = "val"
+valueString = "val" # caution: may hold PHI, but we allow-list extensions
+valueTime = "val"
+valueUnsignedInt = "val"
+valueUri = "val"
+valueUrl = "val"
+valueUuid = "val"
+valueAddress = "Address"
+valueAge = "Quantity"
+# skip valueAnnotation
+valueAttachment = "Attachment"
+valueCodeableConcept = "CodeableConcept"
+valueCoding = "Coding"
+# skip valueContactPoint
+valueCount = "Quantity"
+valueDistance = "Quantity"
+valueDuration = "Quantity"
+# skip valueHumanName
+valueIdentifier = "Identifier" # caution: may hold PHI, but we allow-list extensions
+valueMoney = "Money"
+valuePeriod = "Period"
+valueQuantity = "Quantity"
+valueRange = "Range"
+valueRatio = "Ratio"
+valueReference = "Reference"
+valueSampledData = "SampledData"
+valueSignature = "Signature"
+valueTiming = "Timing"
+# skip valueContactDetail
+valueContributor = "Contributor"
+# skip valueDataRequirement until we see extensions needing it
+# skip valueExpression until we see extensions needing it - _could_ hold PHI in MRNs or something
+# skip valueParameterDefinition until we see extensions needing it
+# skip valueRelatedArtifact until we see extensions needing it
+# skip valueTriggerDefinition until we see extensions needing it
+valueUsageContext = "UsageContext"
+valueDosage = "Dosage"
+valueMeta = "Meta"
+
+[allowed.Identifier] # http://hl7.org/fhir/R4/datatypes.html#Identifier
+_extends = "Element"
+use = "val"
+type = "CC"
+system = "val"
+value = "val"
+period = "Period"
+assigner = "Ref"
+
+[allowed.Immunization] # https://hl7.org/fhir/R4/immunization.html
+_extends = "DomainResource"
+# skip identifier
+status = "val"
+statusReason = "CC"
+vaccineCode = "CC"
+patient = "Ref"
+encounter = "Ref"
+occurrenceDateTime = "val"
+# skip occurrenceString, we could run philter on it, but it would just remove anything useful we could parse
+recorded = "val"
+primarySource = "val"
+reportOrigin = "CC"
+location = "Ref"
+manufacturer = "Ref"
+lotNumber = "val" # caution: non-PHI freeform string
+expirationDate = "val"
+site = "CC"
+route = "CC"
+doseQuantity = "Quantity"
+performer.function = "CC"
+performer.actor = "Ref"
+# skip note
+reasonCode = "CC"
+reasonReference = "Ref"
+isSubpotent = "val"
+subpotentReason = "CC"
+education.documentType = "val"
+# skip education.reference (institutional info might slip in, and it's not likely to be useful)
+education.publicationDate = "val"
+education.presentationDate = "val"
+programEligibility = "CC"
+fundingSource = "CC"
+reaction.date = "val"
+reaction.detail = "Ref"
+reaction.reported = "val"
+protocolApplied.series = "val" # caution: non-PHI freeform string
+protocolApplied.authority = "Ref"
+protocolApplied.targetDisease = "CC"
+protocolApplied.doseNumberPositiveInt = "val"
+protocolApplied.doseNumberString = "val" # caution: non-PHI freeform string
+protocolApplied.seriesDosesPositiveInt = "val"
+protocolApplied.seriesDosesString = "val" # caution: non-PHI freeform string
+
+[allowed.Location] # http://hl7.org/fhir/R4/location.html
+_extends = "DomainResource"
+# This is not a patient-linked resource, so we aren't quite as worried about PHI in identifiers.
+identifier = "Identifier;system=http://hl7.org/fhir/sid/us-npi"
+status = "val"
+operationalStatus = "Coding"
+name = "val"
+alias = "val"
+# skip description
+mode = "val"
+type = "CC"
+# skip telecom
+address = "Address"
+physicalType = "CC"
+# skip position
+managingOrganization = "Ref"
+partOf = "Ref"
+hoursOfOperation.daysOfWeek = "val"
+hoursOfOperation.allDay = "val"
+hoursOfOperation.openingTime = "val"
+hoursOfOperation.closingTime = "val"
+# skip availabilityExceptions
+endpoint = "Ref"
+
+[allowed.Medication] # https://hl7.org/fhir/R4/medication.html
+_extends = "DomainResource"
+# skip identifier
+code = "CC"
+status = "val"
+manufacturer = "Ref"
+form = "CC"
+amount = "Ratio"
+ingredient.itemCodeableConcept = "CC"
+ingredient.itemReference = "Ref"
+ingredient.isActive = "val"
+ingredient.strength = "Ratio"
+batch.lotNumber = "val"
+batch.expirationDate = "val"
+
+[allowed.MedicationRequest] # https://hl7.org/fhir/R4/medicationrequest.html
+_extends = "DomainResource"
+# skip identifier
+status = "val"
+statusReason = "CC"
+intent = "val"
+category = "CC"
+priority = "val"
+doNotPerform = "val"
+reportedBoolean = "val"
+reportedReference = "Ref"
+medicationCodeableConcept = "CC"
+medicationReference = "Ref"
+subject = "Ref"
+encounter = "Ref"
+supportingInformation = "Ref"
+authoredOn = "val"
+requester = "Ref"
+performer = "Ref"
+performerType = "CC"
+recorder = "Ref"
+reasonCode = "CC"
+reasonReference = "Ref"
+instantiatesCanonical = "val"
+instantiatesUri = "val"
+basedOn = "Ref"
+# skip groupIdentifier
+courseOfTherapyType = "CC"
+insurance = "Ref"
+# skip note
+dosageInstruction = "Dosage"
+dispenseRequest.initialFill.quantity = "Quantity"
+dispenseRequest.initialFill.duration = "Quantity"
+dispenseRequest.dispenseInterval = "Quantity"
+dispenseRequest.validityPeriod = "Period"
+dispenseRequest.numberOfRepeatsAllowed = "val"
+dispenseRequest.quantity = "Quantity"
+dispenseRequest.expectedSupplyDuration = "Quantity"
+dispenseRequest.performer = "Ref"
+substitution.allowedBoolean = "val"
+substitution.allowedCodeableConcept = "CC"
+substitution.reason = "CC"
+priorPrescription = "Ref"
+detectedIssue = "Ref"
+eventHistory = "Ref"
+
+[allowed.Meta] # http://hl7.org/fhir/R4/resource.html#Meta
+_extends = "Element"
+versionId = "val"
+lastUpdated = "val"
+source = "val"
+profile = "val"
+security = "Coding"
+tag = "Coding"
+
+[allowed.Money] # http://hl7.org/fhir/R4/datatypes.html#Money
+_extends = "Element"
+value = "val"
+currency = "val"
+
+[allowed.Observation] # http://hl7.org/fhir/R4/observation.html
+_extends = "DomainResource"
+# skip identifier
+basedOn = "Ref"
+partOf = "Ref"
+status = "val"
+category = "CC"
+code = "CC"
+subject = "Ref"
+focus = "Ref"
+encounter = "Ref"
+effectiveDateTime = "val"
+effectivePeriod = "Period"
+effectiveTiming = "Timing"
+effectiveInstant = "val"
+issued = "val"
+performer = "Ref"
+valueQuantity = "Quantity"
+valueCodeableConcept = "CC"
+valueString = "mask"
+valueBoolean = "val"
+valueInteger = "val"
+valueRange = "Range"
+valueRatio = "Ratio"
+valueSampledData = "SampledData"
+valueTime = "val"
+valueDateTime = "val"
+valuePeriod = "Period"
+dataAbsentReason = "CC"
+interpretation = "CC"
+# skip note
+bodySite = "CC"
+method = "CC"
+specimen = "Ref"
+device = "Ref"
+# skip referenceRange
+hasMember = "Ref"
+derivedFrom = "Ref"
+component.code = "CC"
+component.valueQuantity = "Quantity"
+component.valueCodeableConcept = "CC"
+component.valueString = "mask"
+component.valueBoolean = "val"
+component.valueInteger = "val"
+component.valueRange = "Range"
+component.valueRatio = "Ratio"
+component.valueSampledData = "SampledData"
+component.valueTime = "val"
+component.valueDateTime = "val"
+component.valuePeriod = "Period"
+component.dataAbsentReason = "CC"
+component.interpretation = "CC"
+# skip component.referenceRange
+
+[allowed.Organization] # https://hl7.org/fhir/R4/organization.html
+_extends = "DomainResource"
+# This is not a patient-linked resource, so we aren't quite as worried about PHI in identifiers.
+# These allowed identifiers are mentioned in US Core
+identifier = "Identifier;system=http://hl7.org/fhir/sid/us-npi;system=urn:oid:2.16.840.1.113883.4.7;system=urn:oid:2.16.840.1.113883.6.300"
+active = "val"
+type = "CC"
+name = "val"
+alias = "val"
+# skip telecom
+address = "Address"
+partOf = "Ref"
+contact.purpose = "CC"
+# skip contact.name
+# skip contact.telecom
+contact.address = "Address"
+endpoint = "Ref"
+
+[allowed.Patient] # http://hl7.org/fhir/R4/patient.html
+_extends = "DomainResource"
+# skip identifier
+active = "val"
+# skip name
+# skip telecom
+gender = "val"
+birthDate = "year"
+deceasedBoolean = "val"
+deceasedDateTime = "val"
+address = "Address"
+maritalStatus = "CC"
+multipleBirthBoolean = "val"
+multipleBirthInteger = "val"
+# skip photo
+contact.relationship = "CC"
+# skip contact.name
+# skip contact.telecom
+contact.address = "Address"
+contact.gender = "val"
+contact.organization = "Ref"
+contact.period = "Period"
+communication.language = "CC"
+communication.preferred = "val"
+generalPractitioner = "Ref"
+managingOrganization = "Ref"
+link.other = "Ref"
+link.type = "val"
+
+[allowed.Period] # http://hl7.org/fhir/R4/datatypes.html#Period
+_extends = "Element"
+start = "val"
+end = "val"
+
+[allowed.Practitioner] # http://hl7.org/fhir/R4/practitioner.html
+_extends = "DomainResource"
+# This is not a patient-linked resource, so we aren't quite as worried about PHI in identifiers.
+# But it's also a person, so exhibit some caution.
+identifier = "Identifier;system=http://hl7.org/fhir/sid/us-npi"
+active = "val"
+# skip name
+# skip telecom
+address = "Address"
+gender = "val"
+birthDate = "year"
+# skip photo
+qualification.identifier = "Identifier"
+qualification.code = "CC"
+qualification.period = "Period"
+qualification.issuer = "Ref"
+communication = "CC"
+
+[allowed.PractitionerRole] # http://hl7.org/fhir/R4/practitionerrole.html
+_extends = "DomainResource"
+# This is not a patient-linked resource, so we aren't quite as worried about PHI in identifiers.
+# But it's also a person, so exhibit some caution.
+identifier = "Identifier;system=http://hl7.org/fhir/sid/us-npi"
+active = "val"
+period = "Period"
+practitioner = "Ref"
+organization = "Ref"
+code = "CC"
+specialty = "CC"
+location = "Ref"
+healthcareService = "Ref"
+# skip telecom
+availableTime.daysOfWeek = "val"
+availableTime.allDay = "val"
+availableTime.availableStartTime = "val"
+availableTime.availableEndTime = "val"
+# skip notAvailable.description
+notAvailable.during = "Period"
+# skip availabilityExceptions
+endpoint = "Ref"
+
+[allowed.Procedure] # https://hl7.org/fhir/R4/procedure.html
+_extends = "DomainResource"
+# skip identifier
+instantiatesCanonical = "val"
+instantiatesUri = "val"
+basedOn = "Ref"
+partOf = "Ref"
+status = "val"
+statusReason = "CC"
+category = "CC"
+code = "CC"
+subject = "Ref"
+encounter = "Ref"
+performedDateTime = "val"
+performedPeriod = "Period"
+# skip performedString, not usefully machine readable
+performedAge = "Quantity"
+performedRange = "Range"
+recorder = "Ref"
+asserter = "Ref"
+performer.function = "CC"
+performer.actor = "Ref"
+performer.onBehalfOf = "Ref"
+location = "Ref"
+reasonCode = "CC"
+reasonReference = "Ref"
+bodySite = "CC"
+outcome = "CC"
+report = "Ref"
+complication = "CC"
+complicationDetail = "Ref"
+followUp = "CC"
+# skip note
+focalDevice.action = "CC"
+focalDevice.manipulated = "Ref"
+usedReference = "Ref"
+usedCode = "CC"
+
+[allowed.Quantity] # http://hl7.org/fhir/R4/datatypes.html#Quantity
+_extends = "Element"
+value = "val"
+comparator = "val"
+unit = "val"
+system = "val"
+code = "check-system;val"
+
+[allowed.Range] # http://hl7.org/fhir/R4/datatypes.html#Range
+_extends = "Element"
+low = "Quantity"
+high = "Quantity"
+
+[allowed.Ratio] # http://hl7.org/fhir/R4/datatypes.html#Ratio
+_extends = "Element"
+numerator = "Quantity"
+denominator = "Quantity"
+
+[allowed.Resource] # http://hl7.org/fhir/R4/resource.html
+# Additional toplevel rules, which will be folded into the actual resource type
+resourceType = "val"
+id = "anon-id"
+meta = "Meta"
+implicitRules = "val"
+language = "val"
+
+[allowed.Reference] # http://hl7.org/fhir/R4/references.html
+_extends = "Element"
+reference = "anon-ref"
+type = "val"
+# skip identifier
+# skip display
+
+[allowed.SampledData] # http://hl7.org/fhir/R4/datatypes.html#SampledData
+_extends = "Element"
+origin = "Quantity"
+period = "val"
+factor = "val"
+lowerLimit = "val"
+upperLimit = "val"
+dimensions = "val"
+data = "val"
+
+[allowed.ServiceRequest] # https://hl7.org/fhir/R4/servicerequest.html
+_extends = "DomainResource"
+# skip identifier
+instantiatesCanonical = "val"
+instantiatesUri = "val"
+basedOn = "Ref"
+replaces = "Ref"
+# skip requisition
+status = "val"
+intent = "val"
+category = "CC"
+priority = "val"
+doNotPerform = "val"
+code = "CC"
+orderDetail = "CC"
+quantityQuantity = "Quantity"
+quantityRatio = "Ratio"
+quantityRange = "Range"
+subject = "Ref"
+encounter = "Ref"
+occurrenceDateTime = "val"
+occurrencePeriod = "Period"
+occurrenceTiming = "Timing"
+asNeededBoolean = "val"
+asNeededCodeableConcept = "CC"
+authoredOn = "val"
+requester = "Ref"
+performerType = "CC"
+performer = "Ref"
+locationCode = "CC"
+locationReference = "Ref"
+reasonCode = "CC"
+reasonReference = "Ref"
+insurance = "Ref"
+supportingInfo = "Ref"
+specimen = "Ref"
+bodySite = "CC"
+# skip note
+# skip patientInstruction
+relevantHistory = "Ref"
+
+[allowed.Signature] # http://hl7.org/fhir/R4/datatypes.html#Signature
+_extends = "Element"
+type = "Coding"
+when = "val"
+who = "Ref"
+onBehalfOf = "Ref"
+targetFormat = "val"
+sigFormat = "val"
+# skip data
+
+[allowed.Timing] # http://hl7.org/fhir/R4/datatypes.html#Timing
+_extends = "BackboneElement"
+event = "val"
+repeat.boundsDuration = "Quantity"
+repeat.boundsRange = "Range"
+repeat.boundsPeriod = "Period"
+repeat.count = "val"
+repeat.countMax = "val"
+repeat.duration = "val"
+repeat.durationMax = "val"
+repeat.durationUnit = "val"
+repeat.frequency = "val"
+repeat.frequencyMax = "val"
+repeat.period = "val"
+repeat.periodMax = "val"
+repeat.periodUnit = "val"
+repeat.dayOfWeek = "val"
+repeat.timeOfDay = "val"
+repeat.when = "val"
+repeat.offset = "val"
+code = "CC"
+
+[allowed.UsageContext] # http://hl7.org/fhir/R4/metadatatypes.html#UsageContext
+_extends = "Element"
+code = "Coding"
+valueCodeableConcept = "CC"
+valueQuantity = "Quantity"
+valueRange = "Range"
+valueReference = "Ref"
+
+[extensions.normal]
+# We want to allow almost any extension that might have clinical or QA relevance.
+allowed = [
+    ### Base spec extensions
+    ### (See https://www.hl7.org/fhir/R4/extensibility-registry.html)
+    "http://hl7.org/fhir/StructureDefinition/annotationType",
+    "http://hl7.org/fhir/StructureDefinition/condition-assertedDate",
+    "http://hl7.org/fhir/StructureDefinition/data-absent-reason",
+    "http://hl7.org/fhir/StructureDefinition/derivation-reference",
+    "http://hl7.org/fhir/StructureDefinition/event-performerFunction",
+    "http://hl7.org/fhir/StructureDefinition/individual-pronouns",
+    "http://hl7.org/fhir/StructureDefinition/iso21090-PQ-translation",
+    "http://hl7.org/fhir/StructureDefinition/patient-genderIdentity",
+    "http://hl7.org/fhir/StructureDefinition/patient-preferenceType",
+    "http://hl7.org/fhir/StructureDefinition/patient-proficiency",
+    "http://hl7.org/fhir/StructureDefinition/workflow-supportingInfo",
+    "http://hl7.org/fhir/5.0/StructureDefinition/extension-DocumentReference.attester",
+    ### US Core extensions
+    ### (See https://hl7.org/fhir/us/core/profiles-and-extensions.html)
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-genderIdentity",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-jurisdiction",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-medication-adherence",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-sex",
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-tribal-affiliation",
+    ### Next two are old US Core DSTU1 URLs, still seen in the wild
+    ### (See https://www.hl7.org/fhir/DSTU1/us-core.html)
+    "http://hl7.org/fhir/Profile/us-core#ethnicity",
+    "http://hl7.org/fhir/Profile/us-core#race",
+    ### Cerner extensions
+    # Links to a client Organization reference in an Encounter
+    "https://fhir-ehr.cerner.com/r4/StructureDefinition/client-organization",
+    # "precision" here is the precision of a date field
+    "https://fhir-ehr.cerner.com/r4/StructureDefinition/precision",
+    # Some medication extensions used by Cerner
+    "https://fhir-ehr.cerner.com/r4/StructureDefinition/pharmacy-verification-status",
+    "http://electronichealth.se/fhir/StructureDefinition/NLLDosePackaging",
+    "http://electronichealth.se/fhir/StructureDefinition/NLLPrescriptionFormat",
+    "http://electronichealth.se/fhir/StructureDefinition/NLLRegistrationBasis",
+    ### Epic extensions
+    "http://open.epic.com/FHIR/StructureDefinition/extension/accidentrelated",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/basis-at-begin-exam",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/calculated-pronouns-to-use-for-text",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-attached-media",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-authentication-instant",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-author-provider-type",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-interval-update",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-interval-update-source",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-post-procedure-diagnosis",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-pre-procedure-diagnosis",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/clinical-note-service",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/data-conversion-warning",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/edd-at-begin-exam",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/historical-fhir-id",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/ip-admit-datetime",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/legal-sex",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/log-level-procedure-codes",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/observation-datetime",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/patient-type",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/sex-for-clinical-use",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/smartdata",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/specialty",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/surgical-history-laterality",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/surgical-history-source",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/template-id",
+    "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-language",
+    "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-sex",
+    "http://open.epic.com/FHIR/STU3/StructureDefinition/temperature-in-fahrenheit",
+    "http://open.epic.com/FHIR/R4/StructureDefinition/patient-preferred-provider-sex",
+    "https://open.epic.com/fhir/extensions/specialty",
+    "https://open.epic.com/FHIR/StructureDefinition/patient-merge-target-reference",
+    "https://open.epic.com/FHIR/StructureDefinition/patient-merge-unmerge-instant",
+    # A Netherlands extension used by Epic
+    "http://nictiz.nl/fhir/StructureDefinition/BodySite-Qualifier",
+    ### Synthea extensions
+    "http://synthetichealth.github.io/synthea/bed-count-extension",
+    "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
+    "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
+    "http://synthetichealth.github.io/synthea/utilization-encounters-extension",
+    "http://synthetichealth.github.io/synthea/utilization-labs-extension",
+    "http://synthetichealth.github.io/synthea/utilization-prescriptions-extension",
+    "http://synthetichealth.github.io/synthea/utilization-procedures-extension",
+]
+
+# Some extensions we know about, but aren't necessary to us (they duplicate standard
+# extensions, contain PHI, or are otherwise not relevant). We don't want to warn
+# the user about them as "unrecognized", so we just ignore them entirely.
+ignored = [
+    # Base spec extensions related to PHI
+    "http://hl7.org/fhir/StructureDefinition/geolocation",
+    "http://hl7.org/fhir/StructureDefinition/iso21090-EN-qualifier",
+    "http://hl7.org/fhir/StructureDefinition/iso21090-TEL-address",
+    "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
+    "http://hl7.org/fhir/StructureDefinition/patient-birthTime",
+    "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
+    # Usually harmless, but we ignore it to avoid accidentally leaving in the
+    # rendered value of a PHI element that we removed or didn't allow-list.
+    "http://hl7.org/fhir/StructureDefinition/rendered-value",
+    # US Core extension, but deals with how to email a person, which we don't need
+    "http://hl7.org/fhir/us/core/StructureDefinition/us-core-direct",
+    # Cerner dosage instruction freeform text extension, could have PHI
+    "https://fhir-ehr.cerner.com/r4/StructureDefinition/clinical-instruction",
+    # Cerner arbitrary key/value extension - could have PHI?
+    "https://fhir-ehr.cerner.com/r4/StructureDefinition/custom-attribute",
+    # Cerner financial extension for Encounters, we don't need to record this
+    "https://fhir-ehr.cerner.com/r4/StructureDefinition/estimated-financial-responsibility-amount",
+    # Epic PHI extension
+    "http://open.epic.com/FHIR/StructureDefinition/extension/birth-location",
+    # Epic extension that points at an Encounter Identifier, the kind we normally strip
+    "http://open.epic.com/FHIR/StructureDefinition/extension/ce-encounter-id",
+    # Epic extension with physician name
+    "http://open.epic.com/FHIR/StructureDefinition/extension/lab-e-signature",
+    # Epic extension with internal team names, low clinical relevance but w/ PHI risk
+    "http://open.epic.com/FHIR/StructureDefinition/extension/team-name",
+    # Epic extension with freeform text. Supposed to be technical, but might have PHI?
+    "http://open.epic.com/FHIR/StructureDefinition/extension/technical-details",
+]
+
+[extensions.modifier]
+allowed = [
+    # These NLP extensions are generated by ctakesclient's text2fhir code.
+    # While we don't anticipate ingesting any resources using these extensions
+    # (and we don't currently generate them ourselves), we might in the future.
+    "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-polarity",
+    "http://fhir-registry.smarthealthit.org/StructureDefinition/nlp-source",
+]

@@ -1,13 +1,6 @@
 {
   "resourceType" : "Device",
-  "meta": {
-    "security": [{
-      "code": "REDACTED",
-      "display": "redacted",
-      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-    }]
-  },
-  "definition" : { "reference": "DeviceDefinition/x" },
+  "definition" : { "reference": "DeviceDefinition/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
   "udiCarrier" : [{
     "deviceIdentifier" : "kept",
     "issuer" : "urn:kept",
@@ -45,9 +38,9 @@
     "valueQuantity" : [{ "unit": "kept" }],
     "valueCode" : [{ "text": "kept" }]
   }],
-  "patient" : { "reference": "Patient/x" },
-  "owner" : { "reference": "Organization/x" },
-  "location" : { "reference": "Location/x" },
+  "patient" : { "reference": "Patient/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "owner" : { "reference": "Organization/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "location" : { "reference": "Location/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
   "safety" : [{ "text": "kept" }],
-  "parent" : { "reference": "Device/x" }
+  "parent" : { "reference": "Device/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }
 }

@@ -237,7 +237,7 @@ class TestNdjsonLoader(AsyncTestCase):
             self.assertEqual(patient, common.read_json(f"{target}/Patient.ndjson"))
             self.assertEqual({"eventId": "kickoff"}, common.read_json(f"{target}/log.ndjson"))
 
-            # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
+            # Confirm the returned dir has only the data
             self.assertNotEqual(results.path, target)
             self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
             self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
@@ -256,7 +256,7 @@ class TestNdjsonLoader(AsyncTestCase):
         loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock())
         results = await loader.load_resources({"Patient"}, progress=self.progress)
 
-        # Confirm the returned dir has only the data (we don't want to confuse MS tool with logs)
+        # Confirm the returned dir has only the data
         self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
         self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
 

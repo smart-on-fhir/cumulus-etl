@@ -1,0 +1,5 @@
+{
+  "resourceType": "Condition",
+  "id": "6a8c39779c833f09e854eacf3a2a36511303249468b424b970edeb9939d14573",
+  "subject": { "reference": "Patient/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" }
+}

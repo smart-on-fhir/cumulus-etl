@@ -1,0 +1,93 @@
+{
+  "resourceType": "Procedure",
+  "id": "2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45",
+
+  "instantiatesCanonical": ["https://example.org/canonical"],
+  "instantiatesUri": ["https://example.org/hello"],
+  "basedOn": [{ "reference": "ServiceRequest/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "partOf": [{  "reference": "Observation/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45"  }],
+  "status": "not-done",
+  "statusReason": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "416237000"
+    }]
+  },
+  "category": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "103693007"
+    }]
+  },
+  "code": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "166001"
+    }]
+  },
+  "subject": { "reference": "Patient/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "encounter": { "reference": "Encounter/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "performedDateTime": "2010-12-03T00:12:34Z",
+  "recorder": { "reference": "Practitioner/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "asserter": { "reference": "Practitioner/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" },
+  "performer": [{
+    "function": {
+      "coding": [{
+        "system": "http://snomed.info/sct",
+        "code": "11935004"
+      }]
+    },
+    "actor": { "reference": "Practitioner/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+    "onBehalfOf": { "reference": "Organization/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }
+  }],
+  "location": { "reference": "Location/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" },
+  "reasonCode": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "168000"
+    }]
+  }],
+  "reasonReference": [{ "reference": "Observation/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "bodySite": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "235004"
+    }]
+  }],
+  "outcome": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "385669000"
+    }]
+  },
+  "report": [{ "reference": "DocumentReference/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "complication": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "134006"
+    }]
+  }],
+  "complicationDetail": [{ "reference": "Condition/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "followUp": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "229506003"
+    }]
+  }],
+  "focalDevice": [{
+    "action": {
+      "coding": [{
+        "system": "http://snomed.info/sct",
+        "code": "129283009"
+      }]
+    },
+    "manipulated": { "reference": "Device/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }
+  }],
+  "usedReference": [{ "reference": "Device/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "usedCode": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "1422002"
+    }]
+  }]
+}

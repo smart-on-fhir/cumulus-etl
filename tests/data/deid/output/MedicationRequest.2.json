@@ -1,10 +1,10 @@
 {
   "resourceType": "MedicationRequest",
-  "id": "2-contained",
+  "id": "2c888343c32b93646b78f8ddcee2584ba386f3e90a3ccb28396ef5aa540df50c",
   "contained": [
     {
       "resourceType": "Medication",
-      "id": "contained",
+      "id": "0133e13f5ab815ab0652f1b67c93bdc12700376a42c1cbfb02cedf2eee8b6470",
       "status": "active",
       "code": {
         "coding": [
@@ -17,5 +17,5 @@
       }
     }
   ],
-  "medicationReference": { "reference": "#contained" }
+  "medicationReference": { "reference": "#0133e13f5ab815ab0652f1b67c93bdc12700376a42c1cbfb02cedf2eee8b6470" }
 }

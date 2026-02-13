@@ -1,0 +1,48 @@
+{
+  "resourceType": "Patient",
+  "id": "505a3474488924955f4c388b8ad2996cdfcfd482237f06167ed50f2ad46fae07",
+  "extension": [
+    {
+      "url": "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
+      "valueDecimal": 0.6074581808639448
+    },
+    {
+      "url": "http://synthetichealth.github.io/synthea/quality-adjusted-life-years",
+      "valueDecimal": 108.39254181913606
+    }
+  ],
+  "gender": "male",
+  "birthDate": "1910",
+  "address": [
+    {
+      "state": "Massachusetts",
+      "postalCode": "02100",
+      "country": "US"
+    }
+  ],
+  "maritalStatus": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/v3-MaritalStatus",
+        "code": "M",
+        "display": "M"
+      }
+    ],
+    "text": "M"
+  },
+  "multipleBirthBoolean": false,
+  "communication": [
+    {
+      "language": {
+        "coding": [
+          {
+            "system": "urn:ietf:bcp:47",
+            "code": "en-US",
+            "display": "English"
+          }
+        ],
+        "text": "English"
+      }
+    }
+  ]
+}

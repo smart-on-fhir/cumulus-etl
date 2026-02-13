@@ -1,15 +1,6 @@
 {
   "resourceType": "PractitionerRole",
-  "meta": {
-    "security": [
-      {
-        "code": "REDACTED",
-        "display": "redacted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      }
-    ]
-  },
-  "id": "example",
+  "id": "b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0",
   "identifier": [
     {
       "system": "http://hl7.org/fhir/sid/us-npi",
@@ -22,10 +13,10 @@
     "end": "2012-03-31"
   },
   "practitioner": {
-    "reference": "Practitioner/example"
+    "reference": "Practitioner/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
   },
   "organization": {
-    "reference": "Organization/f001"
+    "reference": "Organization/2bb8702d4fe00705dd16b18776554aea74228593b6232b511c0302ac078dc784"
   },
   "code": [
     {
@@ -50,12 +41,12 @@
   ],
   "location": [
     {
-      "reference": "Location/1"
+      "reference": "Location/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45"
     }
   ],
   "healthcareService": [
     {
-      "reference": "HealthcareService/example"
+      "reference": "HealthcareService/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
     }
   ],
   "availableTime": [
@@ -88,7 +79,7 @@
   ],
   "endpoint": [
     {
-      "reference": "Endpoint/example"
+      "reference": "Endpoint/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
     }
   ]
 }

@@ -1,0 +1,69 @@
+{
+  "resourceType": "ServiceRequest",
+  "id": "2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45",
+
+  "instantiatesCanonical": ["https://example.org/canonical"],
+  "instantiatesUri": ["https://example.org/hello"],
+  "basedOn": [{ "reference": "ServiceRequest/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "replaces": [{ "reference": "ServiceRequest/7a96011a8912ad16e564ab426b7c8d374b685498cf37d632624af5963b2d1fc1" }],
+  "status": "draft",
+  "intent": "proposal",
+  "category": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "409073007"
+    }]
+  }],
+  "priority": "routine",
+  "doNotPerform": true,
+  "code": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "135007"
+    }]
+  },
+  "orderDetail": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "59427005"
+    }]
+  }],
+  "quantityQuantity": { "unit": "a little bit" },
+  "subject": { "reference": "Patient/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "encounter": { "reference": "Encounter/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "occurrenceDateTime": "2022-03-12T10:29:59Z",
+  "asNeededBoolean": true,
+  "authoredOn": "2022-03-13T15:00:00Z",
+  "requester": { "reference": "Practitioner/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
+  "performerType": {
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "4577005"
+    }]
+  },
+  "performer": [{ "reference": "Practitioner/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "locationCode": [{
+    "coding": [{
+      "system": "http://terminology.hl7.org/CodeSystem/v3-RoleCode",
+      "code": "ENDOS"
+    }]
+  }],
+  "locationReference": [{ "reference": "Location/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "reasonCode": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "165002"
+    }]
+  }],
+  "reasonReference": [{ "reference": "Condition/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "insurance": [{ "reference": "Coverage/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "supportingInfo": [{ "reference": "DocumentReference/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "specimen": [{ "reference": "Specimen/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "bodySite": [{
+    "coding": [{
+      "system": "http://snomed.info/sct",
+      "code": "774007"
+    }]
+  }],
+  "relevantHistory": [{ "reference": "Provenance/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }]
+}

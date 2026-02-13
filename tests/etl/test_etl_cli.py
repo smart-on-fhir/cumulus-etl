@@ -45,43 +45,6 @@ class TestEtlJobFlow(BaseEtlSimple):
         )
         self.assert_output_equal("batched-output")
 
-    @ddt.data(
-        (["covid_symptom__nlp_results"], False),
-        (["patient"], True),
-    )
-    @ddt.unpack
-    async def test_ms_deid_skipped_if_not_needed(self, tasks: list[str], expected_ms_deid: bool):
-        with self.assertRaises(SystemExit):
-            with mock.patch("cumulus_etl.deid.Scrubber.scrub_bulk_data") as mock_deid:
-                with mock.patch("cumulus_etl.etl.pipeline.etl_job", side_effect=SystemExit):
-                    await self.run_etl(tasks=tasks)
-        self.assertEqual(1 if expected_ms_deid else 0, mock_deid.call_count)
-
-    async def test_downloaded_phi_is_not_kept(self):
-        """Verify we remove all downloaded PHI even if interrupted"""
-        internal_phi_dir = None
-
-        def fake_scrub(phi_dir: str, progress):
-            # Save this dir path
-            nonlocal internal_phi_dir
-            internal_phi_dir = phi_dir
-
-            # Run a couple checks to ensure that we do indeed have PHI in this dir
-            self.assertIn("Patient.ndjson", os.listdir(phi_dir))
-            patients = list(cfs.read_multiline_json(os.path.join(phi_dir, "Patient.ndjson")))
-            first = patients[0]
-            self.assertEqual("02139", first["address"][0]["postalCode"])
-
-            # Then raise an exception to interrupt the ETL flow before we normally would be able to clean up
-            raise KeyboardInterrupt
-
-        with mock.patch("cumulus_etl.deid.Scrubber.scrub_bulk_data", new=fake_scrub):
-            with self.assertRaises(KeyboardInterrupt):
-                await self.run_etl()
-
-        self.assertIsNotNone(internal_phi_dir)
-        self.assertFalse(os.path.exists(internal_phi_dir))
-
     async def test_unknown_task(self):
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(tasks=["blarg"])
@@ -229,13 +192,6 @@ class TestEtlJobFlow(BaseEtlSimple):
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(bulk_arg)
         self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
-
-    async def test_no_ms_tool(self):
-        """Verify that we require the MS tool to be in PATH."""
-        self.patch_dict(os.environ, {"PATH": "/nothing-here"})
-        with self.assertRaises(SystemExit) as cm:
-            await self.run_etl(skip_init_checks=False)
-        self.assertEqual(cm.exception.code, errors.MSTOOL_MISSING)
 
     @mock.patch("cumulus_etl.etl.tasks.basic_tasks.ProcedureTask.init_check")
     async def test_task_init_checks(self, mock_check):
