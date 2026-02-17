@@ -1,15 +1,10 @@
 {
   "resourceType": "MedicationRequest",
-  "id": "1",
+  "id": "2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45",
   "meta": {
     "profile": [
       "http://hl7.org/fhir/us/core/StructureDefinition/us-core-medicationrequest"
-    ],
-    "security": [{
-      "code": "REDACTED",
-      "display": "redacted",
-      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-    }]
+    ]
   },
 
   "status": "active",
@@ -48,20 +43,20 @@
     "text": "Naproxen sodium 220 MG Oral Tablet"
   },
   "subject": {
-    "reference": "Patient/b81691c7-6c0a-0aa8-0d86-d2c072cc7b6d"
+    "reference": "Patient/a68bd680f2915ded3ece148bc17eb89e3c8332966747d9de8c084a35caea7d59"
   },
   "encounter": {
-    "reference": "Encounter/30424719-b0d5-40b3-e2b0-67f363fff31e"
+    "reference": "Encounter/ccd9fe487f765cce971ce5827b5ad6164f4e9464ead3be97af4e9964f3406a61"
   },
   "supportingInformation": [{
-    "reference": "DocumentReference/30424719-b0d5-40b3-e2b0-67f363fff31e"
+    "reference": "DocumentReference/ccd9fe487f765cce971ce5827b5ad6164f4e9464ead3be97af4e9964f3406a61"
   }],
   "authoredOn": "1993-08-18T17:33:24-04:00",
   "requester": {
-    "reference": "Practitioner?identifier=http://hl7.org/fhir/sid/us-npi|9999987297"
+    "reference": "Practitioner/13b17d9d7ae0036d46e0faa413998f1d9ab4dc3fb041c35054f4c8ba1aa5135f"
   },
   "performer": {
-    "reference": "Practitioner?identifier=http://hl7.org/fhir/sid/us-npi|9999987297"
+    "reference": "Practitioner/13b17d9d7ae0036d46e0faa413998f1d9ab4dc3fb041c35054f4c8ba1aa5135f"
   },
   "performerType": {
     "coding": [
@@ -72,7 +67,7 @@
     ]
   },
   "recorder": {
-    "reference": "Practitioner?identifier=http://hl7.org/fhir/sid/us-npi|9999987297"
+    "reference": "Practitioner/13b17d9d7ae0036d46e0faa413998f1d9ab4dc3fb041c35054f4c8ba1aa5135f"
   },
   "reasonCode": [
     {
@@ -86,10 +81,10 @@
       "text": "Localized, primary osteoarthritis of the hand"
     }
   ],
-  "reasonReference": [{ "reference": "Condition/1" }],
+  "reasonReference": [{ "reference": "Condition/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
   "instantiatesCanonical": ["https://canonical/"],
   "instantiatesUri": ["https://uri/"],
-  "basedOn": [{ "reference": "MedicationRequest/2" }],
+  "basedOn": [{ "reference": "MedicationRequest/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" }],
   "courseOfTherapyType": {
     "coding": [
       {
@@ -98,7 +93,7 @@
       }
     ]
   },
-  "insurance": [{ "reference": "Coverage/1" }],
+  "insurance": [{ "reference": "Coverage/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
   "dosageInstruction": [{
     "sequence" : 3,
     "additionalInstruction" : [{
@@ -188,7 +183,7 @@
     "numberOfRepeatsAllowed" : 3,
     "quantity" : { "value": 1 },
     "expectedSupplyDuration" : { "value": 1 },
-    "performer" : { "reference": "Organization/1" }
+    "performer" : { "reference": "Organization/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }
   },
   "substitution" : {
     "allowedBoolean" : true,
@@ -201,7 +196,7 @@
       ]
     }
   },
-  "priorPrescription" : { "reference": "MedicationRequest/2" },
-  "detectedIssue" : [{ "reference": "DetectedIssue/1" }],
-  "eventHistory" : [{ "reference": "Provenance/1" }]
+  "priorPrescription" : { "reference": "MedicationRequest/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" },
+  "detectedIssue" : [{ "reference": "DetectedIssue/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "eventHistory" : [{ "reference": "Provenance/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }]
 }

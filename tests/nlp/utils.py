@@ -20,6 +20,7 @@ class NlpModelTestCase(TaskTestCase):
         super().setUp()
         self.mock_local(self.MODEL_ID)
         self.responses = []
+        self.scrubber.mask_notes = False
 
     def mock_provider(self, provider: str) -> None:
         self.patch("cumulus_etl.nlp.models._provider_name", new=provider)

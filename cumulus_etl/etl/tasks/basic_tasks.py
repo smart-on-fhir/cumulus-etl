@@ -116,21 +116,6 @@ class MedicationRequestTask(tasks.EtlTask):
         if not medication or not self.scrubber.scrub_resource(medication):  # standard scrubbing
             return False
 
-        # Normally the above is all we'd need to do.
-        # But this resource just came hot from the FHIR server, and we did not run the MS
-        # anonymizer on it.
-        # Since Medications are not patient-specific, we don't need the full MS treatment.
-        # But still, we should probably drop some bits that might more easily identify the
-        # *institution*.
-        # This is a poor-man's MS config tool (and a blocklist rather than allow-list, but it's a
-        # very simple resource)
-
-        # *should* remove extensions at all layers, but this will catch 99% of them
-        medication.pop("extension", None)
-        medication.pop("identifier", None)
-        medication.pop("text", None)
-        # Leave batch.lotNumber freeform text in place, it might be useful for quality control
-
         return True
 
     async def fetch_medication(self, resource: dict) -> dict | None:

@@ -43,24 +43,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install .[tests]
 
-      - name: Check out MS tool
-        uses: actions/checkout@v6
-        with:
-          repository: microsoft/Tools-for-Health-Data-Anonymization
-          path: mstool
-
-      - name: Build MS tool
-        run: |
-          sudo apt-get update
-          sudo apt-get install dotnet8
-          sed -i 's/;net9.0</</' mstool/Directory.Build.props  # disable net9.0, it confuses SDK 8.0
-          dotnet publish \
-            --framework=net8.0 \
-            --runtime=linux-x64 \
-            -p:PublishSingleFile=true \
-            --output=$HOME/.local/bin \
-            mstool/FHIR/src/Microsoft.Health.Fhir.Anonymizer.R4.CommandLineTool
-
       - name: Test with pytest
         run: |
           python -m pytest --cov=cumulus_etl --cov-report=xml

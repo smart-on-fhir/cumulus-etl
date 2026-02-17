@@ -148,9 +148,9 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
     # It must be local and empty.
 
     if urllib.parse.urlparse(export_to).netloc:
-        # We require a local folder because that's all that the MS deid tool can operate on.
-        # If we were to relax this requirement, we'd want to copy the exported files over to a
-        # local dir.
+        # We require a local folder because that's all that the MS deid tool we used to use could
+        # operate on. If we were to relax this now, we'd need to make sure we're using fsspec in
+        # all the right places.
         errors.fatal(
             f"The target export folder '{export_to}' must be local. ",
             errors.BULK_EXPORT_FOLDER_NOT_LOCAL,

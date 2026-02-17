@@ -1,37 +1,7 @@
 {
   "resourceType": "Patient",
-  "id": "pat2-zip",
-  "meta": {
-    "security": [
-      {
-        "code": "REDACTED",
-        "display": "redacted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      },
-      {
-        "code": "ABSTRED",
-        "display": "abstracted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      },
-      {
-        "code": "GENERALIZED",
-        "display": "exact value is replaced with a general value"
-      }
-    ]
-  },
+  "id": "fc6621c74d512c4284b5a73632316e5b2ca5ad67cf6f81e6d587dd78bf136949",
   "extension": [
-    {
-      "url": "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
-      "valueString": "Marquetta Schamberger"
-    },
-    {
-      "url": "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
-      "valueAddress": {
-        "city": "Macau",
-        "state": "Macao Special Administrative Region of the People's Republic of China",
-        "country": "CN"
-      }
-    },
     {
       "url": "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
       "valueDecimal": 9.931319288245724

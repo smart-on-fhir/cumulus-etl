@@ -1,7 +1,7 @@
 {
   "resourceType": "Condition",
-  "id": "con3-age-redaction",
-  "subject": { "reference": "Patient/3" },
+  "id": "e4f5c7e7c2d8f2667c2c94fa36fbb316d78c579ba1723260afd7ee827627fbd2",
+  "subject": { "reference": "Patient/31551f7ec6ff8e11350a479ede78cc0ed1e6c7f939b236502250f379d7d5531b" },
   "onsetAge": {
     "value": 89,
     "unit": "year",

@@ -39,7 +39,6 @@ class BaseNlpTask(tasks.EtlTask):
     """Base class for any clinical-notes-based NLP task."""
 
     resource: ClassVar = {"DiagnosticReport", "DocumentReference"}
-    needs_bulk_deid: ClassVar = False
 
     # You may want to override these in your subclass
     outputs: ClassVar = [
@@ -105,7 +104,7 @@ class BaseNlpTask(tasks.EtlTask):
             can_process = (
                 await note_filter(self.scrubber.codebook, note)
                 and (doc_check is None or doc_check(note))
-                and self.scrubber.scrub_resource(note, scrub_attachments=False, keep_stats=False)
+                and self.scrubber.scrub_resource(note)
             )
             if not can_process:
                 continue

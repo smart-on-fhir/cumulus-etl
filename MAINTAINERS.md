@@ -14,8 +14,6 @@ There are two ways to run tests:
 
 ### Local
 
-To run unit tests directly on your machine, you will need to install a copy of the Microsoft De-ID tool. We recommend mimicing the [steps in the cumulus dockerfile](https://github.com/smart-on-fhir/cumulus-etl/blob/main/Dockerfile#L4-L15) related to this tooling, and add it to your system PATH, or symlink the executable into someplace that is already on your system path.
-
 Tests are run with `pytest [optional args]`, and coverage is run with `coverage run -m pytest [optional args] && coverage report -m`
 
 ### In container

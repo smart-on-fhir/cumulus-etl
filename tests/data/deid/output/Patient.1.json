@@ -1,33 +1,7 @@
 {
   "resourceType": "Patient",
-  "id": "pat1",
-  "meta": {
-    "security": [
-      {
-        "code": "REDACTED",
-        "display": "redacted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      },
-      {
-        "code": "ABSTRED",
-        "display": "abstracted",
-        "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-      },
-      {
-        "code": "GENERALIZED",
-        "display": "exact value is replaced with a general value"
-      }
-    ]
-  },
+  "id": "320ac6572ed4d9dffd32d66d1c9d6c16fb6b891a70d4ef29219bb4a18ce53fb1",
   "extension": [
-    {
-      "url": "http://hl7.org/fhir/StructureDefinition/patient-birthPlace",
-      "valueAddress": {
-        "city": "Boston",
-        "state": "Massachusetts",
-        "country": "US"
-      }
-    },
     {
       "url": "http://synthetichealth.github.io/synthea/disability-adjusted-life-years",
       "valueDecimal": 0.30562800211089186
@@ -61,7 +35,7 @@
       "valueString": "kept"
     },
     {
-      "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-sex-for-clinical-use",
+      "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-sex",
       "valueString": "kept"
     },
     {
@@ -69,10 +43,6 @@
       "valueString": "kept"
     }
   ],
-  "modifierExtension": [{
-    "url": "http://hl7.org/fhir/StructureDefinition/patient-mothersMaidenName",
-    "valueString": "Lettie Boyle"
-  }],
 
   "active": true,
   "gender": "male",
@@ -80,21 +50,6 @@
   "deceasedBoolean": false,
   "address": [
     {
-      "extension": [
-        {
-          "url": "http://hl7.org/fhir/StructureDefinition/geolocation",
-          "extension": [
-            {
-              "url": "latitude",
-              "valueDecimal": 42.26414395224488
-            },
-            {
-              "url": "longitude",
-              "valueDecimal": -72.64290225131757
-            }
-          ]
-        }
-      ],
       "state": "Massachusetts",
       "postalCode": "01000",
       "country": "US"
@@ -126,7 +81,7 @@
       "country": "US"
     },
     "gender": "female",
-    "organization": { "reference": "Organization/3" },
+    "organization": { "reference": "Organization/31551f7ec6ff8e11350a479ede78cc0ed1e6c7f939b236502250f379d7d5531b" },
     "period": {"start": "2020-12-10", "end": "2023-03-03"}
   }],
   "communication": [
@@ -144,10 +99,10 @@
       "preferred": true
     }
   ],
-  "generalPractitioner": [{ "reference": "Practitioner/5" }],
-  "managingOrganization": { "reference": "Organization/2" },
+  "generalPractitioner": [{ "reference": "Practitioner/e019a09fee5c7c2d4f9b2756fd4da6f0385ace6a1efc55129611aae84c51924b" }],
+  "managingOrganization": { "reference": "Organization/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" },
   "link": [{
-    "other": { "reference": "Patient/6" },
+    "other": { "reference": "Patient/643b6edc67bd7380514f540d194ac1f66ef41f988da6e3bf27a2675571f3a249" },
     "type": "refer"
   }]
 }

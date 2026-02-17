@@ -1,12 +1,15 @@
 """Tests for the scrubber module"""
 
+import copy
+import os
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 from ctakesclient import text2fhir, typesystem
 
-from cumulus_etl import common
+from cumulus_etl import common, deid
 from cumulus_etl.deid import Scrubber
 from cumulus_etl.deid.codebook import CodebookDB
 from tests import i2b2_mock_data, utils
@@ -25,6 +28,52 @@ MASKED_EXTENSION = {
 @ddt.ddt
 class TestScrubber(utils.AsyncTestCase):
     """Test case for the Scrubber class"""
+
+    def combine_json(self, input_dir: str, output_dir: str) -> None:
+        """
+        Takes all the json files in the input folder and combines them into an ndjson file.
+
+        For example, with the following input folder:
+          Encounter_1.json
+          Patient_1.json
+          Patient_2.json
+
+        You will get the following output folder:
+          Encounter.ndjson (one entry)
+          Patient.ndjson (two entries)
+
+        This is largely just so that our source files can be human-readable json, but tested in an
+        ndjson context.
+        """
+        resource_buckets = {}
+        for source_file in os.listdir(input_dir):
+            resource = source_file.split(".")[0]
+            resource_buckets.setdefault(resource, []).append(source_file)
+
+        for resource, unsorted_files in resource_buckets.items():
+            os.makedirs(output_dir, exist_ok=True)
+            with common.NdjsonWriter(f"{output_dir}/{resource}.ndjson") as output_file:
+                for filename in sorted(unsorted_files):
+                    parsed_json = common.read_json(f"{input_dir}/{filename}")
+                    output_file.write(parsed_json)
+
+    @mock.patch("uuid.uuid4", new=lambda: "1234")
+    async def test_expected_transform(self):
+        """Confirms that our sample input data results in the correct output"""
+        data_path = os.path.join(self.datadir, "deid")
+        input_path = f"{data_path}/input"
+        output_path = f"{data_path}/output"
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scrubber = deid.Scrubber()
+            self.combine_json(input_path, f"{tmpdir}/input")
+            self.combine_json(output_path, f"{tmpdir}/expected")
+            scrubbed = list(cfs.read_multiline_json_from_dir(f"{tmpdir}/input"))
+            expected = list(cfs.read_multiline_json_from_dir(f"{tmpdir}/expected"))
+            self.assertGreater(len(scrubbed), 0)  # sanity check
+            self.assertTrue(all([scrubber.scrub_resource(row) for row in scrubbed]))
+            for idx, scrub_res in enumerate(scrubbed):
+                self.assertEqual(expected[idx], scrub_res)
 
     def test_patient(self):
         """Verify a basic patient (saved ids)"""
@@ -195,7 +244,7 @@ class TestScrubber(utils.AsyncTestCase):
         )
 
     @ddt.data(
-        (None, "Bad Display", True, True),
+        (None, "Bad Display", True, False),
         (None, None, False, False),
         ("1234", "Good Display", False, False),
         ("1234", None, False, False),
@@ -229,8 +278,12 @@ class TestScrubber(utils.AsyncTestCase):
             values = {"code": code, **MASKED_EXTENSION}
         elif expect_mask:
             values = MASKED_EXTENSION
-        else:
+        elif display:
             values = {"code": code, "display": display}
+        elif code:
+            values = {"code": code}
+        else:
+            values = {}
         self.assertEqual(
             obs,
             {
@@ -359,18 +412,142 @@ class TestScrubber(utils.AsyncTestCase):
                 Scrubber(tmpdir)
             self.assertIn(".99", str(context.exception))
 
-    def test_meta_security_cleared(self):
-        """Verify that we drop the Meta.security field"""
-        scrubber = Scrubber()
-        condition = i2b2_mock_data.condition()
+    async def test_bad_fhir(self):
+        scrubber = deid.Scrubber()
+        self.assertFalse(scrubber.scrub_resource("foobar"))
+        self.assertFalse(scrubber.scrub_resource({}))
 
-        # With another property
-        condition["meta"] = {"security": [{"code": "REDACTED"}], "versionId": "a"}
-        self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertNotIn("security", condition["meta"])
-        self.assertEqual("a", condition["meta"]["versionId"])
+    async def test_allow_nested_extension_url(self):
+        """Normally extension URLs are allow-listed, but nested ones can be anything"""
+        scrubber = deid.Scrubber()
+        patient = {
+            "resourceType": "Patient",
+            "extension": [
+                {
+                    "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+                    "extension": [
+                        {
+                            "url": "ombCategory",
+                            "valueCode": "UNK",
+                        },
+                    ],
+                },
+            ],
+        }
+        patient_orig = copy.deepcopy(patient)
+        self.assertTrue(scrubber.scrub_resource(patient))
+        self.assertEqual(patient, patient_orig)  # confirm we didn't strip "ombCategory"
 
-        # Without another property
-        condition["meta"] = {"security": [{"code": "REDACTED"}]}
-        self.assertTrue(scrubber.scrub_resource(condition))
-        self.assertNotIn("meta", condition)
+    async def test_weird_reference(self):
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Condition",
+            "subject": {"reference": "1234"},  # not enough info to parse/anonymize (no type)
+        }
+        self.assertFalse(scrubber.scrub_resource(resource))
+
+    async def test_ignore_metadata_on_ignored_keys(self):
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Location",
+            "description": "dropped",
+            "_description": {
+                "id": "dropped",
+                "extension": [
+                    {
+                        "url": "http://hl7.org/fhir/StructureDefinition/annotationType",
+                    }
+                ],
+            },
+        }
+        self.assertTrue(scrubber.scrub_resource(resource))
+        self.assertEqual(resource, {"resourceType": "Location"})
+
+    async def test_node_value_mismatch(self):
+        """This shouldn't normally happen, but test when we expect a leaf value, but see a node"""
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Location",
+            "status": {"value": "active"},  # invalid per spec
+        }
+        self.assertFalse(scrubber.scrub_resource(resource))
+
+        resource = {
+            "resourceType": "Location",
+            "hoursOfOperation": "9-5",  # invalid per spec
+        }
+        self.assertFalse(scrubber.scrub_resource(resource))
+
+    async def test_strips_whitespace(self):
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Location",
+            "physicalType": {"text": " extra space "},
+        }
+        self.assertTrue(scrubber.scrub_resource(resource))
+        self.assertEqual(
+            resource,
+            {
+                "resourceType": "Location",
+                "physicalType": {"text": "extra space"},
+            },
+        )
+
+    async def test_skips_empty_strings(self):
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Encounter",
+            "status": "",
+        }
+        self.assertTrue(scrubber.scrub_resource(resource))
+        self.assertEqual(resource, {"resourceType": "Encounter"})
+
+    async def test_zip(self):
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Patient",
+            "address": [
+                {"postalCode": "69212"},  # not enough people in that zip => all zeros
+                {"postalCode": "02139"},  # normal erasing of last two digits
+                {"postalCode": "9991 Båtsfjord"},  # Norwegian code with non-digits
+            ],
+        }
+        self.assertTrue(scrubber.scrub_resource(resource))
+        self.assertEqual(
+            resource,
+            {
+                "resourceType": "Patient",
+                "address": [
+                    {"postalCode": "00000"},
+                    {"postalCode": "02100"},
+                    {"postalCode": "9990 Båtsfjord"},
+                ],
+            },
+        )
+
+    async def test_implicit_backbone_element(self):
+        """Rules like diagnosis.condition indicate an implicit BackboneElement"""
+        scrubber = deid.Scrubber()
+        resource = {
+            "resourceType": "Encounter",
+            "hospitalization": {
+                # Hospitalization is one of these unnamed BackboneElements.
+                # Extensions are defined as part of an Element, so confirm it is allowed.
+                # This extension should persist.
+                "extension": [
+                    {"url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason"},
+                ],
+            },
+        }
+        self.assertTrue(scrubber.scrub_resource(resource))
+        self.assertEqual(
+            resource,
+            {
+                "resourceType": "Encounter",
+                "hospitalization": {
+                    "extension": [
+                        {"url": "http://hl7.org/fhir/StructureDefinition/data-absent-reason"},
+                    ],
+                },
+            },
+        )

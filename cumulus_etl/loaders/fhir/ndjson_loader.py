@@ -1,8 +1,5 @@
 """Ndjson FHIR loader"""
 
-import gzip
-import os
-import shutil
 import tempfile
 
 import cumulus_fhir_support as cfs
@@ -93,36 +90,19 @@ class FhirNdjsonLoader(base.Loader):
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #
-        # We do this even if the files are local, because the next step in our pipeline is the MS
-        # deid tool, and it will just process *everything* in a directory. So if there are other
-        # *.ndjson sitting next to our target resources, they'll get processed by the MS tool and
-        # that slows down running a single task with "--task" a lot. (Or it'll be invalid FHIR
-        # ndjson like our log.ndjson and the MS tool will complain.)
+        # We do this as a performance improvement, because tasks will each scan the input dir,
+        # looking for their own resource files. In order to remove this, we'd need to persist the
+        # initial scan in this class down to the tasks and have them re-use the results.
         #
-        # This uses more disk space temporarily (copied files will get deleted once the MS tool is
-        # done and this TemporaryDirectory gets discarded), but that seems reasonable.
+        # Until then, we'll just use a little more time and disk space.
         tmpdir = tempfile.TemporaryDirectory()
 
-        task = progress.add_task(description="Copying input files", total=len(filenames) * 2)
+        task = progress.add_task(description="Copying input files", total=len(filenames))
         for filename in filenames:
             input_root.get(filename, f"{tmpdir.name}/")
             progress.advance(task)
 
-            # Decompress any *.gz files, because the MS tool can't understand them
-            self._decompress_file(f"{tmpdir.name}/{os.path.basename(filename)}")
-            progress.advance(task)
-
         return self.read_loader_results(input_root, tmpdir)
-
-    @staticmethod
-    def _decompress_file(path: str):
-        if not path.casefold().endswith(".gz"):
-            return
-        target_path = path[:-3]
-        with gzip.open(path, "rb") as f_in:
-            with open(target_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        os.remove(path)
 
     async def load_from_bulk_export(
         self, resources: set[str], prefer_url_resources: bool = False

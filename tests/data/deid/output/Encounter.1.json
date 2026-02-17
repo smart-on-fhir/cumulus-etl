@@ -1,13 +1,6 @@
 {
   "resourceType": "Encounter",
-  "id": "enc1",
-  "meta": {
-    "security": [{
-      "code": "REDACTED",
-      "display": "redacted",
-      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-    }]
-  },
+  "id": "341e27d13ea813fbfd58b6f13f1e3f2ddb41d61fc7860e232fe07969d4b7f720",
 
   "status": "finished",
   "statusHistory": [{
@@ -54,11 +47,11 @@
     ]
   },
   "subject": {
-    "reference": "Patient/pat1",
+    "reference": "Patient/320ac6572ed4d9dffd32d66d1c9d6c16fb6b891a70d4ef29219bb4a18ce53fb1",
     "type": "Patient"
   },
-  "episodeOfCare": [{ "reference": "EpisodeOfCare/1" }],
-  "basedOn": [{ "reference": "ServiceRequest/1" }],
+  "episodeOfCare": [{ "reference": "EpisodeOfCare/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
+  "basedOn": [{ "reference": "ServiceRequest/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
   "participant": [
     {
       "type": [
@@ -78,11 +71,11 @@
         "end": "1985-06-18T17:45:49-04:00"
       },
       "individual": {
-        "reference": "Practitioner/pra1"
+        "reference": "Practitioner/3e15b140938967fc556381c8bfae2f03ec6af0cea193c1dc8f3947ed51971fb1"
       }
     }
   ],
-  "appointment": [{ "reference": "Appointment/1" }],
+  "appointment": [{ "reference": "Appointment/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
   "period": {
     "start": "1985-06-18T17:30:49-04:00",
     "end": "1985-06-18T17:45:49-04:00"
@@ -102,9 +95,9 @@
       ]
     }
   ],
-  "reasonReference": [{ "reference": "Condition/1" }],
+  "reasonReference": [{ "reference": "Condition/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
   "diagnosis": [{
-    "condition": { "reference": "Condition/1" },
+    "condition": { "reference": "Condition/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
     "use": {
       "coding": [
         {
@@ -115,9 +108,9 @@
     },
     "rank": 3
   }],
-  "account": [{ "reference": "Account/1" }],
+  "account": [{ "reference": "Account/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" }],
   "hospitalization": {
-    "origin": { "reference": "Location/1" },
+    "origin": { "reference": "Location/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
     "admitSource": {
       "coding": [
         {
@@ -164,7 +157,7 @@
         ]
       }
     ],
-    "destination": { "reference": "Location/2" },
+    "destination": { "reference": "Location/208becfe80a61dbc734a8bc700897734f00fd8ff0933fb2e1cfda48e23587432" },
     "dischargeDisposition": {
       "coding": [
         {
@@ -175,7 +168,7 @@
     }
   },
   "location": [{
-    "location": { "reference": "Location/1" },
+    "location": { "reference": "Location/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45" },
     "status": "active",
     "physicalType": {
       "coding": [
@@ -191,7 +184,7 @@
     }
   }],
   "serviceProvider": {
-    "reference": "Organization/org1"
+    "reference": "Organization/b0fd27efd5228c217831131fd7d93288f8fa59e477d6ef75194013e50d26e02d"
   },
-  "partOf": { "reference": "Encounter/3" }
+  "partOf": { "reference": "Encounter/31551f7ec6ff8e11350a479ede78cc0ed1e6c7f939b236502250f379d7d5531b" }
 }

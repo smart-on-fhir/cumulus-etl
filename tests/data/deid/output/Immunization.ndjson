@@ -1,23 +1,16 @@
 {
   "resourceType" : "Immunization",
-  "meta": {
-    "security": [{
-      "code": "REDACTED",
-      "display": "redacted",
-      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-    }]
-  },
   "status" : "not-done",
   "statusReason" : { "text": "kept" },
   "vaccineCode" : { "text": "kept" },
-  "patient" : { "reference": "Patient/x" },
-  "encounter" : { "reference": "Encounter/x" },
+  "patient" : { "reference": "Patient/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "encounter" : { "reference": "Encounter/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
   "occurrenceDateTime" : "2023",
   "recorded" : "2023",
   "primarySource" : true,
   "reportOrigin" : { "text": "kept" },
-  "location" : { "reference": "Location/x" },
-  "manufacturer" : { "reference": "Organization/x" },
+  "location" : { "reference": "Location/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "manufacturer" : { "reference": "Organization/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
   "lotNumber" : "kept",
   "expirationDate" : "2023",
   "site" : { "text": "kept" },
@@ -25,10 +18,10 @@
   "doseQuantity" : { "unit": "kept" },
   "performer" : [{
     "function" : { "text": "kept" },
-    "actor" : { "reference": "Practitioner/x" }
+    "actor" : { "reference": "Practitioner/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }
   }],
   "reasonCode" : [{ "text": "kept" }],
-  "reasonReference" : [{ "reference": "Condition/x" }],
+  "reasonReference" : [{ "reference": "Condition/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }],
   "isSubpotent" : true,
   "subpotentReason" : [{ "text": "kept" }],
   "education" : [{
@@ -40,12 +33,12 @@
   "fundingSource" : { "text": "kept" },
   "reaction" : [{
     "date" : "2023",
-    "detail" : { "reference": "Observation/x" },
+    "detail" : { "reference": "Observation/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
     "reported" : true
   }],
   "protocolApplied" : [{
     "series" : "kept",
-    "authority" : { "reference": "Organization/x" },
+    "authority" : { "reference": "Organization/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
     "targetDisease" : [{ "text": "kept" }],
     "doseNumberString" : "kept",
     "seriesDosesString" : "kept"

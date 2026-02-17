@@ -1,24 +1,17 @@
 {
   "resourceType" : "AllergyIntolerance",
-  "meta": {
-    "security": [{
-      "code": "REDACTED",
-      "display": "redacted",
-      "system": "http://terminology.hl7.org/CodeSystem/v3-ObservationValue"
-    }]
-  },
   "clinicalStatus" : { "text": "kept" },
   "verificationStatus" : { "text": "kept" },
   "type" : "allergy",
   "category" : ["food"],
   "criticality" : "low",
   "code" : { "text": "kept" },
-  "patient" : { "reference": "Patient/x" },
-  "encounter" : { "reference": "Encounter/x" },
+  "patient" : { "reference": "Patient/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "encounter" : { "reference": "Encounter/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
   "onsetDateTime" : "2023",
   "recordedDate" : "2023",
-  "recorder" : { "reference": "Practitioner/x" },
-  "asserter" : { "reference": "Patient/x" },
+  "recorder" : { "reference": "Practitioner/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
+  "asserter" : { "reference": "Patient/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" },
   "lastOccurrence" : "2023",
   "reaction" : [{
     "substance" : { "text": "kept" },

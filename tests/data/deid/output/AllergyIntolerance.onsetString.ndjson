@@ -1,0 +1,4 @@
+{
+  "resourceType" : "AllergyIntolerance",
+  "patient" : { "reference": "Patient/172d0f9d8b55ad1880a0ff6f6bd4b0053b00866a92f15f16df10679167a35eb1" }
+}

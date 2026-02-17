@@ -61,26 +61,20 @@ All the PHI or none of it.
 But the piece in-between where de-identified data sits at rest in Amazon S3 is more nuanced.
 Let's explore that.
 
-There are three main transformations of PHI inside Cumulus ETL:
-1. A [Microsoft anonymization tool](https://github.com/microsoft/Tools-for-Health-Data-Anonymization)
-   is run on the bulk data.
-2. Cumulus ETL replaces all resource IDs with anonymized IDs and runs philter on a few text fields
-3. NLP is run on clinical notes (which are then discarded)
+There are two main transformations of PHI inside Cumulus ETL:
+1. **Dropping data:** Cumulus ETL holds an allow-list of all FHIR fields that are acceptable.
+   Fields with PHI are not allowed and are dropped on the floor (for example: `Patient.name`).
+   If not performing NLP, any attachment or clinical note data is also dropped.
+2. **Anonymizing data:** It replaces all resource IDs with anonymized IDs, chops birth dates down
+   to just the year, generalizes zip codes, and (optionally) runs `philter` on a few higher-risk
+   text fields.
 
-### Microsoft Anonymizer
+Those de-identification steps are performed as Cumulus ETL reads the FHIR data from disk.
+So as it writes out FHIR to Athena, the data has already been de-identified.
 
-This is a standard tool for anonymization of FHIR resources.
-But the devil is in the details, because it can be configured to do nothing at all
-or redact everything.
+Read more on each of the specific de-identification strategies below.
 
-Cumulus ETL uses a
-[custom configuration](https://github.com/smart-on-fhir/cumulus-etl/blob/main/cumulus_etl/deid/ms-config.json),
-designed to remove everything by default, and only allow specifically mentioned fields
-(i.e. an allow-list or whitelist).
-
-This config also handles some fields like dates and zip codes specially, detailed below.
-
-#### Dates
+### Dates
 
 Most dates are left alone, as precise timing is useful for studies and carries
 [minimal PHI risk](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3907029/).
@@ -88,20 +82,14 @@ But anything age related is carefully handled in the usual HIPAA manner:
 
 - Birthdates are redacted down to just the year (no month or day)
 - If the birthdate (or other age field) indicates an age over 89,
-  those patients will be grouped together as one cohort
+  those patients will be grouped together as one cohort (this is done by study code, not the ETL)
 
-#### Zip Codes
+### Zip Codes
 
 Zip codes are redacted down to just the first three digits (e.g. `12139` becomes `12100`).
 
 Additionally, for certain small-population zip codes where even three digits is too identifying,
 the zip code is entirely redacted to `00000`.
-
-#### Clinical Notes
-
-Be aware that clinical notes are not removed at this stage.
-They are kept for now, so that Cumulus ETL can run natural language processing on them.
-See below for more information on that.
 
 ### Extensions
 
@@ -127,8 +115,7 @@ Other identifiers (like
 are always stripped out entirely.
 
 These resource IDs are one-way securely hashed for anonymity.
-This is the same algorithm that Microsoft's tool uses, but with even more entropy.
-(Specifically, Cumulus uses the HMAC-SHA256 hash with a 256 bit salt.)
+(Using a HMAC-SHA256 hash with a 256 bit salt.)
 
 #### Patients and Encounters
 
@@ -151,7 +138,7 @@ So Cumulus does not bother keeping a mapping for those.
 
 ### Freeform Text Fields
 
-There are some freeform text fields that Cumulus ETS asks the Microsoft Anonymizer tool to leave in.
+There are some freeform text fields that Cumulus ETS leaves in.
 These fields are useful for presenting or computing a phenotype:
 - `CodeableConcept.text`
 - `Coding.display`
@@ -167,18 +154,12 @@ But be warned that it will significantly slow down the ETL process.
 
 ### NLP on Clinical Notes
 
-Clinical notes are kept long enough to run them through cTAKES natural language processing,
-then they are thrown away.
+If performing NLP, the clinical notes are not stripped during normal de-identification, as they
+need to be passed to the NLP model.
 
-The resulting detected symptoms and other medical codes from cTAKES are then kept in the de-identified results.
-
-There is a theoretical risk that cTAKES may mis-identify PHI as a medical term.
-As an extremely contrived example of a false positive:
-"Referring to Dr. Anosmia Jones. Patient has Anosmia as a friend."
-
-But even in such cases, there is no stored context for a medical term's usage.
-That is, the surrounding text is not stored, and the word will simply appear to be a false positive symptom.
-So if that does happen, it would be more of a quality concern than a PHI concern.
+The resulting detected symptoms and other medical codes are then kept in the de-identified results,
+along with "span" pointers back to the text, indicating which text indicated the specific symptom.
+This does not hold actual text, but just numbers pointing to offsets in the text.
 
 ## Conclusion
 
