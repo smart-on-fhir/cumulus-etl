@@ -876,6 +876,8 @@ allowed = [
     "https://open.epic.com/fhir/extensions/specialty",
     "https://open.epic.com/FHIR/StructureDefinition/patient-merge-target-reference",
     "https://open.epic.com/FHIR/StructureDefinition/patient-merge-unmerge-instant",
+    "https://open.epic.com/FHIR/StructureDefinition/patient-unmerge-source",
+    "https://open.epic.com/FHIR/StructureDefinition/patient-unmerge-target",
     # A Netherlands extension used by Epic
     "http://nictiz.nl/fhir/StructureDefinition/BodySite-Qualifier",
     ### Synthea extensions
