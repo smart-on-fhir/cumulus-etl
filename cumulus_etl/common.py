@@ -331,19 +331,6 @@ def _pretty_float(num: float, precision: int = 1) -> str:
     return f"{num:.{precision}f}".rstrip("0").rstrip(".")
 
 
-def human_file_size(count: int) -> str:
-    """
-    Returns a human-readable version of a count of bytes.
-
-    I couldn't find a version of this that's sitting in a library we use. Very annoying.
-    """
-    for suffix in ("KB", "MB"):
-        count /= 1024
-        if count < 1024:
-            return f"{_pretty_float(count)}{suffix}"
-    return f"{_pretty_float(count / 1024)}GB"
-
-
 def human_time_offset(seconds: int) -> str:
     """
     Returns a (fuzzy) human-readable version of a count of seconds.

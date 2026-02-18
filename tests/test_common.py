@@ -20,17 +20,6 @@ class TestHelpers(utils.AsyncTestCase):
     """
 
     @ddt.data(
-        (0, "0KB"),
-        (2000, "2KB"),
-        (2000000, "1.9MB"),
-        (2000000000, "1.9GB"),
-    )
-    @ddt.unpack
-    def test_human_file_size(self, byte_count, expected_str):
-        """Verify human_file_size works correctly"""
-        self.assertEqual(expected_str, common.human_file_size(byte_count))
-
-    @ddt.data(
         (0, "0s"),
         (59, "59s"),
         (60, "1m"),

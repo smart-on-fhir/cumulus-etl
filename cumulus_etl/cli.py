@@ -9,7 +9,7 @@ import tempfile
 
 import rich.logging
 
-from cumulus_etl import common, errors, etl, export, sample, upload_notes
+from cumulus_etl import common, errors, etl, sample, upload_notes
 from cumulus_etl.etl import convert, init, nlp
 
 
@@ -48,11 +48,19 @@ def get_subcommand(argv: list[str]) -> str | None:
             return None
 
 
+async def export_removed(parser: argparse.ArgumentParser, argv: list[str]) -> None:
+    errors.fatal(
+        "The 'cumulus-etl export' command has been removed.\n"
+        "Please use 'smart-fetch bulk' instead.",
+        errors.FEATURE_REMOVED,
+    )
+
+
 async def inline_removed(parser: argparse.ArgumentParser, argv: list[str]) -> None:
     errors.fatal(
         "The 'cumulus-etl inline' command has been removed.\n"
         "Please use 'smart-fetch hydrate --tasks inline' instead.",
-        errors.COMMAND_REMOVED,
+        errors.FEATURE_REMOVED,
     )
 
 
@@ -75,7 +83,7 @@ async def main(argv: list[str]) -> None:
     if subcommand == Command.CONVERT.value:
         run_method = convert.run_convert
     elif subcommand == Command.EXPORT.value:
-        run_method = export.run_export
+        run_method = export_removed
     elif subcommand == Command.INIT.value:
         run_method = init.run_init
     elif subcommand == Command.INLINE.value:

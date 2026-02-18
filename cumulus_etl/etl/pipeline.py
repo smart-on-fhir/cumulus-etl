@@ -83,7 +83,6 @@ def print_config(
 
     But more specifically:
     (A) we want to print this as early as possible and a JobConfig needs some computed config
-        (notably, it needs to be constructed after the bulk export target dir is ready)
     (B) we may want to print some options here that don't particularly need to go into the
         JobConfig/**.json file in the output folder (e.g. export dir)
     (C) this formatting can be very user-friendly, while the other should be more
@@ -169,8 +168,6 @@ async def run_pipeline(
     args: argparse.Namespace,
     *,
     nlp: bool = False,
-    ndjson_args: dict | None = None,
-    i2b2_args: dict | None = None,
     prep_scrubber: Callable[
         [cfs.FhirClient, loaders.LoaderResults, feedback.Progress],
         Awaitable[tuple[deid.Scrubber, dict]],
@@ -215,11 +212,9 @@ async def run_pipeline(
 
     async with client:
         if args.input_format == "i2b2":
-            config_loader = loaders.I2b2Loader(root_input, **(i2b2_args or {}))
+            config_loader = loaders.I2b2Loader(root_input)
         else:
-            config_loader = loaders.FhirNdjsonLoader(
-                root_input, client=client, **(ndjson_args or {})
-            )
+            config_loader = loaders.FhirNdjsonLoader(root_input)
 
         with feedback.Progress() as progress:
             available_resources = await check_available_resources(

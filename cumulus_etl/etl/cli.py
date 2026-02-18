@@ -30,12 +30,11 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
 
     cli_utils.add_aws(parser)
 
-    export = cli_utils.add_bulk_export(parser)
-    export.add_argument(
-        "--export-to",
-        metavar="DIR",
-        help="where to put exported files (default is to delete after use)",
-    )
+    # Mark some option flags as removed
+    cli_utils.RemovedEhrArg.add(parser, "--since")
+    cli_utils.RemovedEhrArg.add(parser, "--until")
+    cli_utils.RemovedEhrArg.add(parser, "--resume")
+    cli_utils.RemovedEhrArg.add(parser, "--export-to")
 
     group = parser.add_argument_group("external export identification")
     group.add_argument(
@@ -91,14 +90,6 @@ def handle_completion_args(
 
 
 async def etl_main(args: argparse.Namespace) -> None:
-    i2b2_args = {"export_to": args.export_to}
-    ndjson_args = {
-        "export_to": args.export_to,
-        "since": args.since,
-        "until": args.until,
-        "resume": args.resume,
-    }
-
     async def prep_scrubber(
         _client: cfs.FhirClient, results: loaders.LoaderResults, progress: feedback.Progress
     ) -> tuple[deid.Scrubber, dict]:
@@ -110,9 +101,7 @@ async def etl_main(args: argparse.Namespace) -> None:
 
         return scrubber, {"export_group_name": export_group, "export_datetime": export_datetime}
 
-    await pipeline.run_pipeline(
-        args, prep_scrubber=prep_scrubber, i2b2_args=i2b2_args, ndjson_args=ndjson_args
-    )
+    await pipeline.run_pipeline(args, prep_scrubber=prep_scrubber)
 
 
 async def run_etl(parser: argparse.ArgumentParser, argv: list[str]) -> None:

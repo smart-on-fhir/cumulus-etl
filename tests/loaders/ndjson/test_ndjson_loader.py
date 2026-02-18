@@ -1,4 +1,4 @@
-"""Tests for ndjson loading (both bulk export and local)"""
+"""Tests for ndjson loading"""
 
 import datetime
 import os
@@ -6,7 +6,6 @@ import tempfile
 from unittest import mock
 
 from cumulus_etl import cli, common, errors, feedback, loaders, store
-from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from tests.utils import AsyncTestCase
 
 
@@ -14,28 +13,11 @@ class TestNdjsonLoader(AsyncTestCase):
     """
     Test case for the etl pipeline and ndjson loader.
 
-    i.e. tests for cli.py & ndjson_loader.py
-
-    This does no actual bulk loading.
+    i.e. tests for cli.py & ndjson_loader.py.
     """
 
     def setUp(self):
         super().setUp()
-        self.jwks_file = tempfile.NamedTemporaryFile(suffix=".jwks")
-        self.jwks_path = self.jwks_file.name
-        self.jwks_file.write(b'{"fake":"jwks"}')
-        self.jwks_file.flush()
-
-        # Mock out the bulk export code by default. We don't care about actually doing any
-        # bulk work in this test case, just confirming the flow.
-        exporter_patcher = mock.patch(
-            "cumulus_etl.loaders.fhir.ndjson_loader.BulkExporter", spec=BulkExporter
-        )
-        self.addCleanup(exporter_patcher.stop)
-        self.mock_exporter_class = exporter_patcher.start()
-        self.mock_exporter = mock.AsyncMock()
-        self.mock_exporter_class.return_value = self.mock_exporter
-
         self.progress = feedback.Progress()
 
     @staticmethod
@@ -90,43 +72,8 @@ class TestNdjsonLoader(AsyncTestCase):
         self.assertIsNone(results.group_name)
         self.assertIsNone(results.export_datetime)
 
-    @mock.patch("cumulus_fhir_support.FhirClient.create_for_cli")
-    @mock.patch("cumulus_etl.etl.cli.loaders.FhirNdjsonLoader")
-    async def test_etl_passes_args(self, mock_loader, mock_client):
-        """Verify that we are passed the client ID and JWKS from the command line"""
-        mock_loader.side_effect = ValueError  # just to stop the etl pipeline once we get this far
-
-        with self.assertRaises(ValueError):
-            await cli.main(
-                [
-                    "http://localhost:9999",
-                    "/tmp/output",
-                    "/tmp/phi",
-                    "--skip-init-checks",
-                    "--input-format=ndjson",
-                    "--smart-client-id=x",
-                    f"--smart-key={self.jwks_path}",
-                    "--export-to=/tmp/exported",
-                    "--since=2018",
-                    "--until=2020",
-                ]
-            )
-
-        self.assertEqual(1, mock_client.call_count)
-        self.assertEqual("x", mock_client.call_args[1]["smart_client_id"])
-        self.assertEqual(self.jwks_path, mock_client.call_args[1]["smart_key"])
-        self.assertEqual(1, mock_loader.call_count)
-        self.assertEqual("/tmp/exported", mock_loader.call_args[1]["export_to"])
-        self.assertEqual("2018", mock_loader.call_args[1]["since"])
-        self.assertEqual("2020", mock_loader.call_args[1]["until"])
-
-    @mock.patch("cumulus_fhir_support.FhirClient.create_for_cli")
-    async def test_fhir_url(self, mock_client):
-        """Verify that we handle the user provided --fhir-client correctly"""
-        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
-
-        # Confirm that we chop an input URL down to a base server URL
-        with self.assertRaises(ValueError):
+    async def test_fhir_url(self):
+        with self.assert_fatal_exit(errors.FEATURE_REMOVED):
             await cli.main(
                 [
                     "https://example.com/hello1/Group/1234",
@@ -135,150 +82,6 @@ class TestNdjsonLoader(AsyncTestCase):
                     "--skip-init-checks",
                 ]
             )
-        self.assertEqual("https://example.com/hello1", mock_client.call_args[0][0])
-
-        # Confirm that we don't allow conflicting URLs
-        with self.assertRaises(SystemExit):
-            await cli.main(
-                [
-                    "http://localhost:9999",
-                    "/tmp/output",
-                    "/tmp/phi",
-                    "--skip-init-checks",
-                    "--fhir-url=https://example.com/hello2",
-                ]
-            )
-
-        # But a subset --fhir-url is fine
-        with self.assertRaises(ValueError):
-            await cli.main(
-                [
-                    "https://example.com/hello3/Group/1234",
-                    "/tmp/output",
-                    "/tmp/phi",
-                    "--skip-init-checks",
-                    "--fhir-url=https://example.com/hello3",
-                ]
-            )
-        self.assertEqual("https://example.com/hello3", mock_client.call_args[0][0])
-
-        # Now do a normal use of --fhir-url
-        mock_client.side_effect = ValueError  # just to stop the etl pipeline once we get this far
-        with self.assertRaises(ValueError):
-            await cli.main(
-                [
-                    self.make_tempdir(),
-                    "/tmp/output",
-                    "/tmp/phi",
-                    "--skip-init-checks",
-                    "--fhir-url=https://example.com/hello4",
-                ]
-            )
-        self.assertEqual("https://example.com/hello4", mock_client.call_args[0][0])
-
-    @mock.patch("cumulus_fhir_support.FhirClient.create_for_cli")
-    async def test_export_flow(self, mock_client):
-        """
-        Verify that we make the right calls down as far as the bulk export helper classes, with the right resources.
-        """
-        # stop us when we get to the exporting step, but also confirm we call it
-        self.mock_exporter.export.side_effect = ValueError
-
-        with self.assertRaises(ValueError):
-            await cli.main(
-                [
-                    "http://localhost:9999",
-                    "/tmp/output",
-                    "/tmp/phi",
-                    "--skip-init-checks",
-                    "--task=condition,encounter",
-                ]
-            )
-
-        expected_resources = {"Condition", "Encounter"}
-        self.assertEqual(1, mock_client.call_count)
-        self.assertEqual(expected_resources, mock_client.call_args[0][1])
-        self.assertEqual(1, self.mock_exporter_class.call_count)
-        self.assertEqual(expected_resources, set(self.mock_exporter_class.call_args[0][1]))
-
-    async def test_fatal_errors_are_fatal(self):
-        """Verify that when a FatalError is raised, we do really quit"""
-        self.mock_exporter.export.side_effect = errors.FatalError("x", errors.BULK_EXPORT_FAILED)
-
-        with self.assert_fatal_exit(errors.BULK_EXPORT_FAILED):
-            await loaders.FhirNdjsonLoader(
-                store.Root("http://localhost:9999"), mock.AsyncMock()
-            ).load_resources({"Patient"}, progress=self.progress)
-
-        self.assertEqual(1, self.mock_exporter.export.call_count)
-
-    async def test_export_to_folder_happy_path(self):
-        patient = {"id": "A", "resourceType": "Patient"}
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-
-            async def fake_export() -> None:
-                output_dir = self.mock_exporter_class.call_args[0][3]
-                common.write_json(f"{output_dir}/Patient.ndjson", patient)
-                common.write_json(f"{output_dir}/log.ndjson", {"eventId": "kickoff"})
-
-            self.mock_exporter.export.side_effect = fake_export
-
-            target = f"{tmpdir}/target"
-            loader = loaders.FhirNdjsonLoader(
-                store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=target
-            )
-            results = await loader.load_resources({"Patient"}, progress=self.progress)
-
-            # Confirm export folder still has the data (and log) we created above in the mock
-            self.assertTrue(os.path.isdir(target))
-            self.assertEqual(target, self.mock_exporter_class.call_args[0][3])
-            self.assertEqual({"Patient.ndjson", "log.ndjson"}, set(os.listdir(target)))
-            self.assertEqual(patient, common.read_json(f"{target}/Patient.ndjson"))
-            self.assertEqual({"eventId": "kickoff"}, common.read_json(f"{target}/log.ndjson"))
-
-            # Confirm the returned dir has only the data
-            self.assertNotEqual(results.path, target)
-            self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
-            self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
-
-    async def test_export_internal_folder_happy_path(self):
-        """Test that we can also safely export without an export-to folder involved"""
-        patient = {"id": "A", "resourceType": "Patient"}
-
-        async def fake_export() -> None:
-            output_dir = self.mock_exporter_class.call_args[0][3]
-            common.write_json(f"{output_dir}/Patient.ndjson", patient)
-            common.write_json(f"{output_dir}/log.ndjson", {"eventId": "kickoff"})
-
-        self.mock_exporter.export.side_effect = fake_export
-
-        loader = loaders.FhirNdjsonLoader(store.Root("http://localhost:9999"), mock.AsyncMock())
-        results = await loader.load_resources({"Patient"}, progress=self.progress)
-
-        # Confirm the returned dir has only the data
-        self.assertEqual({"Patient.ndjson"}, set(os.listdir(results.path)))
-        self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
-
-    async def test_export_to_folder_has_contents(self):
-        """Verify we fail if an export folder already has contents"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            os.mkdir(f"{tmpdir}/stuff")
-            loader = loaders.FhirNdjsonLoader(
-                store.Root("http://localhost:9999"), mock.AsyncMock(), export_to=tmpdir
-            )
-            with self.assertRaises(SystemExit) as cm:
-                await loader.load_resources(set(), progress=self.progress)
-        self.assertEqual(cm.exception.code, errors.FOLDER_NOT_EMPTY)
-
-    async def test_export_to_folder_not_local(self):
-        """Verify we fail if an export folder is not local"""
-        loader = loaders.FhirNdjsonLoader(
-            store.Root("http://localhost:9999"), mock.AsyncMock(), export_to="http://foo"
-        )
-        with self.assertRaises(SystemExit) as cm:
-            await loader.load_resources(set(), progress=self.progress)
-        self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
 
     async def test_reads_deleted_ids(self):
         """Verify we read in the deleted/ folder"""

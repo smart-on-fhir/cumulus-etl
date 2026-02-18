@@ -3,11 +3,12 @@
 [Cumulus](https://docs.smarthealthit.org/cumulus/)
 is an entire healthcare pipeline for population-scale clinical investigations.
 
-Cumulus ETL is the first critical piece of that pipeline.
-- It **extracts** bulk patient data from your EHR.
-- It **transforms** that data by anonymizing it and running NLP on clinical notes
+Cumulus ETL is an early critical piece of that pipeline.
+- It **extracts** clinical data from your FHIR data
+  (you can use [SMART Fetch](https://docs.smarthealthit.org/cumulus/fetch/) to export this data from your EHR).
+- It **transforms** that data by anonymizing it and/or running NLP on clinical notes
 - It **loads** that data onto the cloud to be queried by
-  [Cumulus Library](https://github.com/smart-on-fhir/cumulus-library) SQL
+  [Cumulus Library](https://docs.smarthealthit.org/cumulus/library/) SQL
 
 ## Documentation
 

@@ -73,18 +73,18 @@ def add_aws(parser: argparse.ArgumentParser, athena: bool = False) -> None:
         )
 
 
-def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True):
-    if as_subgroup:
-        parser = parser.add_argument_group("bulk export")
-    parser.add_argument(
-        "--since", metavar="TIMESTAMP", help="start date for export from the FHIR server"
-    )
-    # "Until" is not an official part of the bulk FHIR API, but some custom servers support it
-    parser.add_argument(
-        "--until", metavar="TIMESTAMP", help="end date for export from the FHIR server"
-    )
-    parser.add_argument("--resume", metavar="URL", help="polling status URL from a previous export")
-    return parser
+class RemovedEhrArg(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        errors.fatal(
+            f"The {option_string} flag has been removed.\n"
+            "Please use SMART Fetch to extract FHIR data from your EHR instead:\n"
+            "  https://docs.smarthealthit.org/cumulus/fetch/",
+            errors.FEATURE_REMOVED,
+        )
+
+    @classmethod
+    def add(cls, parser: argparse.ArgumentParser, flag: str) -> None:
+        parser.add_argument(flag, action=cls, help=argparse.SUPPRESS)
 
 
 def add_ctakes_override(parser: argparse.ArgumentParser):
@@ -138,19 +138,15 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
             errors.BULK_EXPORT_FOLDER_NOT_LOCAL,
         )
 
-    # Allowing a previous export log file is harmless, since we append to it.
-    # This helps the UX for resuming an interrupted bulk export by not requiring a new dir.
-    confirm_dir_is_empty(store.Root(export_to, create=True), allow=["log.ndjson"])
+    confirm_dir_is_empty(store.Root(export_to, create=True))
 
     return common.RealDirectory(export_to)
 
 
-def confirm_dir_is_empty(root: store.Root, allow: Iterable[str] | None = None) -> None:
+def confirm_dir_is_empty(root: store.Root) -> None:
     """Errors out if the dir exists with contents"""
     try:
         files = {os.path.basename(p) for p in root.ls()}
-        if allow is not None:
-            files -= set(allow)
         if files:
             errors.fatal(
                 f"The target folder '{root.path}' already has contents. Please provide an empty folder.",
