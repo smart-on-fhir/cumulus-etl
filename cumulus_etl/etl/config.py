@@ -4,8 +4,6 @@ import datetime
 import os
 from socket import gethostname
 
-import cumulus_fhir_support as cfs
-
 from cumulus_etl import common, deid, errors, formats, store
 
 

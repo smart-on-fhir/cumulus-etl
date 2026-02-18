@@ -5,15 +5,9 @@ https://github.com/smart-on-fhir/bulk-data-client/wiki/Bulk-Data-Export-Log-Item
 """
 
 import datetime
-import json
 import os
 import re
-import uuid
 
-import cumulus_fhir_support as cfs
-import httpx
-
-import cumulus_etl
 from cumulus_etl import common, fhir, store
 
 

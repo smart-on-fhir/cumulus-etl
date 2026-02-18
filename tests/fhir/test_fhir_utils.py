@@ -2,7 +2,6 @@
 
 import base64
 import datetime
-from unittest import mock
 
 import ddt
 
@@ -184,8 +183,8 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
                 },
             )
 
-    async def test_url_without_client(self):
-        with self.assertRaisesRegex(ValueError, "no connection information was provided"):
+    async def test_url_only(self):
+        with self.assertRaises(fhir.RemoteAttachment):
             fhir.get_clinical_note(
                 {
                     "id": "no data",
@@ -197,6 +196,10 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
     def test_role_info_wrong_type(self):
         with self.assertRaisesRegex(ValueError, "Condition is not a supported clinical note type"):
             fhir.get_clinical_note_role_info({"resourceType": "Condition"}, "/tmp/nope")
+
+    async def test_handles_bad_mimetype(self):
+        with self.assertRaisesRegex(ValueError, "No textual mimetype found"):
+            fhir.get_clinical_note(self.make_docref("1", "application/pdf", ""))
 
     def test_role_info_bad_person_link_ignored(self):
         info = fhir.get_clinical_note_role_info(

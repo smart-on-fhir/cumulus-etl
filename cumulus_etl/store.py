@@ -64,13 +64,7 @@ class Root:
         self.protocol = parsed.scheme or "file"  # assume local if no obvious scheme
         self.is_http = self.protocol in {"http", "https"}
         self.path = path if parsed.scheme else os.path.abspath(path)
-
-        try:
-            self.fs = fsspec.filesystem(self.protocol, **self.fsspec_options())
-        except ValueError:
-            # Some valid input URLs (like tcp://) aren't valid fsspec URLs, so allow a failure here.
-            # If any of the more interesting calls in this class are made, we'll fail, but that's fine.
-            self.fs = None
+        self.fs = fsspec.filesystem(self.protocol, **self.fsspec_options())
 
         if create:
             # Ensure we exist to start

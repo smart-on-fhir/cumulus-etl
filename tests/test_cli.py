@@ -7,7 +7,7 @@ from unittest import mock
 
 import ddt
 
-from cumulus_etl import cli, cli_utils
+from cumulus_etl import cli, cli_utils, errors
 from tests.utils import AsyncTestCase
 
 
@@ -46,6 +46,11 @@ class TestCumulusCLI(AsyncTestCase):
             await cli.main(argv)
 
         self.assertTrue(mock_main.called)
+
+    @ddt.data("export", "inline")
+    async def test_removed_commands(self, command):
+        with self.assert_fatal_exit(errors.FEATURE_REMOVED):
+            await cli.main([command])
 
 
 class TestCumulusCLIUtils(AsyncTestCase):

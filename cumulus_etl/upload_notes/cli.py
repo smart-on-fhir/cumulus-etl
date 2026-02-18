@@ -1,12 +1,9 @@
 """Aid manual chart review by sending docs to Label Studio"""
 
 import argparse
-import asyncio
 import dataclasses
 import datetime
 from collections.abc import Callable, Collection
-
-import cumulus_fhir_support as cfs
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
 from cumulus_etl.upload_notes import labeling, selector

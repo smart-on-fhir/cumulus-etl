@@ -10,7 +10,6 @@ Some differences:
 
 import argparse
 
-import cumulus_fhir_support as cfs
 import rich
 import rich.prompt
 

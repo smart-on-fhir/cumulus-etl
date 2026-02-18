@@ -9,11 +9,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-import cumulus_fhir_support as cfs
 import httpx
 import respx
 import time_machine
-from jwcrypto import jwk
 
 from cumulus_etl import errors
 from cumulus_etl.formats.deltalake import DeltaLakeFormat

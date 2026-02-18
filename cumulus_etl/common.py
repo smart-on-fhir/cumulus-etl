@@ -365,18 +365,13 @@ def print_header(name: str | None = None) -> None:
 ###############################################################################
 
 
-def datetime_now(local: bool = False) -> datetime.datetime:
+def datetime_now() -> datetime.datetime:
     """
     Current date and time, suitable for use as a FHIR 'instant' data type
 
     The returned datetime is always 'aware' (not 'naive').
-
-    :param local: whether to use local timezone or (if False) UTC
     """
-    now = datetime.datetime.now(datetime.UTC)
-    if local:
-        now = now.astimezone()
-    return now
+    return datetime.datetime.now(datetime.UTC)
 
 
 def timestamp_datetime(time: datetime.datetime | None = None) -> str:

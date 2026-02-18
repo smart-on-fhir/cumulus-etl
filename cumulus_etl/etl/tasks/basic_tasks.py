@@ -1,13 +1,10 @@
 """Standard FHIR resource tasks"""
 
-import copy
-import logging
-import os
 from typing import ClassVar
 
 import pyarrow
 
-from cumulus_etl import common, completion, feedback, fhir, store
+from cumulus_etl import completion, feedback
 from cumulus_etl.etl import tasks
 
 

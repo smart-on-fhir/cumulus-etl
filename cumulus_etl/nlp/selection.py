@@ -4,7 +4,6 @@ import argparse
 import re
 import string
 
-import cumulus_fhir_support as cfs
 import pyathena
 
 from cumulus_etl import cli_utils, deid, errors, fhir, id_handling

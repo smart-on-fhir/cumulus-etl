@@ -4,11 +4,10 @@ import logging
 import os
 from collections.abc import Awaitable, Callable
 
-import cumulus_fhir_support as cfs
 import rich
 import rich.table
 
-from cumulus_etl import cli_utils, common, deid, errors, feedback, fhir, loaders, store
+from cumulus_etl import cli_utils, common, deid, errors, feedback, loaders, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary, validate_output_folder
 from cumulus_etl.etl.tasks import task_factory
@@ -93,15 +92,9 @@ def print_config(
     table.add_row("Input path:", args.dir_input)
     if args.input_format != "ndjson":
         table.add_row(" Format:", args.input_format)
-    if vars(args).get("since"):
-        table.add_row(" Since:", args.since)
-    if vars(args).get("until"):
-        table.add_row(" Until:", args.until)
     table.add_row("Output path:", args.dir_output)
     table.add_row(" Format:", args.output_format)
     table.add_row("PHI/Build path:", args.dir_phi)
-    if vars(args).get("export_to"):
-        table.add_row("Export path:", args.export_to)
     if args.errors_to:
         table.add_row("Errors path:", args.errors_to)
     table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
@@ -196,9 +189,6 @@ async def run_pipeline(
         rich.print("Initializing…")
         for task in selected_tasks:
             await task.init_check()
-
-    # Combine all task resource sets into one big set of requested resources
-    requested_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
 
     if args.input_format == "i2b2":
         config_loader = loaders.I2b2Loader(root_input)

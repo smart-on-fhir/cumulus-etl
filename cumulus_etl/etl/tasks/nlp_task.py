@@ -14,7 +14,6 @@ import typing
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from typing import ClassVar
 
-import cumulus_fhir_support as cfs
 import jambo
 import pyarrow
 import pydantic

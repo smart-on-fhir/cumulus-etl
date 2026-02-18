@@ -3,7 +3,6 @@
 import os
 from unittest import mock
 
-import cumulus_fhir_support as cfs
 import ddt
 
 from cumulus_etl import common, errors

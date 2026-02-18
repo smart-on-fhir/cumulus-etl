@@ -3,8 +3,6 @@
 import argparse
 import datetime
 
-import cumulus_fhir_support as cfs
-
 import cumulus_etl
 from cumulus_etl import cli_utils, deid, errors, feedback, loaders
 from cumulus_etl.etl import pipeline

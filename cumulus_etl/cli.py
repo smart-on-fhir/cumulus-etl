@@ -51,7 +51,8 @@ def get_subcommand(argv: list[str]) -> str | None:
 async def export_removed(parser: argparse.ArgumentParser, argv: list[str]) -> None:
     errors.fatal(
         "The 'cumulus-etl export' command has been removed.\n"
-        "Please use 'smart-fetch bulk' instead.",
+        "Please use 'smart-fetch bulk' instead.\n"
+        "See https://docs.smarthealthit.org/cumulus/fetch/ for more information.",
         errors.FEATURE_REMOVED,
     )
 
@@ -59,7 +60,8 @@ async def export_removed(parser: argparse.ArgumentParser, argv: list[str]) -> No
 async def inline_removed(parser: argparse.ArgumentParser, argv: list[str]) -> None:
     errors.fatal(
         "The 'cumulus-etl inline' command has been removed.\n"
-        "Please use 'smart-fetch hydrate --tasks inline' instead.",
+        "Please use 'smart-fetch hydrate --tasks inline' instead.\n"
+        "See https://docs.smarthealthit.org/cumulus/fetch/ for more information.",
         errors.FEATURE_REMOVED,
     )
 

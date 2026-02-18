@@ -11,7 +11,6 @@ import shutil
 import tempfile
 from unittest import mock
 
-import cumulus_fhir_support as cfs
 import ddt
 import respx
 from ctakesclient.typesystem import Polarity
@@ -327,6 +326,23 @@ class TestEtlJobFlow(BaseEtlSimple):
         with tempfile.TemporaryDirectory() as tmpdir:
             with self.assert_fatal_exit(errors.FOLDER_DOES_NOT_EXIST):
                 await self.run_etl(tasks=["patient"], input_path=f"{tmpdir}/nope")
+
+    @ddt.data(
+        "--since=x",
+        "--until=x",
+        "--export-to=x",
+        "--resume=x",
+        "--smart-client-id=x",
+        "--smart-key=x",
+        "--basic-user=x",
+        "--basic-passwd=x",
+        "--bearer-token=x",
+        "--fhir-url=x",
+        "--smart-jwks=x",
+    )
+    async def test_removed_flags(self, flag: str):
+        with self.assert_fatal_exit(errors.FEATURE_REMOVED):
+            await self.run_etl(flag)
 
 
 class TestEtlJobConfig(BaseEtlSimple):

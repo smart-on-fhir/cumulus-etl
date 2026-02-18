@@ -6,8 +6,6 @@ import shutil
 import tempfile
 from unittest import mock
 
-import cumulus_fhir_support as cfs
-
 from cumulus_etl import cli, common, deid
 from cumulus_etl.etl.config import JobConfig
 from tests import ctakesmock, utils
@@ -33,7 +31,7 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
 
         self.tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        # self.addCleanup(shutil.rmtree, self.tmpdir)
+        self.addCleanup(shutil.rmtree, self.tmpdir)
 
         self.output_path = os.path.join(self.tmpdir, "output")
         self.phi_path = os.path.join(self.tmpdir, "phi")

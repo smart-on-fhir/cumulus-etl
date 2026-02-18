@@ -4,7 +4,7 @@ import tempfile
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import cli_utils, common, errors, feedback, fhir, store
+from cumulus_etl import common, errors, feedback, fhir, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
 

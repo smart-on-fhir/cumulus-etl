@@ -94,6 +94,10 @@ class TestSample(AsyncTestCase):
         with self.assert_fatal_exit(errors.ARGS_INVALID):
             await self.run_sample(count=-1)
 
+    async def test_nonlocal_export_dir(self):
+        with self.assert_fatal_exit(errors.BULK_EXPORT_FOLDER_NOT_LOCAL):
+            await self.run_sample(args=["--export-to=s3://test/"])
+
     async def test_only_samples_text_notes(self):
         notedir = f"{self.tmpdir}/notes"
         os.makedirs(notedir)

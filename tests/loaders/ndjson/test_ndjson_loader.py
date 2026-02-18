@@ -3,7 +3,6 @@
 import datetime
 import os
 import tempfile
-from unittest import mock
 
 from cumulus_etl import cli, common, errors, feedback, loaders, store
 from tests.utils import AsyncTestCase

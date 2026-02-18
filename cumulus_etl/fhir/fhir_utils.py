@@ -8,7 +8,6 @@ import urllib.parse
 from collections.abc import Iterable
 
 import cumulus_fhir_support as cfs
-import httpx
 import inscriptis
 
 from cumulus_etl import errors
@@ -227,7 +226,7 @@ def _get_note_from_attachment(attachment: dict) -> str:
 
     # Shouldn't ever get here, because get_clinical_note_attachment already checks this,
     # but just in case...
-    raise ValueError("No data field present")  # pragma: no cover
+    raise ValueError("No data or url field present")  # pragma: no cover
 
 
 def get_clinical_note_attachment(resource: dict) -> dict:

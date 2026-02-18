@@ -7,7 +7,7 @@ from functools import partial
 from pathlib import Path
 from typing import TypeVar
 
-from cumulus_etl import cli_utils, common, feedback, store
+from cumulus_etl import cli_utils, common, feedback
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.i2b2 import extract, schema, transform
 

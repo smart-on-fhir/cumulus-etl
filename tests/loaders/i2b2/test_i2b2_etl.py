@@ -1,9 +1,5 @@
 """Tests for etl/cli.py using i2b2 inputs"""
 
-import filecmp
-import os
-import tempfile
-
 from tests.etl import BaseEtlSimple
 
 
