@@ -91,18 +91,12 @@ def handle_completion_args(
 
 
 async def etl_main(args: argparse.Namespace) -> None:
-    inline_resources = cli_utils.expand_inline_resources(args.inline_resource)
-    inline_mimetypes = cli_utils.expand_inline_mimetypes(args.inline_mimetype)
-
     i2b2_args = {"export_to": args.export_to}
     ndjson_args = {
         "export_to": args.export_to,
         "since": args.since,
         "until": args.until,
         "resume": args.resume,
-        "inline": args.inline,
-        "inline_resources": inline_resources,
-        "inline_mimetypes": inline_mimetypes,
     }
 
     async def prep_scrubber(

@@ -4,7 +4,7 @@ import tempfile
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import cli_utils, common, errors, feedback, fhir, inliner, store
+from cumulus_etl import cli_utils, common, errors, feedback, fhir, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.bulk_export import BulkExporter
 from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
@@ -24,9 +24,6 @@ class FhirNdjsonLoader(base.Loader):
         until: str | None = None,
         type_filter: list[str] | None = None,
         resume: str | None = None,
-        inline: bool = False,
-        inline_resources: set[str] | None = None,
-        inline_mimetypes: set[str] | None = None,
     ):
         """
         :param root: location to load ndjson from
@@ -43,9 +40,6 @@ class FhirNdjsonLoader(base.Loader):
         self.until = until
         self.type_filter = type_filter
         self.resume = resume
-        self.inline = inline
-        self.inline_resources = inline_resources
-        self.inline_mimetypes = inline_mimetypes
         self.detected_files = None
 
     @staticmethod
@@ -70,7 +64,7 @@ class FhirNdjsonLoader(base.Loader):
             bulk_dir = await self.load_from_bulk_export(resources)
             input_root = store.Root(bulk_dir.name)
         else:
-            if self.export_to or self.since or self.until or self.resume or self.inline:
+            if self.export_to or self.since or self.until or self.resume:
                 errors.fatal(
                     "You provided FHIR bulk export parameters but did not provide a FHIR server",
                     errors.ARGS_CONFLICT,
@@ -115,15 +109,6 @@ class FhirNdjsonLoader(base.Loader):
         """
         target_dir = cli_utils.make_export_dir(self.export_to)
 
-        if self.inline and not self.export_to:
-            errors.fatal(
-                "Attachment inlining requested, but without an export folder. "
-                "If you want to save inlined attachments for archiving, please specify an "
-                "export folder to preserve the downloaded NDJSON with --export-to. "
-                "See --help for more information.",
-                errors.INLINE_WITHOUT_FOLDER,
-            )
-
         bulk_exporter = BulkExporter(
             self.client,
             resources,
@@ -136,15 +121,6 @@ class FhirNdjsonLoader(base.Loader):
             prefer_url_resources=prefer_url_resources,
         )
         await bulk_exporter.export()
-
-        if self.inline:
-            common.print_header()
-            await inliner.inliner(
-                self.client,
-                store.Root(target_dir.name),
-                self.inline_resources,
-                self.inline_mimetypes,
-            )
 
         return target_dir
 

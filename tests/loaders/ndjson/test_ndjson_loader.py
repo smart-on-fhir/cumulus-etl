@@ -280,35 +280,6 @@ class TestNdjsonLoader(AsyncTestCase):
             await loader.load_resources(set(), progress=self.progress)
         self.assertEqual(cm.exception.code, errors.BULK_EXPORT_FOLDER_NOT_LOCAL)
 
-    async def test_inlining_but_no_export_to(self):
-        """Verify we fail if an export folder is not set when inlining"""
-        loader = loaders.FhirNdjsonLoader(
-            store.Root("http://localhost:9999"),
-            mock.AsyncMock(),
-            inline=True,
-        )
-        with self.assertRaises(SystemExit) as cm:
-            await loader.load_resources(set(), progress=self.progress)
-        self.assertEqual(cm.exception.code, errors.INLINE_WITHOUT_FOLDER)
-
-    @mock.patch("cumulus_etl.inliner.inliner")
-    async def test_inlining(self, mock_inliner):
-        """Verify we inline if asked"""
-        tmpdir = self.make_tempdir()
-        loader = loaders.FhirNdjsonLoader(
-            store.Root("http://localhost:9999"),
-            mock.AsyncMock(),
-            export_to=tmpdir,
-            inline=True,
-            inline_mimetypes={"a/b"},
-            inline_resources={"DocumentReference"},
-        )
-        await loader.load_resources({"Patient"}, progress=self.progress)
-        self.assertEqual(mock_inliner.call_count, 1)
-        self.assertEqual(mock_inliner.call_args[0][1].path, tmpdir)
-        self.assertEqual(mock_inliner.call_args[0][2], {"DocumentReference"})
-        self.assertEqual(mock_inliner.call_args[0][3], {"a/b"})
-
     async def test_reads_deleted_ids(self):
         """Verify we read in the deleted/ folder"""
         with tempfile.TemporaryDirectory() as tmpdir:

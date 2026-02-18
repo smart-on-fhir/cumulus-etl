@@ -46,9 +46,6 @@ async def export_main(args: argparse.Namespace) -> None:
         else:
             required_resources |= types
 
-    inline_resources = cli_utils.expand_inline_resources(args.inline_resource)
-    inline_mimetypes = cli_utils.expand_inline_mimetypes(args.inline_mimetype)
-
     fhir_root = store.Root(args.url_input)
     client = fhir.create_fhir_client_for_cli(args, fhir_root, required_resources)
 
@@ -75,9 +72,6 @@ async def export_main(args: argparse.Namespace) -> None:
             until=args.until,
             type_filter=list(cli_utils.expand_comma_list_arg(args.type_filter)),
             resume=args.resume,
-            inline=args.inline,
-            inline_resources=inline_resources,
-            inline_mimetypes=inline_mimetypes,
         )
         await loader.load_from_bulk_export(
             sorted(required_resources), prefer_url_resources=using_default_tasks

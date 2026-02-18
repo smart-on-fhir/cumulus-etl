@@ -84,24 +84,6 @@ def add_bulk_export(parser: argparse.ArgumentParser, *, as_subgroup: bool = True
         "--until", metavar="TIMESTAMP", help="end date for export from the FHIR server"
     )
     parser.add_argument("--resume", metavar="URL", help="polling status URL from a previous export")
-    parser.add_argument(
-        "--inline",
-        action="store_true",
-        help="attachments will be inlined after the export",
-    )
-    parser.add_argument(
-        "--inline-resource",
-        metavar="RESOURCES",
-        action="append",
-        help="only consider this resource for inlining (default is all supported inline targets: "
-        "DiagnosticReport and DocumentReference)",
-    )
-    parser.add_argument(
-        "--inline-mimetype",
-        metavar="MIMETYPES",
-        action="append",
-        help="only inline this attachment mimetype (default is text, HTML, and XHTML)",
-    )
     return parser
 
 
@@ -194,37 +176,6 @@ def is_url_available(url: str, retry: bool = True) -> bool:
                 time.sleep(3)
 
     return False
-
-
-def expand_inline_resources(arg: Iterable[str] | None) -> set[str]:
-    """
-    This converts a list of inline resource args into the final properly cased resource names.
-
-    If you have an arg like --inline-resource, this will process that for you.
-    """
-    allowed = {"diagnosticreport": "DiagnosticReport", "documentreference": "DocumentReference"}
-
-    if arg is None:
-        return set(allowed.values())
-
-    resources = set(expand_comma_list_arg(arg))
-    for resource in resources:
-        if resource.casefold() not in allowed:
-            errors.fatal(f"Unsupported resource for inlining: {resource}", errors.ARGS_INVALID)
-
-    return {allowed[resource.casefold()] for resource in resources}
-
-
-def expand_inline_mimetypes(arg: Iterable[str] | None) -> set[str]:
-    """
-    This converts a list of inline mimetype args into a set of normalized mimetypes.
-
-    If you have an arg like --inline-mimetype, this will process that for you.
-    """
-    if arg is None:
-        return {"text/plain", "text/html", "application/xhtml+xml"}
-
-    return set(expand_comma_list_arg(arg, casefold=True))
 
 
 def expand_comma_list_arg(arg: Iterable[str] | None, casefold: bool = False) -> Iterable[str]:
