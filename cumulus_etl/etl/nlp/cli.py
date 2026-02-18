@@ -13,8 +13,9 @@ import argparse
 import rich
 import rich.prompt
 
-from cumulus_etl import cli_utils, common, deid, feedback, loaders, nlp, store
+from cumulus_etl import cli_utils, common, deid, nlp, store
 from cumulus_etl.etl import pipeline
+from cumulus_etl.etl.config import JobConfig
 
 
 def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
@@ -62,27 +63,44 @@ async def check_input_size(
 
 
 async def nlp_main(args: argparse.Namespace) -> None:
+    job_datetime = common.datetime_now()
+    scrubber, loader_results, selected_tasks = await pipeline.prepare_pipeline(
+        args, job_datetime, nlp=True
+    )
+
+    # record CLI options for NLP models
     nlp.set_nlp_config(args)
 
-    async def prep_scrubber(
-        results: loaders.LoaderResults, progress: feedback.Progress
-    ) -> tuple[deid.Scrubber, dict]:
-        res_filter = nlp.get_note_filter(args)
-        with progress.show_indeterminate_task("Loading codebook"):
-            scrubber = deid.Scrubber(args.dir_phi, mask_notes=False, keep_stats=False)
+    # Let the user know how many documents got selected, so there are no big cost surprises.
+    res_filter = nlp.get_note_filter(args)
+    count = await check_input_size(scrubber.codebook, loader_results.path, res_filter)
+    response = cli_utils.prompt(f"Run NLP on {count:,} notes?", override=args.allow_large_selection)
+    if response in cli_utils.PromptResponse.SKIPPED:
+        rich.print(f"Running NLP on {count:,} notes…")
 
-        # Let the user know how many documents got selected, so there are no big cost surprises.
-        count = await check_input_size(scrubber.codebook, results.path, res_filter)
-        response = cli_utils.prompt(
-            f"Run NLP on {count:,} notes?", override=args.allow_large_selection
-        )
-        if response in cli_utils.PromptResponse.SKIPPED:
-            rich.print(f"Running NLP on {count:,} notes…")
+    # Prepare config for jobs
+    config = JobConfig(
+        args.dir_input,
+        loader_results.path,
+        args.dir_output,
+        args.dir_phi,
+        args.input_format,
+        args.output_format,
+        codebook_id=scrubber.codebook.get_codebook_id(),
+        comment=args.comment,
+        batch_size=args.batch_size,
+        timestamp=job_datetime,
+        dir_errors=args.errors_to,
+        tasks=[t.name for t in selected_tasks],
+        ctakes_overrides=args.ctakes_overrides,
+        resource_filter=res_filter,
+    )
+    common.write_json(config.path_config(), config.as_json(), indent=4)
 
-        config_args = {"ctakes_overrides": args.ctakes_overrides, "resource_filter": res_filter}
-        return scrubber, config_args
+    # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
+    summaries = await pipeline.etl_job(config, selected_tasks, scrubber)
 
-    await pipeline.run_pipeline(args, prep_scrubber=prep_scrubber, nlp=True)
+    pipeline.print_summary(summaries)
 
 
 async def run_nlp(parser: argparse.ArgumentParser, argv: list[str]) -> None:
