@@ -19,6 +19,10 @@ RELATIVE_REFERENCE_REGEX = re.compile("[A-Za-z]+[/?].+")
 RELATIVE_SEPARATOR_REGEX = re.compile("[/?]")
 
 
+class RemoteAttachment(Exception):
+    """A note was requested, but it was only available remotely"""
+
+
 ###############################################################################
 # Standard FHIR References are ResourceType/id
 ###############################################################################
@@ -158,8 +162,7 @@ def linked_resources(resources: Iterable[str]) -> set[str]:
     Returns all linked resources that we might care about.
 
     This is used to look for / download related resources as available.
-    For example, we will want to request FhirClient scopes for these resources.
-    Or scoop these resources up from the input folder.
+    For example, we may want to scoop these resources up from the input folder.
     """
     linked = set()
     for resource in resources:
@@ -171,23 +174,6 @@ def linked_resources(resources: Iterable[str]) -> set[str]:
             case "MedicationRequest":
                 linked.add("Medication")
     return linked
-
-
-async def download_reference(client: cfs.FhirClient, reference: str) -> dict | None:
-    """
-    Downloads a resource, given a FHIR reference.
-
-    :param client: a FhirClient instance
-    :param reference: the "reference" field from a Reference FHIR object (i.e. a string like "Resource/123" or a URL)
-    :returns: the downloaded resource or None if it didn't need to be downloaded (contained resource)
-    """
-    # Is it a blank or contained reference? We can just bail if so.
-    if not reference or reference.startswith("#"):
-        return None
-
-    # FhirClient will figure out whether this is an absolute or relative URL for us
-    response = await client.request("GET", reference)
-    return response.json()
 
 
 ######################################################################################################################
@@ -220,21 +206,7 @@ def _mimetype_priority(mimetype: str) -> int:
     return 0
 
 
-async def request_attachment(client: cfs.FhirClient, attachment: dict) -> httpx.Response:
-    """
-    Download the given attachment by URL.
-    """
-    mimetype, _charset = parse_content_type(attachment["contentType"])
-    return await client.request(
-        "GET",
-        attachment["url"],
-        # We need to pass Accept to get the raw data, not a Binary FHIR object.
-        # See https://www.hl7.org/fhir/binary.html
-        headers={"Accept": mimetype},
-    )
-
-
-async def _get_note_from_attachment(client: cfs.FhirClient | None, attachment: dict) -> str:
+def _get_note_from_attachment(attachment: dict) -> str:
     """
     Decodes or downloads a note from an attachment.
 
@@ -244,25 +216,18 @@ async def _get_note_from_attachment(client: cfs.FhirClient | None, attachment: d
     """
     _mimetype, charset = parse_content_type(attachment["contentType"])
 
-    if "data" in attachment:
+    if attachment.get("data") is not None:
         return base64.standard_b64decode(attachment["data"]).decode(charset)
 
-    # TODO: There are future optimizations to try to use our ctakes cache to avoid downloading in
-    #  the first place:
-    #   - use attachment["hash"] if available (algorithm mismatch though... maybe we should switch
-    #     to sha1...)
-    #   - send a HEAD request with "Want-Digest: sha-256" but Cerner at least does not support that
-    if "url" in attachment:
-        if not client:
-            raise ValueError(
-                "Cannot download attachment url, because no connection information was provided."
-            )
-        response = await request_attachment(client, attachment)
-        return response.text
+    if attachment.get("url") is not None:
+        raise RemoteAttachment(
+            "Some clinical note texts are only available via URL. "
+            "You may want to inline your notes with SMART Fetch."
+        )
 
     # Shouldn't ever get here, because get_clinical_note_attachment already checks this,
     # but just in case...
-    raise ValueError("No data or url field present")  # pragma: no cover
+    raise ValueError("No data field present")  # pragma: no cover
 
 
 def get_clinical_note_attachment(resource: dict) -> dict:
@@ -306,14 +271,14 @@ def get_clinical_note_attachment(resource: dict) -> dict:
     return attachments[best_attachment_index]
 
 
-async def get_clinical_note(client: cfs.FhirClient | None, resource: dict) -> str:
+def get_clinical_note(resource: dict) -> str:
     """
-    Returns the clinical note contained in or referenced by the given resource.
+    Returns the clinical note contained in the given resource.
 
     It will try to find the simplest version (plain text) or convert html to plain text if needed.
     """
     attachment = get_clinical_note_attachment(resource)
-    note = await _get_note_from_attachment(client, attachment)
+    note = _get_note_from_attachment(attachment)
 
     mimetype, _ = parse_content_type(attachment["contentType"])
     if mimetype in ("text/html", "application/xhtml+xml"):

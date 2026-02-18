@@ -30,7 +30,6 @@ def init_checks(args: argparse.Namespace):
 
 
 async def gather_resources(
-    client: cfs.FhirClient,
     root_input: store.Root,
     codebook: deid.Codebook,
     args: argparse.Namespace,
@@ -38,7 +37,7 @@ async def gather_resources(
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
 
-    note_filter = nlp.get_note_filter(client, args)
+    note_filter = nlp.get_note_filter(args)
 
     return await selector.select_resources_from_files(
         root_input,
@@ -76,7 +75,6 @@ def _get_unique_id_for_no_grouping(resource: dict) -> str:
 
 
 async def read_notes_from_ndjson(
-    client: cfs.FhirClient,
     dirname: str,
     codebook: deid.Codebook,
     *,
@@ -85,26 +83,19 @@ async def read_notes_from_ndjson(
 ) -> list[LabelStudioNote]:
     common.print_header("Downloading note text...")
 
-    # Download all the doc notes (and save some metadata about each)
-    resources = []
-    coroutines = []
-
     # Grab notes
     root = store.Root(dirname)
-    for resource in common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"}):
-        resources.append(resource)
-        coroutines.append(fhir.get_clinical_note(client, resource))
-
-    note_texts = await asyncio.gather(*coroutines, return_exceptions=True)
+    resources = common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"})
 
     # Now bundle each note together with some metadata and ID mappings
     notes = []
-    for i, text in enumerate(note_texts):
-        resource = resources[i]
+    for resource in resources:
         note_ref = f"{resource['resourceType']}/{resource['id']}"
 
-        if isinstance(text, Exception):
-            print(f"Skipping {note_ref}: {text}")
+        try:
+            text = fhir.get_clinical_note(resource)
+        except Exception:
+            print(f"Skipping {note_ref}: no text found.")
             continue
 
         # Grab a bunch of the metadata
@@ -400,12 +391,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     root_input = store.Root(args.dir_input)
     store.Root(args.dir_phi, create=True)  # create PHI if needed (very edge case)
 
-    # Auth & read files early for quick error feedback
-    client = fhir.create_fhir_client_for_cli(
-        args,
-        root_input,
-        {"DiagnosticReport", "DocumentReference"},
-    )
+    # Read token file early for quick error feedback
     access_token = common.read_text(args.ls_token).strip()
 
     match args.grouping:
@@ -417,18 +403,16 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     common.print_header()
     print("Preparing metadata…")  # i.e. the codebook
 
-    async with client:
-        with deid.Codebook(args.dir_phi) as codebook:
-            ndjson_folder = await gather_resources(client, root_input, codebook, args)
-            notes = await read_notes_from_ndjson(
-                client,
-                ndjson_folder.name,
-                codebook,
-                get_unique_id=get_unique_id,
-                src_dir=args.dir_input,
-            )
+    with deid.Codebook(args.dir_phi) as codebook:
+        ndjson_folder = await gather_resources(root_input, codebook, args)
+        notes = await read_notes_from_ndjson(
+            ndjson_folder.name,
+            codebook,
+            get_unique_id=get_unique_id,
+            src_dir=args.dir_input,
+        )
 
-            await labeling.add_labels(codebook, notes, args)
+        await labeling.add_labels(codebook, notes, args)
 
     # It's safe to philter notes after labeling because philter does not change character counts
     philter_notes(notes, args)

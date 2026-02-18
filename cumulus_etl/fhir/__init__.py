@@ -1,9 +1,8 @@
 """Support for talking to FHIR servers & handling the FHIR spec"""
 
-from .fhir_client import create_fhir_client_for_cli
 from .fhir_utils import (
     FhirUrl,
-    download_reference,
+    RemoteAttachment,
     get_clinical_note,
     get_clinical_note_attachment,
     get_clinical_note_role_info,
@@ -12,6 +11,5 @@ from .fhir_utils import (
     parse_content_type,
     parse_datetime,
     ref_resource,
-    request_attachment,
     unref_resource,
 )

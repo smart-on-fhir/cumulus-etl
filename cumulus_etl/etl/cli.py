@@ -91,7 +91,7 @@ def handle_completion_args(
 
 async def etl_main(args: argparse.Namespace) -> None:
     async def prep_scrubber(
-        _client: cfs.FhirClient, results: loaders.LoaderResults, progress: feedback.Progress
+        results: loaders.LoaderResults, progress: feedback.Progress
     ) -> tuple[deid.Scrubber, dict]:
         # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
         export_group, export_datetime = handle_completion_args(args, results)

@@ -143,7 +143,7 @@ async def scan_notes(
 ) -> Iterator[tuple[str, int]]:
     """Returns (path, byte offset) for each file that matches our criteria"""
     details = common.read_resource_ndjson_with_details(root_input, res_types)
-    filter_func = nlp.get_note_filter(None, args)
+    filter_func = nlp.get_note_filter(args)
 
     total_count = 0
     text_count = 0

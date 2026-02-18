@@ -33,7 +33,7 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
 
         self.tmpdir = tempfile.mkdtemp()
         # Comment out this next line when debugging, to persist directory
-        self.addCleanup(shutil.rmtree, self.tmpdir)
+        # self.addCleanup(shutil.rmtree, self.tmpdir)
 
         self.output_path = os.path.join(self.tmpdir, "output")
         self.phi_path = os.path.join(self.tmpdir, "phi")
@@ -52,7 +52,6 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         tasks=None,
         philter=True,
         errors_to=None,
-        export_to: str | None = None,
         input_format: str = "ndjson",
         export_group: str = "test-group",
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
@@ -87,8 +86,6 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             args.append(f"--task={','.join(tasks)}")
         if not nlp and philter:
             args.append("--philter")
-        if not nlp and export_to:
-            args.append(f"--export-to={export_to}")
         if errors_to:
             args.append(f"--errors-to={errors_to}")
         await cli.main(args)
@@ -112,7 +109,6 @@ class TaskTestCase(utils.AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
 
-        client = cfs.FhirClient("http://localhost/", [])
         self.tmpdir = self.make_tempdir()
         self.input_dir = os.path.join(self.tmpdir, "input")
         self.output_dir = os.path.join(self.tmpdir, "output")
@@ -130,7 +126,6 @@ class TaskTestCase(utils.AsyncTestCase):
             self.phi_dir,
             "ndjson",
             "ndjson",
-            client,
             codebook_id="1234",
             timestamp=common.datetime_now(),
             batch_size=5,

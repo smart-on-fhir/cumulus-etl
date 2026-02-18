@@ -162,13 +162,12 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
     @ddt.unpack
     async def test_docref_note_conversions(self, mimetype, incoming_note, expected_note):
         docref = self.make_docref("1", mimetype, incoming_note)
-        resulting_note = await fhir.get_clinical_note(None, docref)
+        resulting_note = fhir.get_clinical_note(docref)
         self.assertEqual(resulting_note, expected_note)
 
     async def test_handles_no_data(self):
         with self.assertRaisesRegex(ValueError, "No data or url field present"):
-            await fhir.get_clinical_note(
-                None,
+            fhir.get_clinical_note(
                 {
                     "id": "no data",
                     "resourceType": "DocumentReference",
@@ -178,8 +177,7 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
 
     async def test_handles_bad_resource_type(self):
         with self.assertRaisesRegex(ValueError, "Patient is not a supported clinical note type."):
-            await fhir.get_clinical_note(
-                None,
+            fhir.get_clinical_note(
                 {
                     "id": "nope",
                     "resourceType": "Patient",
@@ -188,33 +186,13 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
 
     async def test_url_without_client(self):
         with self.assertRaisesRegex(ValueError, "no connection information was provided"):
-            await fhir.get_clinical_note(
-                None,
+            fhir.get_clinical_note(
                 {
                     "id": "no data",
                     "resourceType": "DocumentReference",
                     "content": [{"attachment": {"contentType": "text/plain", "url": "external"}}],
                 },
             )
-
-    @ddt.data(
-        (None, None),
-        ("", None),
-        ("#contained", None),
-        ("Reference/relative", {"id": "ref"}),
-        ("https://example.com/absolute/url", {"id": "ref"}),
-    )
-    @ddt.unpack
-    async def test_download_reference(self, reference, expected_result):
-        mock_client = mock.AsyncMock()
-        mock_client.request.return_value = utils.make_response(json_payload={"id": "ref"})
-
-        result = await fhir.download_reference(mock_client, reference)
-        self.assertEqual(expected_result, result)
-        self.assertEqual(
-            [mock.call("GET", reference)] if expected_result else [],
-            mock_client.request.call_args_list,
-        )
 
     def test_role_info_wrong_type(self):
         with self.assertRaisesRegex(ValueError, "Condition is not a supported clinical note type"):

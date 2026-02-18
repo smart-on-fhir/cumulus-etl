@@ -64,6 +64,7 @@ def get_default_tasks() -> list[type[AnyTask]]:
         basic_tasks.DocumentReferenceTask,
         basic_tasks.ImmunizationTask,
         basic_tasks.LocationTask,
+        basic_tasks.MedicationTask,
         basic_tasks.MedicationRequestTask,
         basic_tasks.ObservationTask,
         basic_tasks.OrganizationTask,
