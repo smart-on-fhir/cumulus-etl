@@ -2,13 +2,13 @@ import argparse
 import datetime
 import logging
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Iterable
 
 import rich
 import rich.table
 
 from cumulus_etl import cli_utils, common, deid, errors, feedback, loaders, store
-from cumulus_etl.etl import context, tasks
+from cumulus_etl.etl import tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary, validate_output_folder
 from cumulus_etl.etl.tasks import task_factory
 
@@ -154,15 +154,9 @@ async def check_available_resources(
     return available_resources
 
 
-async def run_pipeline(
-    args: argparse.Namespace,
-    *,
-    nlp: bool = False,
-    prep_scrubber: Callable[
-        [loaders.LoaderResults, feedback.Progress],
-        Awaitable[tuple[deid.Scrubber, dict]],
-    ],
-) -> None:
+async def prepare_pipeline(
+    args: argparse.Namespace, job_datetime: datetime.datetime, *, nlp: bool
+) -> tuple[deid.Scrubber, loaders.LoaderResults, list[type[task_factory.AnyTask]]]:
     # record filesystem options like --s3-region before creating Roots
     store.set_user_fs_options(vars(args))
 
@@ -170,10 +164,7 @@ async def run_pipeline(
 
     root_input = store.Root(args.dir_input)
     root_output = store.Root(args.dir_output)
-    root_phi = store.Root(args.dir_phi, create=True)
-
-    job_context = context.JobContext(root_phi.joinpath("context.json"))
-    job_datetime = common.datetime_now()  # grab timestamp before we do anything
+    store.Root(args.dir_phi, create=True)  # create PHI folder, if needed
 
     selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp)
     is_default_tasks = not args.task
@@ -210,41 +201,19 @@ async def run_pipeline(
         # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
         loader_results = await config_loader.load_resources(available_resources, progress=progress)
 
-        scrubber, config_args = await prep_scrubber(loader_results, progress)
+        with progress.show_indeterminate_task("Loading codebook"):
+            if nlp:
+                scrub_args = {"mask_notes": False, "keep_stats": False}
+            else:
+                scrub_args = {"use_philter": args.philter}
+            scrubber = deid.Scrubber(args.dir_phi, **scrub_args)
+
         validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
 
-    # Prepare config for jobs
-    config = JobConfig(
-        args.dir_input,
-        loader_results.path,
-        args.dir_output,
-        args.dir_phi,
-        args.input_format,
-        args.output_format,
-        codebook_id=scrubber.codebook.get_codebook_id(),
-        comment=args.comment,
-        batch_size=args.batch_size,
-        timestamp=job_datetime,
-        dir_errors=args.errors_to,
-        tasks=[t.name for t in selected_tasks],
-        export_url=loader_results.export_url,
-        deleted_ids=loader_results.deleted_ids,
-        **config_args,
-    )
-    common.write_json(config.path_config(), config.as_json(), indent=4)
+    return scrubber, loader_results, selected_tasks
 
-    # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-    summaries = await etl_job(config, selected_tasks, scrubber)
 
-    # Update job context for future runs
-    job_context.last_successful_datetime = job_datetime
-    job_context.last_successful_input_dir = args.dir_input
-    job_context.last_successful_output_dir = args.dir_output
-    job_context.save()
-
-    # Report out any stripped extensions or dropped resources due to modiferExtensions
-    scrubber.print_extension_report()
-
+def print_summary(summaries: Iterable[JobSummary]) -> None:
     # Flag final status to user
     common.print_header()
     if any(s.had_errors for s in summaries):

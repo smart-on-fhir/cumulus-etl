@@ -2,10 +2,12 @@
 
 import argparse
 import datetime
+import os
 
 import cumulus_etl
-from cumulus_etl import cli_utils, deid, errors, feedback, loaders
-from cumulus_etl.etl import pipeline
+from cumulus_etl import cli_utils, common, errors, loaders
+from cumulus_etl.etl import context, pipeline
+from cumulus_etl.etl.config import JobConfig
 
 
 def define_etl_parser(parser: argparse.ArgumentParser) -> None:
@@ -88,18 +90,50 @@ def handle_completion_args(
 
 
 async def etl_main(args: argparse.Namespace) -> None:
-    async def prep_scrubber(
-        results: loaders.LoaderResults, progress: feedback.Progress
-    ) -> tuple[deid.Scrubber, dict]:
-        # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
-        export_group, export_datetime = handle_completion_args(args, results)
+    job_datetime = common.datetime_now()
+    scrubber, loader_results, selected_tasks = await pipeline.prepare_pipeline(
+        args, job_datetime, nlp=False
+    )
 
-        with progress.show_indeterminate_task("Loading codebook"):
-            scrubber = deid.Scrubber(args.dir_phi, use_philter=args.philter)
+    job_context = context.JobContext(os.path.join(args.dir_phi, "context.json"))
 
-        return scrubber, {"export_group_name": export_group, "export_datetime": export_datetime}
+    # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
+    export_group, export_datetime = handle_completion_args(args, loader_results)
 
-    await pipeline.run_pipeline(args, prep_scrubber=prep_scrubber)
+    # Prepare config for jobs
+    config = JobConfig(
+        args.dir_input,
+        loader_results.path,
+        args.dir_output,
+        args.dir_phi,
+        args.input_format,
+        args.output_format,
+        codebook_id=scrubber.codebook.get_codebook_id(),
+        comment=args.comment,
+        batch_size=args.batch_size,
+        timestamp=job_datetime,
+        dir_errors=args.errors_to,
+        tasks=[t.name for t in selected_tasks],
+        export_url=loader_results.export_url,
+        deleted_ids=loader_results.deleted_ids,
+        export_group_name=export_group,
+        export_datetime=export_datetime,
+    )
+    common.write_json(config.path_config(), config.as_json(), indent=4)
+
+    # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
+    summaries = await pipeline.etl_job(config, selected_tasks, scrubber)
+
+    # Update job context for future runs
+    job_context.last_successful_datetime = job_datetime
+    job_context.last_successful_input_dir = args.dir_input
+    job_context.last_successful_output_dir = args.dir_output
+    job_context.save()
+
+    # Report out any stripped extensions or dropped resources due to modiferExtensions
+    scrubber.print_extension_report()
+
+    pipeline.print_summary(summaries)
 
 
 async def run_etl(parser: argparse.ArgumentParser, argv: list[str]) -> None:
