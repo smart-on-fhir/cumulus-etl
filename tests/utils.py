@@ -9,11 +9,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-import cumulus_fhir_support as cfs
 import httpx
 import respx
 import time_machine
-from jwcrypto import jwk
 
 from cumulus_etl import errors
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
@@ -151,80 +149,6 @@ class TreeCompareMixin(unittest.TestCase):
             self.assertEqual(left_rows, right_rows, f"{right_path} vs {left_path}")
         else:
             self.assertEqual(left_contents, right_contents, f"{right_path} vs {left_path}")
-
-
-class FhirClientMixin(unittest.TestCase):
-    """Mixin that provides a realistic FhirClient"""
-
-    def setUp(self):
-        super().setUp()
-
-        self.fhir_base = "http://localhost:9999/fhir"
-        self.fhir_url = f"{self.fhir_base}/Group/MyGroup"
-        self.fhir_client_id = "test-client-id"
-        self.fhir_bearer = "1234567890"  # the provided oauth bearer token
-
-        jwk_token = jwk.JWK.generate(
-            kty="EC", alg="ES384", curve="P-384", kid="a", key_ops=["sign", "verify"]
-        ).export(as_dict=True)
-        self.fhir_jwks = {"keys": [jwk_token]}
-
-        self._fhir_jwks_file = tempfile.NamedTemporaryFile(suffix=".jwks")
-        self._fhir_jwks_file.write(json.dumps(self.fhir_jwks).encode("utf8"))
-        self._fhir_jwks_file.flush()
-        self.addCleanup(self._fhir_jwks_file.close)
-        self.fhir_jwks_path = self._fhir_jwks_file.name
-
-        # Do not unset assert_all_called - existing tests rely on it
-        self.respx_mock = respx.MockRouter(assert_all_called=True)
-        self.addCleanup(self.respx_mock.stop)
-        self.respx_mock.start()
-
-        self.mock_fhir_auth()
-
-    def mock_fhir_auth(self) -> None:
-        # /metadata
-        self.respx_mock.get(
-            f"{self.fhir_base}/metadata",
-        ).respond(
-            json={
-                "fhirVersion": "4.0.1",
-                "software": {
-                    "name": "Test",
-                    "version": "0.git",
-                    "releaseDate": "today",
-                },
-            }
-        )
-
-        # /.well-known/smart-configuration
-        self.respx_mock.get(
-            f"{self.fhir_base}/.well-known/smart-configuration",
-            headers={"Accept": "application/json"},
-        ).respond(
-            json={
-                "capabilities": ["client-confidential-asymmetric"],
-                "token_endpoint": f"{self.fhir_base}/token",
-                "token_endpoint_auth_methods_supported": ["private_key_jwt"],
-            },
-        )
-
-        # /token
-        self.respx_mock.post(
-            f"{self.fhir_base}/token",
-        ).respond(
-            json={
-                "access_token": self.fhir_bearer,
-            },
-        )
-
-    def fhir_client(self, resources: list[str]) -> cfs.FhirClient:
-        return cfs.FhirClient(
-            self.fhir_base,
-            resources,
-            smart_client_id=self.fhir_client_id,
-            smart_jwks=self.fhir_jwks,
-        )
 
 
 def make_response(

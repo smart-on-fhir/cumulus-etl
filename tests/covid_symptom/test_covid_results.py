@@ -5,7 +5,6 @@ from unittest import mock
 
 import cumulus_fhir_support as cfs
 import ddt
-import respx
 
 from cumulus_etl.etl.studies import covid_symptom
 from tests import i2b2_mock_data
@@ -203,42 +202,6 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         self.assertEqual(1, self.format.write_records.call_count)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(2 if should_process else 0, len(batch.rows))
-
-    @ddt.data(
-        # list of (URL, contentType), expected text
-        ([("http://localhost/file-cough", "text/plain")], "cough"),  # handles absolute URL
-        ([("file-cough", "text/html")], "cough"),  # handles html
-        ([("file-cough", "application/xhtml+xml")], "cough"),  # handles xhtml
-        # prefers text/plain to html
-        ([("file-cough", "text/html"), ("file-fever", "text/plain")], "fever"),
-        # prefers html to xhtml
-        ([("file-cough", "application/xhtml+xml"), ("file-fever", "text/html")], "fever"),
-        ([("file-cough", "text/nope")], None),  # ignores unsupported mimetypes
-    )
-    @ddt.unpack
-    @respx.mock(assert_all_mocked=False, assert_all_called=False)
-    async def test_note_urls_downloaded(self, attachments, expected_text, respx_mock):
-        """Verify that we download any attachments with URLs"""
-        # We return three words due to how our cTAKES mock works. It wants 3 words -- fever word is in middle.
-        respx_mock.get("http://localhost/file-cough").respond(text="has cough bad")
-        respx_mock.get("http://localhost/file-fever").respond(text="has fever bad")
-        respx_mock.post(os.environ["URL_CTAKES_REST"]).pass_through()  # ignore cTAKES
-
-        docref0 = i2b2_mock_data.documentreference()
-        docref0["content"] = [
-            {"attachment": {"url": a[0], "contentType": a[1]}} for a in attachments
-        ]
-        self.make_json("DocumentReference", "doc0", **docref0)
-
-        async with self.job_config.client:
-            await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
-
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
-        if expected_text:
-            self.assertEqual(expected_text, batch.rows[0]["match"]["text"])
-        else:
-            self.assertEqual(0, len(batch.rows))
 
     async def test_nlp_errors_saved(self):
         docref = i2b2_mock_data.documentreference()

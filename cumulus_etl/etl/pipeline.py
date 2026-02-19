@@ -4,11 +4,10 @@ import logging
 import os
 from collections.abc import Awaitable, Callable
 
-import cumulus_fhir_support as cfs
 import rich
 import rich.table
 
-from cumulus_etl import cli_utils, common, deid, errors, feedback, fhir, loaders, store
+from cumulus_etl import cli_utils, common, deid, errors, feedback, loaders, store
 from cumulus_etl.etl import context, tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary, validate_output_folder
 from cumulus_etl.etl.tasks import task_factory
@@ -83,7 +82,6 @@ def print_config(
 
     But more specifically:
     (A) we want to print this as early as possible and a JobConfig needs some computed config
-        (notably, it needs to be constructed after the bulk export target dir is ready)
     (B) we may want to print some options here that don't particularly need to go into the
         JobConfig/**.json file in the output folder (e.g. export dir)
     (C) this formatting can be very user-friendly, while the other should be more
@@ -94,15 +92,9 @@ def print_config(
     table.add_row("Input path:", args.dir_input)
     if args.input_format != "ndjson":
         table.add_row(" Format:", args.input_format)
-    if vars(args).get("since"):
-        table.add_row(" Since:", args.since)
-    if vars(args).get("until"):
-        table.add_row(" Until:", args.until)
     table.add_row("Output path:", args.dir_output)
     table.add_row(" Format:", args.output_format)
     table.add_row("PHI/Build path:", args.dir_phi)
-    if vars(args).get("export_to"):
-        table.add_row("Export path:", args.export_to)
     if args.errors_to:
         table.add_row("Errors path:", args.errors_to)
     table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
@@ -138,9 +130,6 @@ async def check_available_resources(
         return all_possible_resources
 
     detected = await loader.detect_resources(progress=progress)
-    if detected is None:
-        return all_possible_resources  # likely we haven't run bulk export yet
-
     available_resources = all_possible_resources & detected
 
     missing_resources = set()
@@ -169,10 +158,8 @@ async def run_pipeline(
     args: argparse.Namespace,
     *,
     nlp: bool = False,
-    ndjson_args: dict | None = None,
-    i2b2_args: dict | None = None,
     prep_scrubber: Callable[
-        [cfs.FhirClient, loaders.LoaderResults, feedback.Progress],
+        [loaders.LoaderResults, feedback.Progress],
         Awaitable[tuple[deid.Scrubber, dict]],
     ],
 ) -> None:
@@ -203,69 +190,51 @@ async def run_pipeline(
         for task in selected_tasks:
             await task.init_check()
 
-    # Combine all task resource sets into one big set of requested resources
-    requested_resources = set().union(*(t.get_resource_types() for t in selected_tasks))
+    if args.input_format == "i2b2":
+        config_loader = loaders.I2b2Loader(root_input)
+    else:
+        config_loader = loaders.FhirNdjsonLoader(root_input)
 
-    # Create a client to talk to a FHIR server.
-    # This is useful even if we aren't doing a bulk export, because some resources like
-    # DocumentReference can still reference external resources on the server (like the document
-    # text). If we don't need this client (e.g. we're using local data and don't download any
-    # attachments), this is a no-op.
-    client = fhir.create_fhir_client_for_cli(args, root_input, requested_resources)
-
-    async with client:
-        if args.input_format == "i2b2":
-            config_loader = loaders.I2b2Loader(root_input, **(i2b2_args or {}))
-        else:
-            config_loader = loaders.FhirNdjsonLoader(
-                root_input, client=client, **(ndjson_args or {})
-            )
-
-        with feedback.Progress() as progress:
-            available_resources = await check_available_resources(
-                config_loader,
-                args=args,
-                is_default_tasks=is_default_tasks,
-                selected_tasks=selected_tasks,
-                progress=progress,
-            )
-
-            # Drop any tasks that we didn't find resources for
-            selected_tasks = [
-                t for t in selected_tasks if t.get_resource_types() & available_resources
-            ]
-
-            # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
-            loader_results = await config_loader.load_resources(
-                available_resources, progress=progress
-            )
-
-            scrubber, config_args = await prep_scrubber(client, loader_results, progress)
-            validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
-
-        # Prepare config for jobs
-        config = JobConfig(
-            args.dir_input,
-            loader_results.path,
-            args.dir_output,
-            args.dir_phi,
-            args.input_format,
-            args.output_format,
-            client,
-            codebook_id=scrubber.codebook.get_codebook_id(),
-            comment=args.comment,
-            batch_size=args.batch_size,
-            timestamp=job_datetime,
-            dir_errors=args.errors_to,
-            tasks=[t.name for t in selected_tasks],
-            export_url=loader_results.export_url,
-            deleted_ids=loader_results.deleted_ids,
-            **config_args,
+    with feedback.Progress() as progress:
+        available_resources = await check_available_resources(
+            config_loader,
+            args=args,
+            is_default_tasks=is_default_tasks,
+            selected_tasks=selected_tasks,
+            progress=progress,
         )
-        common.write_json(config.path_config(), config.as_json(), indent=4)
 
-        # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
-        summaries = await etl_job(config, selected_tasks, scrubber)
+        # Drop any tasks that we didn't find resources for
+        selected_tasks = [t for t in selected_tasks if t.get_resource_types() & available_resources]
+
+        # Load resources from a remote location (like s3), convert from i2b2, or do a bulk export
+        loader_results = await config_loader.load_resources(available_resources, progress=progress)
+
+        scrubber, config_args = await prep_scrubber(loader_results, progress)
+        validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
+
+    # Prepare config for jobs
+    config = JobConfig(
+        args.dir_input,
+        loader_results.path,
+        args.dir_output,
+        args.dir_phi,
+        args.input_format,
+        args.output_format,
+        codebook_id=scrubber.codebook.get_codebook_id(),
+        comment=args.comment,
+        batch_size=args.batch_size,
+        timestamp=job_datetime,
+        dir_errors=args.errors_to,
+        tasks=[t.name for t in selected_tasks],
+        export_url=loader_results.export_url,
+        deleted_ids=loader_results.deleted_ids,
+        **config_args,
+    )
+    common.write_json(config.path_config(), config.as_json(), indent=4)
+
+    # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
+    summaries = await etl_job(config, selected_tasks, scrubber)
 
     # Update job context for future runs
     job_context.last_successful_datetime = job_datetime

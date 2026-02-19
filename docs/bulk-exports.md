@@ -15,8 +15,6 @@ but it's also happy to download the data itself as needed during the ETL (as an 
 
 ## Export Options
 
-### External Exports
-
 1. If you have an existing process to export health data, you can do that bulk export externally,
 and then just feed the resulting files to Cumulus ETL.
 (Though note that you will need to provide some export information manually,
@@ -29,21 +27,8 @@ clinical notes so that you don't have to download them later.
 It will also generate a log file that the ETL can parse, so you don't need to specify the above
 `--export-*` options manually.
 
-In any case, it's simple to feed that data to the ETL:
-1. Pass Cumulus ETL the folder that holds the downloaded data as the input path.
-1. Pass `--fhir-url=` pointing at your FHIR server so that externally referenced document notes
-   and medications can still be downloaded as needed.
-
-### On-The-Fly Exports
-
-If it's easier to just do it all in one step,
-you can also start an ETL run with your FHIR URL as the input path.
-Cumulus ETL will do a bulk export first, then ETL the results.
-
-You can save the exported files for archiving after the fact with `--export-to=PATH`.
-
-However, bulk exports tend to be brittle and slow for many EHRs at the time of this writing.
-It might be wiser to separately export, make sure the data is all there and good, and then ETL it.
+In any case, it's simple to feed that data to the ETL by
+passing Cumulus ETL the folder that holds the downloaded data as the input path.
 
 ## Cumulus Assumptions
 
@@ -119,12 +104,11 @@ This is what you may expect to archive:
 ## Downloading Clinical Notes Ahead of Time
 
 If you are interested in running NLP tasks,
-that will usually involve downloading a lot of clinical note attachments found
-in DocumentReferences (and/or DiagnosticReports).
+that will require the clinical note attachments
+found inside DiagnosticReport and DocumentReference resources to be available.
 
-Since EHRs can be a little flaky, old attachment URLs may move,
-and/or in case you later lose access to the EHR,
-it is recommended that you download the attachments ahead of time and only once by _inlining_ them.
+In order to make them available to Cumulus ETL,
+you'll want to download the attachments ahead of time and only once by _inlining_ them.
 
 ### What's Inlining?
 
@@ -153,12 +137,12 @@ and can be processed independently of the EHR.
 
 ### How to Inline
 
-Cumulus ETL has a special inlining mode.
+SMART Fetch has a special inlining mode.
 Simply run the following command,
 pointing at both a source NDJSON folder and your EHR's FHIR URL.
 
 ```shell
-cumulus-etl inline ./ndjson-folder FHIR_URL --smart-client-id XXX --smart-key /YYY
+smart-fetch hydrate --tasks inline ./ndjson-folder --fhir-url FHIR_URL --smart-client-id XXX --smart-key /YYY
 ```
 
 {: .note }
@@ -169,10 +153,6 @@ for any DiagnosticReports and DocumentReferences found.
 But there are options to adjust those defaults.
 See `--help` for more information.
 
-If you are using Cumulus ETL to do your bulk exporting,
-you can simply pass `--inline` to the export command (see `--help` for more inlining options)
-in order to inline as part of the bulk export process.
-
 ## Resuming an Interrupted Export
 
 Bulk exports can be brittle.
@@ -180,14 +160,8 @@ The server can give the odd occasional error or time you out.
 Maybe you lose your internet connection.
 Who knows.
 
-But thankfully, you can resume a bulk export with Cumulus ETL.
-Every time you start a bulk export,
-the ETL will print an argument that you can add onto your command line
-if you get interrupted and want to try again.
-
-When you add this command line argument (it usually looks like `--resume=URL`),
-the rest of the bulk export arguments (like `--since`) that you provide don't matter,
-but they are also harmless and will be ignored.
+If that happens, just re-run the SMART Fetch export command with the same folder,
+and it will resume.
 
 ## Registering an Export Client
 
@@ -212,7 +186,7 @@ jose jwk pub -s -i private.jwks -o public.jwks
 ```
 
 After giving `public.jwks` to your FHIR server,
-you can pass `private.jwks` to Cumulus ETL with `--smart-key` (example below).
+you can pass `private.jwks` to SMART Fetch with `--smart-key` (example below).
 
 ### Generating a PEM key
 
@@ -225,11 +199,11 @@ See for example,
 [Epic's documentation](https://vendorservices.epic.com/Article?docId=oauth2&section=Creating-Key-Pair).
 
 After giving the public key to your FHIR server,
-you can pass your `private.pem` file to Cumulus ETL with `--smart-key` (example below).
+you can pass your `private.pem` file to SMART Fetch with `--smart-key` (example below).
 
 ### SMART Arguments
 
-You'll need to pass two arguments to Cumulus ETL:
+You'll need to pass two arguments to SMART Fetch:
 
 ```sh
 --smart-client-id=YOUR_CLIENT_ID
@@ -238,8 +212,3 @@ You'll need to pass two arguments to Cumulus ETL:
 
 You can also give `--smart-client-id` a path to a file with your client ID,
 if it is too large and unwieldy for the commandline.
-
-And for Cumulus ETL's input path argument,
-you will give your server's URL address,
-including a Group identifier if you want to scope the export
-(e.g. `https://example.com/fhir` or `https://example.com/fhir/Group/1234`).

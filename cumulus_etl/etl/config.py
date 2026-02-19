@@ -4,8 +4,6 @@ import datetime
 import os
 from socket import gethostname
 
-import cumulus_fhir_support as cfs
-
 from cumulus_etl import common, deid, errors, formats, store
 
 
@@ -26,7 +24,6 @@ class JobConfig:
         dir_phi: str,
         input_format: str,
         output_format: str,
-        client: cfs.FhirClient,
         *,
         codebook_id: str,
         timestamp: datetime.datetime | None = None,
@@ -48,7 +45,6 @@ class JobConfig:
         self._input_format = input_format
         self._output_format = output_format
         self.dir_errors = dir_errors
-        self.client = client
         self.codebook_id = codebook_id
         self.timestamp = timestamp
         self.hostname = gethostname()

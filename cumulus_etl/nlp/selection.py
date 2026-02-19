@@ -4,7 +4,6 @@ import argparse
 import re
 import string
 
-import cumulus_fhir_support as cfs
 import pyathena
 
 from cumulus_etl import cli_utils, deid, errors, fhir, id_handling
@@ -151,9 +150,7 @@ def _define_csv_filter(csv_file: str, is_anon: bool) -> deid.FilterFunc:
     return check_match
 
 
-def _define_regex_filter(
-    client: cfs.FhirClient, words: list[str] | None, regexes: list[str] | None
-) -> deid.FilterFunc:
+def _define_regex_filter(words: list[str] | None, regexes: list[str] | None) -> deid.FilterFunc:
     patterns = []
     if regexes:
         patterns.extend(cli_utils.user_regex_to_pattern(regex).pattern for regex in regexes)
@@ -165,7 +162,7 @@ def _define_regex_filter(
 
     async def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
         try:
-            note_text = await fhir.get_clinical_note(client, resource)
+            note_text = fhir.get_clinical_note(resource)
             return patterns.search(note_text) is not None
         except Exception:
             return False
@@ -184,7 +181,7 @@ def _combine_filters(one: deid.FilterFunc, two: deid.FilterFunc) -> deid.FilterF
     return combined
 
 
-def get_note_filter(client: cfs.FhirClient, args: argparse.Namespace) -> deid.FilterFunc:
+def get_note_filter(args: argparse.Namespace) -> deid.FilterFunc:
     """Returns (patient refs to match, resource refs to match)"""
     # Confirm we don't have conflicting arguments. Which we could maybe combine, as a future
     # improvement, but is too much hassle right now)
@@ -213,7 +210,7 @@ def get_note_filter(client: cfs.FhirClient, args: argparse.Namespace) -> deid.Fi
     # And combine that with any word filter (all word filters are OR'd together, and then AND'd
     # with the csv filter - i.e. you can filter down your CSV file further with regexes)
     if has_word or has_regex:
-        regex_func = _define_regex_filter(client, args.select_by_word, args.select_by_regex)
+        regex_func = _define_regex_filter(args.select_by_word, args.select_by_regex)
         func = _combine_filters(func, regex_func)
 
     return func

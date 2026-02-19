@@ -59,8 +59,3 @@ class TestI2b2Loader(AsyncTestCase):
             resources = await i2b2_loader.detect_resources(progress=self.progress)
 
         self.assertEqual(resources, {"Encounter", "Observation"})
-
-    async def test_detect_resources_tcp(self):
-        """Verify we skip trying to detect resources before exporting from oracle."""
-        i2b2_loader = loader.I2b2Loader(store.Root("tcp://localhost"))
-        self.assertIsNone(await i2b2_loader.detect_resources(progress=self.progress))

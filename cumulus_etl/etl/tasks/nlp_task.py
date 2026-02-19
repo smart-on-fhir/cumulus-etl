@@ -14,7 +14,6 @@ import typing
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from typing import ClassVar
 
-import cumulus_fhir_support as cfs
 import jambo
 import pyarrow
 import pydantic
@@ -111,8 +110,8 @@ class BaseNlpTask(tasks.EtlTask):
 
             self.note_stats.considered += 1
             try:
-                note_text = await fhir.get_clinical_note(self.task_config.client, note)
-            except cfs.BadAuthArguments as exc:
+                note_text = fhir.get_clinical_note(note)
+            except fhir.RemoteAttachment as exc:
                 if not warned_connection_error:
                     # Only warn user about a misconfiguration once per task.
                     # It's not fatal because it might be intentional (partially inlined DocRefs

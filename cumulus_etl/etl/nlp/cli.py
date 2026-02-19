@@ -10,7 +10,6 @@ Some differences:
 
 import argparse
 
-import cumulus_fhir_support as cfs
 import rich
 import rich.prompt
 
@@ -66,9 +65,9 @@ async def nlp_main(args: argparse.Namespace) -> None:
     nlp.set_nlp_config(args)
 
     async def prep_scrubber(
-        client: cfs.FhirClient, results: loaders.LoaderResults, progress: feedback.Progress
+        results: loaders.LoaderResults, progress: feedback.Progress
     ) -> tuple[deid.Scrubber, dict]:
-        res_filter = nlp.get_note_filter(client, args)
+        res_filter = nlp.get_note_filter(args)
         with progress.show_indeterminate_task("Loading codebook"):
             scrubber = deid.Scrubber(args.dir_phi, mask_notes=False, keep_stats=False)
 

@@ -11,7 +11,6 @@ import shutil
 import tempfile
 from unittest import mock
 
-import cumulus_fhir_support as cfs
 import ddt
 import respx
 from ctakesclient.typesystem import Polarity
@@ -162,36 +161,6 @@ class TestEtlJobFlow(BaseEtlSimple):
             ) as mock_etl_job:
                 await self.run_etl(errors_to=f"{self.tmpdir}/errors")
         self.assertEqual(mock_etl_job.call_args[0][0].dir_errors, f"{self.tmpdir}/errors")
-
-    async def test_resume_url_passed_to_loader(self):
-        with self.assertRaises(SystemExit):
-            with mock.patch(
-                "cumulus_etl.loaders.FhirNdjsonLoader", side_effect=SystemExit
-            ) as mock_loader:
-                await self.run_etl("--resume=https://blarg/", input_path="http://example.invalid/")
-        self.assertEqual(mock_loader.call_args[1]["resume"], "https://blarg/")
-
-    @respx.mock
-    async def test_bulk_no_auth(self):
-        """Verify that if no auth is provided, we'll error out well."""
-        respx.get("https://localhost:12345/metadata").respond(401)
-        respx.get("https://localhost:12345/$export?_type=Patient").respond(401)
-
-        # Now run the ETL on that new input dir without any server auth config provided
-        with self.assertRaises(cfs.BadAuthArguments):
-            await self.run_etl(input_path="https://localhost:12345/", tasks=["patient"])
-
-    @ddt.data(
-        "--export-to=output/dir",
-        "--since=2024",
-        "--until=2024",
-        "--resume=http://example.com/",
-    )
-    async def test_bulk_no_url(self, bulk_arg):
-        """Verify that if no FHIR URL is provided, but export args *are*, we'll error out."""
-        with self.assertRaises(SystemExit) as cm:
-            await self.run_etl(bulk_arg)
-        self.assertEqual(errors.ARGS_CONFLICT, cm.exception.code)
 
     @mock.patch("cumulus_etl.etl.tasks.basic_tasks.ProcedureTask.init_check")
     async def test_task_init_checks(self, mock_check):
@@ -358,20 +327,22 @@ class TestEtlJobFlow(BaseEtlSimple):
             with self.assert_fatal_exit(errors.FOLDER_DOES_NOT_EXIST):
                 await self.run_etl(tasks=["patient"], input_path=f"{tmpdir}/nope")
 
-    async def test_only_medications(self):
-        """Verify that we grab Medication resources even if there are now MedReqs"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with open(f"{tmpdir}/meds.ndjson", "w", encoding="utf8") as f:
-                json.dump({"resourceType": "Medication", "id": "A"}, f)
-            await self.run_etl(tasks=["medicationrequest"], input_path=tmpdir)
-
-        self.assertEqual(
-            common.read_json(f"{self.output_path}/medication/medication.000.ndjson"),
-            {
-                "resourceType": "Medication",
-                "id": "8d8b9d06d541788bd60025396b5814f4c9a7d9eae912da48f25ec34ac4d592e8",
-            },
-        )
+    @ddt.data(
+        "--since=x",
+        "--until=x",
+        "--export-to=x",
+        "--resume=x",
+        "--smart-client-id=x",
+        "--smart-key=x",
+        "--basic-user=x",
+        "--basic-passwd=x",
+        "--bearer-token=x",
+        "--fhir-url=x",
+        "--smart-jwks=x",
+    )
+    async def test_removed_flags(self, flag: str):
+        with self.assert_fatal_exit(errors.FEATURE_REMOVED):
+            await self.run_etl(flag)
 
 
 class TestEtlJobConfig(BaseEtlSimple):
@@ -535,7 +506,6 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
                 "mockbucket/root/etl__completion/etl__completion.000.ndjson",
                 "mockbucket/root/etl__completion/etl__completion.001.ndjson",
                 "mockbucket/root/etl__completion/etl__completion.002.ndjson",
-                "mockbucket/root/medication/medication.000.ndjson",
                 "mockbucket/root/medicationrequest/medicationrequest.000.ndjson",
                 "mockbucket/root/patient/patient.000.ndjson",
             },

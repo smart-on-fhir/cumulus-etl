@@ -7,10 +7,9 @@ from functools import partial
 from pathlib import Path
 from typing import TypeVar
 
-from cumulus_etl import cli_utils, common, feedback, store
+from cumulus_etl import cli_utils, common, feedback
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.i2b2 import extract, schema, transform
-from cumulus_etl.loaders.i2b2.oracle import extract as oracle_extract
 
 AnyDimension = TypeVar("AnyDimension", bound=schema.Dimension)
 I2b2ExtractorCallable = Callable[[], Iterable[schema.Dimension]]
@@ -21,25 +20,9 @@ I2b2ToFhirCallable = Callable[[AnyDimension], dict]
 class I2b2Loader(base.Loader):
     """
     Loader for i2b2 data.
-
-    Expected format is either a tcp:// URL pointing at an Oracle server or a local folder.
     """
 
-    def __init__(self, root: store.Root, export_to: str | None = None):
-        """
-        Initialize a new I2b2Loader class
-        :param root: the base location to read data from
-        :param export_to: folder to save the ndjson results of converting i2b2
-        """
-        super().__init__(root)
-        self.export_to = export_to
-
     async def detect_resources(self, *, progress: feedback.Progress) -> set[str] | None:
-        if self.root.protocol in {"tcp"}:
-            # We haven't done the export yet, so there are no files to inspect yet.
-            # Returning None means "dunno" (i.e. "just accept whatever you eventually get").
-            return None
-
         filenames = {
             "observation_fact_diagnosis.csv": "Condition",
             "observation_fact_lab_views.csv": "Observation",
@@ -59,10 +42,7 @@ class I2b2Loader(base.Loader):
     async def load_resources(
         self, resources: set[str], *, progress: feedback.Progress
     ) -> base.LoaderResults:
-        if self.root.protocol in ["tcp"]:
-            directory = self._load_all_from_oracle(resources)
-        else:
-            directory = self._load_all_from_csv(resources)
+        directory = self._load_all_from_csv(resources)
         return base.LoaderResults(directory=directory)
 
     def _load_all_with_extractors(
@@ -81,7 +61,7 @@ class I2b2Loader(base.Loader):
 
         Argument names are short to encourage treating them as kwargs for easier readability.
         """
-        tmpdir = cli_utils.make_export_dir(self.export_to)
+        tmpdir = cli_utils.make_export_dir()
 
         if "Condition" in resources:
             with open(
@@ -193,25 +173,4 @@ class I2b2Loader(base.Loader):
             encounters=partial(
                 extract.extract_csv_visits, os.path.join(path, "visit_dimension.csv")
             ),
-        )
-
-    ###################################################################################################################
-    #
-    # Oracle SQL server code
-    #
-    ###################################################################################################################
-
-    def _load_all_from_oracle(self, resources: set[str]) -> common.Directory:
-        path = self.root.path
-        return self._load_all_with_extractors(
-            resources,
-            conditions=partial(oracle_extract.list_observation_fact, path, ["ICD9", "ICD10"]),
-            lab_views=partial(oracle_extract.list_observation_fact, path, ["LAB"]),
-            medicationrequests=partial(
-                oracle_extract.list_observation_fact, path, ["ADMINMED", "HOMEMED"]
-            ),
-            vitals=partial(oracle_extract.list_observation_fact, path, ["VITAL"]),
-            documentreferences=partial(oracle_extract.list_observation_fact, path, ["NOTE"]),
-            patients=partial(oracle_extract.list_patient, path),
-            encounters=partial(oracle_extract.list_visit, path),
         )

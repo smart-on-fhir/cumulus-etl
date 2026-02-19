@@ -9,7 +9,7 @@ import tempfile
 
 import rich.logging
 
-from cumulus_etl import common, errors, etl, export, inliner, sample, upload_notes
+from cumulus_etl import common, errors, etl, sample, upload_notes
 from cumulus_etl.etl import convert, init, nlp
 
 
@@ -48,6 +48,24 @@ def get_subcommand(argv: list[str]) -> str | None:
             return None
 
 
+async def export_removed(parser: argparse.ArgumentParser, argv: list[str]) -> None:
+    errors.fatal(
+        "The 'cumulus-etl export' command has been removed.\n"
+        "Please use 'smart-fetch bulk' instead.\n"
+        "See https://docs.smarthealthit.org/cumulus/fetch/ for more information.",
+        errors.FEATURE_REMOVED,
+    )
+
+
+async def inline_removed(parser: argparse.ArgumentParser, argv: list[str]) -> None:
+    errors.fatal(
+        "The 'cumulus-etl inline' command has been removed.\n"
+        "Please use 'smart-fetch hydrate --tasks inline' instead.\n"
+        "See https://docs.smarthealthit.org/cumulus/fetch/ for more information.",
+        errors.FEATURE_REMOVED,
+    )
+
+
 async def main(argv: list[str]) -> None:
     # Use RichHandler for logging because it works better when interacting with other rich components
     # (e.g. I've seen the default logger lose the last warning emitted when progress bars are also active).
@@ -67,11 +85,11 @@ async def main(argv: list[str]) -> None:
     if subcommand == Command.CONVERT.value:
         run_method = convert.run_convert
     elif subcommand == Command.EXPORT.value:
-        run_method = export.run_export
+        run_method = export_removed
     elif subcommand == Command.INIT.value:
         run_method = init.run_init
     elif subcommand == Command.INLINE.value:
-        run_method = inliner.run_inline
+        run_method = inline_removed
     elif subcommand == Command.NLP.value:
         run_method = nlp.run_nlp
     elif subcommand == Command.SAMPLE.value:
@@ -84,9 +102,7 @@ async def main(argv: list[str]) -> None:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
             parser.description += "\n\nother commands available:\n"
-            parser.description += (
-                "  convert\n  export\n  init\n  inline\n  nlp\n  sample \n  upload-notes"
-            )
+            parser.description += "  convert\n  init\n  nlp\n  sample \n  upload-notes"
         run_method = etl.run_etl
 
     with tempfile.TemporaryDirectory() as tempdir:

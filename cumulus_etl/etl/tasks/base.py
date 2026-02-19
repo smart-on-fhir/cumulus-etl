@@ -194,12 +194,13 @@ class EtlTask:
                 f"Writing batch {batch_index + 1:,}", total=None
             )
 
-            # Batches is a tuple of lists of resources - the tuple almost never matters, but it is there in case the
-            # task is generating multiple types of resources. Like MedicationRequest creating Medications as it goes.
+            # Batches is a tuple of lists of resources - the tuple almost never matters, but it is
+            # there in case the task is generating multiple types of resources.
+            # Like how MedicationRequest used to create Medications as it goes.
             # Each tuple of batches collectively adds up to roughly our target batch size.
             for table_index, rows in enumerate(batches):
                 if not rows:
-                    continue
+                    continue  # pragma: no cover
 
                 batch_len = len(rows)
                 summary = self.summaries[table_index]

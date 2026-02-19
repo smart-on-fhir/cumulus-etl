@@ -1,13 +1,10 @@
 """Standard FHIR resource tasks"""
 
-import copy
-import logging
-import os
 from typing import ClassVar
 
 import pyarrow
 
-from cumulus_etl import common, completion, feedback, fhir, store
+from cumulus_etl import completion, feedback
 from cumulus_etl.etl import tasks
 
 
@@ -80,96 +77,14 @@ class LocationTask(tasks.EtlTask):
     resource = "Location"
 
 
+class MedicationTask(tasks.EtlTask):
+    name = "medication"
+    resource = "Medication"
+
+
 class MedicationRequestTask(tasks.EtlTask):
-    """Write MedicationRequest resources and associated Medication resources"""
-
-    name: ClassVar = "medicationrequest"
-    resource: ClassVar = {"Medication", "MedicationRequest"}
-
-    # We may write to a second Medication table as we go.
-    # MedicationRequest can have inline medications via CodeableConcepts, or external Medication
-    # references.
-    # If external, we'll download them and stuff them in this output table.
-    # We do all this special business logic because Medication is a special, "reference" resource,
-    # and many EHRs don't let you simply bulk export them.
-
-    outputs: ClassVar = [
-        # Write medication out first, to avoid a moment where links are broken
-        tasks.OutputTable(name="medication", resource_type="Medication"),
-        tasks.OutputTable(resource_type="MedicationRequest"),
-    ]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Keep a cache of medication IDs that we've already downloaded.
-        # If this ends up growing too large in practice, we can wipe it during a call to
-        # table_batch_cleanup().
-        # But let's try initially with keeping it around for the whole task.
-        self.medication_ids = set()
-
-        # Track whether we already warned about downloading Medications, to avoid spamming.
-        self.warned_connection_error = False
-
-    def scrub_medication(self, medication: dict | None) -> bool:
-        """Scrub incoming medication resources, returns False if it should be skipped"""
-        if not medication or not self.scrubber.scrub_resource(medication):  # standard scrubbing
-            return False
-
-        return True
-
-    async def fetch_medication(self, resource: dict) -> dict | None:
-        """Downloads an external Medication if necessary"""
-        reference = resource.get("medicationReference", {}).get("reference")
-        if not reference:
-            return None
-
-        if not reference.startswith("#"):
-            # Don't duplicate medications we've already seen this run.
-            # This will still duplicate medications from previous runs, but avoiding that feels
-            # like more work than it's worth - just download em again and push em through (there
-            # might be updates to the resources, too!)
-            if reference in self.medication_ids:
-                return None
-            self.medication_ids.add(reference)
-
-        try:
-            medication = await fhir.download_reference(self.task_config.client, reference)
-        except Exception as exc:
-            if not self.warned_connection_error:
-                logging.warning("Could not download Medication reference: %s", exc)
-                self.warned_connection_error = True
-
-            self.summaries[1].had_errors = True
-
-            if self.task_config.dir_errors:
-                error_root = store.Root(
-                    os.path.join(self.task_config.dir_errors, self.name), create=True
-                )
-                error_path = error_root.joinpath("medication-fetch-errors.ndjson")
-                with common.NdjsonWriter(error_path, append=True) as writer:
-                    writer.write(resource)
-
-            return None
-
-        return medication if self.scrub_medication(medication) else None
-
-    async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
-        # Load in any local Medication resources first. This lets the user prepare the linked
-        # Medications ahead of time and feed them in alongside the MedicationRequests.
-        # We'll note the IDs and avoid downloading them later when we do the MedicationRequests.
-        resources = ["Medication", "MedicationRequest"]
-        for resource in self.read_ndjson(progress=progress, resources=resources):
-            orig_resource = copy.deepcopy(resource)
-            if not self.scrubber.scrub_resource(resource):
-                continue
-
-            if resource["resourceType"] == "Medication":
-                self.medication_ids.add(f"Medication/{orig_resource['id']}")
-                yield resource, None
-            else:
-                medication = await self.fetch_medication(orig_resource)
-                yield medication, resource
+    name = "medicationrequest"
+    resource = "MedicationRequest"
 
 
 class ObservationTask(tasks.EtlTask):
