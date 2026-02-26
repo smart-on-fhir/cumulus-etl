@@ -98,8 +98,8 @@ class TestCodebookDB(utils.AsyncTestCase):
             self.assertEqual(db.patient("abc"), "xyz")
 
             # confirm we don't cache legacy mappings
-            self.assertNotIn("42", db.cached_mapping["Encounter"])
-            self.assertNotIn("abc", db.cached_mapping["Patient"])
+            self.assertNotIn("42", db.cached_mapping.get("Encounter", {}))
+            self.assertNotIn("abc", db.cached_mapping.get("Patient", {}))
 
     def test_save_and_load(self):
         tmpdir = self.make_tempdir()

@@ -176,7 +176,7 @@ def validate_folders(input_root: store.Root, output_root: store.Root) -> None:
     # Now confirm that we are using the same PHI & output folder combo as always.
     input_codebook_id = config.latest_codebook_id_from_configs(input_root)
     if input_codebook_id:
-        config.validate_output_folder(output_root, input_codebook_id)
+        config.validate_etl_output_folder(output_root, input_codebook_id)
 
 
 #####################################################################################################################

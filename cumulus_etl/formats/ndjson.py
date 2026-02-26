@@ -3,6 +3,7 @@
 from cumulus_etl import common
 from cumulus_etl.formats.batch import Batch
 from cumulus_etl.formats.batched_files import BatchedFileFormat
+from cumulus_etl.formats.nlp import AthenaMixin
 
 
 class NdjsonFormat(BatchedFileFormat):
@@ -54,3 +55,8 @@ class NdjsonFormat(BatchedFileFormat):
         meta = self.read_table_metadata()
         meta.setdefault("deleted", []).extend(sorted(ids))
         self.write_table_metadata(meta)
+
+
+class NlpNdjsonFormat(AthenaMixin, NdjsonFormat):
+    def _athena_args(self) -> tuple[str, str]:
+        return "ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe'", ""

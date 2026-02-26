@@ -33,8 +33,9 @@ class S3Mixin(utils.AsyncTestCase):
             },
         )
 
-        # We use a moto server rather than starting moto.mock_s3() because we've found that aiobotocore (used by s3fs)
-        # and moto do not get along well. See https://github.com/aio-libs/aiobotocore/issues/755
+        # We use a moto server rather than starting moto.mock_s3() because we've found that
+        # aiobotocore (used by s3fs) and moto do not get along well.
+        # See https://github.com/aio-libs/aiobotocore/issues/755
         # But an external server avoids all that.
         self.server = ThreadedMotoServer()
         self.server.start()

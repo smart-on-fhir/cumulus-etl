@@ -97,7 +97,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         )
         self.assert_files_equal(
             f"{self.root_path}/immunosuppressive-medications-output.ndjson",
-            f"{self.output_path}/{immunosuppressive_medications_task_name}/{immunosuppressive_medications_task_name}.000.ndjson",
+            self.result_path(immunosuppressive_medications_task_name),
         )
 
         self.assertEqual(self.mock_create.call_count, 1)
@@ -173,7 +173,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
         )
         self.assert_files_equal(
             f"{self.root_path}/multiple-transplant-history-output.ndjson",
-            f"{self.output_path}/{multiple_transplant_history_task_name}/{multiple_transplant_history_task_name}.000.ndjson",
+            self.result_path(multiple_transplant_history_task_name),
         )
 
         self.assertEqual(self.mock_create.call_count, 1)
@@ -254,7 +254,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
 
         self.assert_files_equal(
             f"{self.root_path}/donor-output.ndjson",
-            f"{self.output_path}/{donor_task_name}/{donor_task_name}.000.ndjson",
+            self.result_path(donor_task_name),
         )
 
         self.assertEqual(self.mock_create.call_count, 1)
@@ -328,7 +328,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
 
         self.assert_files_equal(
             f"{self.root_path}/longitudinal-output.ndjson",
-            f"{self.output_path}/{longitudinal_task_name}/{longitudinal_task_name}.000.ndjson",
+            self.result_path(longitudinal_task_name),
         )
 
         self.assertEqual(self.mock_create.call_count, 1)

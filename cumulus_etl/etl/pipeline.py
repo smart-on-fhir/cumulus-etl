@@ -9,7 +9,7 @@ import rich.table
 
 from cumulus_etl import cli_utils, common, deid, errors, feedback, loaders, store
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.config import JobConfig, JobSummary, validate_output_folder
+from cumulus_etl.etl.config import JobConfig, JobSummary, validate_etl_output_folder
 from cumulus_etl.etl.tasks import task_factory
 
 TaskList = list[type[tasks.EtlTask]]
@@ -38,18 +38,16 @@ async def etl_job(
     return summary_list
 
 
-def add_common_etl_args(parser: argparse.ArgumentParser, batch_size: int = 100_000) -> None:
-    parser.add_argument("dir_input", metavar="/path/to/input")
-    parser.add_argument("dir_output", metavar="/path/to/output")
-    parser.add_argument("dir_phi", metavar="/path/to/phi")
-
+def add_common_etl_args(
+    parser: argparse.ArgumentParser, *, outputs: list[str], batch_size: int = 100_000
+) -> None:
     parser.add_argument(
         "--input-format",
         default="ndjson",
         choices=["i2b2", "ndjson"],
         help="input format (default is ndjson)",
     )
-    cli_utils.add_output_format(parser)
+    cli_utils.add_output_format(parser, choices=outputs)
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -58,7 +56,6 @@ def add_common_etl_args(parser: argparse.ArgumentParser, batch_size: int = 100_0
         help="how many entries to process at once and thus "
         f"how many to put in one output file (default is {batch_size // 1000}k)",
     )
-    parser.add_argument("--comment", help="add the comment to the log file")
     parser.add_argument(
         "--errors-to", metavar="DIR", help="where to put resources that could not be processed"
     )
@@ -92,15 +89,16 @@ def print_config(
     table.add_row("Input path:", args.dir_input)
     if args.input_format != "ndjson":
         table.add_row(" Format:", args.input_format)
-    table.add_row("Output path:", args.dir_output)
-    table.add_row(" Format:", args.output_format)
+    if args.dir_output:
+        table.add_row("Output path:", args.dir_output)
+        table.add_row(" Format:", args.output_format)
     table.add_row("PHI/Build path:", args.dir_phi)
     if args.errors_to:
         table.add_row("Errors path:", args.errors_to)
     table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
     table.add_row("Batch size:", f"{args.batch_size:,}")
     table.add_row("Tasks:", ", ".join(sorted(t.name for t in all_tasks)))
-    if args.comment:
+    if "comment" in args and args.comment:
         table.add_row("Comment:", args.comment)
     rich.get_console().print(table)
     common.print_header()
@@ -163,7 +161,6 @@ async def prepare_pipeline(
     args.dir_input = cli_utils.process_input_dir(args.dir_input)
 
     root_input = store.Root(args.dir_input)
-    root_output = store.Root(args.dir_output)
     store.Root(args.dir_phi, create=True)  # create PHI folder, if needed
 
     selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp)
@@ -203,12 +200,17 @@ async def prepare_pipeline(
 
         with progress.show_indeterminate_task("Loading codebook"):
             if nlp:
-                scrub_args = {"mask_notes": False, "keep_stats": False}
+                scrub_args = {"mask_notes": False, "keep_stats": False, "cache_ids": False}
             else:
                 scrub_args = {"use_philter": args.philter}
             scrubber = deid.Scrubber(args.dir_phi, **scrub_args)
 
-        validate_output_folder(root_output, scrubber.codebook.get_codebook_id())
+        if args.dir_output:
+            # Make sure the output folder matches the PHI folder.
+            # If we weren't given an output folder, don't bother (which happens in the NLP Athena
+            # upload flow, but that confirms the codebook ID a different way.)
+            dir_root = store.Root(args.dir_output)
+            validate_etl_output_folder(dir_root, scrubber.codebook.get_codebook_id())
 
     return scrubber, loader_results, selected_tasks
 

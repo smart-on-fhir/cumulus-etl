@@ -280,7 +280,7 @@ Here is the clinical document for you to analyze:
 
         self.assert_files_equal(
             f"{self.root_path}/{fixture_name}",
-            f"{self.output_path}/{glioma_task_name}/{glioma_task_name}.000.ndjson",
+            self.result_path(glioma_task_name),
         )
 
         self.assertEqual(self.mock_create.call_count, 1)

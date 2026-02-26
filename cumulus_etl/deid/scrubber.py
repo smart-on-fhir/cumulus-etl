@@ -49,8 +49,9 @@ class Scrubber:
         use_philter: bool = False,
         mask_notes: bool = True,
         keep_stats: bool = True,
+        cache_ids: bool = True,
     ):
-        self.codebook = codebook.Codebook(codebook_dir)
+        self.codebook = codebook.Codebook(codebook_dir, cache_ids=cache_ids)
         self.philter = philter.Philter() if use_philter else None
         self.mask_notes = mask_notes
         self.keep_stats = keep_stats

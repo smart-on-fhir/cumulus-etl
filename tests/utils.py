@@ -101,11 +101,12 @@ class TreeCompareMixin(unittest.TestCase):
         # you'll always want this when debugging
         self.maxDiff = None
 
-    def assert_etl_output_equal(self, left: str, right: str):
+    def assert_etl_output_equal(self, left: str, right: str, check_job_config: bool = True):
         """Compares the etl output with the expected json structure"""
-        # We don't compare contents of the job config because it includes a lot of paths etc.
-        # But we can at least confirm that it was created.
-        self.assertTrue(os.path.exists(os.path.join(right, "JobConfig")))
+        if check_job_config:
+            # We don't compare contents of the job config because it includes a lot of paths etc.
+            # But we can at least confirm that it was created.
+            self.assertTrue(os.path.exists(os.path.join(right, "JobConfig")))
         dircmp = filecmp.dircmp(left, right, ignore=["JobConfig"])
         self.assert_file_tree_equal(dircmp)
 

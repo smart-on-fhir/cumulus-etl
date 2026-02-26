@@ -538,7 +538,7 @@ class TestEtlNlp(BaseEtlSimple):
     def read_symptoms(self):
         """Loads the output symptoms ndjson from disk"""
         path = os.path.join(
-            self.output_path, "covid_symptom__nlp_results", "covid_symptom__nlp_results.000.ndjson"
+            self.output_path, "covid_symptom", "nlp_results_v4", "nlp_results_v4.000.ndjson"
         )
         with open(path, encoding="utf8") as f:
             lines = f.readlines()

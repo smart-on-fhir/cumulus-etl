@@ -84,12 +84,12 @@ def add_ctakes_override(parser: argparse.ArgumentParser):
     )
 
 
-def add_output_format(parser: argparse.ArgumentParser) -> None:
+def add_output_format(parser: argparse.ArgumentParser, *, choices: list[str]) -> None:
     parser.add_argument(
         "--output-format",
-        default="deltalake",
-        choices=["deltalake", "ndjson"],
-        help="output format (default is deltalake)",
+        default=choices[0],
+        choices=choices,
+        help=f"output format (default is {choices[0]})",
     )
 
 
@@ -131,13 +131,13 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
     return common.RealDirectory(export_to)
 
 
-def confirm_dir_is_empty(root: store.Root) -> None:
+def confirm_dir_is_empty(root: store.Root, message: str | None = None) -> None:
     """Errors out if the dir exists with contents"""
     try:
-        files = {os.path.basename(p) for p in root.ls()}
-        if files:
+        if list(root.ls()):
+            extra = f"\n\n{message}" if message else ""
             errors.fatal(
-                f"The target folder '{root.path}' already has contents. Please provide an empty folder.",
+                f"The target folder '{root.path}' already has contents. Please provide an empty folder.{extra}",
                 errors.FOLDER_NOT_EMPTY,
             )
     except FileNotFoundError:

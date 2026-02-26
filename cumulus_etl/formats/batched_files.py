@@ -16,6 +16,8 @@ class BatchedFileFormat(Format):
     i.e. a few ndjson files that hold all the rows
     """
 
+    require_empty_dir: bool = True
+
     @property
     @abc.abstractmethod
     def suffix(self) -> str:
@@ -52,7 +54,8 @@ class BatchedFileFormat(Format):
         # So we just confirm that the output folder is empty - let's avoid the whole thing.
         # But we do it in class-init rather than object-init because other tasks will create
         # files here during the ETL run.
-        cli_utils.confirm_dir_is_empty(root)
+        if cls.require_empty_dir:
+            cli_utils.confirm_dir_is_empty(root)
 
     def __init__(self, *args, **kwargs) -> None:
         """Performs any preparation before any batches have been written."""
@@ -65,6 +68,7 @@ class BatchedFileFormat(Format):
         # during class initialization.
         # But some output tables (like etl__completion) are written to in many small batches
         # spread over the whole ETL run - so we need to support that workflow.
+        # Plus, the NLP workflow disables the "empty dir" check and wants to append to folder.
         self._index = self._get_next_index()
 
     def _get_next_index(self) -> int:

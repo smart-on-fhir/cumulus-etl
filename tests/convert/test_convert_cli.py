@@ -43,10 +43,6 @@ class TestConvert(ConvertTestsBase):
         """Returns the job timestamp used, for easier inspection"""
         # Fill in original dir, including a non-default output folder
         shutil.copytree(f"{self.datadir}/simple/output", self.original_path)
-        shutil.copytree(
-            f"{self.datadir}/covid/term-exists/covid_symptom__nlp_results_term_exists",
-            f"{self.original_path}/covid_symptom__nlp_results_term_exists",
-        )
         # just to confirm we only copy what we understand, add an ignored folder
         os.makedirs(f"{self.original_path}/ignored")
 
@@ -108,19 +104,6 @@ class TestConvert(ConvertTestsBase):
         conditions = utils.read_delta_lake(f"{self.target_path}/condition")  # and conditions
         self.assertEqual(2, len(conditions))
         self.assertEqual("2010-03-02", conditions[0]["recordedDate"])
-        # and a non-default study table
-        symptoms = utils.read_delta_lake(
-            f"{self.target_path}/covid_symptom__nlp_results_term_exists"
-        )
-        self.assertEqual(2, len(symptoms))
-        self.assertEqual("for", symptoms[0]["match"]["text"])
-        completion = utils.read_delta_lake(f"{self.target_path}/etl__completion")  # and completion
-        self.assertEqual(17, len(completion))
-        self.assertEqual("allergyintolerance", completion[0]["table_name"])
-        comp_enc = utils.read_delta_lake(f"{self.target_path}/etl__completion_encounters")
-        self.assertEqual(2, len(comp_enc))
-        self.assertEqual("08f0ebd4-950c-ddd9-ce97-b5bdf073eed1", comp_enc[0]["encounter_id"])
-        self.assertEqual("2020-10-13T12:00:20-05:00", comp_enc[0]["export_time"])
 
         # Now make a second small, partial output folder to layer into the existing Delta Lake
         delta_timestamp = "2023-02-29__19.53.08"
@@ -187,27 +170,34 @@ class TestConvert(ConvertTestsBase):
         # but the new row did get inserted
         self.assertEqual("2021-12-12T17:00:20+00:00", comp_enc[1]["export_time"])
 
+    # TODO
     @mock.patch("cumulus_etl.formats.Format.write_records")
     async def test_batch_metadata(self, mock_write):
-        """Verify that we pass along per-batch metadata like groups"""
+        """
+        Verify that we pass along per-batch metadata like groups
+
+        This doesn't really happen anymore (it used to for NLP results, but that's no longer
+        supported as a convert method). But still, we support it for now, until it's clear we can
+        pull out the code.
+        """
         # Set up input path
         shutil.copytree(  # First, one table that has no metadata
             f"{self.datadir}/simple/output/patient",
             f"{self.original_path}/patient",
         )
         shutil.copytree(  # Then, one that does
-            f"{self.datadir}/covid/output/covid_symptom__nlp_results",
+            f"{self.datadir}/covid/output/covid_symptom/nlp_results_v4",
             f"{self.original_path}/covid_symptom__nlp_results",
         )
         # And make a second batch, to confirm we read each meta file
         common.write_json(
-            f"{self.original_path}/covid_symptom__nlp_results/covid_symptom__nlp_results.001.meta",
+            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.meta",
             # Reference a group that doesn't exist to prove we are reading this file and not just pooling group_fields
             # that we see in the data.
             {"groups": ["nonexistent"]},
         )
         common.write_json(
-            f"{self.original_path}/covid_symptom__nlp_results/covid_symptom__nlp_results.001.ndjson",
+            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.ndjson",
             {"id": "D1.0", "docref_id": "D1"},
         )
         os.makedirs(f"{self.original_path}/JobConfig")
