@@ -109,4 +109,7 @@ class TestCovidSymptomGptResultsTask(NlpModelTestCase):
             ],
             batch.rows,
         )
-        self.assertEqual(batch.groups, set())
+        self.assertEqual(
+            batch.groups,
+            {"DocumentReference/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45"},
+        )

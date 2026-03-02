@@ -2,12 +2,13 @@ import contextlib
 import io
 import json
 import os
+import shutil
 from unittest import mock
 
 import pyarrow
 import pyathena
 
-from cumulus_etl import cli, common, errors
+from cumulus_etl import cli, common, errors, store
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 from tests.s3mock import S3Mixin
@@ -164,6 +165,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
     async def run_nlp(
         self,
         *args,
+        input_path: str | None = None,
         phi_path: str | None = None,
         set_workgroup: bool = True,
         set_database: bool = True,
@@ -171,7 +173,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
     ) -> None:
         args = [
             "nlp",
-            self.input_path,
+            input_path or self.input_path,
             phi_path or self.phi_path,
             f"--task={task}",
             "--provider=azure",
@@ -182,6 +184,10 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
         if set_database:
             args.append("--athena-database=db")
         await cli.main(args)
+
+    @staticmethod
+    def ids_from_ndjson_file(path: str) -> list[str]:
+        return [x["note_ref"] for x in common.read_ndjson(store.Root(path), path)]
 
     async def test_deltalake_format(self):
         self.mock_nlp()
@@ -197,6 +203,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             {
                 f"{root}/codebook.id",
                 f"{root}/example_nlp/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
+                f"{root}/example_nlp/nlp_gpt_oss_120b_v1.ids",
             },
         )
 
@@ -209,6 +216,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             {
                 f"{root}/codebook.id",
                 f"{root}/example_nlp/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson",
+                f"{root}/example_nlp/nlp_gpt_oss_120b_v1.ids",
             },
         )
 
@@ -233,6 +241,117 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
         with self.assert_fatal_exit(errors.WRONG_PHI_FOLDER):
             await self.run_nlp(phi_path=f"{self.tmpdir}/phi2")
 
+    async def test_writing_ids(self):
+        """
+        The Athena formatter will write a cache of IDs out along with the data.
+
+        These IDs are used to skip notes that we've already done.
+        """
+        self.mock_nlp()
+        root = "mockbucket/cumulus_user_uploads/db/example_nlp"
+
+        all_four_ids = (
+            "DiagnosticReport/3539407700b0a8f2915bf0865d6304b19bc97ab82c8de67518ffc16855406158\n"
+            "DiagnosticReport/e9f014644c29678b824fc98caa8c551d1fb81e14e78bbe87d6ecef2e1630c265\n"
+            "DocumentReference/c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971\n"
+            "DocumentReference/f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd\n"
+        )
+
+        # First, simple run
+        await self.run_nlp("--output-format=ndjson")
+        self.assertEqual(
+            set(self.s3fs.find(root)),
+            {
+                f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson",
+                f"{root}/nlp_gpt_oss_120b_v1.ids",
+            },
+        )
+        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            set(
+                self.ids_from_ndjson_file(
+                    f"s3://{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson"
+                )
+            ),
+            set(all_four_ids.splitlines()),
+        )
+
+        # Direct re-run will result in no changes
+        await self.run_nlp("--output-format=ndjson")
+        self.assertEqual(
+            set(self.s3fs.find(root)),
+            {
+                f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson",
+                f"{root}/nlp_gpt_oss_120b_v1.ids",
+            },
+        )
+        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+
+        # Re-running once we delete a line from IDs should re-upload that one ID
+        first_three_ids = (
+            "DiagnosticReport/3539407700b0a8f2915bf0865d6304b19bc97ab82c8de67518ffc16855406158\n"
+            "DiagnosticReport/e9f014644c29678b824fc98caa8c551d1fb81e14e78bbe87d6ecef2e1630c265\n"
+            "DocumentReference/c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971\n"
+        )
+        common.write_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids", first_three_ids)
+        await self.run_nlp("--output-format=ndjson")
+        self.assertEqual(
+            set(self.s3fs.find(root)),
+            {
+                f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson",
+                f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.001.ndjson",
+                f"{root}/nlp_gpt_oss_120b_v1.ids",
+            },
+        )
+        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            set(
+                self.ids_from_ndjson_file(
+                    f"s3://{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson"
+                )
+            ),
+            set(all_four_ids.splitlines()),  # actual ndjson is unchanged, includes all of em still
+        )
+        self.assertEqual(
+            self.ids_from_ndjson_file(
+                f"s3://{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.001.ndjson"
+            ),
+            ["DocumentReference/f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd"],
+        )
+
+    async def test_duplicate_notes_skipped(self):
+        """
+        Duplicate notes in the same input folder should be skipped.
+        """
+        self.mock_nlp()
+        root = "mockbucket/cumulus_user_uploads/db/example_nlp"
+
+        # Set up input path with two copies of notes
+        shutil.copytree(self.input_path, f"{self.tmpdir}/input1")
+        shutil.copytree(self.input_path, f"{self.tmpdir}/input2")
+
+        all_four_ids = (
+            "DiagnosticReport/3539407700b0a8f2915bf0865d6304b19bc97ab82c8de67518ffc16855406158\n"
+            "DiagnosticReport/e9f014644c29678b824fc98caa8c551d1fb81e14e78bbe87d6ecef2e1630c265\n"
+            "DocumentReference/c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971\n"
+            "DocumentReference/f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd\n"
+        )
+
+        # First, simple run
+        await self.run_nlp("--output-format=ndjson", input_path=self.tmpdir)
+        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            self.ids_from_ndjson_file(
+                f"s3://{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson"
+            ),
+            [
+                "DiagnosticReport/3539407700b0a8f2915bf0865d6304b19bc97ab82c8de67518ffc16855406158",
+                "DiagnosticReport/e9f014644c29678b824fc98caa8c551d1fb81e14e78bbe87d6ecef2e1630c265",
+                "DocumentReference/f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd",
+                "DocumentReference/c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971",
+            ],
+        )
+
     async def test_cleaning_previous_content(self):
         self.mock_nlp()
         root = "mockbucket/cumulus_user_uploads/db/example_nlp"
@@ -240,7 +359,10 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
         await self.run_nlp("--clean")  # clean without anything there should be a graceful no-op
         self.assertEqual(
             set(self.s3fs.find(root)),
-            {f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet"},
+            {
+                f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
+                f"{root}/nlp_gpt_oss_120b_v1.ids",
+            },
         )
 
         # Pretend we had some previous runs too (of both a same and a different model)
@@ -249,19 +371,31 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             f"{root}/nlp_gpt_oss_120b_v0/nlp_gpt_oss_120b_v0.000.parquet",
         )
         self.s3fs.copy(
+            f"{root}/nlp_gpt_oss_120b_v1.ids",
+            f"{root}/nlp_gpt_oss_120b_v0.ids",
+        )
+        self.s3fs.copy(
             f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
             f"{root}/nlp_gpt5_v1/nlp_gpt5_v1.000.parquet",
         )
+        self.s3fs.copy(
+            f"{root}/nlp_gpt_oss_120b_v1.ids",
+            f"{root}/nlp_gpt5_v1.ids",
+        )
 
         # Second normal backup, which will append to previous results
+        self.s3fs.rm(f"{root}/nlp_gpt_oss_120b_v1.ids")  # just so we get fresh data written out
         await self.run_nlp()
         self.assertEqual(
             set(self.s3fs.find(root)),
             {
                 f"{root}/nlp_gpt_oss_120b_v0/nlp_gpt_oss_120b_v0.000.parquet",
+                f"{root}/nlp_gpt_oss_120b_v0.ids",
                 f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
                 f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.001.parquet",
+                f"{root}/nlp_gpt_oss_120b_v1.ids",
                 f"{root}/nlp_gpt5_v1/nlp_gpt5_v1.000.parquet",
+                f"{root}/nlp_gpt5_v1.ids",
             },
         )
 
@@ -271,7 +405,9 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             set(self.s3fs.find(root)),
             {
                 f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
+                f"{root}/nlp_gpt_oss_120b_v1.ids",
                 f"{root}/nlp_gpt5_v1/nlp_gpt5_v1.000.parquet",
+                f"{root}/nlp_gpt5_v1.ids",
             },
         )
 

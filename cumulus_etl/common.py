@@ -135,6 +135,18 @@ def read_text(path: str) -> str:
         return f.read()
 
 
+def append_text(path: str, text: str) -> None:
+    """
+    Adds data to the given path, in text format
+    :param path: filesystem path
+    :param text: the text to write to disk
+    """
+    logging.debug("append_text() %s", path)
+
+    with _atomic_open(path, "a") as f:
+        f.write(text)
+
+
 def write_text(path: str, text: str) -> None:
     """
     Writes data to the given path, in text format

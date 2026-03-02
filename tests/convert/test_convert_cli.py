@@ -170,7 +170,6 @@ class TestConvert(ConvertTestsBase):
         # but the new row did get inserted
         self.assertEqual("2021-12-12T17:00:20+00:00", comp_enc[1]["export_time"])
 
-    # TODO
     @mock.patch("cumulus_etl.formats.Format.write_records")
     async def test_batch_metadata(self, mock_write):
         """
@@ -185,15 +184,15 @@ class TestConvert(ConvertTestsBase):
             f"{self.datadir}/simple/output/patient",
             f"{self.original_path}/patient",
         )
-        shutil.copytree(  # Then, one that does
+        shutil.copytree(  # Then, one that will have it once we add
             f"{self.datadir}/covid/output/covid_symptom/nlp_results_v4",
             f"{self.original_path}/covid_symptom__nlp_results",
         )
-        # And make a second batch, to confirm we read each meta file
+        # And make a second batch, that has a meta file
         common.write_json(
             f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.meta",
-            # Reference a group that doesn't exist to prove we are reading this file and not just pooling group_fields
-            # that we see in the data.
+            # Reference a group that doesn't exist to prove we are reading this file and not just
+            # pooling group_fields that we see in the data.
             {"groups": ["nonexistent"]},
         )
         common.write_json(
@@ -209,11 +208,8 @@ class TestConvert(ConvertTestsBase):
         self.assertEqual(3, mock_write.call_count)
         self.assertEqual(set(), mock_write.call_args_list[0][0][0].groups)  # patients
         self.assertEqual(
-            {
-                "c31a3dbf188ed241b2c06b2475cd56159017fa1df1ea882d3fc4beab860fc24d",
-                "eb30741bbb9395fc3da72d02fd29b96e2e4c0c2592c3ae997d80bf522c80070e",
-            },
-            mock_write.call_args_list[1][0][0].groups,  # first (actual) covid batch
+            mock_write.call_args_list[1][0][0].groups,  # first (empty) covid batch
+            set(),
         )
         # second (faked) covid batch
         self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)

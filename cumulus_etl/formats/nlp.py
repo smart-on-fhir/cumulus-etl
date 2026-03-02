@@ -2,7 +2,8 @@ import re
 
 import pyarrow
 
-from cumulus_etl import errors, store
+from cumulus_etl import common, errors, store
+from cumulus_etl.formats.batch import Batch
 
 
 class AthenaMixin:  # like most mixins, this should go first in inheritance list to take priority
@@ -35,7 +36,7 @@ class AthenaMixin:  # like most mixins, this should go first in inheritance list
             # We wanna clean out all previous uploads for this table.
             # Do this before calling __init__() because that looks at the files in the folder to
             # get the first batch number to use.
-            table_with_version = re.compile(rf"/{table}_v[0-9]+$")
+            table_with_version = re.compile(rf"/{table}_v[0-9]+(\.ids)?$")
             try:
                 for folder in root.ls():
                     if table_with_version.search(folder):
@@ -44,6 +45,17 @@ class AthenaMixin:  # like most mixins, this should go first in inheritance list
                 pass
 
         super().__init__(root, dbname, *args, **kwargs)
+
+    def group_id_path(self) -> str:
+        return self.dbroot.path.rstrip("/") + ".ids"
+
+    def write_format(self, batch: Batch, path: str) -> None:
+        super().write_format(batch, path)
+        self._update_finished_groups(batch.groups)
+
+    def _update_finished_groups(self, groups: set[str]) -> None:
+        id_list = "\n".join(sorted(groups)) + "\n"
+        common.append_text(self.group_id_path(), id_list)
 
     def finalize(self) -> None:
         if self._connection:

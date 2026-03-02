@@ -104,6 +104,7 @@ class EtlTask:
         assert self.resource  # noqa: S101
         self.task_config = task_config
         self.scrubber = scrubber
+        self.current_groups = set()
         # create format placeholders
         self.formatters: list[formats.Format | None] = [None] * len(self.outputs)
         self.summaries: list[config.JobSummary] = [
@@ -206,12 +207,15 @@ class EtlTask:
                 summary = self.summaries[table_index]
                 summary.attempt += batch_len
                 if self._write_one_table_batch(rows, table_index, batch_index):
+                    success = True
                     summary.success += batch_len
                     update_status()
                 else:
+                    success = False
                     summary.had_errors = True
 
-                self.table_batch_cleanup(table_index, batch_index)
+                self.table_batch_cleanup(table_index, batch_index, success)
+                self.current_groups = set()
 
             progress.update(format_progress_task, completed=1, total=1)
             batch_index += 1
@@ -277,12 +281,12 @@ class EtlTask:
             self.summaries[0].had_errors = True
         formatter.finalize()
 
-    def _get_formatter(self, table_index: int) -> formats.Format:
+    def get_formatter(self, table_index: int) -> formats.Format:
         """
         Lazily create output table formatters.
 
-        We do this not because it's a heavy operation (it shouldn't be), but because it lets us know if we can skip
-        touching a table that didn't have any input data.
+        We do this not because it's a heavy operation (it shouldn't be), but because it lets us
+        know if we can skip touching a table that didn't have any input data.
         """
         if self.formatters[table_index] is None:
             table_info = self.outputs[table_index]
@@ -336,9 +340,9 @@ class EtlTask:
         self.scrubber.save()
 
         output = self.outputs[table_index]
-        formatter = self._get_formatter(table_index)
+        formatter = self.get_formatter(table_index)
         rows = self._uniquify_rows(rows, formatter.uniqueness_fields)
-        groups = self.pop_current_group_values(table_index)
+        groups = self.current_groups
         batch = self.make_batch_from_rows(output.get_resource_type(self), rows, groups=groups)
 
         # Now we write that batch to the target folder, in the requested format (e.g. ndjson).
@@ -419,10 +423,11 @@ class EtlTask:
             if not resource_filter or await resource_filter(self.scrubber.codebook, x):
                 yield x
 
-    def table_batch_cleanup(self, table_index: int, batch_index: int) -> None:
+    def table_batch_cleanup(self, table_index: int, batch_index: int, success: bool) -> None:
         """Override to add any necessary cleanup from writing a batch out (releasing memory etc)"""
         del table_index
         del batch_index
+        del success
 
     @classmethod
     async def init_check(cls) -> None:
@@ -448,22 +453,6 @@ class EtlTask:
         """
         If your subclass needs to do any final cleanup or reporting, override this.
         """
-
-    def pop_current_group_values(self, table_index: int) -> set[str]:
-        """
-        If your subclass uses the `group_field` output parameter, this returns all group values for the current batch.
-
-        Consider the case where you generate NLP results from docrefs and your group_field is `docref_id`.
-        You processed note A with five results yesterday.
-        If you re-process note A today, but it now generates no (or less) results, there may be entries in the
-        database that the formatter should delete.
-        This set of group values will indicate which groups this current batch represents.
-        Any group members not overwritten by this batch can be deleted.
-
-        (Your subclass should clear its internal tracking as part of this call, for the next batch.)
-        """
-        del table_index
-        return set()
 
     @classmethod
     def get_schema(cls, resource_type: str | None, rows: list[dict]) -> pyarrow.Schema | None:

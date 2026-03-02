@@ -139,6 +139,7 @@ class TaskTestCase(utils.AsyncTestCase):
 
         def make_formatter(dbname: str, **kwargs):
             formatter = mock.MagicMock(dbname=dbname, **kwargs)
+            del formatter.group_id_path  # don't confuse normal flows with this Athena-flow method
             self.format_count += 1
             if self.format_count == 1:
                 self.format = self.format or formatter
