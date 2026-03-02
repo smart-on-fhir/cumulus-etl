@@ -55,9 +55,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         self.assertRegex(cm.output[0], r"Could not extract symptoms for .* \(ValueError\): oops")
 
         # Confirm that we skipped the doc
-        self.assertEqual(self.format.write_records.call_count, 1)
-        batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(len(batch.rows), 0)
+        self.assertEqual(self.format.write_records.call_count, 0)
 
     @mock.patch("cumulus_etl.nlp.list_polarity", side_effect=ValueError("oops"))
     async def test_cnlpt_error(self, mock_extract):
@@ -71,9 +69,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         self.assertTrue(any("Could not check polarity for" in x for x in cm.output))
 
         # Confirm that we skipped the doc
-        self.assertEqual(self.format.write_records.call_count, 1)
-        batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(len(batch.rows), 0)
+        self.assertEqual(self.format.write_records.call_count, 0)
 
     async def test_extract_polarity_type_error(self):
         """Verify we bail if a bogus polarity model was given"""
@@ -88,9 +84,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         self.assertRegex(cm.output[0], "Unknown polarity method: None")
 
         # Confirm that we skipped the doc
-        self.assertEqual(self.format.write_records.call_count, 1)
-        batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(len(batch.rows), 0)
+        self.assertEqual(self.format.write_records.call_count, 0)
 
     async def test_unknown_modifier_extensions_skipped_for_nlp_symptoms(self):
         """Verify we ignore unknown modifier extensions during a custom read task (nlp symptoms)"""
@@ -157,9 +151,12 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
 
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(4 if expected else 0, len(batch.rows))
+        if expected:
+            self.assertEqual(self.format.write_records.call_count, 1)
+            batch = self.format.write_records.call_args[0][0]
+            self.assertEqual(len(batch.rows), 4)
+        else:
+            self.assertEqual(self.format.write_records.call_count, 0)
 
     async def test_non_ed_visit_is_skipped_for_covid_symptoms(self):
         """Verify we ignore non ED visits for the covid symptoms NLP"""
@@ -199,9 +196,13 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
         self.make_json("DocumentReference", "doc", **docref)
 
         await covid_symptom.CovidSymptomNlpResultsTask(self.job_config, self.scrubber).run()
-        self.assertEqual(1, self.format.write_records.call_count)
-        batch = self.format.write_records.call_args[0][0]
-        self.assertEqual(2 if should_process else 0, len(batch.rows))
+
+        if should_process:
+            self.assertEqual(self.format.write_records.call_count, 1)
+            batch = self.format.write_records.call_args[0][0]
+            self.assertEqual(len(batch.rows), 2)
+        else:
+            self.assertEqual(self.format.write_records.call_count, 0)
 
     async def test_nlp_errors_saved(self):
         docref = i2b2_mock_data.documentreference()

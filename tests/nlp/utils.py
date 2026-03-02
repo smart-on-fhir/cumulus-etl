@@ -79,6 +79,7 @@ class NlpModelTestCase(TaskTestCase):
             # to avoid having to manually specify the version number, which changes from time to
             # time, just use the first one we find, if there's only one.
             subdirs = os.listdir(top)
+            subdirs = [x for x in subdirs if os.path.isdir(f"{top}/{x}")]
             self.assertEqual(len(subdirs), 1)
             self.assertTrue(subdirs[0].startswith(f"{topic}_v"))
             subdir = subdirs[0]

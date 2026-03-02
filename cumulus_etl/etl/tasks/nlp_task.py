@@ -41,7 +41,7 @@ class BaseNlpTask(tasks.EtlTask):
 
     # You may want to override these in your subclass
     outputs: ClassVar = [
-        # maybe add a group_field? (remember to call self.seen_docrefs.add() if so)
+        # maybe add a group_field? (remember to call self.current_groups.add() if so)
         tasks.OutputTable(resource_type=None)
     ]
 
@@ -62,13 +62,33 @@ class BaseNlpTask(tasks.EtlTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.seen_groups = set()
         self.note_stats = NoteStats()
+        self.read_finished_groups()
 
-    def pop_current_group_values(self, table_index: int) -> set[str]:
-        values = self.seen_groups
-        self.seen_groups = set()
-        return values
+    def group_name_from_note(self, note: dict) -> str:
+        return f"{note['resourceType']}/{note['id']}"
+
+    def table_batch_cleanup(self, table_index: int, batch_index: int, success: bool) -> None:
+        super().table_batch_cleanup(table_index, batch_index, success)
+
+        if success:
+            # Add current groups to our running list of finished groups
+            self.finished_groups |= self.current_groups
+
+    def read_finished_groups(self) -> None:
+        self.finished_groups = set()
+
+        # Check if our formatter supports writing out finished groups (deltalake does not)
+        formatter = self.get_formatter(0)
+        if not hasattr(formatter, "group_id_path"):
+            return
+
+        try:
+            ids = common.read_text(formatter.group_id_path())
+        except (FileNotFoundError, PermissionError):
+            return
+
+        self.finished_groups = set(ids.splitlines())
 
     def add_error(self, docref: dict) -> None:
         self.summaries[0].had_errors = True
@@ -106,6 +126,11 @@ class BaseNlpTask(tasks.EtlTask):
                 and self.scrubber.scrub_resource(note)
             )
             if not can_process:
+                continue
+
+            # Skip any notes that we have already processed before
+            group_name = self.group_name_from_note(note)
+            if group_name in self.current_groups or group_name in self.finished_groups:
                 continue
 
             self.note_stats.considered += 1
@@ -242,6 +267,8 @@ class BaseModelTask(BaseNlpTask):
         # expected an Enum (all our enums are strings and default values are often strings)
         parsed = response.answer.model_dump(mode="json", serialize_as_any=True)
         self.post_process(parsed, details)
+
+        self.current_groups.add(details.note_ref)  # a group of one
 
         return {
             "note_ref": details.note_ref,

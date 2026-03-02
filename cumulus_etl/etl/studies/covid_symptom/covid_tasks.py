@@ -124,6 +124,9 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
             self.summaries[0].had_errors = True
         return success
 
+    def group_name_from_note(self, note: dict) -> str:
+        return note["id"]  # for historical reasons, this uses just the docref ID
+
     async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
         phi_root = store.Root(self.task_config.dir_phi, create=True)
@@ -154,7 +157,7 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
             # But the current approach instead focuses purely on accuracy and makes sure that we zero-out any dangling
             # entries for groups that we do process.
             # Downstream SQL can ignore the above cases itself, as needed.
-            self.seen_groups.add(docref["id"])
+            self.current_groups.add(docref["id"])
 
             # Yield the whole set of symptoms at once, to allow for more easily replacing previous a set of symptoms.
             # This way we don't need to worry about symptoms from the same note crossing batch boundaries.

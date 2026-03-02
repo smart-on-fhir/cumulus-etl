@@ -20,5 +20,7 @@ class NlpParquetFormat(AthenaMixin, BatchedFileFormat):
         table = pyarrow.Table.from_pylist(batch.rows, schema=batch.schema)
         pyarrow.parquet.write_table(table, path, compression="snappy", filesystem=fs)
 
+        super().write_format(batch, path)
+
     def _athena_args(self) -> tuple[str, str]:
         return "STORED AS PARQUET", 'TBLPROPERTIES ("parquet.compression"="SNAPPY")'
