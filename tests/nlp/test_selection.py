@@ -335,3 +335,19 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
         self.mock_response()
         self.mock_response()
         await self.run_etl("--select-by-word=doc2", "--allow-large-selection")
+
+    async def test_negation(self):
+        self.mock_response()
+        self.mock_response()
+        await self.run_etl(
+            # Confirm that we interact with --select-by too, and not override it
+            "--select-by-regex=.*\.1$",
+            "--reject-by-word=doc1",
+            "--reject-by-regex=dx4.*",
+        )
+
+        self.assertEqual(self.mock_create.call_count, 2)
+        model_args = self.mock_create.call_args_list[0][1]
+        self.assertIn("dx3.1", model_args["messages"][1]["content"])
+        model_args = self.mock_create.call_args_list[1][1]
+        self.assertIn("doc2.1", model_args["messages"][1]["content"])

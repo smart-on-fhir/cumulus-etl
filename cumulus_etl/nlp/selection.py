@@ -41,6 +41,20 @@ def add_note_selection(parser: argparse.ArgumentParser):
         help="name of an Athena table with patient and/or note IDs",
     )
     group.add_argument(
+        "--reject-by-word",
+        metavar="WORD",
+        action="append",
+        help="notes that match the given word will not be selected (can specify multiple times, "
+        "will only match whole words/phrases)",
+    )
+    group.add_argument(
+        "--reject-by-regex",
+        metavar="REGEX",
+        action="append",
+        help="notes that match the given word regex will not be selected (can specify multiple "
+        "times, will only match whole words/phrases)",
+    )
+    group.add_argument(
         "--allow-large-selection",
         action="store_true",
         help="skip selection size validation",
@@ -170,7 +184,18 @@ def _define_regex_filter(words: list[str] | None, regexes: list[str] | None) -> 
     return res_filter
 
 
+def _negate_filter(func: deid.FilterFunc) -> deid.FilterFunc:
+    """Takes a filter and returns a new filter that returns the negation of the input filter"""
+
+    async def negated(codebook: deid.Codebook, resource: dict) -> bool:
+        return not await func(codebook, resource)
+
+    return negated
+
+
 def _combine_filters(one: deid.FilterFunc, two: deid.FilterFunc) -> deid.FilterFunc:
+    """Takes two filters and returns a filter that returns True if both input filters accept it"""
+
     async def combined(codebook: deid.Codebook, resource: dict) -> bool:
         if one and not await one(codebook, resource):
             return False
@@ -189,6 +214,8 @@ def get_note_filter(args: argparse.Namespace) -> deid.FilterFunc:
     has_anon_csv = bool(args.select_by_anon_csv)
     has_word = bool(args.select_by_word)
     has_regex = bool(args.select_by_regex)
+    has_word_reject = bool(args.reject_by_word)
+    has_regex_reject = bool(args.reject_by_regex)
     has_athena_table = bool(args.select_by_athena_table)
     csv_count = int(has_csv) + int(has_anon_csv) + int(has_athena_table)
     if csv_count > 1:
@@ -211,6 +238,12 @@ def get_note_filter(args: argparse.Namespace) -> deid.FilterFunc:
     # with the csv filter - i.e. you can filter down your CSV file further with regexes)
     if has_word or has_regex:
         regex_func = _define_regex_filter(args.select_by_word, args.select_by_regex)
+        func = _combine_filters(func, regex_func)
+
+    # Reject by a word filter, if provided
+    if has_word_reject or has_regex_reject:
+        regex_func = _define_regex_filter(args.reject_by_word, args.reject_by_regex)
+        regex_func = _negate_filter(regex_func)
         func = _combine_filters(func, regex_func)
 
     return func
