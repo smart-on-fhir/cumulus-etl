@@ -3,6 +3,7 @@ import gzip
 import io
 import json
 import os
+import shutil
 
 from cumulus_etl import cli, common, errors
 from tests.utils import AsyncTestCase
@@ -156,3 +157,15 @@ class TestSample(AsyncTestCase):
                     f"--phi-dir={self.tmpdir}/phi",
                 ]
             )
+
+    async def test_skip_duplicates(self):
+        shutil.copytree(self.input_path, f"{self.tmpdir}/copy1")
+        shutil.copytree(self.input_path, f"{self.tmpdir}/copy2")
+
+        with self.assert_fatal_exit(errors.NOTES_TOO_FEW):
+            await self.run_sample(input_path=self.tmpdir, count=10)
+
+        self.assert_output(
+            "note_ref\nDiagnosticReport/ultrasound\nDiagnosticReport/f201\n"
+            "DocumentReference/43\nDocumentReference/44\n"
+        )
