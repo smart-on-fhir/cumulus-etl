@@ -144,6 +144,7 @@ async def scan_notes(
     """Returns (path, byte offset) for each file that matches our criteria"""
     details = common.read_resource_ndjson_with_details(root_input, res_types)
     filter_func = nlp.get_note_filter(args)
+    seen_refs = set()
 
     total_count = 0
     text_count = 0
@@ -162,6 +163,14 @@ async def scan_notes(
 
         text_count += 1
         if not filter_func or await filter_func(codebook, resource):
+            # Skip duplicate input notes (this can take a fair bit of memory for big input folders,
+            # but duplicate notes _do_ happen and we don't want to sample twice or bias results)
+            note_ref_tuple = (resource["resourceType"], resource["id"])
+            if note_ref_tuple in seen_refs:
+                continue
+            seen_refs.add(note_ref_tuple)
+
+            # Let's use it! Return this resource's location
             yield path, data["byte_offset"]
             filtered_count += 1
 
