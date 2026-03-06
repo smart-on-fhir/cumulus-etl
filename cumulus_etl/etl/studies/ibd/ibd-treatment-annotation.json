@@ -1,0 +1,373 @@
+{
+  "$defs": {
+    "AdverseDrugEvent": {
+      "enum": [
+        "Allergy or adverse drug event",
+        "No documented ADE for IBD medication or patient was not given IBD medication"
+      ],
+      "title": "AdverseDrugEvent",
+      "type": "string"
+    },
+    "AdverseDrugEventAntiTNFMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ade": {
+          "$ref": "#/$defs/AdverseDrugEvent",
+          "default": "No documented ADE for IBD medication or patient was not given IBD medication",
+          "description": "Did the patient have an allergy or adverse drug event related to Anti-TNF medication?"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "AdverseDrugEventAntiTNFMention",
+      "type": "object"
+    },
+    "AdverseDrugEventIBDMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ade": {
+          "$ref": "#/$defs/AdverseDrugEvent",
+          "default": "No documented ADE for IBD medication or patient was not given IBD medication",
+          "description": "Did the patient have an allergy or adverse drug event related to IBD medication?"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "AdverseDrugEventIBDMention",
+      "type": "object"
+    },
+    "AntiTNFResponse": {
+      "enum": [
+        "Anti-TNF therapy was discontinued, therapy was escalated (eg, addition of second biologic), or surgery (eg, colectomy, ileocecectomy).",
+        "Anti-TNF therapy was successful, patient shows clinical improvement or symptom reduction",
+        "Anti-TNF response was not documented or patient was not given anti-TNF therapy"
+      ],
+      "title": "AntiTNFResponse",
+      "type": "string"
+    },
+    "AntiTNFResponseMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "anti_tnf_response": {
+          "$ref": "#/$defs/AntiTNFResponse",
+          "default": "Anti-TNF response was not documented or patient was not given anti-TNF therapy",
+          "description": "What was the anti-TNF medication response?"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "AntiTNFResponseMention",
+      "type": "object"
+    },
+    "RxClass": {
+      "enum": [
+        "Anti-TNF",
+        "Anti-Interleukin",
+        "Anti-Integrin",
+        "Aminosalicylate",
+        "Corticosteroid",
+        "Immunomodulator",
+        "Multiple IBD drug classes",
+        "Not mentioned"
+      ],
+      "title": "RxClass",
+      "type": "string"
+    },
+    "RxClassMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_class": {
+          "$ref": "#/$defs/RxClass",
+          "default": "Not mentioned",
+          "description": "Which IBD medication class is the patient taking currently?"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "RxClassMention",
+      "type": "object"
+    },
+    "RxEffectiveness": {
+      "enum": [
+        "Medication was effective in treating IBD",
+        "Medication failed to treat IBD",
+        "IBD Medication effectiveness was not mentioned or patient was not given IBD medication"
+      ],
+      "title": "RxEffectiveness",
+      "type": "string"
+    },
+    "RxEffectivenessMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_effectiveness": {
+          "$ref": "#/$defs/RxEffectiveness",
+          "default": "IBD Medication effectiveness was not mentioned or patient was not given IBD medication",
+          "description": "Are the patient medications effective in treating IBD?"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "RxEffectivenessMention",
+      "type": "object"
+    },
+    "RxStartDateMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_medication_start_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What was the date of the first IBD medication dose?",
+          "title": "Ibd Medication Start Date"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "RxStartDateMention",
+      "type": "object"
+    },
+    "RxTNFStartDateMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "anti_tnf_start_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What was the date of the first anti-TNF medication dose?",
+          "title": "Anti Tnf Start Date"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "RxTNFStartDateMention",
+      "type": "object"
+    },
+    "Surgery": {
+      "enum": [
+        "Colectomy",
+        "Ileocecectomy",
+        "Other surgical IBD therapy",
+        "No IBD surgical therapy was documented"
+      ],
+      "title": "Surgery",
+      "type": "string"
+    },
+    "SurgeryMention": {
+      "properties": {
+        "is_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Is Present"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_surgical_therapy": {
+          "$ref": "#/$defs/Surgery",
+          "default": "No IBD surgical therapy was documented",
+          "description": "Did the patient receive surgical treatment for IBD?"
+        }
+      },
+      "required": [
+        "is_present",
+        "spans"
+      ],
+      "title": "SurgeryMention",
+      "type": "object"
+    }
+  },
+  "description": "An object-model for annotations of irritable bowel disorder observations \nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "properties": {
+    "rx_start_date_mention": {
+      "$ref": "#/$defs/RxStartDateMention"
+    },
+    "rx_tnf_start_date_mention": {
+      "$ref": "#/$defs/RxTNFStartDateMention"
+    },
+    "rx_class_mention": {
+      "$ref": "#/$defs/RxClassMention"
+    },
+    "anti_tnf_response_mention": {
+      "$ref": "#/$defs/AntiTNFResponseMention"
+    },
+    "rx_effectiveness_mention": {
+      "$ref": "#/$defs/RxEffectivenessMention"
+    },
+    "adverse_drug_event_ibd_mention": {
+      "$ref": "#/$defs/AdverseDrugEventIBDMention"
+    },
+    "adverse_drug_event_anti_tnf_mention": {
+      "$ref": "#/$defs/AdverseDrugEventAntiTNFMention"
+    },
+    "surgery_mention": {
+      "$ref": "#/$defs/SurgeryMention"
+    }
+  },
+  "required": [
+    "rx_start_date_mention",
+    "rx_tnf_start_date_mention",
+    "rx_class_mention",
+    "anti_tnf_response_mention",
+    "rx_effectiveness_mention",
+    "adverse_drug_event_ibd_mention",
+    "adverse_drug_event_anti_tnf_mention",
+    "surgery_mention"
+  ],
+  "title": "IbdTreatmentAnnotations",
+  "type": "object"
+}
