@@ -1,0 +1,90 @@
+{
+  "resourceType": "EpisodeOfCare",
+  "id": "b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0",
+
+  "status": "active",
+  "statusHistory": [
+    {
+      "status": "planned",
+      "period": {
+        "start": "2014-09-01",
+        "end": "2014-09-14"
+      }
+    },
+    {
+      "status": "active",
+      "period": {
+        "start": "2014-09-15",
+        "end": "2014-09-21"
+      }
+    },
+    {
+      "status": "onhold",
+      "period": {
+        "start": "2014-09-22",
+        "end": "2014-09-24"
+      }
+    },
+    {
+      "status": "active",
+      "period": {
+        "start": "2014-09-25"
+      }
+    }
+  ],
+  "type": [
+    {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/episodeofcare-type",
+          "code": "hacc",
+          "display": "Home and Community Care"
+        }
+      ]
+    }
+  ],
+  "diagnosis": [
+    {
+      "condition": {
+        "reference": "Condition/67743b00798c4c60d073ac72f4bd30fe1303dc6ea866d684d3eca3fb29469f4a"
+      },
+      "role": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/diagnosis-role",
+            "code": "CC",
+            "display": "Chief complaint"
+          }
+        ]
+      },
+      "rank": 1
+    }
+  ],
+  "patient": {
+    "reference": "Patient/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
+  },
+  "managingOrganization": {
+    "reference": "Organization/e327de61d0669b95f22d9078007fa06c4583fd9f3a9b93145d6604e7feab9e1e"
+  },
+  "period": {
+    "start": "2014-09-01"
+  },
+  "referralRequest": [
+    {
+      "reference": "ServiceRequest/2c436339b1a3f4ef39ed6764e1f2988113feef8d9ed1b24e49ceb058684b9d45"
+    }
+  ],
+  "careManager": {
+    "reference": "Practitioner/2e4b1add6562195be5767e3c85521f23797c190a646f52e28fb0eb3143647491"
+  },
+  "team": [
+    {
+      "reference": "CareTeam/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
+    }
+  ],
+  "account": [
+    {
+      "reference": "Account/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"table_name": "servicerequest", "group_name": "test-group", "export_time": "2020-10-13T12:00:20-05:00", "export_url": "https://example.org/fhir/$export", "etl_version": "1.0.0+test", "etl_time": "2021-09-14T21:23:45+00:00"}
