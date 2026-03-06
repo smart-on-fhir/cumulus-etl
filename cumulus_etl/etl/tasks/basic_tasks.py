@@ -67,6 +67,11 @@ class EncounterTask(tasks.EtlTask):
             return completion.completion_encounters_schema()
 
 
+class EpisodeOfCareTask(tasks.EtlTask):
+    name = "episodeofcare"
+    resource = "EpisodeOfCare"
+
+
 class ImmunizationTask(tasks.EtlTask):
     name: ClassVar = "immunization"
     resource: ClassVar = "Immunization"
@@ -80,6 +85,11 @@ class LocationTask(tasks.EtlTask):
 class MedicationTask(tasks.EtlTask):
     name = "medication"
     resource = "Medication"
+
+
+class MedicationDispenseTask(tasks.EtlTask):
+    name = "medicationdispense"
+    resource = "MedicationDispense"
 
 
 class MedicationRequestTask(tasks.EtlTask):
