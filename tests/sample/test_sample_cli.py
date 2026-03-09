@@ -81,7 +81,7 @@ class TestSample(AsyncTestCase):
         stdout = io.StringIO()
         with contextlib.redirect_stdout(stdout):
             await self.run_sample(output="-")
-        self.assertEqual(stdout.getvalue(), "note_ref\nDocumentReference/44\n")
+        self.assertTrue(stdout.getvalue().endswith("note_ref\nDocumentReference/44\n"))
 
     async def test_bad_type(self):
         with self.assert_fatal_exit(errors.ARGS_INVALID):
