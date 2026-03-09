@@ -83,7 +83,7 @@ class DeltaLakeFormat(Format):
                 extra_packages=[
                     # See https://docs.delta.io/latest/delta-storage.html for advice
                     # on which version of hadoop-aws to use.
-                    "org.apache.hadoop:hadoop-aws:3.4.0",
+                    "org.apache.hadoop:hadoop-aws:3.4.2",
                 ],
             ).getOrCreate()
         cls.spark.sparkContext.setLogLevel("ERROR")
