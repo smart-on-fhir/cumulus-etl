@@ -920,6 +920,18 @@ allowed = [
     "http://open.epic.com/FHIR/StructureDefinition/extension/surgical-history-laterality",
     "http://open.epic.com/FHIR/StructureDefinition/extension/surgical-history-source",
     "http://open.epic.com/FHIR/StructureDefinition/extension/template-id",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-center",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-donor-or-recipient",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-event-admission-date",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-event-center-waitlist-date",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-event-discharge-date",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-event-evaluation",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-event-transplanted-date",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-event-waitlist-date",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-organ",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-organ-coordinator",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-phase-status",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/transplant-waitlist-score",
     "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-language",
     "http://open.epic.com/FHIR/STU3/StructureDefinition/patient-preferred-provider-sex",
     "http://open.epic.com/FHIR/STU3/StructureDefinition/temperature-in-fahrenheit",
@@ -967,6 +979,9 @@ ignored = [
     "http://open.epic.com/FHIR/StructureDefinition/extension/birth-location",
     # Epic extension that points at an Encounter Identifier, the kind we normally strip
     "http://open.epic.com/FHIR/StructureDefinition/extension/ce-encounter-id",
+    # Epic extensions that hold freeform text about an EpisodeOfCare
+    "http://open.epic.com/FHIR/StructureDefinition/extension/episode-comments",
+    "http://open.epic.com/FHIR/StructureDefinition/extension/episode-name",
     # Epic extension with physician name
     "http://open.epic.com/FHIR/StructureDefinition/extension/lab-e-signature",
     # Epic extension with internal team names, low clinical relevance but w/ PHI risk
