@@ -40,6 +40,7 @@ def get_nlp_tasks() -> list[type[AnyTask]]:
         *nlp_task.parse_nlp_config("example_nlp", f"{study_root}/example/tasks.toml"),
         *nlp_task.parse_nlp_config("glioma", f"{study_root}/glioma/tasks.toml"),
         *nlp_task.parse_nlp_config("irae", f"{study_root}/irae/tasks.toml"),
+        *nlp_task.parse_nlp_config("ibd", f"{study_root}/ibd/tasks.toml"),
     ]
 
 

@@ -51,10 +51,10 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
     @classmethod
     def ibd_diagnosis_annotation(cls, **kwargs):
         content = {
-            "ibd_type_mention": {},
-            "age_at_diagnosis_mention": {},
-            "diagnosis_date_mention": {},
-            "diagnosis_date_endoscopy_mention": {},
+            "ibd_type_mention": {"has_mention": False, "spans": [], "ibd_type": "Crohn's disease"},
+            "age_at_diagnosis_mention": {"has_mention": False, "spans": []},
+            "diagnosis_date_mention": {"has_mention": False, "spans": []},
+            "diagnosis_date_endoscopy_mention": {"has_mention": False, "spans": []},
         }
         content.update(kwargs)
         return cls.ibd_diagnosis_annotation_model().model_validate(content)
@@ -71,8 +71,16 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
     @classmethod
     def ibd_genetic_findings_annotation(cls, **kwargs):
         content = {
-            "monogenic_primary_mention": {},
-            "monogenic_secondary_mention": {},
+            "monogenic_primary_mention": {
+                "has_mention": False,
+                "spans": [],
+                "ibd_monogenic": "None of the above",
+            },
+            "monogenic_secondary_mention": {
+                "has_mention": False,
+                "spans": [],
+                "ibd_monogenic_secondary": "None of the above",
+            },
         }
         content.update(kwargs)
         return cls.ibd_genetic_findings_annotation_model().model_validate(content)
@@ -85,13 +93,33 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
     @classmethod
     def ibd_paris_classification_annotation(cls, **kwargs):
         content = {
-            "cd_paris_location_exclusive_mention": {},
-            "cd_paris_location_l4a_mention": {},
-            "cd_paris_location_l4b_mention": {},
-            "cd_paris_behavior_exclusive_mention": {},
-            "cd_paris_behavior_perianal_modifier_mention": {},
-            "uc_paris_location_mention": {},
-            "uc_paris_severity_mention": {},
+            "cd_paris_location_exclusive_mention": {
+                "has_mention": False,
+                "spans": [],
+                "location": "None of the above (e.g. not mentioned, patient does not have CD, etc)",
+            },
+            "cd_paris_location_l4a_mention": {"has_mention": False, "spans": [], "l4a": False},
+            "cd_paris_location_l4b_mention": {"has_mention": False, "spans": [], "l4b": False},
+            "cd_paris_behavior_exclusive_mention": {
+                "has_mention": False,
+                "spans": [],
+                "behavior": "None of the above (e.g. not mentioned, patient does not have CD, etc)",
+            },
+            "cd_paris_behavior_perianal_modifier_mention": {
+                "has_mention": False,
+                "spans": [],
+                "perianal_disease": False,
+            },
+            "uc_paris_location_mention": {
+                "has_mention": False,
+                "spans": [],
+                "location": "None of the above (e.g. not mentioned, patient does not have UC, etc)",
+            },
+            "uc_paris_severity_mention": {
+                "has_mention": False,
+                "spans": [],
+                "severity": "None of the above (e.g. not mentioned, patient does not have UC, etc)",
+            },
         }
         content.update(kwargs)
         return cls.ibd_paris_classification_annotation_model().model_validate(content)
@@ -104,15 +132,33 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
     @classmethod
     def ibd_treatment_annotation(cls, **kwargs):
         content = {
-            "rx_start_date_mention": {},
-            "rx_tnf_start_date_mention": {},
+            "rx_start_date_mention": {"has_mention": False, "spans": []},
+            "rx_tnf_start_date_mention": {"has_mention": False, "spans": []},
             "rx_class_mentions": [],
-            "anti_tnf_response_mention": {},
-            "rx_effectiveness_mention": {},
-            "adverse_drug_event_ibd_mention": {},
-            "adverse_drug_event_anti_tnf_mention": {},
+            "anti_tnf_response_mention": {
+                "has_mention": False,
+                "spans": [],
+                "anti_tnf_response": "None of the above (e.g. not mentioned, patient was not given anti-TNF therapy, etc)",
+            },
+            "rx_effectiveness_mention": {
+                "has_mention": False,
+                "spans": [],
+                "rx_effectiveness": "None of the above (e.g. not mentioned, patient was not given IBD medication, etc)",
+            },
+            "adverse_drug_event_ibd_mention": {
+                "has_mention": False,
+                "spans": [],
+                "ade": "None of the above (e.g. not mentioned, patient does not have an allergy or adverse drug event related to this medication, etc)",
+            },
+            "adverse_drug_event_anti_tnf_mention": {
+                "has_mention": False,
+                "spans": [],
+                "ade": "None of the above (e.g. not mentioned, patient does not have an allergy or adverse drug event related to this medication, etc)",
+            },
         }
         content.update(kwargs)
+        print(content)
+        print(kwargs)
         return cls.ibd_treatment_annotation_model().model_validate(content)
 
     # - ibd-surgery-annotation.json
@@ -213,16 +259,16 @@ Here is the clinical document for you to analyze:
             "ibd-treatment-output.ndjson",
         ),
         (
-            lambda test_cls: test_cls.ibd_surgical_annotation_model(),
-            lambda model: f"ibd__nlp_surgical_{model}",
+            lambda test_cls: test_cls.ibd_surgery_annotation_model(),
+            lambda model: f"ibd__nlp_surgery_{model}",
             lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
                 "%JSON-SCHEMA%",
-                json.dumps(test_cls.ibd_surgical_annotation_model().model_json_schema()),
+                json.dumps(test_cls.ibd_surgery_annotation_model().model_json_schema()),
             ),
             lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
-            lambda test_cls, annotation_data: test_cls.ibd_surgical_annotation(**annotation_data),
+            lambda test_cls, annotation_data: test_cls.ibd_surgery_annotation(**annotation_data),
             {},
-            "ibd-surgical-output.ndjson",
+            "ibd-surgery-output.ndjson",
         ),
     ]
 
@@ -248,7 +294,7 @@ Here is the clinical document for you to analyze:
         fixture_name,
     ):
         self.mock_azure(model_id)
-        note_text = "Test ibd note with mention of Grade II cancer"
+        note_text = "Test ibd note with mention of Crohn's disease diagnosis"
         content = get_sample_annotation(self, annotation_data)
 
         self.mock_response(
