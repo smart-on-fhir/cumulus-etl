@@ -29,10 +29,8 @@ Here is the clinical document for you to analyze:
 
 models = [
     "claude-sonnet45",
-    "gpt4o",
     "gpt5",
     "gpt-oss-120b",
-    "llama4-scout",
 ]
 
 [[task]]
@@ -44,7 +42,14 @@ version = 1
 
 [[task]]
 name = "specific_diagnosis"
-response-schema = "ibd-specific-diagnosis-annotation.json"
+response-schema = "ibd-genetic-findings-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1
+
+[[task]]
+name = "specific_diagnosis"
+response-schema = "ibd-paris-classification-annotation.json"
 # Version History:
 # ** 1 (2026-03): Initial version
 version = 1
@@ -52,6 +57,13 @@ version = 1
 [[task]]
 name = "treatment"
 response-schema = "ibd-treatment-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1
+
+[[task]]
+name = "surgery"
+response-schema = "ibd-surgery-annotation.json"
 # Version History:
 # ** 1 (2026-03): Initial version
 version = 1

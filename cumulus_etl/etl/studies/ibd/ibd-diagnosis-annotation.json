@@ -2,7 +2,7 @@
   "$defs": {
     "AgeAtDiagnosisMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -11,7 +11,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -35,7 +35,7 @@
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "AgeAtDiagnosisMention",
@@ -43,7 +43,7 @@
     },
     "DiagnosisDateEndoscopyMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -52,7 +52,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -71,12 +71,12 @@
             }
           ],
           "default": null,
-          "description": "What was the date of IBD diagnosis confirmed by endoscopy?",
+          "description": "What was the date of IBD diagnosis confirmed by endoscopy? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
           "title": "Ibd Diagnosis Date Endoscopy"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "DiagnosisDateEndoscopyMention",
@@ -84,7 +84,7 @@
     },
     "DiagnosisDateMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -93,7 +93,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -112,12 +112,12 @@
             }
           ],
           "default": null,
-          "description": "What was the date of IBD diagnosis?",
+          "description": "What was the date of IBD diagnosis? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
           "title": "Ibd Diagnosis Date"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "DiagnosisDateMention",
@@ -128,14 +128,14 @@
         "Crohn's disease",
         "Ulcerative Colitis",
         "IBD unclassified",
-        "Patient does not have a documented IBD diagnosis"
+        "None of the above (e.g. not mentioned, patient does not have IBD, etc)"
       ],
       "title": "IBDType",
       "type": "string"
     },
     "IBDTypeMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -144,7 +144,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -155,12 +155,12 @@
         },
         "ibd_type": {
           "$ref": "#/$defs/IBDType",
-          "default": "Patient does not have a documented IBD diagnosis",
+          "default": "None of the above (e.g. not mentioned, patient does not have IBD, etc)",
           "description": "Which subtype of inflammatory bowel disease (IBD) is documented for this patient?"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "IBDTypeMention",

@@ -7,14 +7,14 @@
         "B3: penetrating",
         "B2B3: both penetrating and stricturing disease, either at the same or different times",
         "Unknown/unclear",
-        "Patient does not have a diagnosis of Crohn's disease (CD)"
+        "None of the above (e.g. not mentioned, patient does not have CD, etc)"
       ],
       "title": "CDParisBehaviorExclusive",
       "type": "string"
     },
     "CDParisBehaviorExclusiveMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -23,7 +23,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -34,12 +34,12 @@
         },
         "behavior": {
           "$ref": "#/$defs/CDParisBehaviorExclusive",
-          "default": "Patient does not have a diagnosis of Crohn's disease (CD)",
+          "default": "None of the above (e.g. not mentioned, patient does not have CD, etc)",
           "description": "What was the Crohn's disease (CD) behavior using the Paris classification?"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "CDParisBehaviorExclusiveMention",
@@ -47,7 +47,7 @@
     },
     "CDParisBehaviorPerianalModifierMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -56,7 +56,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -73,7 +73,7 @@
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "CDParisBehaviorPerianalModifierMention",
@@ -87,14 +87,14 @@
         "L3: ileocolonic",
         "Other location",
         "Unknown/unclear location",
-        "Patient does not have a diagnosis of Crohn's disease (CD)"
+        "None of the above (e.g. not mentioned, patient does not have CD, etc)"
       ],
       "title": "CDParisLocationExclusive",
       "type": "string"
     },
     "CDParisLocationExclusiveMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -103,7 +103,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -114,12 +114,12 @@
         },
         "location": {
           "$ref": "#/$defs/CDParisLocationExclusive",
-          "default": "Patient does not have a diagnosis of Crohn's disease (CD)",
+          "default": "None of the above (e.g. not mentioned, patient does not have CD, etc)",
           "description": "What is the Crohn's disease (CD) location using the Paris classification ?"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "CDParisLocationExclusiveMention",
@@ -127,7 +127,7 @@
     },
     "CDParisLocationL4aMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -136,7 +136,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -153,7 +153,7 @@
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "CDParisLocationL4aMention",
@@ -161,7 +161,7 @@
     },
     "CDParisLocationL4bMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -170,7 +170,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -187,85 +187,10 @@
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "CDParisLocationL4bMention",
-      "type": "object"
-    },
-    "GeneticCause": {
-      "enum": [
-        "Confirmed pathogenic variant",
-        "Likely or suspected pathogenic variant",
-        "None of the above"
-      ],
-      "title": "GeneticCause",
-      "type": "string"
-    },
-    "MonogenicPrimaryMention": {
-      "properties": {
-        "is_present": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Is Present"
-        },
-        "spans": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Spans",
-          "type": "array"
-        },
-        "ibd_monogenic": {
-          "$ref": "#/$defs/GeneticCause",
-          "default": "None of the above",
-          "description": "Was there a documented genetic cause of IBD?"
-        }
-      },
-      "required": [
-        "is_present",
-        "spans"
-      ],
-      "title": "MonogenicPrimaryMention",
-      "type": "object"
-    },
-    "MonogenicSecondaryMention": {
-      "properties": {
-        "is_present": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Is Present"
-        },
-        "spans": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Spans",
-          "type": "array"
-        },
-        "ibd_monogenic_secondary": {
-          "$ref": "#/$defs/GeneticCause",
-          "default": "None of the above",
-          "description": "Was IBD documented as secondary to a monogenic cause?"
-        }
-      },
-      "required": [
-        "is_present",
-        "spans"
-      ],
-      "title": "MonogenicSecondaryMention",
       "type": "object"
     },
     "UCParisLocation": {
@@ -275,14 +200,14 @@
         "E3: extensive (hepatic flexure distally)",
         "E4: pancolitis (proximal to hepatic flexure)",
         "Unknown/unclear",
-        "Patient does not have a diagnosis of UC/IBDU"
+        "None of the above (e.g. not mentioned, patient does not have UC, etc)"
       ],
       "title": "UCParisLocation",
       "type": "string"
     },
     "UCParisLocationMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -291,7 +216,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -302,12 +227,12 @@
         },
         "location": {
           "$ref": "#/$defs/UCParisLocation",
-          "default": "Patient does not have a diagnosis of UC/IBDU",
+          "default": "None of the above (e.g. not mentioned, patient does not have UC, etc)",
           "description": "What was the ulcerative colitis (UC) Paris classification location?"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "UCParisLocationMention",
@@ -318,14 +243,14 @@
         "S0: never severe",
         "S1: ever severe (PUCAI >/= 65)",
         "Unknown/unclear",
-        "Patient does not have a diagnosis of UC/IBDU"
+        "None of the above (e.g. not mentioned, patient does not have UC, etc)"
       ],
       "title": "UCParisSeverity",
       "type": "string"
     },
     "UCParisSeverityMention": {
       "properties": {
-        "is_present": {
+        "has_mention": {
           "anyOf": [
             {
               "type": "boolean"
@@ -334,7 +259,7 @@
               "type": "null"
             }
           ],
-          "title": "Is Present"
+          "title": "Has Mention"
         },
         "spans": {
           "items": {
@@ -345,19 +270,19 @@
         },
         "severity": {
           "$ref": "#/$defs/UCParisSeverity",
-          "default": "Patient does not have a diagnosis of UC/IBDU",
+          "default": "None of the above (e.g. not mentioned, patient does not have UC, etc)",
           "description": "What was the ulcerative colitis (UC) Paris classification severity"
         }
       },
       "required": [
-        "is_present",
+        "has_mention",
         "spans"
       ],
       "title": "UCParisSeverityMention",
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of irritable bowel disorder observations \nfound in a patient's chart, related to specific diagnosis details like \nParis classification and genetic findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "An object-model for annotations of irritable bowel disorder observations \nfound in a patient's chart, related to Paris classification.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
     "cd_paris_location_exclusive_mention": {
       "$ref": "#/$defs/CDParisLocationExclusiveMention"
@@ -379,12 +304,6 @@
     },
     "uc_paris_severity_mention": {
       "$ref": "#/$defs/UCParisSeverityMention"
-    },
-    "monogenic_primary_mention": {
-      "$ref": "#/$defs/MonogenicPrimaryMention"
-    },
-    "monogenic_secondary_mention": {
-      "$ref": "#/$defs/MonogenicSecondaryMention"
     }
   },
   "required": [
@@ -394,10 +313,8 @@
     "cd_paris_behavior_exclusive_mention",
     "cd_paris_behavior_perianal_modifier_mention",
     "uc_paris_location_mention",
-    "uc_paris_severity_mention",
-    "monogenic_primary_mention",
-    "monogenic_secondary_mention"
+    "uc_paris_severity_mention"
   ],
-  "title": "IbdSpecificDiagnosisAnnotation",
+  "title": "IbdParisClassificationAnnotation",
   "type": "object"
 }
