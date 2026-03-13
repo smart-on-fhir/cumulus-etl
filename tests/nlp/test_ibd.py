@@ -6,7 +6,6 @@ from collections.abc import Callable
 from typing import Any, ClassVar
 
 import ddt
-from inscriptis import annotation
 import pydantic
 
 from cumulus_etl.nlp.models import OpenAIProvider
@@ -58,10 +57,6 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
         }
         content.update(kwargs)
         return cls.ibd_diagnosis_annotation_model().model_validate(content)
-
-    @classmethod
-    def ibd_diagnosis_annotation_model(cls):
-        return cls.load_pydantic_model("ibd/ibd-diagnosis-annotation.json")
 
     # - ibd-genetic-findings-annotation.json
     @classmethod
