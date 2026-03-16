@@ -36,11 +36,12 @@ def get_classes_from_module(module) -> list[type[AnyTask]]:
 def get_nlp_tasks() -> list[type[AnyTask]]:
     study_root = os.path.dirname(studies.__file__)
     return [
+        # Keep these sorted alphabetically
         *get_classes_from_module(covid_symptom),
         *nlp_task.parse_nlp_config("example_nlp", f"{study_root}/example/tasks.toml"),
         *nlp_task.parse_nlp_config("glioma", f"{study_root}/glioma/tasks.toml"),
-        *nlp_task.parse_nlp_config("irae", f"{study_root}/irae/tasks.toml"),
         *nlp_task.parse_nlp_config("ibd", f"{study_root}/ibd/tasks.toml"),
+        *nlp_task.parse_nlp_config("irae", f"{study_root}/irae/tasks.toml"),
     ]
 
 
