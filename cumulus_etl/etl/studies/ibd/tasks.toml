@@ -1,0 +1,69 @@
+[shared]
+system-prompt = """
+You are a clinical chart reviewer for an IBD (irritable bowel disease) outcomes study.
+Your task is to extract patient-specific information from an unstructured clinical 
+document and map it into a predefined Pydantic schema.
+
+Core Rules:
+1. Base all assertions ONLY on patient-specific information in the clinical document.
+   - Never negate or exclude information just because it is not mentioned.
+   - Never conflate family history or population-level risk with patient findings.
+   - Do not count past medical history, prior episodes, or family history.
+   - Spans provided should ALWAYS be verbatim.
+2. Do not invent or infer facts beyond what is documented.
+3. Citing spans should be exact text from the clinical document, not paraphrased or shorthand.
+4. Answer patient outcomes with strongest available documented evidence. E.g.
+    BIOPSY_PROVEN > CONFIRMED > SUSPECTED > NONE_OF_THE_ABOVE.
+5. Always produce structured JSON that conforms to the Pydantic schema provided below.
+
+Pydantic Schema:
+%JSON-SCHEMA%
+"""
+
+user-prompt = """
+Evaluate the following clinical document for IBD variables and outcomes.
+Here is the clinical document for you to analyze:
+
+%CLINICAL-NOTE%
+"""
+
+models = [
+    "claude-sonnet45",
+    "gpt5",
+    "gpt-oss-120b",
+]
+
+[[task]]
+name = "diagnosis"
+response-schema = "ibd-diagnosis-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1
+
+[[task]]
+name = "genetic_findings"
+response-schema = "ibd-genetic-findings-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1
+
+[[task]]
+name = "paris_classification"
+response-schema = "ibd-paris-classification-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1
+
+[[task]]
+name = "treatment"
+response-schema = "ibd-treatment-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1
+
+[[task]]
+name = "surgery"
+response-schema = "ibd-surgery-annotation.json"
+# Version History:
+# ** 1 (2026-03): Initial version
+version = 1

@@ -1,0 +1,193 @@
+{
+  "$defs": {
+    "AgeAtDiagnosisMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "age_at_diagnosis_months": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How many months old was the patient at IBD diagnosis?",
+          "title": "Age At Diagnosis Months"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "AgeAtDiagnosisMention",
+      "type": "object"
+    },
+    "DiagnosisDateEndoscopyMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_diagnosis_date_endoscopy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What was the date of IBD diagnosis confirmed by endoscopy? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
+          "title": "Ibd Diagnosis Date Endoscopy"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "DiagnosisDateEndoscopyMention",
+      "type": "object"
+    },
+    "DiagnosisDateMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_diagnosis_date": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What was the date of IBD diagnosis? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
+          "title": "Ibd Diagnosis Date"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "DiagnosisDateMention",
+      "type": "object"
+    },
+    "IBDType": {
+      "enum": [
+        "Crohn's disease",
+        "Ulcerative Colitis",
+        "IBD unclassified",
+        "None of the above (e.g. not mentioned, patient does not have IBD, etc)"
+      ],
+      "title": "IBDType",
+      "type": "string"
+    },
+    "IBDTypeMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_type": {
+          "$ref": "#/$defs/IBDType",
+          "default": "None of the above (e.g. not mentioned, patient does not have IBD, etc)",
+          "description": "Which subtype of inflammatory bowel disease (IBD) is documented for this patient?"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "IBDTypeMention",
+      "type": "object"
+    }
+  },
+  "description": "An object-model for annotations of irritable bowel disorder observations \nfound in a patient's chart, related to initial diagnosis.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "properties": {
+    "ibd_type_mention": {
+      "$ref": "#/$defs/IBDTypeMention"
+    },
+    "age_at_diagnosis_mention": {
+      "$ref": "#/$defs/AgeAtDiagnosisMention"
+    },
+    "diagnosis_date_mention": {
+      "$ref": "#/$defs/DiagnosisDateMention"
+    },
+    "diagnosis_date_endoscopy_mention": {
+      "$ref": "#/$defs/DiagnosisDateEndoscopyMention"
+    }
+  },
+  "required": [
+    "ibd_type_mention",
+    "age_at_diagnosis_mention",
+    "diagnosis_date_mention",
+    "diagnosis_date_endoscopy_mention"
+  ],
+  "title": "IbdDiagnosisAnnotation",
+  "type": "object"
+}

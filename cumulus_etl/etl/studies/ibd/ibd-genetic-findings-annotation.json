@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "GeneticCause": {
+      "enum": [
+        "Confirmed pathogenic variant",
+        "Likely or suspected pathogenic variant",
+        "None of the above"
+      ],
+      "title": "GeneticCause",
+      "type": "string"
+    },
+    "MonogenicPrimaryMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_monogenic": {
+          "$ref": "#/$defs/GeneticCause",
+          "default": "None of the above",
+          "description": "Was there a documented genetic cause of IBD?"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MonogenicPrimaryMention",
+      "type": "object"
+    },
+    "MonogenicSecondaryMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_monogenic_secondary": {
+          "$ref": "#/$defs/GeneticCause",
+          "default": "None of the above",
+          "description": "Was IBD documented as secondary to a monogenic cause?"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MonogenicSecondaryMention",
+      "type": "object"
+    }
+  },
+  "description": "An object-model for annotations of irritable bowel disorder observations \nfound in a patient's chart, related to genetic findings related to IBD.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "properties": {
+    "monogenic_primary_mention": {
+      "$ref": "#/$defs/MonogenicPrimaryMention"
+    },
+    "monogenic_secondary_mention": {
+      "$ref": "#/$defs/MonogenicSecondaryMention"
+    }
+  },
+  "required": [
+    "monogenic_primary_mention",
+    "monogenic_secondary_mention"
+  ],
+  "title": "IbdGeneticFindingsAnnotation",
+  "type": "object"
+}
