@@ -63,7 +63,7 @@ language = "val"
 data = "mask-note"
 url = "mask-note"
 size = "val"
-hash = "val"
+# skip hash (low research value, but *could* be used to reverse-validate notes)
 # skip title
 creation = "val"
 
