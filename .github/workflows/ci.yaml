@@ -45,7 +45,7 @@ jobs:
 
       - name: Test with pytest
         run: |
-          python -m pytest -n auto --cov=cumulus_etl --cov-report=xml
+          python -m pytest --cov=cumulus_etl --cov-report=xml
 
       - name: Log missing coverage
         run: |
