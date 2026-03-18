@@ -31,6 +31,13 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="run tasks even if their resources are not present",
     )
+    parser.add_argument(
+        "--no-table-optimization",
+        dest="table_optimization",
+        action="store_false",
+        help="skips preparing output tables for faster SQL queries, "
+        "helpful if you are doing lots of ETL runs in a row and want to save some time",
+    )
     cli_utils.add_task_selection(parser)
 
     cli_utils.add_aws(parser)
@@ -123,6 +130,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         deleted_ids=loader_results.deleted_ids,
         export_group_name=export_group,
         export_datetime=export_datetime,
+        format_kwargs={"optimize_table": args.table_optimization},
     )
     common.write_json(config.path_config(), config.as_json(), indent=4)
 

@@ -30,6 +30,7 @@ class Format(abc.ABC):
         group_field: str | None = None,
         uniqueness_fields: Collection[str] | None = None,
         update_existing: bool = True,
+        optimize_table: bool = True,
     ):
         """
         Initialize a new Format class
@@ -41,12 +42,14 @@ class Format(abc.ABC):
          See the comments for the EtlTask.group_field class attribute for more context.
         :param uniqueness_fields: a set of fields that together identify a unique row (defaults to {"id"})
         :param update_existing: whether to update existing rows or (if False) to ignore them and leave them in place
+        :param optimize_table: whether to take extra time to optimize the output tables
         """
         self.root = root
         self.dbname = dbname
         self.group_field = group_field
         self.uniqueness_fields = uniqueness_fields or {"id"}
         self.update_existing = update_existing
+        self.optimize_table = optimize_table
 
     def write_records(self, batch: Batch) -> bool:
         """
