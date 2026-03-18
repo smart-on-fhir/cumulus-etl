@@ -344,6 +344,14 @@ class TestEtlJobFlow(BaseEtlSimple):
         with self.assert_fatal_exit(errors.FEATURE_REMOVED):
             await self.run_etl(flag)
 
+    async def test_passes_on_table_optimization_arg(self):
+        with (
+            self.assertRaises(RuntimeError),
+            mock.patch("cumulus_etl.etl.pipeline.etl_job", side_effect=RuntimeError) as mock_etl,
+        ):
+            await self.run_etl("--no-table-optimization", tasks=["patient"])
+        self.assertEqual(mock_etl.call_args[0][0]._format_kwargs, {"optimize_table": False})
+
 
 class TestEtlJobConfig(BaseEtlSimple):
     """Test case for the job config logging data"""

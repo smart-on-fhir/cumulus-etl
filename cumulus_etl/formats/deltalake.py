@@ -154,13 +154,15 @@ class DeltaLakeFormat(Format):
 
     def finalize(self) -> None:
         """Performs any necessary cleanup after all batches have been written"""
+        if not self.optimize_table:
+            return
+
         table = self._load_table()
         if not table:
             return
 
         try:
             table.optimize().executeCompaction()  # pool small files for better query performance
-            table.generate("symlink_format_manifest")
             table.vacuum()  # Clean up unused data files older than retention policy (default 7 days)
         except Exception:
             logging.exception("Could not finalize Delta Lake table %s", self.dbname)

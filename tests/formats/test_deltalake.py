@@ -445,8 +445,13 @@ class TestDeltaLake(utils.AsyncTestCase):
         self.assertEqual(
             mock_table.optimize.return_value.executeCompaction.call_args_list, [mock.call()]
         )
-        self.assertEqual(mock_table.generate.call_args_list, [mock.call("symlink_format_manifest")])
         self.assertEqual(mock_table.vacuum.call_args_list, [mock.call()])
+
+    def test_finalize_skip_optimizations(self):
+        deltalake = DeltaLakeFormat(self.root, "patient", optimize_table=False)
+        with mock.patch("delta.DeltaTable.forPath", side_effect=ValueError):
+            # won't blow up because we don't try to load table - finalize is a no-op
+            deltalake.finalize()
 
     def test_finalize_cannot_load_table(self):
         """Verify that we gracefully handle failing to read an existing table when finalizing."""
