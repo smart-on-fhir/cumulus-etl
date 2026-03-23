@@ -116,7 +116,33 @@
       "title": "AntiTNFResponseMention",
       "type": "object"
     },
+    "RxAnnotation": {
+      "description": "A collection of medication-related mentions for a single medication instance.\nIncludes mentions of medication class, status, treatment phase, and response.",
+      "properties": {
+        "rx_class_mention": {
+          "$ref": "#/$defs/RxClassMention"
+        },
+        "rx_status_mention": {
+          "$ref": "#/$defs/RxStatusMention"
+        },
+        "rx_treatment_phase_mention": {
+          "$ref": "#/$defs/RxTreatmentPhaseMention"
+        },
+        "rx_response_mention": {
+          "$ref": "#/$defs/RxResponseMention"
+        }
+      },
+      "required": [
+        "rx_class_mention",
+        "rx_status_mention",
+        "rx_treatment_phase_mention",
+        "rx_response_mention"
+      ],
+      "title": "RxAnnotation",
+      "type": "object"
+    },
     "RxClass": {
+      "description": "IBD Medication Class",
       "enum": [
         "Anti-TNF",
         "Anti-Interleukin",
@@ -204,6 +230,54 @@
       "title": "RxEffectivenessMention",
       "type": "object"
     },
+    "RxResponse": {
+      "enum": [
+        "COMPLETE_RESPONSE",
+        "PARTIAL_RESPONSE",
+        "MINOR_RESPONSE",
+        "STABLE_DISEASE",
+        "PROGRESSIVE_DISEASE",
+        "MIXED_RESPONSE",
+        "PSEUDOPROGRESSION",
+        "NOT_EVALUABLE",
+        "None of the above (e.g. response not mentioned, something other than what is listed, etc)"
+      ],
+      "title": "RxResponse",
+      "type": "string"
+    },
+    "RxResponseMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_response": {
+          "$ref": "#/$defs/RxResponse",
+          "default": "None of the above (e.g. response not mentioned, something other than what is listed, etc)",
+          "description": "What, if known, is the patient's response to this medication?"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "RxResponseMention",
+      "type": "object"
+    },
     "RxStartDateMention": {
       "properties": {
         "has_mention": {
@@ -243,6 +317,53 @@
         "spans"
       ],
       "title": "RxStartDateMention",
+      "type": "object"
+    },
+    "RxStatus": {
+      "description": "Medication Status (including Intent because chart review is NOT always identical to Med Request)\nhttps://build.fhir.org/valueset-medicationrequest-status.html\nhttps://build.fhir.org/valueset-medicationrequest-intent.html",
+      "enum": [
+        "Medication order is active (currently prescribed and intended for ongoing use).",
+        "Medication is planned/ordered/prescribed but therapy has not yet started.",
+        "Medication course is finished (all doses given or intended duration completed).",
+        "Medication was stopped or permanently discontinued before completion.",
+        "Medication order was canceled/withdrawn before any doses were administered.",
+        "Medication is temporarily paused (on-hold, suspended, or interrupted).",
+        "None of the above (e.g. specific status not mentioned, status not captured by these options, etc)"
+      ],
+      "title": "RxStatus",
+      "type": "string"
+    },
+    "RxStatusMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_status": {
+          "$ref": "#/$defs/RxStatus",
+          "default": "None of the above (e.g. specific status not mentioned, status not captured by these options, etc)",
+          "description": "What, if known, is the status of this medication?"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "RxStatusMention",
       "type": "object"
     },
     "RxTNFStartDateMention": {
@@ -285,6 +406,50 @@
       ],
       "title": "RxTNFStartDateMention",
       "type": "object"
+    },
+    "RxTreatmentPhase": {
+      "description": "Treatment Phase",
+      "enum": [
+        "Induction therapy",
+        "Maintenance therapy",
+        "Rescue therapy",
+        "None of the above (e.g. specific phase not mentioned, phase not captured by these options, etc)"
+      ],
+      "title": "RxTreatmentPhase",
+      "type": "string"
+    },
+    "RxTreatmentPhaseMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rx_treatment_phase": {
+          "$ref": "#/$defs/RxTreatmentPhase",
+          "default": "None of the above (e.g. specific phase not mentioned, phase not captured by these options, etc)",
+          "description": "Which, if any, of these IBD treatment phases is the patient in?"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "RxTreatmentPhaseMention",
+      "type": "object"
     }
   },
   "description": "An object-model for annotations of irritable bowel disorder observations \nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
@@ -295,12 +460,12 @@
     "rx_tnf_start_date_mention": {
       "$ref": "#/$defs/RxTNFStartDateMention"
     },
-    "rx_class_mentions": {
-      "description": "A list of mentions of which IBD medication class(es) the patient is taking currently.",
+    "rx_mentions": {
+      "description": "A list of which IBD medications patient is taking currently.",
       "items": {
-        "$ref": "#/$defs/RxClassMention"
+        "$ref": "#/$defs/RxAnnotation"
       },
-      "title": "Rx Class Mentions",
+      "title": "Rx Mentions",
       "type": "array"
     },
     "anti_tnf_response_mention": {
