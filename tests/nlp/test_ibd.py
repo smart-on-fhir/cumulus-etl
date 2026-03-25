@@ -129,7 +129,7 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
         content = {
             "rx_start_date_mention": {"has_mention": False, "spans": []},
             "rx_tnf_start_date_mention": {"has_mention": False, "spans": []},
-            "rx_mentions": [],
+            "rx_annotations": [],
             "anti_tnf_response_mention": {
                 "has_mention": False,
                 "spans": [],

@@ -119,6 +119,19 @@
     "RxAnnotation": {
       "description": "A collection of medication-related mentions for a single medication instance.\nIncludes mentions of medication class, status, treatment phase, and response.",
       "properties": {
+        "rx_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The name of the medication mentioned in the chart. This should be a string, and can include generic or brand names, as well as abbreviations. If multiple medications are mentioned in the same context, create separate RxAnnotation instances for each medication with their respective details.",
+          "title": "Rx Name"
+        },
         "rx_class_mention": {
           "$ref": "#/$defs/RxClassMention"
         },
@@ -460,12 +473,12 @@
     "rx_tnf_start_date_mention": {
       "$ref": "#/$defs/RxTNFStartDateMention"
     },
-    "rx_mentions": {
+    "rx_annotations": {
       "description": "A list of which IBD medications patient is taking currently.",
       "items": {
         "$ref": "#/$defs/RxAnnotation"
       },
-      "title": "Rx Mentions",
+      "title": "Rx Annotations",
       "type": "array"
     },
     "anti_tnf_response_mention": {
