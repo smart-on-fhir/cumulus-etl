@@ -76,6 +76,7 @@ def get_default_tasks() -> list[type[AnyTask]]:
         basic_tasks.PractitionerRoleTask,
         basic_tasks.ProcedureTask,
         basic_tasks.ServiceRequestTask,
+        basic_tasks.SpecimenTask,
     ]
 
 

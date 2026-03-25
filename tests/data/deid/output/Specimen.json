@@ -1,0 +1,71 @@
+{
+  "resourceType": "Specimen",
+  "id": "bb0c4048a34d2b0f23bf676222d0d9c30dcdfabe0c2b414b44d81ae5eff8fdc4",
+
+  "status": "available",
+  "type": {
+    "coding": [
+      {
+        "system": "http://terminology.hl7.org/CodeSystem/v2-0487",
+        "code": "RANDU",
+        "display": "Urine, Random"
+      }
+    ]
+  },
+  "subject": {
+    "reference": "Patient/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
+  },
+  "receivedTime": "2015-08-18T07:03:00Z",
+  "parent": {"reference": "Specimen/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"},
+  "request": {"reference": "ServiceRequest/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"},
+  "collection": {
+    "collector": {
+      "reference": "Practitioner/ce7ebcf05cd35382c9a6ca57f9b702628e39cb70e29658fed5fe8796e6f91b83"
+    },
+    "collectedDateTime": "2015-08-18T07:03:00Z",
+    "collectedPeriod": {"start": "2015-08-18T07:03:00Z", "end": "2015-08-18T07:04:00Z"},
+    "duration": {"value": 1},
+    "quantity": {"value": 1},
+    "method": {"text": "kept"},
+    "bodySite": {"text": "kept"},
+    "fastingStatusCodeableConcept": {"text": "kept"},
+    "fastingStatusDuration": {"value": 1}
+  },
+  "processing": [
+    {
+      "procedure": {
+        "coding": [
+          {
+            "system": "http://terminology.hl7.org/CodeSystem/v2-0373",
+            "code": "ACID"
+          }
+        ]
+      },
+      "additive": [
+        {
+          "reference": "Substance/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"
+        }
+      ],
+      "timeDateTime": "2015-08-18T08:10:00Z",
+      "timePeriod": {"start": "2015-08-18T08:10:00Z", "end": "2015-08-18T08:11:00Z"}
+    }
+  ],
+  "container": [
+    {
+      "type": {
+        "text": "Non-sterile specimen container"
+      },
+      "capacity": {
+        "value": 50,
+        "unit": "mls"
+      },
+      "specimenQuantity": {
+        "value": 10,
+        "unit": "mls"
+      },
+      "additiveCodeableConcept": {"text": "kept"},
+      "additiveReference": {"reference": "Substance/b3c8bdc2cad23fa630ca835f95fdaeb1dc1f4e80909efb85f74fa55c161487b0"}
+    }
+  ],
+  "condition": [{"text": "kept"}]
+}

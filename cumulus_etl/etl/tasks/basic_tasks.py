@@ -130,3 +130,8 @@ class ProcedureTask(tasks.EtlTask):
 class ServiceRequestTask(tasks.EtlTask):
     name: ClassVar = "servicerequest"
     resource: ClassVar = "ServiceRequest"
+
+
+class SpecimenTask(tasks.EtlTask):
+    name = "specimen"
+    resource = "Specimen"
