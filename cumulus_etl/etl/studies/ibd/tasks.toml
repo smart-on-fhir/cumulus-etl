@@ -58,8 +58,9 @@ version = 1
 name = "treatment"
 response-schema = "ibd-treatment-annotation.json"
 # Version History:
+# ** 2 (2026-03-23): New medication model
 # ** 1 (2026-03): Initial version
-version = 1
+version = 2
 
 [[task]]
 name = "surgery"
