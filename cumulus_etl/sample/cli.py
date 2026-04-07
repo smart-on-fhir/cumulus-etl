@@ -7,9 +7,10 @@ import random
 import sys
 from collections.abc import AsyncIterable, Iterable, Iterator
 
+import cumulus_fhir_support as cfs
 import rich
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, nlp, store
 
 
 class MultiResourceWriter:
@@ -143,7 +144,7 @@ async def scan_notes(
 ) -> Iterator[tuple[str, int]]:
     """Returns (path, byte offset) for each file that matches our criteria"""
     details = common.read_resource_ndjson_with_details(root_input, res_types)
-    filter_func = nlp.get_note_filter(args)
+    filter_func = nlp.get_note_filter(args, codebook)
     seen_refs = set()
 
     total_count = 0
@@ -154,15 +155,11 @@ async def scan_notes(
         total_count += 1
 
         # First, make sure it has available text. We only want to sample notes with inlined text.
-        try:
-            attachment = fhir.get_clinical_note_attachment(resource)
-            if attachment.get("data") is None:
-                continue
-        except Exception:  # noqa: S112
+        if not cfs.note_res_has_text(resource):
             continue
 
         text_count += 1
-        if not filter_func or await filter_func(codebook, resource):
+        if filter_func(resource):
             # Skip duplicate input notes (this can take a fair bit of memory for big input folders,
             # but duplicate notes _do_ happen and we don't want to sample twice or bias results)
             note_ref_tuple = (resource["resourceType"], resource["id"])

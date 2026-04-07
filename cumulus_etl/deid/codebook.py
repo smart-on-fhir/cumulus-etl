@@ -1,11 +1,11 @@
 """Codebook that stores the mappings between real and fake IDs"""
 
 import binascii
-import hmac
 import os
 import secrets
 import uuid
-from collections.abc import Awaitable, Callable
+
+import cumulus_fhir_support as cfs
 
 from cumulus_etl import common
 
@@ -49,6 +49,9 @@ class Codebook:
 
     def get_codebook_id(self) -> str:
         return self.db.get_codebook_id()
+
+    def get_id_salt(self) -> bytes:
+        return self.db.id_salt()
 
     def fake_id(self, resource_type: str | None, real_id: str, caching_allowed: bool = True) -> str:
         """
@@ -216,10 +219,9 @@ class CodebookDB:
         :param real_id: resource ID
         :return: hashed ID, using the saved salt
         """
-        # This will be exactly 64 characters long, the maximum FHIR id length
-        return hmac.new(self._id_salt(), digestmod="sha256", msg=real_id.encode("utf8")).hexdigest()
+        return cfs.anon_id(real_id, self.id_salt())
 
-    def _id_salt(self) -> bytes:
+    def id_salt(self) -> bytes:
         """Returns the saved salt or creates and saves one if needed"""
         salt = self.settings["id_salt"]
         # revert from doubled hex 64-char string representation back to just 32 bytes
@@ -274,7 +276,3 @@ class CodebookDB:
             saved = True
 
         return saved
-
-
-# Used for filtering note resource types (like DocRefs or DxReports)
-FilterFunc = Callable[[Codebook, dict], Awaitable[bool]] | None

@@ -11,6 +11,7 @@ Some differences:
 import argparse
 import os
 
+import cumulus_fhir_support as cfs
 import pyathena
 import rich
 import rich.prompt
@@ -64,13 +65,11 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
     )
 
 
-async def check_input_size(
-    codebook: deid.Codebook, folder: str, res_filter: deid.FilterFunc
-) -> int:
+async def check_input_size(codebook: deid.Codebook, folder: str, res_filter: cfs.NoteFilter) -> int:
     root = store.Root(folder)
     count = 0
     for resource in common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"}):
-        if not res_filter or await res_filter(codebook, resource):
+        if res_filter(resource):
             count += 1
     return count
 
@@ -233,7 +232,7 @@ async def nlp_main(args: argparse.Namespace) -> None:
         )
 
     # Let the user know how many documents got selected, so there are no big cost surprises.
-    res_filter = nlp.get_note_filter(args)
+    res_filter = nlp.get_note_filter(args, scrubber.codebook)
     count = await check_input_size(scrubber.codebook, loader_results.path, res_filter)
     response = cli_utils.prompt(f"Run NLP on {count:,} notes?", override=args.allow_large_selection)
     if response in cli_utils.PromptResponse.SKIPPED:

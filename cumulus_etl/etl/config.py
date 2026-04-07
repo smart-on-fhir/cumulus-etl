@@ -4,7 +4,9 @@ import datetime
 import os
 from socket import gethostname
 
-from cumulus_etl import common, deid, errors, formats, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import common, errors, formats, store
 
 
 class JobConfig:
@@ -36,7 +38,7 @@ class JobConfig:
         export_datetime: datetime.datetime | None = None,
         export_url: str | None = None,
         deleted_ids: dict[str, set[str]] | None = None,
-        resource_filter: deid.FilterFunc = None,
+        resource_filter: cfs.NoteFilter | None = None,
         format_kwargs: dict | None = None,
     ):
         self.dir_input_orig = dir_input_orig

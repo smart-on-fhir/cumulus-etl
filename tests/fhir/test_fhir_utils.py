@@ -1,6 +1,5 @@
 """Tests for fhir_utils.py"""
 
-import base64
 import datetime
 
 import ddt
@@ -135,71 +134,9 @@ class TestUrlParsing(utils.AsyncTestCase):
 class TestDocrefNotesUtils(utils.AsyncTestCase):
     """Tests for the utility methods dealing with document reference clinical notes"""
 
-    def make_docref(self, docref_id: str, mimetype: str, note: str) -> dict:
-        return {
-            "id": docref_id,
-            "resourceType": "DocumentReference",
-            "content": [
-                {
-                    "attachment": {
-                        "contentType": mimetype,
-                        "data": base64.standard_b64encode(note.encode("utf8")).decode("ascii"),
-                    },
-                },
-            ],
-        }
-
-    @ddt.data(
-        ("text/html", "<html><body>He<b>llooooo</b></html>", "Hellooooo"),  # strips html
-        (  # strips xhtml
-            "application/xhtml+xml",
-            '<!DOCTYPE html>\n<html xmlns="http://www.w3.org/1999/xhtml"><html><body>x<b>html!</b></html>',
-            "xhtml!",
-        ),
-        ("text/plain", "What¿up", "What up"),  # strips ¿
-    )
-    @ddt.unpack
-    async def test_docref_note_conversions(self, mimetype, incoming_note, expected_note):
-        docref = self.make_docref("1", mimetype, incoming_note)
-        resulting_note = fhir.get_clinical_note(docref)
-        self.assertEqual(resulting_note, expected_note)
-
-    async def test_handles_no_data(self):
-        with self.assertRaisesRegex(ValueError, "No data or url field present"):
-            fhir.get_clinical_note(
-                {
-                    "id": "no data",
-                    "resourceType": "DocumentReference",
-                    "content": [{"attachment": {"contentType": "text/plain"}}],
-                },
-            )
-
-    async def test_handles_bad_resource_type(self):
-        with self.assertRaisesRegex(ValueError, "Patient is not a supported clinical note type."):
-            fhir.get_clinical_note(
-                {
-                    "id": "nope",
-                    "resourceType": "Patient",
-                },
-            )
-
-    async def test_url_only(self):
-        with self.assertRaises(fhir.RemoteAttachment):
-            fhir.get_clinical_note(
-                {
-                    "id": "no data",
-                    "resourceType": "DocumentReference",
-                    "content": [{"attachment": {"contentType": "text/plain", "url": "external"}}],
-                },
-            )
-
     def test_role_info_wrong_type(self):
         with self.assertRaisesRegex(ValueError, "Condition is not a supported clinical note type"):
             fhir.get_clinical_note_role_info({"resourceType": "Condition"}, "/tmp/nope")
-
-    async def test_handles_bad_mimetype(self):
-        with self.assertRaisesRegex(ValueError, "No textual mimetype found"):
-            fhir.get_clinical_note(self.make_docref("1", "application/pdf", ""))
 
     def test_role_info_bad_person_link_ignored(self):
         info = fhir.get_clinical_note_role_info(

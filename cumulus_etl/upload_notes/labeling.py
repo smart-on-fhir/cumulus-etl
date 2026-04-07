@@ -3,6 +3,8 @@
 import argparse
 from collections.abc import Collection
 
+import cumulus_fhir_support as cfs
+
 from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.upload_notes import labelstudio
 
@@ -47,6 +49,20 @@ async def add_labels(
         _highlight_words(notes, args.highlight_by_word, args.highlight_by_regex)
 
 
+def _check_matches(
+    res_type: str, res_id: str, patient_id: str, refs: cfs.RefSet, *, codebook: deid.Codebook | None
+) -> set[tuple]:
+    # Refs will only have patients if there weren't other resource ID columns
+    if refs.has_type("Patient"):
+        res_type = "Patient"
+        res_id = patient_id
+
+    if codebook:
+        res_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
+
+    return refs.get_data_for_id(res_type, res_id)
+
+
 def _label_by_csv(
     codebook: deid.Codebook,
     notes: Collection[labelstudio.LabelStudioNote],
@@ -54,7 +70,7 @@ def _label_by_csv(
     *,
     is_anon: bool,
 ) -> None:
-    matcher = nlp.CsvMatcher(
+    refs = nlp.get_refs_from_csv(
         csv_file,
         is_anon=is_anon,
         extra_fields=[
@@ -66,10 +82,13 @@ def _label_by_csv(
         ],
     )
 
+    codebook = codebook if is_anon else None
+
     for note in notes:
+        patient_id = note.patient_id
         for ref, doc_span in note.doc_spans.items():
             res_type, res_id = ref.split("/", 1)
-            if matches := matcher.get_match(codebook, res_type, res_id, note.patient_id):
+            if matches := _check_matches(res_type, res_id, patient_id, refs, codebook=codebook):
                 for match in sorted(matches):
                     label = match[0]
                     span = match[1]

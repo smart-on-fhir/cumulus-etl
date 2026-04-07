@@ -14,12 +14,13 @@ import typing
 from collections.abc import AsyncGenerator, AsyncIterator, Callable
 from typing import ClassVar
 
+import cumulus_fhir_support as cfs
 import jambo
 import pyarrow
 import pydantic
 import rich.table
 
-from cumulus_etl import common, errors, feedback, fhir, nlp, store
+from cumulus_etl import common, errors, feedback, nlp, store
 from cumulus_etl.etl import tasks
 
 ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
@@ -114,14 +115,14 @@ class BaseNlpTask(tasks.EtlTask):
         warned_connection_error = False
         self.note_stats = NoteStats()  # reset stats in case we're running through notes again
 
-        note_filter = self.task_config.resource_filter or nlp.is_note_valid
+        note_filter = self.task_config.resource_filter or cfs.make_note_filter()
 
         for note in self.read_ndjson(progress=progress):
             self.note_stats.seen += 1
 
             orig_note = copy.deepcopy(note)
             can_process = (
-                await note_filter(self.scrubber.codebook, note)
+                note_filter(note)
                 and (doc_check is None or doc_check(note))
                 and self.scrubber.scrub_resource(note)
             )
@@ -135,8 +136,8 @@ class BaseNlpTask(tasks.EtlTask):
 
             self.note_stats.considered += 1
             try:
-                note_text = fhir.get_clinical_note(note)
-            except fhir.RemoteAttachment as exc:
+                note_text = cfs.get_text_from_note_res(note)
+            except cfs.RemoteAttachment as exc:
                 if not warned_connection_error:
                     # Only warn user about a misconfiguration once per task.
                     # It's not fatal because it might be intentional (partially inlined DocRefs

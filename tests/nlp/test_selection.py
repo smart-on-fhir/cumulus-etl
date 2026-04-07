@@ -115,7 +115,7 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
     async def test_uses_note_ids(self):
         """Confirm we ignore patient IDs if we have a subset already chosen for note IDs"""
         path = self.make_cohort_csv(
-            ["patient_id,docref_id,diagnosticreport_id", "pat1,doc1.1,dx3.1"]
+            ["patient_id,docref_id,diagnosticreport_id", "pat1,,dx3.1", "pat1,doc1.1,"]
         )
 
         self.mock_response()
@@ -302,12 +302,6 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
         self.assertIn("dx3.1", model_args["messages"][1]["content"])
         model_args = self.mock_create.call_args_list[1][1]
         self.assertIn("doc1.1", model_args["messages"][1]["content"])
-
-    @mock.patch("cumulus_etl.fhir.get_clinical_note")
-    async def test_search_error_ignored(self, mock_get):
-        mock_get.side_effect = ValueError
-        await self.run_etl("--select-by-word=doc2")
-        self.assertEqual(self.mock_create.call_count, 0)
 
     async def test_selection_count_prompt(self):
         # Pretend to be an interactive TTY
