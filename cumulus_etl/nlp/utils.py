@@ -6,32 +6,9 @@ import os
 from collections.abc import Callable
 from typing import TypeVar
 
-from cumulus_etl import common, deid, fhir, store
+from cumulus_etl import common, fhir, store
 
 Obj = TypeVar("Obj")
-
-
-async def is_note_valid(codebook: deid.Codebook, note: dict) -> bool:
-    """
-    Returns True if this note is not a draft or entered-in-error resource
-
-    i.e. if it's a good candidate for NLP
-    """
-    del codebook  # only passed in to look like a "resource_filter" callback
-
-    match note["resourceType"]:
-        case "DiagnosticReport":
-            valid_status_types = {"final", "amended", "corrected", "appended", "unknown", None}
-            return note.get("status") in valid_status_types
-
-        case "DocumentReference":
-            good_status = note.get("status") in {"current", None}  # status of DocRef itself
-            # docStatus is status of clinical note attachments
-            good_doc_status = note.get("docStatus") in {"final", "amended", None}
-            return good_status and good_doc_status
-
-        case _:  # pragma: no cover
-            return False  # pragma: no cover
 
 
 def get_note_info(note: dict) -> tuple[str, str, str]:

@@ -5,6 +5,8 @@ import dataclasses
 import datetime
 from collections.abc import Callable, Collection
 
+import cumulus_fhir_support as cfs
+
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
 from cumulus_etl.upload_notes import labeling, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
@@ -26,7 +28,7 @@ def init_checks(args: argparse.Namespace):
         )
 
 
-async def gather_resources(
+def gather_resources(
     root_input: store.Root,
     codebook: deid.Codebook,
     args: argparse.Namespace,
@@ -34,11 +36,10 @@ async def gather_resources(
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
 
-    note_filter = nlp.get_note_filter(args)
+    note_filter = nlp.get_note_filter(args, codebook)
 
-    return await selector.select_resources_from_files(
+    return selector.select_resources_from_files(
         root_input,
-        codebook,
         note_filter=note_filter,
         export_to=args.export_to,
     )
@@ -90,7 +91,7 @@ async def read_notes_from_ndjson(
         note_ref = f"{resource['resourceType']}/{resource['id']}"
 
         try:
-            text = fhir.get_clinical_note(resource)
+            text = cfs.get_text_from_note_res(resource)
         except Exception:
             print(f"Skipping {note_ref}: no text found.")
             continue
@@ -401,7 +402,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     print("Preparing metadata…")  # i.e. the codebook
 
     with deid.Codebook(args.dir_phi) as codebook:
-        ndjson_folder = await gather_resources(root_input, codebook, args)
+        ndjson_folder = gather_resources(root_input, codebook, args)
         notes = await read_notes_from_ndjson(
             ndjson_folder.name,
             codebook,

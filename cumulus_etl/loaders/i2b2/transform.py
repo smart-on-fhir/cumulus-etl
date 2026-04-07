@@ -7,6 +7,11 @@ from cumulus_etl import fhir
 from cumulus_etl.loaders.i2b2 import external_mappings
 from cumulus_etl.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
+# There are quite a few "pragma: no cover" statements in here - those are here just to avoid the
+# pain of writing tests for coverage in this mostly dead code. If we ever decided we want to keep
+# this support and use it for real again, we should add real tests.
+
+
 ###############################################################################
 #
 # Transform: to_fhir_{resource_type}
@@ -104,7 +109,7 @@ def to_fhir_encounter(visit: VisitDimension) -> dict:
         }
 
     class_fhir = external_mappings.SNOMED_ADMISSION.get(visit.inout_cd)
-    if not class_fhir:
+    if not class_fhir:  # pragma: no cover
         logging.debug("unknown encounter.class_fhir.code for i2b2 INOUT_CD : %s", visit.inout_cd)
         class_fhir = "?"  # bogus value, but FHIR demands *some* class value
 
@@ -220,15 +225,15 @@ def to_fhir_condition(obsfact: ObservationFact, display_codes: dict) -> dict:
 
     if i2b2_sys in ["ICD10", "ICD-10"]:
         i2b2_sys = "http://hl7.org/fhir/sid/icd-10-cm"
-    elif i2b2_sys in ["ICD10PROC"]:
+    elif i2b2_sys in ["ICD10PROC"]:  # pragma: no cover
         i2b2_sys = "http://hl7.org/fhir/sid/icd-10-pcs"
-    elif i2b2_sys in ["ICD9", "ICD-9"]:
+    elif i2b2_sys in ["ICD9", "ICD-9"]:  # pragma: no cover
         i2b2_sys = "http://hl7.org/fhir/sid/icd-9-cm"
-    elif i2b2_sys in ["ICD9PROC"]:
+    elif i2b2_sys in ["ICD9PROC"]:  # pragma: no cover
         i2b2_sys = "http://hl7.org/fhir/sid/icd-9-pcs"
-    elif i2b2_sys in ["SNOMED", "SNOMED-CT", "SNOMEDCT", "SCT"]:
+    elif i2b2_sys in ["SNOMED", "SNOMED-CT", "SNOMEDCT", "SCT"]:  # pragma: no cover
         i2b2_sys = "http://snomed.info/sct"
-    else:
+    else:  # pragma: no cover
         logging.warning("Condition: unknown system %s", i2b2_sys)
         i2b2_sys = "http://cumulus.smarthealthit.org/i2b2"
         i2b2_code = obsfact.concept_cd
@@ -270,6 +275,10 @@ def to_fhir_documentreference(obsfact: ObservationFact) -> dict:
     :return: https://www.hl7.org/fhir/documentreference.html
     """
     blob = obsfact.observation_blob or ""
+
+    # Strip this "line feed" character that often shows up in notes and is confusing for NLP.
+    # Hopefully not many notes are using actual Spanish.
+    blob = blob.replace("¿", " ")
 
     return {
         "resourceType": "DocumentReference",
@@ -340,7 +349,7 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
         }
     elif obsfact.valtype_cd == "@":  # no value
         return {}
-    elif obsfact.valtype_cd != "N":
+    elif obsfact.valtype_cd != "N":  # pragma: no cover
         # "NLP" will fall into this path (xml in observation blob)
         logging.warning("Observation: unhandled valtype_cd '%s'", obsfact.valtype_cd)
         return {}
@@ -356,14 +365,14 @@ def get_observation_value(obsfact: ObservationFact) -> dict:
     if ucum_code:
         quantity["system"] = "http://unitsofmeasure.org"
         quantity["code"] = ucum_code
-    elif ucum_code is None:
+    elif ucum_code is None:  # pragma: no cover
         logging.warning("Observation: unhandled units_cd '%s'", obsfact.units_cd)
 
     # Handle comparisons
     comparison = external_mappings.COMPARATOR.get(obsfact.tval_char)
     if comparison:
         quantity["comparator"] = comparison
-    elif comparison is None:
+    elif comparison is None:  # pragma: no cover
         logging.warning("Observation: unhandled tval_char '%s'", obsfact.tval_char)
         return {}
 

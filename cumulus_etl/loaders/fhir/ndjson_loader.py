@@ -4,7 +4,7 @@ import tempfile
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import common, errors, feedback, fhir, store
+from cumulus_etl import common, errors, feedback, store
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
 
@@ -48,8 +48,7 @@ class FhirNdjsonLoader(base.Loader):
         common.warn_on_missing_resources(found_files, resources)
 
         # Gather filenames of interest
-        target_types = resources | fhir.linked_resources(resources)
-        filenames = [path for path, res_type in found_files.items() if res_type in target_types]
+        filenames = [path for path, res_type in found_files.items() if res_type in resources]
 
         # Copy the resources we need from the remote directory (like S3 buckets) to a local one.
         #

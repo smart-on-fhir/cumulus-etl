@@ -1,12 +1,12 @@
 """Methods for handling document selection"""
 
 import argparse
-import re
 import string
 
+import cumulus_fhir_support as cfs
 import pyathena
 
-from cumulus_etl import cli_utils, deid, errors, fhir, id_handling
+from cumulus_etl import cli_utils, common, deid, errors
 
 
 def add_note_selection(parser: argparse.ArgumentParser):
@@ -74,7 +74,7 @@ def query_athena_table(table: str, args) -> str:
             "You must provide an Athena database with --athena-database.",
             errors.ATHENA_DATABASE_MISSING,
         )
-    if set(table) - set(string.ascii_letters + string.digits + "-_"):
+    if set(table) - set(string.ascii_letters + string.digits + "_"):
         errors.fatal(
             f"Athena table name '{table}' has invalid characters.",
             errors.ATHENA_TABLE_NAME_INVALID,
@@ -99,123 +99,37 @@ def query_athena_table(table: str, args) -> str:
     return cursor.execute(f'SELECT * FROM "{table}"').output_location  # noqa: S608
 
 
-class CsvMatcher:
-    def __init__(self, csv_file: str, *, is_anon: bool, extra_fields: list[str] | None = None):
-        self._id_pools = {
-            res_type: id_handling.get_ids_from_csv(
-                csv_file, res_type, is_anon=is_anon, extra_fields=extra_fields
-            )
-            for res_type in {"DiagnosticReport", "DocumentReference"}
-        }
-        self._is_anon = is_anon
+def get_refs_from_csv(
+    path: str, *, is_anon: bool = False, extra_fields: list[str] | None = None
+) -> cfs.RefSet:
+    """Returns an anonymized RefSet with data of {(value, value, ...)} for any extra fields"""
+    extra_fields = extra_fields or []
+    result = cfs.RefSet()
 
-        # We operate in two modes: note ID or patient ID.
-        # We only match patients if they are the only kind of ID defined.
-        self._only_patients = not any(self._id_pools.values())
-        self._id_pools["Patient"] = id_handling.get_ids_from_csv(
-            csv_file, "Patient", is_anon=is_anon, extra_fields=extra_fields
-        )
-
-        if not any(self._id_pools.values()):
-            errors.fatal(
-                f"No patient or note IDs found in CSV file '{csv_file}'.", errors.COHORT_NOT_FOUND
-            )
-
-    def has_resource_match(self, codebook: deid.Codebook, resource: dict) -> bool:
-        match resource["resourceType"]:
-            case "DiagnosticReport" | "DocumentReference":
-                patient_ref = resource.get("subject", {}).get("reference")
-            case _:  # pragma: no cover
-                # shouldn't happen
-                return False  # pragma: no cover
-
-        patient_id = patient_ref and patient_ref.removeprefix("Patient/")
-
-        return self.has_match(codebook, resource["resourceType"], resource["id"], patient_id)
-
-    def has_match(
-        self, codebook: deid.Codebook, res_type: str, res_id: str, patient_id: str
-    ) -> bool:
-        return self.get_match(codebook, res_type, res_id, patient_id) is not None
-
-    def get_match(
-        self, codebook: deid.Codebook, res_type: str, res_id: str, patient_id: str
-    ) -> set[tuple] | None:
-        if self._only_patients:
-            res_type = "Patient"
-            res_id = patient_id
-
-        if self._is_anon:
-            if not codebook:
-                errors.fatal(
-                    "A PHI folder must be provided to process anonymous IDs.", errors.ARGS_INVALID
-                )
-            res_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
-
-        return self._id_pools[res_type].get(res_id)
-
-
-def _define_csv_filter(csv_file: str, is_anon: bool) -> deid.FilterFunc:
-    matcher = CsvMatcher(csv_file, is_anon=is_anon)
-
-    async def check_match(codebook, res):
-        return matcher.has_resource_match(codebook, res)
-
-    return check_match
-
-
-def _define_regex_filter(words: list[str] | None, regexes: list[str] | None) -> deid.FilterFunc:
-    patterns = []
-    if regexes:
-        patterns.extend(cli_utils.user_regex_to_pattern(regex).pattern for regex in regexes)
-    if words:
-        patterns.extend(cli_utils.user_term_to_pattern(word).pattern for word in words)
-
-    # combine into one big compiled pattern
-    patterns = re.compile("|".join(patterns), re.IGNORECASE)
-
-    async def res_filter(codebook: deid.Codebook, resource: dict) -> bool:
+    with common.read_csv(path) as reader:
         try:
-            note_text = fhir.get_clinical_note(resource)
-            return patterns.search(note_text) is not None
-        except Exception:
-            return False
+            scanner = cfs.make_note_ref_scanner(reader.fieldnames, is_anon=is_anon)
+        except cfs.RefsNotFound:
+            errors.fatal(
+                f"No patient or note IDs found in CSV file '{path}'.", errors.COHORT_NOT_FOUND
+            )
 
-    return res_filter
+        for row in reader:
+            if ref := scanner(list(row.values())):
+                # Add this row's extra field data to any previously existing found refs
+                existing_data = result.get_data_for_ref(ref, default=set())
+                existing_data.add(tuple(row.get(field) for field in extra_fields))
+                result.add_ref(ref, data=existing_data)
 
-
-def _negate_filter(func: deid.FilterFunc) -> deid.FilterFunc:
-    """Takes a filter and returns a new filter that returns the negation of the input filter"""
-
-    async def negated(codebook: deid.Codebook, resource: dict) -> bool:
-        return not await func(codebook, resource)
-
-    return negated
-
-
-def _combine_filters(one: deid.FilterFunc, two: deid.FilterFunc) -> deid.FilterFunc:
-    """Takes two filters and returns a filter that returns True if both input filters accept it"""
-
-    async def combined(codebook: deid.Codebook, resource: dict) -> bool:
-        if one and not await one(codebook, resource):
-            return False
-        if two and not await two(codebook, resource):
-            return False
-        return True
-
-    return combined
+    return result
 
 
-def get_note_filter(args: argparse.Namespace) -> deid.FilterFunc:
+def get_note_filter(args: argparse.Namespace, codebook: deid.Codebook | None) -> cfs.NoteFilter:
     """Returns (patient refs to match, resource refs to match)"""
-    # Confirm we don't have conflicting arguments. Which we could maybe combine, as a future
-    # improvement, but is too much hassle right now)
+
+    # Currently, only support one CSV input (we could relax that - but should we use OR or AND?)
     has_csv = bool(args.select_by_csv)
     has_anon_csv = bool(args.select_by_anon_csv)
-    has_word = bool(args.select_by_word)
-    has_regex = bool(args.select_by_regex)
-    has_word_reject = bool(args.reject_by_word)
-    has_regex_reject = bool(args.reject_by_regex)
     has_athena_table = bool(args.select_by_athena_table)
     csv_count = int(has_csv) + int(has_anon_csv) + int(has_athena_table)
     if csv_count > 1:
@@ -224,26 +138,25 @@ def get_note_filter(args: argparse.Namespace) -> deid.FilterFunc:
             errors.MULTIPLE_COHORT_ARGS,
         )
 
-    func = None
+    if (has_athena_table or has_anon_csv) and not codebook:
+        errors.fatal("A PHI folder must be provided to process anonymous IDs.", errors.ARGS_INVALID)
 
-    # Currently, only support one CSV input (could relax - but should we use OR or AND?)
     if has_athena_table:
-        func = _define_csv_filter(query_athena_table(args.select_by_athena_table, args), True)
+        csv_path = query_athena_table(args.select_by_athena_table, args)
+        csv_refs = get_refs_from_csv(csv_path, is_anon=True)
     elif has_anon_csv:
-        func = _define_csv_filter(args.select_by_anon_csv, True)
+        csv_refs = get_refs_from_csv(args.select_by_anon_csv, is_anon=True)
     elif has_csv:
-        func = _define_csv_filter(args.select_by_csv, False)
+        codebook = None  # don't need or want salt
+        csv_refs = get_refs_from_csv(args.select_by_csv, is_anon=False)
+    else:
+        csv_refs = None
 
-    # And combine that with any word filter (all word filters are OR'd together, and then AND'd
-    # with the csv filter - i.e. you can filter down your CSV file further with regexes)
-    if has_word or has_regex:
-        regex_func = _define_regex_filter(args.select_by_word, args.select_by_regex)
-        func = _combine_filters(func, regex_func)
-
-    # Reject by a word filter, if provided
-    if has_word_reject or has_regex_reject:
-        regex_func = _define_regex_filter(args.reject_by_word, args.reject_by_regex)
-        regex_func = _negate_filter(regex_func)
-        func = _combine_filters(func, regex_func)
-
-    return func
+    return cfs.make_note_filter(
+        reject_by_regex=args.reject_by_regex,
+        reject_by_word=args.reject_by_word,
+        salt=codebook and codebook.get_id_salt(),
+        select_by_ref=csv_refs,
+        select_by_regex=args.select_by_regex,
+        select_by_word=args.select_by_word,
+    )

@@ -1,14 +1,10 @@
 """FHIR utility methods"""
 
-import base64
 import datetime
-import email.message
 import re
 import urllib.parse
-from collections.abc import Iterable
 
 import cumulus_fhir_support as cfs
-import inscriptis
 
 from cumulus_etl import errors
 
@@ -151,150 +147,9 @@ class FhirUrl:
 
 ######################################################################################################################
 #
-# Resource downloading
-#
-######################################################################################################################
-
-
-def linked_resources(resources: Iterable[str]) -> set[str]:
-    """
-    Returns all linked resources that we might care about.
-
-    This is used to look for / download related resources as available.
-    For example, we may want to scoop these resources up from the input folder.
-    """
-    linked = set()
-    for resource in resources:
-        match resource:
-            case "DiagnosticReport":
-                linked.add("Binary")
-            case "DocumentReference":
-                linked.add("Binary")
-            case "MedicationRequest":
-                linked.add("Medication")
-    return linked
-
-
-######################################################################################################################
-#
 # Clinical note parsing (downloading notes etc)
 #
 ######################################################################################################################
-
-
-def parse_content_type(content_type: str) -> (str, str):
-    """Returns (mimetype, encoding)"""
-    msg = email.message.EmailMessage()
-    msg["content-type"] = content_type
-    return msg.get_content_type(), msg.get_content_charset("utf8")
-
-
-def _mimetype_priority(mimetype: str) -> int:
-    """
-    Returns priority of mimetypes for docref notes.
-
-    0 means "ignore"
-    Higher numbers are higher priority
-    """
-    if mimetype == "text/plain":
-        return 3
-    elif mimetype == "text/html":
-        return 2
-    elif mimetype == "application/xhtml+xml":
-        return 1
-    return 0
-
-
-def _get_note_from_attachment(attachment: dict) -> str:
-    """
-    Decodes or downloads a note from an attachment.
-
-    Note that it is assumed a contentType is provided.
-
-    :returns: the attachment's note text
-    """
-    _mimetype, charset = parse_content_type(attachment["contentType"])
-
-    if attachment.get("data") is not None:
-        return base64.standard_b64decode(attachment["data"]).decode(charset)
-
-    if attachment.get("url") is not None:
-        raise RemoteAttachment(
-            "Some clinical note texts are only available via URL. "
-            "You may want to inline your notes with SMART Fetch."
-        )
-
-    # Shouldn't ever get here, because get_clinical_note_attachment already checks this,
-    # but just in case...
-    raise ValueError("No data or url field present")  # pragma: no cover
-
-
-def get_clinical_note_attachment(resource: dict) -> dict:
-    match resource["resourceType"]:
-        case "DiagnosticReport":
-            attachments = resource.get("presentedForm", [])
-        case "DocumentReference":
-            attachments = [
-                content["attachment"]
-                for content in resource.get("content", [])
-                if "attachment" in content
-            ]
-        case _:
-            raise ValueError(f"{resource['resourceType']} is not a supported clinical note type.")
-
-    # Find the best attachment to use, based on mimetype.
-    # We prefer basic text documents, to avoid confusing cTAKES with extra formatting (like <body>).
-    best_attachment_index = -1
-    best_attachment_priority = 0
-    for index, attachment in enumerate(attachments):
-        if "contentType" in attachment:
-            mimetype, _ = parse_content_type(attachment["contentType"])
-            priority = _mimetype_priority(mimetype)
-            if priority > best_attachment_priority:
-                best_attachment_priority = priority
-                best_attachment_index = index
-
-    if best_attachment_index < 0:
-        # We didn't find _any_ of our target text content types.
-        # A content type isn't required by the spec with external URLs, so it's possible an unmarked link could be good.
-        # But let's optimistically enforce the need for a content type ourselves by bailing here.
-        # If we find a real-world need to be more permissive, we can change this later.
-        # But note that if we do, we'll need to handle downloading Binary FHIR objects, in addition to arbitrary URLs.
-        raise ValueError("No textual mimetype found")
-
-    attachment = attachments[best_attachment_index]
-
-    if attachment.get("data") is None and not attachment.get("url"):
-        raise ValueError("No data or url field present")
-
-    return attachments[best_attachment_index]
-
-
-def get_clinical_note(resource: dict) -> str:
-    """
-    Returns the clinical note contained in the given resource.
-
-    It will try to find the simplest version (plain text) or convert html to plain text if needed.
-    """
-    attachment = get_clinical_note_attachment(resource)
-    note = _get_note_from_attachment(attachment)
-
-    mimetype, _ = parse_content_type(attachment["contentType"])
-    if mimetype in ("text/html", "application/xhtml+xml"):
-        # An HTML note can confuse/stall NLP and also makes philtering difficult.
-        # It may include mountains of spans/styling or inline base64 images that aren't relevant
-        # to our interests. Upload Notes and ETL modes thus both prefer to work with plain text.
-        #
-        # Inscriptis makes a very readable version of the note, with a focus on maintaining the
-        # HTML layout, which is especially helpful for upload-notes (and maybe also helps NLP by
-        # avoiding odd line breaks).
-        note = inscriptis.get_text(note)
-
-    # Strip this "line feed" character that often shows up in notes and is confusing for NLP.
-    # Hopefully not many notes are using actual Spanish.
-    note = note.replace("¿", " ")
-
-    return note
 
 
 def get_concept_user_text(concept: dict | None) -> str | None:

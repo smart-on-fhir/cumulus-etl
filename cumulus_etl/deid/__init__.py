@@ -1,5 +1,5 @@
 """De-identification support"""
 
-from .codebook import Codebook, FilterFunc
+from .codebook import Codebook
 from .philter import Philter
 from .scrubber import Scrubber

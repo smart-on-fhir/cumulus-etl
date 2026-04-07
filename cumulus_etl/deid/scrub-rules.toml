@@ -904,6 +904,9 @@ allowed = [
     "http://hl7.org/fhir/StructureDefinition/patient-proficiency",
     "http://hl7.org/fhir/StructureDefinition/workflow-supportingInfo",
     "http://hl7.org/fhir/5.0/StructureDefinition/extension-DocumentReference.attester",
+    # This should be http://hl7.org/fhir/StructureDefinition/data-absent-reason instead,
+    # but we see this in the wild with Epic data sometimes as an alternate extension URL.
+    "http://terminology.hl7.org/CodeSystem/data-absent-reason",
     ### US Core extensions
     ### (See https://hl7.org/fhir/us/core/profiles-and-extensions.html)
     "http://hl7.org/fhir/us/core/StructureDefinition/us-core-birthsex",
