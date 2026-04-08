@@ -170,7 +170,7 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
         return cls.ibd_surgery_annotation_model().model_validate(content)
 
     # Path to relevant Tasks files
-    SYSTEM_PROMPT = """You are a clinical chart reviewer for an IBD (irritable bowel disease) outcomes study.
+    SYSTEM_PROMPT = """You are a clinical chart reviewer for an IBD (inflammatory bowel disease) outcomes study.
 Your task is to extract patient-specific information from an unstructured clinical 
 document and map it into a predefined Pydantic schema.
 
