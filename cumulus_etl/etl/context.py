@@ -4,7 +4,7 @@ ETL job context, holding some persistent state between runs.
 
 import datetime
 
-from cumulus_etl import common
+import cumulus_fhir_support as cfs
 
 
 class JobContext:
@@ -26,15 +26,12 @@ class JobContext:
     _LAST_SUCCESSFUL_INPUT_DIR = "last_successful_input_dir"
     _LAST_SUCCESSFUL_OUTPUT_DIR = "last_successful_output_dir"
 
-    def __init__(self, path: str):
+    def __init__(self, path: cfs.FsPath):
         """
         :param path: path to context file
         """
-        self._path: str = path
-        try:
-            self._data = common.read_json(path)
-        except (FileNotFoundError, PermissionError):
-            self._data = {}
+        self._path = path
+        self._data = path.read_json(default={})
 
     @property
     def last_successful_datetime(self) -> datetime.datetime | None:
@@ -53,7 +50,7 @@ class JobContext:
 
     @last_successful_input_dir.setter
     def last_successful_input_dir(self, value: str) -> None:
-        self._data[self._LAST_SUCCESSFUL_INPUT_DIR] = value
+        self._data[self._LAST_SUCCESSFUL_INPUT_DIR] = str(value)
 
     @property
     def last_successful_output_dir(self) -> str | None:
@@ -61,11 +58,11 @@ class JobContext:
 
     @last_successful_output_dir.setter
     def last_successful_output_dir(self, value: str) -> None:
-        self._data[self._LAST_SUCCESSFUL_OUTPUT_DIR] = value
+        self._data[self._LAST_SUCCESSFUL_OUTPUT_DIR] = str(value)
 
     def save(self) -> None:
         # pretty-print this since it isn't large
-        common.write_json(self._path, self.as_json(), indent=4)
+        self._path.write_json(self.as_json(), indent=4)
 
     def as_json(self) -> dict:
         return dict(self._data)

@@ -13,9 +13,10 @@ import tracemalloc
 import urllib.parse
 from collections.abc import Iterable
 
+import cumulus_fhir_support as cfs
 import rich
 
-from cumulus_etl import common, errors, store
+from cumulus_etl import common, errors
 
 
 def add_auth(parser: argparse.ArgumentParser, *, use_fhir_url: bool = True):
@@ -79,7 +80,8 @@ def add_ctakes_override(parser: argparse.ArgumentParser):
     parser.add_argument(
         "--ctakes-overrides",
         metavar="DIR",
-        default="/ctakes-overrides",
+        type=cfs.FsPath,
+        default=cfs.FsPath("/ctakes-overrides"),
         help="path to cTAKES overrides dir (default is /ctakes-overrides)",
     )
 
@@ -108,7 +110,7 @@ def add_debugging(parser: argparse.ArgumentParser):
     return group
 
 
-def make_export_dir(export_to: str | None = None) -> common.Directory:
+def make_export_dir(export_to: cfs.FsPath | None = None) -> common.Directory:
     """Makes a temporary directory to drop exported ndjson files into"""
     # Handle the easy case -- just a random temp dir
     if not export_to:
@@ -117,7 +119,7 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
     # OK the user has a specific spot in mind. Let's do some quality checks.
     # It must be local and empty.
 
-    if urllib.parse.urlparse(export_to).netloc:
+    if not export_to.is_local:
         # We require a local folder because that's all that the MS deid tool we used to use could
         # operate on. If we were to relax this now, we'd need to make sure we're using fsspec in
         # all the right places.
@@ -126,22 +128,20 @@ def make_export_dir(export_to: str | None = None) -> common.Directory:
             errors.BULK_EXPORT_FOLDER_NOT_LOCAL,
         )
 
-    confirm_dir_is_empty(store.Root(export_to, create=True))
+    export_to.makedirs()
+    confirm_dir_is_empty(export_to)
 
-    return common.RealDirectory(export_to)
+    return common.RealDirectory(str(export_to))
 
 
-def confirm_dir_is_empty(root: store.Root, message: str | None = None) -> None:
+def confirm_dir_is_empty(root: cfs.FsPath, message: str | None = None) -> None:
     """Errors out if the dir exists with contents"""
-    try:
-        if list(root.ls()):
-            extra = f"\n\n{message}" if message else ""
-            errors.fatal(
-                f"The target folder '{root.path}' already has contents. Please provide an empty folder.{extra}",
-                errors.FOLDER_NOT_EMPTY,
-            )
-    except FileNotFoundError:
-        pass
+    if root.ls():
+        extra = f"\n\n{message}" if message else ""
+        errors.fatal(
+            f"The target folder '{root}' already has contents. Please provide an empty folder.{extra}",
+            errors.FOLDER_NOT_EMPTY,
+        )
 
 
 def is_url_available(url: str, retry: bool = True) -> bool:
@@ -200,13 +200,12 @@ def user_term_to_pattern(term: str) -> re.Pattern:
     return user_regex_to_pattern(re.escape(term))
 
 
-def process_input_dir(folder: str) -> str:
-    root = store.Root(folder)
-    if not root.is_http and not root.exists(folder):
-        if folder == "%EXAMPLE-NLP%":
-            return os.path.join(os.path.dirname(__file__), "etl/studies/example/ndjson")
-        errors.fatal(f"Input folder '{folder}' does not exist.", errors.FOLDER_DOES_NOT_EXIST)
-    return folder
+def process_input_dir(root: cfs.FsPath) -> cfs.FsPath:
+    if not root.is_http and not root.exists():
+        if str(root) == "%EXAMPLE-NLP%":
+            return cfs.FsPath(os.path.dirname(__file__), "etl/studies/example/ndjson")
+        errors.fatal(f"Input folder '{root}' does not exist.", errors.FOLDER_DOES_NOT_EXIST)
+    return root
 
 
 class PromptResponse(enum.Flag):

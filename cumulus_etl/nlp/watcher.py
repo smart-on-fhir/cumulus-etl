@@ -2,7 +2,6 @@
 
 import contextlib
 import logging
-import os
 import select
 import shutil
 import socket
@@ -11,8 +10,9 @@ import time
 import urllib.parse
 
 import ctakesclient
+import cumulus_fhir_support as cfs
 
-from cumulus_etl import cli_utils, common, errors
+from cumulus_etl import cli_utils, errors
 
 
 def check_ctakes() -> None:
@@ -96,7 +96,7 @@ def wait_for_ctakes_restart():
     check_ctakes()
 
 
-def _convert_bsv_file_to_ctakes_format(bsv_path: str, output_path: str) -> None:
+def _convert_bsv_file_to_ctakes_format(bsv_path: cfs.FsPath, output_path: cfs.FsPath) -> None:
     """
     Reads the input bsv file and converts it to a cTAKES compatible version.
 
@@ -108,7 +108,7 @@ def _convert_bsv_file_to_ctakes_format(bsv_path: str, output_path: str) -> None:
         SAB = Vocabulary Source Abbreviation (SNOMEDCT_US)
     """
     bsv_lines = []
-    for line in common.read_text(bsv_path).splitlines():
+    for line in bsv_path.read_text().splitlines():
         if not line.strip() or line.startswith("#"):
             continue
 
@@ -120,10 +120,10 @@ def _convert_bsv_file_to_ctakes_format(bsv_path: str, output_path: str) -> None:
             bsv_lines.append(line)
 
     final_bsv = "\n".join(bsv_lines)
-    common.write_text(output_path, final_bsv)
+    output_path.write_text(final_bsv)
 
 
-def restart_ctakes_with_bsv(ctakes_overrides: str, bsv_path: str) -> bool:
+def restart_ctakes_with_bsv(ctakes_overrides: cfs.FsPath | None, bsv_path: cfs.FsPath) -> bool:
     """Hands a new bsv over to cTAKES and waits for it to restart and be ready again with the new bsv file"""
     # This whole setup is slightly janky. But it is designed with these constraints:
     # 1. We'd like to feed cTAKES different custom dictionaries, including ones invented by the user.
@@ -148,7 +148,7 @@ def restart_ctakes_with_bsv(ctakes_overrides: str, bsv_path: str) -> bool:
         # Graceful skipping of this feature if ctakes-override is empty (usually just in tests).
         logging.warning("Warning: --ctakes-override is not defined.")
         return False
-    elif not os.path.isdir(ctakes_overrides):
+    elif not ctakes_overrides.is_dir():
         logging.warning(
             f"Warning: the cTAKES overrides folder does not exist at:\n  {ctakes_overrides}\n"
             "Consider using --ctakes-overrides.",
@@ -157,10 +157,10 @@ def restart_ctakes_with_bsv(ctakes_overrides: str, bsv_path: str) -> bool:
 
     # First, coerce the bsv contents into a cTAKES compatible format.
     with tempfile.NamedTemporaryFile() as tmp_bsv:
-        _convert_bsv_file_to_ctakes_format(bsv_path, tmp_bsv.name)
+        _convert_bsv_file_to_ctakes_format(bsv_path, cfs.FsPath(tmp_bsv.name))
 
         # Now copy that modified file into its final location inside cTAKES
         with wait_for_ctakes_restart():
-            shutil.copyfile(tmp_bsv.name, os.path.join(ctakes_overrides, "symptoms.bsv"))
+            shutil.copyfile(tmp_bsv.name, str(ctakes_overrides.joinpath("symptoms.bsv")))
 
     return True

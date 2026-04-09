@@ -4,7 +4,7 @@ import tempfile
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import common, errors, feedback, store
+from cumulus_etl import common, errors, feedback
 from cumulus_etl.loaders import base
 from cumulus_etl.loaders.fhir.export_log import BulkExportLogParser
 
@@ -14,7 +14,7 @@ class FhirNdjsonLoader(base.Loader):
     Loader for fhir ndjson data, either locally or from a FHIR server.
     """
 
-    def __init__(self, root: store.Root):
+    def __init__(self, root: cfs.FsPath):
         """
         :param root: location to load ndjson from
         """
@@ -29,9 +29,9 @@ class FhirNdjsonLoader(base.Loader):
             )
 
     @staticmethod
-    def _scan_files(root: store.Root, progress: feedback.Progress) -> dict[str, str | None]:
+    def _scan_files(root: cfs.FsPath, progress: feedback.Progress) -> dict[str, str | None]:
         with progress.show_indeterminate_task("Scanning input files"):
-            return cfs.list_multiline_json_in_dir(root.path, fsspec_fs=root.fs, recursive=True)
+            return cfs.list_multiline_json_in_dir(root, recursive=True)
 
     async def detect_resources(self, *, progress: feedback.Progress) -> set[str] | None:
         self.detected_files = self._scan_files(self.root, progress)
@@ -60,14 +60,16 @@ class FhirNdjsonLoader(base.Loader):
         tmpdir = tempfile.TemporaryDirectory()
 
         task = progress.add_task(description="Copying input files", total=len(filenames))
+        target = cfs.FsPath(tmpdir.name)
         for filename in filenames:
-            self.root.get(filename, f"{tmpdir.name}/")
+            source = cfs.FsPath(filename)
+            source.copy_into(target)
             progress.advance(task)
 
         return self.read_loader_results(self.root, tmpdir)
 
     def read_loader_results(
-        self, input_root: store.Root, results_dir: common.Directory
+        self, input_root: cfs.FsPath, results_dir: common.Directory
     ) -> base.LoaderResults:
         results = base.LoaderResults(
             directory=results_dir,
@@ -87,7 +89,7 @@ class FhirNdjsonLoader(base.Loader):
 
         return results
 
-    def read_deleted_ids(self, root: store.Root) -> dict[str, set[str]]:
+    def read_deleted_ids(self, root: cfs.FsPath) -> dict[str, set[str]]:
         """
         Reads any deleted IDs that a bulk export gave us.
 
@@ -95,7 +97,7 @@ class FhirNdjsonLoader(base.Loader):
         """
         deleted_ids = {}
 
-        subdir = store.Root(root.joinpath("deleted"))
+        subdir = root.joinpath("deleted")
         bundles = common.read_resource_ndjson(subdir, "Bundle")
         for bundle in bundles:
             if bundle.get("type") != "transaction":

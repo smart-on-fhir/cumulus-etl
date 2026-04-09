@@ -5,11 +5,10 @@ Usually used for ndjson -> deltalake conversions, after the ndjson has been manu
 """
 
 import argparse
-import os
-import tempfile
 from collections.abc import Callable
 from functools import partial
 
+import cumulus_fhir_support as cfs
 import pyarrow
 
 from cumulus_etl import cli_utils, common, completion, errors, feedback, formats, store
@@ -18,17 +17,13 @@ from cumulus_etl.etl.tasks import task_factory
 
 
 def make_batch(
-    root: store.Root,
-    path: str,
+    path: cfs.FsPath,
     schema_func: Callable[[list[dict]], pyarrow.Schema],
 ) -> formats.Batch:
-    metadata_path = path.removesuffix(".ndjson") + ".meta"
-    try:
-        metadata = common.read_json(metadata_path)
-    except FileNotFoundError:
-        metadata = {}
+    metadata_path = path.parent.joinpath(path.name.removesuffix(".ndjson") + ".meta")
+    metadata = metadata_path.read_json(default={})
 
-    rows = list(common.read_ndjson(root, path))
+    rows = list(common.read_ndjson(path))
     groups = set(metadata.get("groups", []))
     schema = schema_func(rows)
 
@@ -36,21 +31,19 @@ def make_batch(
 
 
 def convert_table_metadata(
-    meta_path: str,
+    meta_path: cfs.FsPath,
     formatter: formats.Format,
 ) -> None:
-    try:
-        meta = common.read_json(meta_path)
-    except (FileNotFoundError, PermissionError):
-        return
+    meta = meta_path.read_json(default={})
 
     # Only one metadata field currently: deleted IDs
     deleted = meta.get("deleted", [])
-    formatter.delete_records(set(deleted))
+    if deleted:
+        formatter.delete_records(set(deleted))
 
 
 def convert_folder(
-    input_root: store.Root,
+    input_root: cfs.FsPath,
     *,
     table_name: str,
     schema_func: Callable[[list[dict]], pyarrow.Schema],
@@ -58,14 +51,14 @@ def convert_folder(
     progress: feedback.Progress,
 ) -> None:
     table_input_dir = input_root.joinpath(table_name)
-    if not input_root.exists(table_input_dir):
+    if not table_input_dir.exists():
         # Don't error out in this case -- it's not the user's fault if the folder doesn't exist.
         # We're just checking all task folders.
         return
 
     # Grab all the files in the task dir
-    all_paths = store.Root(table_input_dir).ls()
-    ndjson_paths = sorted(filter(lambda x: x.endswith(".ndjson"), all_paths))
+    all_paths = table_input_dir.ls()
+    ndjson_paths = sorted(filter(lambda x: x.suffix == ".ndjson", all_paths))
     if not ndjson_paths:
         # Again, don't error out in this case -- if the ETL made an empty dir, it's not a user-visible error
         return
@@ -75,11 +68,11 @@ def convert_folder(
     progress_task = progress.add_task(table_name, total=count)
 
     for ndjson_path in ndjson_paths:
-        batch = make_batch(input_root, ndjson_path, schema_func)
+        batch = make_batch(ndjson_path, schema_func)
         formatter.write_records(batch)
         progress.advance(progress_task)
 
-    convert_table_metadata(f"{table_input_dir}/{table_name}.meta", formatter)
+    convert_table_metadata(table_input_dir.joinpath(f"{table_name}.meta"), formatter)
     formatter.finalize()
     progress.advance(progress_task)
 
@@ -87,8 +80,8 @@ def convert_folder(
 def convert_task_table(
     task: type[tasks.EtlTask],
     table: tasks.OutputTable,
-    input_root: store.Root,
-    output_root: store.Root,
+    input_root: cfs.FsPath,
+    output_root: cfs.FsPath,
     formatter_class: type[formats.Format],
     progress: feedback.Progress,
 ) -> None:
@@ -114,8 +107,8 @@ def convert_task_table(
 
 
 def convert_completion(
-    input_root: store.Root,
-    output_root: store.Root,
+    input_root: cfs.FsPath,
+    output_root: cfs.FsPath,
     formatter_class: type[formats.Format],
     progress: feedback.Progress,
 ) -> None:
@@ -129,21 +122,13 @@ def convert_completion(
     )
 
 
-def copy_job_configs(input_root: store.Root, output_root: store.Root) -> None:
-    with tempfile.TemporaryDirectory() as tmpdir:
-        job_config_path = input_root.joinpath("JobConfig/")
-
-        # Download input dir if it's not local
-        if input_root.protocol != "file":
-            new_location = os.path.join(tmpdir, "JobConfig/")
-            input_root.get(job_config_path, new_location, recursive=True)
-            job_config_path = new_location
-
-        output_root.put(job_config_path, output_root.joinpath("JobConfig/"), recursive=True)
+def copy_job_configs(input_root: cfs.FsPath, output_root: cfs.FsPath) -> None:
+    input_dir = input_root.joinpath("JobConfig")
+    input_dir.copy_into(output_root)
 
 
 def walk_tree(
-    input_root: store.Root, output_root: store.Root, formatter_class: type[formats.Format]
+    input_root: cfs.FsPath, output_root: cfs.FsPath, formatter_class: type[formats.Format]
 ) -> None:
     all_tasks = task_factory.get_all_tasks()
 
@@ -162,13 +147,13 @@ def walk_tree(
         copy_job_configs(input_root, output_root)
 
 
-def validate_folders(input_root: store.Root, output_root: store.Root) -> None:
+def validate_folders(input_root: cfs.FsPath, output_root: cfs.FsPath) -> None:
     # First check that the input root looks like an ETL output folder
-    if not input_root.exists(input_root.path):
-        errors.fatal(f"Original folder '{input_root.path}' does not exist!", errors.ARGS_INVALID)
-    if not input_root.exists(input_root.joinpath("JobConfig")):
+    if not input_root.exists():
+        errors.fatal(f"Original folder '{input_root}' does not exist!", errors.ARGS_INVALID)
+    if not input_root.joinpath("JobConfig").exists():
         errors.fatal(
-            f"Original folder '{input_root.path}' does not look like a Cumulus ETL output folder. "
+            f"Original folder '{input_root}' does not look like a Cumulus ETL output folder. "
             f"It is missing the JobConfig folder.",
             errors.ARGS_INVALID,
         )
@@ -197,25 +182,23 @@ def define_convert_parser(parser: argparse.ArgumentParser) -> None:
     # A future addition could be adding format arguments (to allow converting multiple ways).
     # But at the time of writing, they were unnecessary, so we'll start with just ndjson -> deltalake.
 
-    parser.add_argument("input_dir", metavar="/path/to/original")
-    parser.add_argument("output_dir", metavar="/path/to/target")
+    parser.add_argument("input_dir", metavar="/path/to/original", type=cfs.FsPath)
+    parser.add_argument("output_dir", metavar="/path/to/target", type=cfs.FsPath)
 
     cli_utils.add_aws(parser)
 
 
 async def convert_main(args: argparse.Namespace) -> None:
     """Main logic for converting"""
-    # record filesystem options like --s3-region before creating Roots
+    # record filesystem options like --s3-region before using args
     store.set_user_fs_options(vars(args))
 
-    input_root = store.Root(args.input_dir)
-    output_root = store.Root(args.output_dir)
-    validate_folders(input_root, output_root)
+    validate_folders(args.input_dir, args.output_dir)
 
     formatter_class = formats.get_format_class("deltalake")
-    formatter_class.initialize_class(output_root)
+    formatter_class.initialize_class(args.output_dir)
 
-    walk_tree(input_root, output_root, formatter_class)
+    walk_tree(args.input_dir, args.output_dir, formatter_class)
 
 
 async def run_convert(parser: argparse.ArgumentParser, argv: list[str]) -> None:

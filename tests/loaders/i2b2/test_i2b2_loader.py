@@ -4,7 +4,9 @@ import os
 import shutil
 import tempfile
 
-from cumulus_etl import common, feedback, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import common, feedback
 from cumulus_etl.loaders.i2b2 import loader
 from tests.utils import AsyncTestCase
 
@@ -19,7 +21,7 @@ class TestI2b2Loader(AsyncTestCase):
     async def test_missing_files(self):
         """Verify that we don't error out if files are missing, we just ignore the ones that are"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            root = store.Root(tmpdir)
+            root = cfs.FsPath(tmpdir)
             i2b2_loader = loader.I2b2Loader(root)
 
             # Write one file, but not others, just to confirm we do a partial read if possible.
@@ -35,27 +37,27 @@ class TestI2b2Loader(AsyncTestCase):
     async def test_duplicate_ids(self):
         """Verify that we ignore duplicate IDs"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            root = store.Root(tmpdir)
+            root = cfs.FsPath(tmpdir)
             i2b2_loader = loader.I2b2Loader(root)
 
-            common.write_text(
-                f"{tmpdir}/patient_dimension.csv",
+            root.joinpath("patient_dimension.csv").write_text(
                 "PATIENT_NUM,BIRTH_DATE\n123,1982-10-16\n123,1983-11-17\n456,2000-01-13\n",
             )
 
             results = await i2b2_loader.load_resources({"Patient"}, progress=self.progress)
-            rows = common.read_resource_ndjson(store.Root(results.path), "Patient")
+            rows = common.read_resource_ndjson(cfs.FsPath(results.path), "Patient")
             values = [(r["id"], r["birthDate"]) for r in rows]
             self.assertEqual(values, [("123", "1982-10-16"), ("456", "2000-01-13")])
 
     async def test_detect_resources(self):
         """Verify we can inspect a folder and find all resources."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            common.write_text(f"{tmpdir}/visit_dimension.csv", "")
-            common.write_text(f"{tmpdir}/unrelated.csv", "")
-            common.write_text(f"{tmpdir}/observation_fact_lab_views.csv", "")
+            root = cfs.FsPath(tmpdir)
+            root.joinpath("visit_dimension.csv").write_text("")
+            root.joinpath("unrelated.csv").write_text("")
+            root.joinpath("observation_fact_lab_views.csv").write_text("")
 
-            i2b2_loader = loader.I2b2Loader(store.Root(tmpdir))
+            i2b2_loader = loader.I2b2Loader(cfs.FsPath(tmpdir))
             resources = await i2b2_loader.detect_resources(progress=self.progress)
 
         self.assertEqual(resources, {"Encounter", "Observation"})

@@ -4,9 +4,9 @@ import os
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 
-from cumulus_etl import common
 from cumulus_etl.deid.codebook import Codebook, CodebookDB
 from tests import utils
 
@@ -48,11 +48,11 @@ class TestCodebook(utils.AsyncTestCase):
 
     def test_missing_db_file(self):
         """Ensure we gracefully handle a saved db file that doesn't exist yet"""
-        cb = Codebook("/")
+        cb = Codebook(cfs.FsPath("/"))
         assert_empty_db(cb.db)
 
     def test_context_manager(self):
-        tmpdir = self.make_tempdir()
+        tmpdir = cfs.FsPath(self.make_tempdir())
         with Codebook(tmpdir):
             self.assertFalse(os.path.exists(f"{tmpdir}/codebook.json"))
         self.assertTrue(os.path.exists(f"{tmpdir}/codebook.json"))
@@ -80,8 +80,8 @@ class TestCodebookDB(utils.AsyncTestCase):
     def test_use_legacy_random_mappings(self):
         """Verify that we keep and use any old patient/encounter mappings that were wholly random and not hash based"""
         with tempfile.TemporaryDirectory() as tmpdir:
-            common.write_json(
-                os.path.join(tmpdir, "codebook.json"),
+            tmpdir = cfs.FsPath(tmpdir)
+            tmpdir.joinpath("codebook.json").write_json(
                 {
                     "version": 1,
                     "Encounter": {
@@ -102,7 +102,7 @@ class TestCodebookDB(utils.AsyncTestCase):
             self.assertNotIn("abc", db.cached_mapping.get("Patient", {}))
 
     def test_save_and_load(self):
-        tmpdir = self.make_tempdir()
+        tmpdir = cfs.FsPath(self.make_tempdir())
         db = CodebookDB(tmpdir)
         p1 = db.patient("1")
         p2 = db.patient("2")
@@ -125,7 +125,7 @@ class TestCodebookDB(utils.AsyncTestCase):
         # Verify that we saved the cached mapping to disk too
         self.assertEqual(
             expected_mapping,
-            common.read_json(os.path.join(tmpdir, "codebook-cached-mappings.json")),
+            tmpdir.joinpath("codebook-cached-mappings.json").read_json(),
         )
 
         db2 = CodebookDB(tmpdir)
@@ -140,6 +140,7 @@ class TestCodebookDB(utils.AsyncTestCase):
 
     def test_does_not_save_if_not_modified(self):
         with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = cfs.FsPath(tmpdir)
             # Confirm that an empty book starts modified
             db = CodebookDB(tmpdir)
             self.assertTrue(db.save())
@@ -170,7 +171,7 @@ class TestCodebookDB(utils.AsyncTestCase):
             self.assertTrue(db.save())
 
     def test_version0(self):
-        db_path = os.path.join(self.datadir, "codebook0")
+        db_path = cfs.FsPath(self.datadir, "codebook0")
         db = CodebookDB(db_path)
 
         # Patients

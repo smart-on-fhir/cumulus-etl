@@ -1,9 +1,9 @@
 import argparse
 import datetime
 import logging
-import os
 from collections.abc import Iterable
 
+import cumulus_fhir_support as cfs
 import rich
 import rich.table
 
@@ -32,8 +32,8 @@ async def etl_job(
         summary_list.extend(task_summaries)
 
         for summary in task_summaries:
-            path = os.path.join(config.dir_job_config(), f"{summary.label}.json")
-            common.write_json(path, summary.as_json(), indent=4)
+            path = config.dir_job_config().joinpath(f"{summary.label}.json")
+            path.write_json(summary.as_json(), indent=4)
 
     return summary_list
 
@@ -57,7 +57,10 @@ def add_common_etl_args(
         f"how many to put in one output file (default is {batch_size // 1000}k)",
     )
     parser.add_argument(
-        "--errors-to", metavar="DIR", help="where to put resources that could not be processed"
+        "--errors-to",
+        metavar="DIR",
+        type=cfs.FsPath,
+        help="where to put resources that could not be processed",
     )
 
     cli_utils.add_auth(parser)
@@ -138,7 +141,7 @@ async def check_available_resources(
     if missing_resources:
         for resource in sorted(missing_resources):
             # Log the same message we would print if in common.py if we ran tasks anyway
-            logging.warning("No %s files found in %s", resource, loader.root.path)
+            logging.warning("No %s files found in %s", resource, str(loader.root))
 
         if is_default_tasks:
             if not available_resources:
@@ -158,10 +161,8 @@ async def prepare_pipeline(
     # record filesystem options like --s3-region before creating Roots
     store.set_user_fs_options(vars(args))
 
-    args.dir_input = cli_utils.process_input_dir(args.dir_input)
-
-    root_input = store.Root(args.dir_input)
-    store.Root(args.dir_phi, create=True)  # create PHI folder, if needed
+    root_input = cli_utils.process_input_dir(args.dir_input)
+    args.dir_phi.makedirs()  # create PHI folder, if needed
 
     selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp)
     is_default_tasks = not args.task
@@ -170,7 +171,8 @@ async def prepare_pipeline(
     print_config(args, job_datetime, selected_tasks)
 
     if args.errors_to:
-        cli_utils.confirm_dir_is_empty(store.Root(args.errors_to, create=True))
+        args.errors_to.makedirs()
+        cli_utils.confirm_dir_is_empty(args.errors_to)
 
     # Check that cTAKES is running and any other services or binaries we require
     if not args.skip_init_checks:
@@ -209,8 +211,7 @@ async def prepare_pipeline(
             # Make sure the output folder matches the PHI folder.
             # If we weren't given an output folder, don't bother (which happens in the NLP Athena
             # upload flow, but that confirms the codebook ID a different way.)
-            dir_root = store.Root(args.dir_output)
-            validate_etl_output_folder(dir_root, scrubber.codebook.get_codebook_id())
+            validate_etl_output_folder(args.dir_output, scrubber.codebook.get_codebook_id())
 
     return scrubber, loader_results, selected_tasks
 

@@ -6,6 +6,8 @@ import shutil
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
+
 from cumulus_etl import cli, common, deid
 from cumulus_etl.etl.config import JobConfig
 from tests import ctakesmock, utils
@@ -122,16 +124,16 @@ class TaskTestCase(utils.AsyncTestCase):
 
         self.export_url = "https://example.com/Group/test-group/$export"
         self.job_config = JobConfig(
-            self.input_dir,
-            self.input_dir,
-            self.output_dir,
-            self.phi_dir,
+            cfs.FsPath(self.input_dir),
+            cfs.FsPath(self.input_dir),
+            cfs.FsPath(self.output_dir),
+            cfs.FsPath(self.phi_dir),
             "ndjson",
             "ndjson",
             codebook_id="1234",
             timestamp=common.datetime_now(),
             batch_size=5,
-            dir_errors=self.errors_dir,
+            dir_errors=cfs.FsPath(self.errors_dir),
             export_group_name="test-group",
             export_datetime=datetime.datetime(2012, 10, 10, 5, 30, 12, tzinfo=datetime.UTC),
             export_url=self.export_url,
@@ -168,6 +170,6 @@ class TaskTestCase(utils.AsyncTestCase):
 
     def make_json(self, resource_type, resource_id, **kwargs):
         self.json_file_count += 1
-        filename = f"{self.input_dir}/{self.json_file_count}.ndjson"
-        with common.NdjsonWriter(filename) as writer:
+        path = cfs.FsPath(f"{self.input_dir}/{self.json_file_count}.ndjson")
+        with common.NdjsonWriter(path) as writer:
             writer.write({"resourceType": resource_type, **kwargs, "id": resource_id})

@@ -40,7 +40,7 @@ class TestUploadNotes(AsyncTestCase):
         self.export_path = os.path.join(tmpdir, "export")
 
         self.token_path = os.path.join(tmpdir, "ls-token.txt")
-        common.write_text(self.token_path, "abc123")
+        cfs.FsPath(self.token_path).write_text("abc123")
 
         self.ls_client_mock = self.patch(
             "cumulus_etl.upload_notes.cli.LabelStudioClient", spec=LabelStudioClient
@@ -49,15 +49,13 @@ class TestUploadNotes(AsyncTestCase):
 
         # Write some initial cached patient mappings, so we can reverse-engineer them
         os.makedirs(self.phi_path)
-        common.write_json(
-            f"{self.phi_path}/codebook.json",
+        cfs.FsPath(f"{self.phi_path}/codebook.json").write_json(
             {
                 "version": 1,
                 "id_salt": "1234",
             },
         )
-        common.write_json(
-            f"{self.phi_path}/codebook-cached-mappings.json",
+        cfs.FsPath(f"{self.phi_path}/codebook-cached-mappings.json").write_json(
             {
                 "Patient": {
                     "P1": ANON_P1,
@@ -253,7 +251,7 @@ class TestUploadNotes(AsyncTestCase):
         tmpdir = self.make_tempdir()
         results = mock.MagicMock()
         results.output_location = f"{tmpdir}/cohort.csv"
-        common.write_text(results.output_location, "\n".join(rows))
+        cfs.FsPath(results.output_location).write_text("\n".join(rows))
 
         # cursor()
         cursor = mock.MagicMock()
@@ -336,7 +334,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_skip_no_attachment_docs(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_docref("D1", content=[]))
                 writer.write(TestUploadNotes.make_docref("D2"))
             await self.run_upload_notes(input_path=tmpdir, philter="disable")
@@ -459,7 +457,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_grouped_datetime(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DocumentReference.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="DocRef 1"))
                 writer.write(
                     TestUploadNotes.make_docref(
@@ -475,7 +473,7 @@ class TestUploadNotes(AsyncTestCase):
                         period_start="2018",
                     )
                 )
-            with common.NdjsonWriter(f"{tmpdir}/DiagnosticReport.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DiagnosticReport.ndjson")) as writer:
                 writer.write(
                     TestUploadNotes.make_dxreport(
                         "R1", enc_id="E1", text="DxRep 1", date="2018-01-03T13:10:50+01:00"
@@ -510,7 +508,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_grouped_encounter_offsets(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DocumentReference.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="43"))
                 writer.write(TestUploadNotes.make_docref("D2", enc_id="43"))
             await self.run_upload_notes(input_path=tmpdir)
@@ -540,7 +538,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_docrefs_without_encounters_are_included(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DocumentReference.ndjson")) as writer:
                 # One docref without any context/encounter info
                 docref1 = self.make_docref("D1")
                 del docref1["context"]
@@ -565,7 +563,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_no_grouping(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DocumentReference.ndjson")) as writer:
                 writer.write(self.make_docref("D1", enc_id="Enc1", period_start="2021-01-01"))
                 writer.write(self.make_docref("D2", enc_id="Enc1"))
                 writer.write(self.make_docref("D3", enc_id="Enc1", period_start="2020-01-01"))
@@ -600,7 +598,7 @@ class TestUploadNotes(AsyncTestCase):
         # Test both commas and multiple args. Add some highlights that are internal words which
         # won't get found. Use two identical texts in same encounter to test grouping too.
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
                 text = "Report of nightmare on Elm St. But 'Freddy' isn't real. A+ Street."
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text=text))
                 writer.write(TestUploadNotes.make_docref("D2", enc_id="E1", text=text))
@@ -642,7 +640,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_highlight_boundaries(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
                 text = ".A+/x.A+,.A+x..A+.*.A+"  # 1st, 4th, and 5th ".A+" will match
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text=text))
             await self.run_upload_notes("--highlight=.a+", input_path=tmpdir, philter="disable")
@@ -657,7 +655,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_label_by_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="one two"))
                 writer.write(TestUploadNotes.make_docref("D2", enc_id="E2", text="three"))
             csv_file = f"{tmpdir}/labels.csv"
@@ -685,9 +683,9 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_label_by_anon_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/dxreport.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/dxreport.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_dxreport("D2", enc_id="E2"))
-            with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_docref("D1", enc_id="E1"))
             csv_file = f"{tmpdir}/labels.csv"
             with open(csv_file, "w", newline="", encoding="utf8") as f:
@@ -716,7 +714,7 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_label_by_athena_table(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/dxreport.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/dxreport.ndjson")) as writer:
                 writer.write(TestUploadNotes.make_dxreport("D1"))
 
             self.mock_athena(["patient_id,label,span", f"{ANON_P1},my-label,0:5"])
@@ -738,7 +736,7 @@ class TestUploadNotes(AsyncTestCase):
     async def test_sorting(self):
         tmpdir = self.make_tempdir()
 
-        with common.NdjsonWriter(f"{tmpdir}/docs.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
             writer.write(
                 TestUploadNotes.make_docref(
                     "D4",
@@ -785,19 +783,19 @@ class TestUploadNotes(AsyncTestCase):
 
     async def test_authors_in_header(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/dxreport.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/dxreport.ndjson")) as writer:
                 writer.write(
                     TestUploadNotes.make_dxreport(
                         "D1", authors=["Practitioner/pA", "Organization/oA"]
                     )
                 )
-            with common.NdjsonWriter(f"{tmpdir}/docref.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docref.ndjson")) as writer:
                 writer.write(
                     TestUploadNotes.make_docref(
                         "D1", authors=["PractitionerRole/rA", "PractitionerRole/rB"]
                     )
                 )
-            with common.NdjsonWriter(f"{tmpdir}/people.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/people.ndjson")) as writer:
                 writer.write(
                     {
                         "resourceType": "Practitioner",
@@ -812,7 +810,7 @@ class TestUploadNotes(AsyncTestCase):
                         "name": [{"text": "B. Last"}],
                     }
                 )
-            with common.NdjsonWriter(f"{tmpdir}/roles.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/roles.ndjson")) as writer:
                 writer.write(
                     {
                         "resourceType": "PractitionerRole",

@@ -28,11 +28,13 @@ def add_note_selection(parser: argparse.ArgumentParser):
     group.add_argument(
         "--select-by-csv",
         metavar="FILE",
+        type=cfs.FsPath,
         help="path to a .csv file with original patient and/or note IDs",
     )
     group.add_argument(
         "--select-by-anon-csv",
         metavar="FILE",
+        type=cfs.FsPath,
         help="path to a .csv file with anonymized patient and/or note IDs",
     )
     group.add_argument(
@@ -62,7 +64,7 @@ def add_note_selection(parser: argparse.ArgumentParser):
     return group
 
 
-def query_athena_table(table: str, args) -> str:
+def query_athena_table(table: str, args) -> cfs.FsPath:
     if "." in table:
         parts = table.split(".", 1)
         database = parts[0]
@@ -96,11 +98,11 @@ def query_athena_table(table: str, args) -> str:
                 errors.ATHENA_TABLE_TOO_BIG,
             )
 
-    return cursor.execute(f'SELECT * FROM "{table}"').output_location  # noqa: S608
+    return cfs.FsPath(cursor.execute(f'SELECT * FROM "{table}"').output_location)  # noqa: S608
 
 
 def get_refs_from_csv(
-    path: str, *, is_anon: bool = False, extra_fields: list[str] | None = None
+    path: cfs.FsPath, *, is_anon: bool = False, extra_fields: list[str] | None = None
 ) -> cfs.RefSet:
     """Returns an anonymized RefSet with data of {(value, value, ...)} for any extra fields"""
     extra_fields = extra_fields or []

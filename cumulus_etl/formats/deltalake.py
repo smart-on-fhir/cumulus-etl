@@ -10,13 +10,13 @@ import logging
 import os
 import tempfile
 
+import cumulus_fhir_support as cfs
 import delta
 import pyarrow
 import pyarrow.parquet
 import pyspark
 from pyspark.sql.utils import AnalysisException
 
-from cumulus_etl import store
 from cumulus_etl.formats.base import Format
 from cumulus_etl.formats.batch import Batch
 
@@ -56,7 +56,7 @@ class DeltaLakeFormat(Format):
     spark = None
 
     @classmethod
-    def initialize_class(cls, root: store.Root) -> None:
+    def initialize_class(cls, root: cfs.FsPath) -> None:
         if cls.spark is not None:
             return
 
@@ -169,7 +169,7 @@ class DeltaLakeFormat(Format):
 
     def _table_path(self, dbname: str) -> str:
         # hadoop uses the s3a: scheme instead of s3:
-        return self.root.joinpath(dbname).replace("s3://", "s3a://")
+        return str(self.root.joinpath(dbname)).replace("s3://", "s3a://")
 
     def _load_table(self) -> delta.DeltaTable | None:
         full_path = self._table_path(self.dbname)
@@ -232,9 +232,9 @@ class DeltaLakeFormat(Format):
         )
 
     @staticmethod
-    def _configure_fs(root: store.Root, spark: pyspark.sql.SparkSession):
+    def _configure_fs(root: cfs.FsPath, spark: pyspark.sql.SparkSession):
         """Tell spark/hadoop how to talk to S3 for us"""
-        fsspec_options = root.fsspec_options()
+        fs_options = cfs.FsPath.get_registered_options()
         # This credentials.provider option enables usage of the AWS credentials default priority
         # list (i.e. it will cause a check for a ~/.aws/credentials file to happen instead of just
         # looking for env vars).
@@ -244,12 +244,10 @@ class DeltaLakeFormat(Format):
         )
         spark.conf.set("fs.s3a.sse.enabled", "true")
         spark.conf.set("fs.s3a.server-side-encryption-algorithm", "SSE-KMS")
-        kms_key = fsspec_options.get("s3_additional_kwargs", {}).get("SSEKMSKeyId")
-        if kms_key:
+        if kms_key := fs_options.get("kms_key"):
             spark.conf.set("fs.s3a.server-side-encryption.key", kms_key)
-        region_name = fsspec_options.get("client_kwargs", {}).get("region_name")
-        if region_name:
-            spark.conf.set("fs.s3a.endpoint.region", region_name)
+        if region := fs_options.get("region"):
+            spark.conf.set("fs.s3a.endpoint.region", region)
 
     @contextlib.contextmanager
     def batch_to_spark(self, batch: Batch) -> pyspark.sql.DataFrame:

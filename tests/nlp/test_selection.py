@@ -5,6 +5,7 @@ import shutil
 import time
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 import pydantic
 
@@ -30,7 +31,7 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
         return self.load_pydantic_model("example/age.json")()
 
     def make_docs(self, docs: list[tuple[str, str]], res_type: str) -> None:
-        with common.NdjsonWriter(f"{self.tmpdir}/{res_type}.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{self.tmpdir}/{res_type}.ndjson")) as writer:
             for doc in docs:
                 if res_type == "DocumentReference":
                     note = {
@@ -63,8 +64,9 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
                 writer.write(note)
 
     def make_cohort_csv(self, rows: list[str]) -> str:
-        common.write_text(f"{self.tmpdir}/cohort.csv", "\n".join(rows))
-        return f"{self.tmpdir}/cohort.csv"
+        path = cfs.FsPath(f"{self.tmpdir}/cohort.csv")
+        path.write_text("\n".join(rows))
+        return str(path)
 
     def mock_athena(self, rows: list[str]):
         # First query: returning a count (minus headers)
@@ -251,7 +253,7 @@ class TestSelection(NlpModelTestCase, BaseEtlSimple):
                 await self.run_etl("--select-by-athena-table=db.cohort__test")
 
     async def test_no_patient_defined(self):
-        with common.NdjsonWriter(f"{self.tmpdir}/docs.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{self.tmpdir}/docs.ndjson")) as writer:
             writer.write(
                 {
                     "resourceType": "DocumentReference",

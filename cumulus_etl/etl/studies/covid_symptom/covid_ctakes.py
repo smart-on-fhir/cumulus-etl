@@ -3,14 +3,15 @@
 import logging
 
 import ctakesclient
+import cumulus_fhir_support as cfs
 import httpx
 from ctakesclient.transformer import TransformerModel
 
-from cumulus_etl import common, nlp, store
+from cumulus_etl import common, nlp
 
 
 async def covid_symptoms_extract(
-    cache: store.Root,
+    cache: cfs.FsPath,
     docref: dict,
     clinical_note: str,
     *,

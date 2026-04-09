@@ -2,9 +2,10 @@
 
 import os
 
+import cumulus_fhir_support as cfs
 import ddt
 
-from cumulus_etl import cli, common
+from cumulus_etl import cli
 from tests import utils
 
 
@@ -40,4 +41,6 @@ class TestInit(utils.AsyncTestCase):
 
         # Are folder contents what we expect?
         self.assertEqual(["patient.000.ndjson"], os.listdir(f"{self.output_path}/patient"))
-        self.assertEqual("", common.read_text(f"{self.output_path}/patient/patient.000.ndjson"))
+        self.assertEqual(
+            "", cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_text()
+        )

@@ -19,7 +19,7 @@ class TestCovidSymptomNlpResultsTask(CtakesMixin, TaskTestCase):
     def setUp(self):
         super().setUp()
         self.scrubber.mask_notes = False
-        self.job_config.ctakes_overrides = self.ctakes_overrides.name
+        self.job_config.ctakes_overrides = cfs.FsPath(self.ctakes_overrides.name)
 
     async def test_prepare_failure(self):
         """Verify that if ctakes can't be restarted, we skip"""

@@ -1,8 +1,8 @@
 """An implementation of Format that writes to a few parquet files"""
 
+import cumulus_fhir_support as cfs
 import pyarrow
 
-from cumulus_etl import store
 from cumulus_etl.formats.batch import Batch
 from cumulus_etl.formats.batched_files import BatchedFileFormat
 from cumulus_etl.formats.nlp import AthenaMixin
@@ -15,10 +15,9 @@ class NlpParquetFormat(AthenaMixin, BatchedFileFormat):
     def suffix(self) -> str:
         return "parquet"
 
-    def write_format(self, batch: Batch, path: str) -> None:
-        fs = store.Root(path).fs
+    def write_format(self, batch: Batch, path: cfs.FsPath) -> None:
         table = pyarrow.Table.from_pylist(batch.rows, schema=batch.schema)
-        pyarrow.parquet.write_table(table, path, compression="snappy", filesystem=fs)
+        pyarrow.parquet.write_table(table, str(path), compression="snappy", filesystem=path.fs)
 
         super().write_format(batch, path)
 
