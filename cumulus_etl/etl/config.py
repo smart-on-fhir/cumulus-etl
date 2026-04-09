@@ -1,12 +1,11 @@
 """ETL job config with summary"""
 
 import datetime
-import os
 from socket import gethostname
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import common, errors, formats, store
+from cumulus_etl import common, errors, formats
 
 
 class JobConfig:
@@ -20,10 +19,10 @@ class JobConfig:
 
     def __init__(
         self,
-        dir_input_orig: str,  # original user-input path
-        dir_input_deid: str,  # temporary dir where we are reading the de-identified data from
-        dir_output: str,
-        dir_phi: str,
+        dir_input_orig: cfs.FsPath,  # original user-input path
+        dir_input_deid: cfs.FsPath,  # temporary dir that holds the de-identified data
+        dir_output: cfs.FsPath,
+        dir_phi: cfs.FsPath,
         input_format: str,
         output_format: str,
         *,
@@ -31,8 +30,8 @@ class JobConfig:
         timestamp: datetime.datetime | None = None,
         comment: str | None = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
-        ctakes_overrides: str | None = None,
-        dir_errors: str | None = None,
+        ctakes_overrides: cfs.FsPath | None = None,
+        dir_errors: cfs.FsPath | None = None,
         tasks: list[str] | None = None,
         export_group_name: str | None = None,
         export_datetime: datetime.datetime | None = None,
@@ -62,29 +61,30 @@ class JobConfig:
         self.resource_filter = resource_filter
 
         # initialize format class
-        self._output_root = store.Root(self._dir_output, create=True)
+        self._dir_output.makedirs()
         self._format_class = formats.get_format_class(self._output_format)
-        self._format_class.initialize_class(self._output_root)
+        self._format_class.initialize_class(self._dir_output)
         self._format_kwargs = format_kwargs or {}
 
     def create_formatter(self, dbname: str, **kwargs) -> formats.Format:
-        return self._format_class(self._output_root, dbname, **self._format_kwargs, **kwargs)
+        return self._format_class(self._dir_output, dbname, **self._format_kwargs, **kwargs)
 
-    def path_config(self) -> str:
-        return os.path.join(self.dir_job_config(), "job_config.json")
+    def path_config(self) -> cfs.FsPath:
+        return self.dir_job_config().joinpath("job_config.json")
 
-    def dir_job_config(self) -> str:
+    def dir_job_config(self) -> cfs.FsPath:
         timestamp_dir = common.timestamp_filename(self.timestamp)
-        path = self._output_root.joinpath(f"JobConfig/{timestamp_dir}")
-        self._output_root.makedirs(path)
+        path = self._dir_output.joinpath(f"JobConfig/{timestamp_dir}")
+        path.makedirs()
         return path
 
     def as_json(self):
         return {
-            "dir_input": self.dir_input_orig,  # the original folder, rather than the temp dir holding deid files
-            "dir_output": self._dir_output,
-            "dir_phi": self.dir_phi,
-            "path": self.path_config(),
+            # the original folder, rather than the temp dir holding deid files
+            "dir_input": str(self.dir_input_orig),
+            "dir_output": str(self._dir_output),
+            "dir_phi": str(self.dir_phi),
+            "path": str(self.path_config()),
             "input_format": self._input_format,
             "output_format": self._output_format,
             "comment": self.comment,
@@ -129,21 +129,21 @@ class JobSummary:
         }
 
 
-def _latest_config(output_root: store.Root) -> dict:
+def _latest_config(output_root: cfs.FsPath) -> dict:
     try:
-        config_root = store.Root(output_root.joinpath("JobConfig"))
+        config_root = output_root.joinpath("JobConfig")
         timestamp_dirs = sorted(config_root.ls(), reverse=True)
-        config_path = f"{timestamp_dirs[0]}/job_config.json"
-        return common.read_json(config_path)
+        config_path = timestamp_dirs[0].joinpath("job_config.json")
+        return config_path.read_json(default={})
     except Exception:
         return {}
 
 
-def latest_codebook_id_from_configs(output_root: store.Root) -> str | None:
+def latest_codebook_id_from_configs(output_root: cfs.FsPath) -> str | None:
     return _latest_config(output_root).get("codebook_id")
 
 
-def validate_etl_output_folder(output_root: store.Root, codebook_id: str) -> None:
+def validate_etl_output_folder(output_root: cfs.FsPath, codebook_id: str) -> None:
     """
     Confirm the user isn't trying to use different PHI folders for the same output folder.
 
@@ -161,7 +161,7 @@ def validate_etl_output_folder(output_root: store.Root, codebook_id: str) -> Non
     if saved_codebook_id != codebook_id:
         config = _latest_config(output_root)
         errors.fatal(
-            f"The output folder '{output_root.path}' is already associated "
+            f"The output folder '{output_root}' is already associated "
             f"with a different PHI folder at '{config.get('dir_phi')}'. "
             "You must always use the same PHI folder for a given output folder.",
             errors.WRONG_PHI_FOLDER,

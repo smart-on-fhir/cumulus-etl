@@ -20,7 +20,7 @@ import pyarrow
 import pydantic
 import rich.table
 
-from cumulus_etl import common, errors, feedback, nlp, store
+from cumulus_etl import common, errors, feedback, nlp
 from cumulus_etl.etl import tasks
 
 ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
@@ -84,10 +84,7 @@ class BaseNlpTask(tasks.EtlTask):
         if not hasattr(formatter, "group_id_path"):
             return
 
-        try:
-            ids = common.read_text(formatter.group_id_path())
-        except (FileNotFoundError, PermissionError):
-            return
+        ids = formatter.group_id_path().read_text(default="")
 
         self.finished_groups = set(ids.splitlines())
 
@@ -96,7 +93,8 @@ class BaseNlpTask(tasks.EtlTask):
 
         if not self.task_config.dir_errors:
             return
-        error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
+        error_root = self.task_config.dir_errors.joinpath(self.name)
+        error_root.makedirs()
         error_path = error_root.joinpath("nlp-errors.ndjson")
         with common.NdjsonWriter(error_path, append=True) as writer:
             writer.write(docref)

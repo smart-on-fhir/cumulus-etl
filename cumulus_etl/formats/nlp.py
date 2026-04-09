@@ -1,8 +1,9 @@
 import re
 
+import cumulus_fhir_support as cfs
 import pyarrow
 
-from cumulus_etl import common, errors, store
+from cumulus_etl import common, errors
 from cumulus_etl.formats.batch import Batch
 
 
@@ -11,7 +12,7 @@ class AthenaMixin:  # like most mixins, this should go first in inheritance list
 
     def __init__(
         self,
-        root: store.Root,
+        root: cfs.FsPath,
         dbname: str,
         *args,
         version: int,
@@ -29,7 +30,7 @@ class AthenaMixin:  # like most mixins, this should go first in inheritance list
         #   s3://{workgroup_result_path}/{study}/{topic}/*.parquet
         # Where topic is our dbname, minus the study and with version info added
         study, table = dbname.split("__", 1)
-        root = store.Root(root.joinpath(study))
+        root = root.joinpath(study)
         dbname = f"{table}_v{version}"
 
         if clean:
@@ -37,19 +38,16 @@ class AthenaMixin:  # like most mixins, this should go first in inheritance list
             # Do this before calling __init__() because that looks at the files in the folder to
             # get the first batch number to use.
             table_with_version = re.compile(rf"/{table}_v[0-9]+(\.ids)?$")
-            try:
-                for folder in root.ls():
-                    if table_with_version.search(folder):
-                        root.rm(folder)
-            except (FileNotFoundError, PermissionError):
-                pass
+            for folder in root.ls():
+                if table_with_version.search(str(folder)):
+                    folder.rm()
 
         super().__init__(root, dbname, *args, **kwargs)
 
-    def group_id_path(self) -> str:
-        return self.dbroot.path.rstrip("/") + ".ids"
+    def group_id_path(self) -> cfs.FsPath:
+        return cfs.FsPath(str(self.dbroot).rstrip("/") + ".ids")
 
-    def write_format(self, batch: Batch, path: str) -> None:
+    def write_format(self, batch: Batch, path: cfs.FsPath) -> None:
         super().write_format(batch, path)
         self._update_finished_groups(batch.groups)
 

@@ -11,12 +11,10 @@ import os
 from collections import defaultdict
 from collections.abc import Iterator
 from functools import partial
-from typing import Any, Protocol, TextIO
+from typing import Any, Protocol
 
 import cumulus_fhir_support as cfs
 import rich
-
-from cumulus_etl import store
 
 ###############################################################################
 #
@@ -77,10 +75,8 @@ def get_temp_dir(subdir: str) -> str:
 ###############################################################################
 
 
-def ls_resources(root: store.Root, resources: set[str], warn_if_empty: bool = False) -> list[str]:
-    found_files = cfs.list_multiline_json_in_dir(
-        root.path, resources, fsspec_fs=root.fs, recursive=True
-    )
+def ls_resources(root: cfs.FsPath, resources: set[str], warn_if_empty: bool = False) -> list[str]:
+    found_files = cfs.list_multiline_json_in_dir(root, resources, recursive=True)
 
     if warn_if_empty:
         warn_on_missing_resources(found_files, resources)
@@ -108,96 +104,30 @@ def warn_on_missing_resources(found_files: dict[str, str | None], resources: set
 ###############################################################################
 
 
-@contextlib.contextmanager
-def _atomic_open(path: str, mode: str, **kwargs) -> TextIO:
-    """A version of open() that handles atomic file access across many filesystems (like S3)"""
-    root = store.Root(path)
-
-    with contextlib.ExitStack() as stack:
-        if "w" in mode:
-            # fsspec is atomic per-transaction.
-            # If an error occurs inside the transaction, partial writes will be discarded.
-            # But we only want a transaction if we're writing - read transactions may error out
-            stack.enter_context(root.fs.transaction)
-
-        yield stack.enter_context(root.fs.open(path, mode=mode, encoding="utf8", **kwargs))
-
-
-def read_text(path: str) -> str:
-    """
-    Reads data from the given path, in text format
-    :param path: (currently filesystem path)
-    :return: message: coded message
-    """
-    logging.debug("read_text() %s", path)
-
-    with _atomic_open(path, "r") as f:
-        return f.read()
-
-
-def append_text(path: str, text: str) -> None:
+def append_text(path: cfs.FsPath, text: str) -> None:
     """
     Adds data to the given path, in text format
     :param path: filesystem path
     :param text: the text to write to disk
     """
-    logging.debug("append_text() %s", path)
-
-    with _atomic_open(path, "a") as f:
+    with path.open("a") as f:
         f.write(text)
-
-
-def write_text(path: str, text: str) -> None:
-    """
-    Writes data to the given path, in text format
-    :param path: filesystem path
-    :param text: the text to write to disk
-    """
-    logging.debug("write_text() %s", path)
-
-    with _atomic_open(path, "w") as f:
-        f.write(text)
-
-
-def read_json(path: str) -> Any:
-    """
-    Reads json from a file
-    :param path: filesystem path
-    :return: message: coded message
-    """
-    logging.debug("read_json() %s", path)
-
-    with _atomic_open(path, "r") as f:
-        return json.load(f)
-
-
-def write_json(path: str, data: Any, indent: int | None = None) -> None:
-    """
-    Writes data to the given path, in json format
-    :param path: filesystem path
-    :param data: the structure to write to disk
-    :param indent: whether and how much to indent the output
-    """
-    logging.debug("write_json() %s", path)
-
-    with _atomic_open(path, "w") as f:
-        json.dump(data, f, indent=indent)
 
 
 @contextlib.contextmanager
-def read_csv(path: str) -> csv.DictReader:
+def read_csv(path: cfs.FsPath) -> csv.DictReader:
     # Python docs say to use newline="", to support quoted multi-line fields
-    with _atomic_open(path, "r", newline="") as csvfile:
+    with path.open(newline="") as csvfile:
         yield csv.DictReader(csvfile)
 
 
-def read_ndjson(root: store.Root, path: str) -> Iterator[dict]:
+def read_ndjson(path: cfs.FsPath) -> Iterator[dict]:
     """Yields parsed json from the input ndjson file, line-by-line."""
-    yield from cfs.read_multiline_json(path, fsspec_fs=root.fs)
+    yield from cfs.read_multiline_json(path)
 
 
 def read_resource_ndjson_with_details(
-    root: store.Root, resources: str | set[str], warn_if_empty: bool = False
+    root: cfs.FsPath, resources: str | set[str], warn_if_empty: bool = False
 ) -> Iterator[tuple[str, dict]]:
     """
     Grabs all ndjson files from a folder, of a particular resource type. With details.
@@ -205,7 +135,7 @@ def read_resource_ndjson_with_details(
     if isinstance(resources, str):
         resources = {resources}
     for filename in ls_resources(root, resources, warn_if_empty=warn_if_empty):
-        for data in cfs.read_multiline_json_with_details(filename, fsspec_fs=root.fs):
+        for data in cfs.read_multiline_json_with_details(filename):
             line = data["json"]
             # Sanity check the incoming NDJSON - who knows what could happen and we should surface
             # a nice message about it. This *could* be very noisy on the console if there are a lot
@@ -222,7 +152,7 @@ def read_resource_ndjson_with_details(
 
 
 def read_resource_ndjson(
-    root: store.Root, resources: str | set[str], warn_if_empty: bool = False
+    root: cfs.FsPath, resources: str | set[str], warn_if_empty: bool = False
 ) -> Iterator[dict]:
     """
     Grabs all ndjson files from a folder, of a particular resource type.
@@ -255,14 +185,10 @@ class NdjsonWriter:
     Note that this is not atomic - partial writes will make it to the target file.
     """
 
-    def __init__(
-        self, path: str, append: bool = False, allow_empty: bool = False, compressed: bool = False
-    ):
-        self._root = store.Root(path)
+    def __init__(self, path: cfs.FsPath, append: bool = False, allow_empty: bool = False):
+        self._path = path
         self._append = append
-        self._compressed = compressed
         self._file = None
-        self._inner_file = None
         if allow_empty:
             self._ensure_file()
 
@@ -273,18 +199,11 @@ class NdjsonWriter:
         if self._file:
             self._file.close()
             self._file = None
-        if self._inner_file:
-            self._inner_file.close()
-            self._inner_file = None
 
     def _ensure_file(self):
         if not self._file:
             mode = "a" if self._append else "w"
-            if self._compressed:
-                self._inner_file = self._root.fs.open(self._root.path, mode + "b")
-                self._file = gzip.open(self._inner_file, mode + "t", encoding="utf8")
-            else:
-                self._file = self._root.fs.open(self._root.path, mode + "t", encoding="utf8")
+            self._file = self._path.open_direct(mode)
 
     def write(self, obj: dict) -> None:
         # lazily create the file, to avoid 0-line ndjson files (unless created in __init__)

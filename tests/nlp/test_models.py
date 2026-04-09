@@ -12,13 +12,14 @@ import os
 from types import SimpleNamespace
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 import httpx
 import openai
 import pyarrow
 import pydantic
 
-from cumulus_etl import common, errors, nlp
+from cumulus_etl import errors, nlp
 from cumulus_etl.etl.studies import covid_symptom
 from cumulus_etl.etl.tasks import task_factory
 from cumulus_etl.nlp.models import OpenAIProvider
@@ -127,7 +128,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         cache_dir = f"{self.phi_dir}/nlp-cache/example_nlp__nlp_gpt_oss_120b_v1/06ee"
         cache_file = f"{cache_dir}/sha256-06ee538c626fbf4bdcec2199b7225c8034f26e2b46a7b5cb7ab385c8e8c00efa.cache"
         self.assertEqual(
-            common.read_json(cache_file),
+            cfs.FsPath(cache_file).read_json(),
             {
                 "answer": self.default_content().model_dump(mode="json", exclude_unset=True),
                 "fingerprint": "test-fp",
@@ -547,7 +548,7 @@ class TestAzureNLPTasks(NlpModelTestCase, BaseEtlSimple):
 
         async def upload_file(**kwargs):
             self.assertEqual(kwargs["purpose"], "batch")
-            file_text = common.read_text(str(kwargs["file"]))
+            file_text = cfs.FsPath(str(kwargs["file"])).read_text()
             lines = [json.loads(line) for line in file_text.split("\n") if line]
             self.assertEqual(len(lines), 4)  # 2 docrefs, 2 dxreports
             self.assertEqual(

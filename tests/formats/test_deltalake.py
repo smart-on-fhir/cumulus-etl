@@ -7,12 +7,13 @@ import shutil
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 import pyarrow
 import pyspark.sql
 from pyspark.sql.utils import AnalysisException
 
-from cumulus_etl import formats, store
+from cumulus_etl import formats
 from cumulus_etl.formats.deltalake import DeltaLakeFormat
 from tests import utils
 
@@ -31,7 +32,7 @@ class TestDeltaLake(utils.AsyncTestCase):
         output_tempdir = tempfile.TemporaryDirectory()
         cls.output_tempdir = output_tempdir
         cls.output_dir = output_tempdir.name
-        cls.root = store.Root(output_tempdir.name)
+        cls.root = cfs.FsPath(output_tempdir.name)
 
         # It is expensive to initialize DeltaLakeFormat because of all the pyspark jar downloading etc.
         # So we only do it once per class suite. (And erase all folder contents per-test)
@@ -409,16 +410,12 @@ class TestDeltaLake(utils.AsyncTestCase):
         DeltaLakeFormat.spark = None
 
         # Now re-initialize the class, mocking out all the slow spark stuff, and using S3.
-        fs_options = {
-            "s3_kms_key": "test-key",
-            "s3_region": "us-west-1",
-        }
+        cfs.FsPath.register_options(kms_key="test-key", region="us-west-1")
         with (
-            mock.patch("cumulus_etl.store._user_fs_options", new=fs_options),
             mock.patch("delta.configure_spark_with_delta_pip"),
             mock.patch("pyspark.sql"),
         ):
-            DeltaLakeFormat.initialize_class(store.Root("s3://test/"))
+            DeltaLakeFormat.initialize_class(cfs.FsPath("s3://test/"))
 
         self.assertEqual(
             sorted(DeltaLakeFormat.spark.conf.set.call_args_list, key=lambda x: x[0][0]),

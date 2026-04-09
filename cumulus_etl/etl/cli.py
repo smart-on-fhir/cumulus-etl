@@ -2,7 +2,8 @@
 
 import argparse
 import datetime
-import os
+
+import cumulus_fhir_support as cfs
 
 import cumulus_etl
 from cumulus_etl import cli_utils, common, errors, loaders
@@ -14,9 +15,9 @@ def define_etl_parser(parser: argparse.ArgumentParser) -> None:
     """Fills out an argument parser with all the ETL options."""
     parser.usage = "%(prog)s [OPTION]... INPUT OUTPUT PHI"
 
-    parser.add_argument("dir_input", metavar="/path/to/input")
-    parser.add_argument("dir_output", metavar="/path/to/output")
-    parser.add_argument("dir_phi", metavar="/path/to/phi")
+    parser.add_argument("dir_input", metavar="/path/to/input", type=cfs.FsPath)
+    parser.add_argument("dir_output", metavar="/path/to/output", type=cfs.FsPath)
+    parser.add_argument("dir_phi", metavar="/path/to/phi", type=cfs.FsPath)
 
     pipeline.add_common_etl_args(parser, outputs=["deltalake", "ndjson"])
     parser.add_argument("--comment", help="add the comment to the log file")
@@ -107,7 +108,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         args, job_datetime, nlp=False
     )
 
-    job_context = context.JobContext(os.path.join(args.dir_phi, "context.json"))
+    job_context = context.JobContext(args.dir_phi.joinpath("context.json"))
 
     # Establish the group name and datetime of the loaded dataset (from CLI args or Loader)
     export_group, export_datetime = handle_completion_args(args, loader_results)
@@ -115,7 +116,7 @@ async def etl_main(args: argparse.Namespace) -> None:
     # Prepare config for jobs
     config = JobConfig(
         args.dir_input,
-        loader_results.path,
+        cfs.FsPath(loader_results.path),
         args.dir_output,
         args.dir_phi,
         args.input_format,
@@ -132,7 +133,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         export_datetime=export_datetime,
         format_kwargs={"optimize_table": args.table_optimization},
     )
-    common.write_json(config.path_config(), config.as_json(), indent=4)
+    config.path_config().write_json(config.as_json(), indent=4)
 
     # Finally, actually run the meat of the pipeline! (Filtered down to requested tasks)
     summaries = await pipeline.etl_job(config, selected_tasks, scrubber)

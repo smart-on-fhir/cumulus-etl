@@ -9,14 +9,13 @@ Some differences:
 """
 
 import argparse
-import os
 
 import cumulus_fhir_support as cfs
 import pyathena
 import rich
 import rich.prompt
 
-from cumulus_etl import cli_utils, common, deid, errors, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.etl import pipeline
 from cumulus_etl.etl.config import JobConfig
 
@@ -25,9 +24,9 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
     """Fills out an argument parser with all the ETL options."""
     parser.usage = "%(prog)s [OPTION]... INPUT OUTPUT PHI"
 
-    parser.add_argument("dir_input", metavar="/path/to/input")
-    parser.add_argument("dir_output", metavar="/path/to/output")
-    parser.add_argument("dir_phi", metavar="/path/to/phi", nargs="?")
+    parser.add_argument("dir_input", metavar="/path/to/input", type=cfs.FsPath)
+    parser.add_argument("dir_output", metavar="/path/to/output", type=cfs.FsPath)
+    parser.add_argument("dir_phi", metavar="/path/to/phi", type=cfs.FsPath, nargs="?")
 
     # Smaller default batch size than normal ETL because we might keep notes in memory during batch
     pipeline.add_common_etl_args(
@@ -65,10 +64,11 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
     )
 
 
-async def check_input_size(codebook: deid.Codebook, folder: str, res_filter: cfs.NoteFilter) -> int:
-    root = store.Root(folder)
+async def check_input_size(
+    codebook: deid.Codebook, folder: cfs.FsPath, res_filter: cfs.NoteFilter
+) -> int:
     count = 0
-    for resource in common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"}):
+    for resource in common.read_resource_ndjson(folder, {"DiagnosticReport", "DocumentReference"}):
         if res_filter(resource):
             count += 1
     return count
@@ -82,7 +82,7 @@ def get_athena_connection(args: argparse.Namespace) -> "pyathena.Connection":
     )
 
 
-def set_up_output_folder(args: argparse.Namespace) -> tuple[str, bool]:
+def set_up_output_folder(args: argparse.Namespace) -> tuple[cfs.FsPath, bool]:
     """
     Returns the root output folder base path to use, and whether we should register with Athena.
 
@@ -113,7 +113,7 @@ def set_up_output_folder(args: argparse.Namespace) -> tuple[str, bool]:
             # This "non-Athena" code path is mostly for just checking that the output is sane, so
             # it's not a burden to require an empty folder.
             cli_utils.confirm_dir_is_empty(
-                store.Root(args.dir_output),
+                args.dir_output,
                 message="If you are pointing at your normal ETL output folder, you will need to "
                 "either transition to the --athena-workgroup flavor of NLP uploading (without "
                 "specifying an output folder at all) or pass --output-format=deltalake, which "
@@ -179,13 +179,15 @@ def set_up_output_folder(args: argparse.Namespace) -> tuple[str, bool]:
                 errors.ATHENA_NOT_ENCRYPTED,
             )
 
-        dir_output = f"{s3_path}cumulus_user_uploads/{args.athena_database}"
+        dir_output = cfs.FsPath(f"{s3_path}cumulus_user_uploads/{args.athena_database}")
         register_table = True
 
     return dir_output, register_table
 
 
-def validate_athena_results_folder(workgroup: str, output_dir: str, codebook_id: str) -> None:
+def validate_athena_results_folder(
+    workgroup: str, output_dir: cfs.FsPath, codebook_id: str
+) -> None:
     """
     Confirm the user isn't trying to use different PHI folders for the same Athena workgroup.
 
@@ -198,11 +200,12 @@ def validate_athena_results_folder(workgroup: str, output_dir: str, codebook_id:
     It's safe to have multiple output folders all using the same PHI folder. But not the other way
     around.
     """
-    id_path = os.path.join(output_dir, "codebook.id")
+    id_path = output_dir.joinpath("codebook.id")
     try:
-        saved_codebook_id = common.read_text(id_path).strip()
+        saved_codebook_id = id_path.read_text().strip()
     except (FileNotFoundError, PermissionError):
-        common.write_text(id_path, codebook_id)
+        output_dir.makedirs()
+        id_path.write_text(codebook_id)
         return
 
     if saved_codebook_id != codebook_id:
@@ -233,7 +236,7 @@ async def nlp_main(args: argparse.Namespace) -> None:
 
     # Let the user know how many documents got selected, so there are no big cost surprises.
     res_filter = nlp.get_note_filter(args, scrubber.codebook)
-    count = await check_input_size(scrubber.codebook, loader_results.path, res_filter)
+    count = await check_input_size(scrubber.codebook, cfs.FsPath(loader_results.path), res_filter)
     response = cli_utils.prompt(f"Run NLP on {count:,} notes?", override=args.allow_large_selection)
     if response in cli_utils.PromptResponse.SKIPPED:
         rich.print(f"Running NLP on {count:,} notes…")
@@ -264,7 +267,7 @@ async def nlp_main(args: argparse.Namespace) -> None:
 
         config = JobConfig(
             args.dir_input,
-            loader_results.path,
+            cfs.FsPath(loader_results.path),
             dir_output_base,
             args.dir_phi,
             args.input_format,

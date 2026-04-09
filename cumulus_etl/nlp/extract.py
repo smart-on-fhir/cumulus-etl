@@ -1,13 +1,11 @@
 """Interface for talking to a cTAKES server"""
 
 import hashlib
-import os
 
 import ctakesclient
+import cumulus_fhir_support as cfs
 import httpx
 from ctakesclient.transformer import TransformerModel
-
-from cumulus_etl import common, store
 
 
 def ctakes_httpx_client() -> httpx.AsyncClient:
@@ -16,7 +14,7 @@ def ctakes_httpx_client() -> httpx.AsyncClient:
 
 
 async def ctakes_extract(
-    cache: store.Root, namespace: str, sentence: str, client: httpx.AsyncClient = None
+    cache: cfs.FsPath, namespace: str, sentence: str, client: httpx.AsyncClient = None
 ) -> ctakesclient.typesystem.CtakesJSON:
     """
     This is a version of ctakesclient.client.extract() that also uses a cache
@@ -27,18 +25,18 @@ async def ctakes_extract(
     full_path = cache.joinpath(_target_filename(namespace, sentence))
 
     try:
-        cached_response = common.read_json(full_path)
+        cached_response = full_path.read_json()
         result = ctakesclient.typesystem.CtakesJSON(source=cached_response)
     except Exception:
         result = await ctakesclient.client.extract(sentence, client=client)
-        cache.makedirs(os.path.dirname(full_path))
-        common.write_json(full_path, result.as_json())
+        full_path.parent.makedirs()
+        full_path.write_json(result.as_json())
 
     return result
 
 
 async def list_polarity(
-    cache: store.Root,
+    cache: cfs.FsPath,
     namespace: str,
     sentence: str,
     spans: list[tuple],
@@ -57,13 +55,13 @@ async def list_polarity(
     full_path = cache.joinpath(_target_filename(namespace, sentence))
 
     try:
-        result = [ctakesclient.typesystem.Polarity(x) for x in common.read_json(full_path)]
+        result = [ctakesclient.typesystem.Polarity(x) for x in full_path.read_json()]
     except Exception:
         result = await ctakesclient.transformer.list_polarity(
             sentence, spans, client=client, model=model
         )
-        cache.makedirs(os.path.dirname(full_path))
-        common.write_json(full_path, [x.value for x in result])
+        full_path.parent.makedirs()
+        full_path.write_json([x.value for x in result])
 
     return result
 

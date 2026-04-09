@@ -1,10 +1,11 @@
 """An implementation of Format designed to write in batches of files"""
 
 import abc
-import os
 import re
 
-from cumulus_etl import cli_utils, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import cli_utils
 from cumulus_etl.formats.base import Format
 from cumulus_etl.formats.batch import Batch
 
@@ -28,7 +29,7 @@ class BatchedFileFormat(Format):
         """
 
     @abc.abstractmethod
-    def write_format(self, batch: Batch, path: str) -> None:
+    def write_format(self, batch: Batch, path: cfs.FsPath) -> None:
         """
         Write the data in `batch` to the target path file
         """
@@ -40,7 +41,7 @@ class BatchedFileFormat(Format):
     ##########################################################################################
 
     @classmethod
-    def initialize_class(cls, root: store.Root) -> None:
+    def initialize_class(cls, root: cfs.FsPath) -> None:
         # The ndjson formatter has a few main use cases:
         # - unit testing
         # - manual testing
@@ -61,7 +62,7 @@ class BatchedFileFormat(Format):
         """Performs any preparation before any batches have been written."""
         super().__init__(*args, **kwargs)
 
-        self.dbroot = store.Root(self.root.joinpath(self.dbname))
+        self.dbroot = self.root.joinpath(self.dbname)
 
         # Grab the next available batch index to write.
         # You might wonder why we do this, if we already checked that the output folder is empty
@@ -72,10 +73,7 @@ class BatchedFileFormat(Format):
         self._index = self._get_next_index()
 
     def _get_next_index(self) -> int:
-        try:
-            basenames = [os.path.basename(path) for path in self.dbroot.ls()]
-        except FileNotFoundError:
-            return 0
+        basenames = [path.name for path in self.dbroot.ls()]
         pattern = re.compile(rf"{self.dbname}\.([0-9]+)\.{self.suffix}")
         matches = [pattern.match(basename) for basename in basenames]
         numbers = [int(match.group(1)) for match in matches if match]
@@ -83,7 +81,7 @@ class BatchedFileFormat(Format):
 
     def _write_one_batch(self, batch: Batch) -> None:
         """Writes the whole dataframe to a single file"""
-        self.root.makedirs(self.dbroot.path)
+        self.dbroot.makedirs()
         full_path = self.dbroot.joinpath(f"{self.dbname}.{self._index:03}.{self.suffix}")
         self.write_format(batch, full_path)
         self._index += 1

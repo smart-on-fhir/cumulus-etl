@@ -4,7 +4,9 @@ import datetime
 import os
 import tempfile
 
-from cumulus_etl import cli, common, errors, feedback, loaders, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import cli, common, errors, feedback, loaders
 from tests.utils import AsyncTestCase
 
 
@@ -21,7 +23,7 @@ class TestNdjsonLoader(AsyncTestCase):
 
     @staticmethod
     def _write_log_file(path: str, group: str, timestamp: str) -> None:
-        with common.NdjsonWriter(path) as writer:
+        with common.NdjsonWriter(cfs.FsPath(path)) as writer:
             writer.write(
                 {
                     "eventId": "kickoff",
@@ -43,14 +45,14 @@ class TestNdjsonLoader(AsyncTestCase):
 
         with tempfile.TemporaryDirectory() as tmpdir:
             self._write_log_file(f"{tmpdir}/log.ndjson", "G", "1999-03-14T14:12:10")
-            with common.NdjsonWriter(f"{tmpdir}/Patient.ndjson") as writer:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/Patient.ndjson")) as writer:
                 writer.write(patient)
 
-            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            loader = loaders.FhirNdjsonLoader(cfs.FsPath(tmpdir))
             results = await loader.load_resources({"Patient"}, progress=self.progress)
 
         self.assertEqual(["Patient.ndjson"], os.listdir(results.path))
-        self.assertEqual(patient, common.read_json(f"{results.path}/Patient.ndjson"))
+        self.assertEqual(patient, cfs.FsPath(f"{results.path}/Patient.ndjson").read_json())
         self.assertEqual("G", results.group_name)
         self.assertEqual(
             datetime.datetime.fromisoformat("1999-03-14T14:12:10"), results.export_datetime
@@ -64,7 +66,7 @@ class TestNdjsonLoader(AsyncTestCase):
             self._write_log_file(f"{tmpdir}/log.1.ndjson", "G1", "2001-01-01")
             self._write_log_file(f"{tmpdir}/log.2.ndjson", "G2", "2002-02-02")
 
-            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            loader = loaders.FhirNdjsonLoader(cfs.FsPath(tmpdir))
             results = await loader.load_resources(set(), progress=self.progress)
 
         # We used neither log and didn't error out.
@@ -86,8 +88,7 @@ class TestNdjsonLoader(AsyncTestCase):
         """Verify we read in the deleted/ folder"""
         with tempfile.TemporaryDirectory() as tmpdir:
             os.mkdir(f"{tmpdir}/deleted")
-            common.write_json(
-                f"{tmpdir}/deleted/deletes.ndjson",
+            cfs.FsPath(f"{tmpdir}/deleted/deletes.ndjson").write_json(
                 {
                     "resourceType": "Bundle",
                     "type": "transaction",
@@ -101,8 +102,7 @@ class TestNdjsonLoader(AsyncTestCase):
                 },
             )
             # This next bundle will be ignored because of the wrong "type"
-            common.write_json(
-                f"{tmpdir}/deleted/messages.ndjson",
+            cfs.FsPath(f"{tmpdir}/deleted/messages.ndjson").write_json(
                 {
                     "resourceType": "Bundle",
                     "type": "message",
@@ -114,14 +114,13 @@ class TestNdjsonLoader(AsyncTestCase):
                 },
             )
             # This next file will be ignored because of the wrong "resourceType"
-            common.write_json(
-                f"{tmpdir}/deleted/conditions-for-some-reason.ndjson",
+            cfs.FsPath(f"{tmpdir}/deleted/conditions-for-some-reason.ndjson").write_json(
                 {
                     "resourceType": "Condition",
                     "recordedDate": "2024-09-04",
                 },
             )
-            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            loader = loaders.FhirNdjsonLoader(cfs.FsPath(tmpdir))
             results = await loader.load_resources({"Patient"}, progress=self.progress)
 
         self.assertEqual(results.deleted_ids, {"Patient": {"pat1"}, "Condition": {"con1", "con2"}})
@@ -129,11 +128,11 @@ class TestNdjsonLoader(AsyncTestCase):
     async def test_detect_resources(self):
         """Verify we can inspect a folder and find all resources."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            common.write_json(f"{tmpdir}/p.ndjson", {"id": "A", "resourceType": "Patient"})
-            common.write_json(f"{tmpdir}/unrelated.ndjson", {"num_cats": 5})
-            common.write_json(f"{tmpdir}/c.ndjson", {"id": "A", "resourceType": "Condition"})
+            cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
+            cfs.FsPath(f"{tmpdir}/unrelated.ndjson").write_json({"num_cats": 5})
+            cfs.FsPath(f"{tmpdir}/c.ndjson").write_json({"id": "A", "resourceType": "Condition"})
 
-            loader = loaders.FhirNdjsonLoader(store.Root(tmpdir))
+            loader = loaders.FhirNdjsonLoader(cfs.FsPath(tmpdir))
             resources = await loader.detect_resources(progress=self.progress)
 
         self.assertEqual(resources, {"Condition", "Patient"})

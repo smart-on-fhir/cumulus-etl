@@ -4,11 +4,12 @@ import itertools
 from typing import ClassVar
 
 import ctakesclient
+import cumulus_fhir_support as cfs
 import pyarrow
 import pydantic
 from ctakesclient.transformer import TransformerModel
 
-from cumulus_etl import feedback, nlp, store
+from cumulus_etl import feedback, nlp
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.studies.covid_symptom import covid_ctakes
 
@@ -117,7 +118,7 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
     outputs: ClassVar = [tasks.OutputTable(resource_type=None, group_field="docref_id")]
 
     async def prepare_task(self) -> bool:
-        bsv_path = ctakesclient.filesystem.covid_symptoms_path()
+        bsv_path = cfs.FsPath(ctakesclient.filesystem.covid_symptoms_path())
         success = nlp.restart_ctakes_with_bsv(self.task_config.ctakes_overrides, bsv_path)
         if not success:
             print("  Skipping.")
@@ -129,8 +130,6 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
 
     async def read_entries(self, *, progress: feedback.Progress = None) -> tasks.EntryIterator:
         """Passes clinical notes through NLP and returns any symptoms found"""
-        phi_root = store.Root(self.task_config.dir_phi, create=True)
-
         # one client for both NLP services for now -- no parallel requests yet, so no need to be fancy
         http_client = nlp.ctakes_httpx_client()
 
@@ -138,7 +137,7 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
             progress=progress, doc_check=is_ed_docref
         ):
             symptoms = await covid_ctakes.covid_symptoms_extract(
-                phi_root,
+                self.task_config.dir_phi,
                 docref,
                 clinical_note,
                 polarity_model=self.polarity_model,
