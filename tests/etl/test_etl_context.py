@@ -4,6 +4,8 @@ import datetime
 import json
 import tempfile
 
+import cumulus_fhir_support as cfs
+
 from cumulus_etl.etl.context import JobContext
 from tests import utils
 
@@ -12,7 +14,7 @@ class TestJobContext(utils.AsyncTestCase):
     """Test case for JobContext"""
 
     def test_missing_file_context(self):
-        context = JobContext("nope")
+        context = JobContext(cfs.FsPath("nope"))
         self.assertEqual({}, context.as_json())
         self.assertIsNone(context.last_successful_datetime)
 
@@ -26,7 +28,7 @@ class TestJobContext(utils.AsyncTestCase):
             )
             f.flush()
 
-            context = JobContext(f.name)
+            context = JobContext(cfs.FsPath(f.name))
             self.assertEqual(
                 {
                     "last_successful_input_dir": "/input/dir",
@@ -46,11 +48,11 @@ class TestJobContext(utils.AsyncTestCase):
             )
 
             context.save()
-            context2 = JobContext(f.name)
+            context2 = JobContext(cfs.FsPath(f.name))
             self.assertEqual(context.as_json(), context2.as_json())
 
     def test_last_successful_props(self):
-        context = JobContext("nope")
+        context = JobContext(cfs.FsPath("nope"))
         context.last_successful_datetime = datetime.datetime(
             2008, 5, 1, 14, 30, 30, tzinfo=datetime.UTC
         )

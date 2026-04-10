@@ -1,13 +1,10 @@
 """Codebook that stores the mappings between real and fake IDs"""
 
 import binascii
-import os
 import secrets
 import uuid
 
 import cumulus_fhir_support as cfs
-
-from cumulus_etl import common
 
 
 class Codebook:
@@ -31,7 +28,7 @@ class Codebook:
     yourself.
     """
 
-    def __init__(self, codebook_dir: str | None = None, *, cache_ids: bool = True):
+    def __init__(self, codebook_dir: cfs.FsPath | None = None, *, cache_ids: bool = True):
         """
         :param codebook_dir: saved codebook path or None (initialize empty)
         :param cache_ids: whether to save new encounter/patient IDs seen to a cached mapping file
@@ -94,7 +91,7 @@ class Codebook:
 class CodebookDB:
     """Class to hold codebook data and read/write it to storage"""
 
-    def __init__(self, codebook_dir: str | None = None, *, cache_ids: bool = True):
+    def __init__(self, codebook_dir: cfs.FsPath | None = None, *, cache_ids: bool = True):
         """
         Create a codebook database.
 
@@ -118,19 +115,11 @@ class CodebookDB:
         self.mappings_modified = False
 
         if codebook_dir:
-            try:
-                self._load_saved_settings(
-                    common.read_json(os.path.join(codebook_dir, "codebook.json"))
-                )
-            except (FileNotFoundError, PermissionError):
-                pass
+            codebook_path = codebook_dir.joinpath("codebook.json")
+            self._load_saved_settings(codebook_path.read_json(default=self.settings))
         if codebook_dir and cache_ids:
-            try:
-                self.cached_mapping = common.read_json(
-                    os.path.join(codebook_dir, "codebook-cached-mappings.json")
-                )
-            except (FileNotFoundError, PermissionError):
-                pass
+            mapping_path = codebook_dir.joinpath("codebook-cached-mappings.json")
+            self.cached_mapping = mapping_path.read_json(default={})
 
         # Initialize a unique ID for this codebook if we don't have one yet.
         # This is not a secret ID - it's referenced in the output folders.
@@ -264,14 +253,14 @@ class CodebookDB:
         saved = False
 
         if self.settings_modified:
-            codebook_path = os.path.join(self.codebook_dir, "codebook.json")
-            common.write_json(codebook_path, self.settings)
+            codebook_path = self.codebook_dir.joinpath("codebook.json")
+            codebook_path.write_json(self.settings)
             self.settings_modified = False
             saved = True
 
         if self.mappings_modified and self.cached_mapping is not None:
-            cached_mapping_path = os.path.join(self.codebook_dir, "codebook-cached-mappings.json")
-            common.write_json(cached_mapping_path, self.cached_mapping)
+            cached_mapping_path = self.codebook_dir.joinpath("codebook-cached-mappings.json")
+            cached_mapping_path.write_json(self.cached_mapping)
             self.mappings_modified = False
             saved = True
 

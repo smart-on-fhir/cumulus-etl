@@ -4,7 +4,8 @@ import abc
 import logging
 from collections.abc import Collection
 
-from cumulus_etl import store
+import cumulus_fhir_support as cfs
+
 from cumulus_etl.formats.batch import Batch
 
 
@@ -16,7 +17,7 @@ class Format(abc.ABC):
     """
 
     @classmethod
-    def initialize_class(cls, root: store.Root) -> None:
+    def initialize_class(cls, root: cfs.FsPath) -> None:
         """
         Performs any preparation before any batches have been written, for an entire process.
 
@@ -25,7 +26,7 @@ class Format(abc.ABC):
 
     def __init__(
         self,
-        root: store.Root,
+        root: cfs.FsPath,
         dbname: str,
         group_field: str | None = None,
         uniqueness_fields: Collection[str] | None = None,

@@ -14,7 +14,7 @@ from cumulus_etl import cli_utils, common, deid, errors, nlp, store
 
 
 class MultiResourceWriter:
-    def __init__(self, export_path: str | None):
+    def __init__(self, export_path: cfs.FsPath | None):
         self.export_path = export_path
         self.stack = contextlib.ExitStack()
         self.writers = {}
@@ -32,8 +32,8 @@ class MultiResourceWriter:
         res_type = resource["resourceType"]
         writer = self.writers.get(res_type)
         if not writer:
-            ndjson_path = f"{self.export_path}/{res_type}.ndjson.gz"
-            writer = common.NdjsonWriter(ndjson_path, compressed=True)
+            ndjson_path = self.export_path.joinpath(f"{res_type}.ndjson.gz")
+            writer = common.NdjsonWriter(ndjson_path)
             self.writers[res_type] = writer
             self.stack.push(writer)
 
@@ -43,11 +43,12 @@ class MultiResourceWriter:
 def define_sample_parser(parser: argparse.ArgumentParser) -> None:
     parser.usage = "cumulus-etl sample [OPTION]... INPUT"
 
-    parser.add_argument("dir_input", metavar="/path/to/input")
+    parser.add_argument("dir_input", metavar="/path/to/input", type=cfs.FsPath)
 
     parser.add_argument(
         "--phi-dir",
         metavar="DIR",
+        type=cfs.FsPath,
         help="if selecting by anonymous or Athena IDs, the path to your Cumulus PHI folder",
     )
 
@@ -61,6 +62,7 @@ def define_sample_parser(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--export-to",
         metavar="DIR",
+        type=cfs.FsPath,
         help="put a copy of all sampled documents in this empty dir",
     )
     group.add_argument(
@@ -136,7 +138,7 @@ async def sample(source: AsyncIterable, count: int) -> tuple[list, int]:
 
 
 async def scan_notes(
-    root_input: store.Root,
+    root_input: cfs.FsPath,
     *,
     args: argparse.Namespace,
     codebook: deid.Codebook | None = None,
@@ -196,7 +198,7 @@ async def scan_notes(
 
 
 def read_notes(
-    root: store.Root,
+    root: cfs.FsPath,
     locations: Iterable[tuple[str, int]],
 ) -> Iterator[dict]:
     """Returns resources for each provided path/offset location"""
@@ -206,7 +208,7 @@ def read_notes(
         file_offsets.setdefault(path, []).append(offset)
 
     for path, offsets in file_offsets.items():
-        with root.fs.open(path, compression="infer") as f:
+        with cfs.FsPath(path).open("rb") as f:
             for offset in offsets:
                 f.seek(offset)
                 yield json.loads(f.readline())
@@ -214,8 +216,7 @@ def read_notes(
 
 async def prep_and_sample(args: argparse.Namespace) -> tuple[Iterator[dict], int]:
     # Normalize the various CLI arguments
-    args.dir_input = cli_utils.process_input_dir(args.dir_input)
-    root_input = store.Root(args.dir_input)
+    root_input = cli_utils.process_input_dir(args.dir_input)
 
     res_types = set(args.type.split(",")) & {"DiagnosticReport", "DocumentReference"}
     if not res_types:
@@ -245,11 +246,11 @@ async def sample_main(args: argparse.Namespace) -> None:
     if args.output == "-":
         output = sys.stdout
     else:
-        output = open(args.output, "w", encoding="utf8")
+        output = cfs.FsPath(args.output).open_direct("w")
 
     if args.export_to:
         export_dir = cli_utils.make_export_dir(export_to=args.export_to)
-        export_path = export_dir.name
+        export_path = cfs.FsPath(export_dir.name)
     else:
         export_path = None
 

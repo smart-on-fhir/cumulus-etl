@@ -4,7 +4,9 @@ import abc
 import dataclasses
 import datetime
 
-from cumulus_etl import common, feedback, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import common, feedback
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -38,7 +40,7 @@ class Loader(abc.ABC):
     All methods return an iterator over FHIR resources.
     """
 
-    def __init__(self, root: store.Root):
+    def __init__(self, root: cfs.FsPath):
         """
         Initialize a new Loader class
         :param root: the base location to read data from

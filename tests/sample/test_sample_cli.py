@@ -5,6 +5,8 @@ import json
 import os
 import shutil
 
+import cumulus_fhir_support as cfs
+
 from cumulus_etl import cli, common, errors
 from tests.utils import AsyncTestCase
 
@@ -37,7 +39,7 @@ class TestSample(AsyncTestCase):
         await cli.main([*base_args, *args])
 
     def assert_output(self, expected: str):
-        found = common.read_text(self.output_csv)
+        found = cfs.FsPath(self.output_csv).read_text()
         self.assertEqual(found, expected)
 
     async def test_sampling_options(self):
@@ -102,7 +104,7 @@ class TestSample(AsyncTestCase):
     async def test_only_samples_text_notes(self):
         notedir = f"{self.tmpdir}/notes"
         os.makedirs(notedir)
-        with common.NdjsonWriter(f"{notedir}/docrefs.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{notedir}/docrefs.ndjson")) as writer:
             writer.write({"resourceType": "DocumentReference", "id": "no-text"})
             writer.write(
                 {
@@ -136,7 +138,7 @@ class TestSample(AsyncTestCase):
             await self.run_sample(input_path=self.tmpdir)
 
     async def test_error_with_no_text_notes(self):
-        with common.NdjsonWriter(f"{self.tmpdir}/docrefs.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{self.tmpdir}/docrefs.ndjson")) as writer:
             writer.write({"resourceType": "DocumentReference", "id": "no-text"})
 
         with self.assert_fatal_exit(errors.NOTES_NOT_FOUND_WITH_TEXT):
@@ -144,7 +146,7 @@ class TestSample(AsyncTestCase):
 
     async def test_errors_out_with_anon_but_no_phi_dir(self):
         # Write an anon csv that won't match anything, but that's fine
-        common.write_text(f"{self.tmpdir}/anon.csv", "note_ref\nDocumentReference/xxx\n")
+        cfs.FsPath(f"{self.tmpdir}/anon.csv").write_text("note_ref\nDocumentReference/xxx\n")
 
         with self.assert_fatal_exit(errors.ARGS_INVALID):
             await self.run_sample(args=[f"--select-by-anon-csv={self.tmpdir}/anon.csv"])
