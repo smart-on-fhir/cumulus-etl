@@ -41,7 +41,7 @@ tests = [
     "coverage",
     "ddt",
     "jwcrypto",
-    "moto[server,s3] >= 5.0",
+    "moto[server,s3] >= 5.1.22",
     "pytest",
     "pytest-cov",
     "respx",
