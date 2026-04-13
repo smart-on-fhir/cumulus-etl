@@ -14,7 +14,7 @@ dependencies = [
     "fsspec[http,s3]",
     "httpx",
     "jambo >= 0.1.7",
-    "label-studio-sdk >= 2",
+    "label-studio-sdk >= 2.0.19",
     "nltk >= 3.9",
     "openai",
     "philter-lite",
