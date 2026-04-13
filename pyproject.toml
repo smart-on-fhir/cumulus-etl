@@ -15,7 +15,7 @@ dependencies = [
     "httpx",
     "jambo >= 0.1.7",
     "label-studio-sdk >= 2",
-    "nltk >= 3.9",
+    "nltk >= 3.9.4",
     "openai",
     "philter-lite",
     "pyarrow",
