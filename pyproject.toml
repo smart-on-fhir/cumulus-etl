@@ -10,7 +10,7 @@ dependencies = [
     "boto3 >= 1.34.131",
     "ctakesclient >= 5.1",
     "cumulus-fhir-support >= 1.11",
-    "delta-spark >= 4, < 5",
+    "delta-spark >= 4.1.0, < 5",
     "fsspec[http,s3]",
     "httpx",
     "jambo >= 0.1.7",
