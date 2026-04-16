@@ -386,6 +386,8 @@ class BaseModelTask(BaseNlpTask):
             return pyarrow.bool_()
         elif issubclass(annotation, int):
             return pyarrow.int32()
+        if issubclass(annotation, float):
+            return pyarrow.float32()
         elif issubclass(annotation, enum.Enum):
             return pyarrow.string()  # for now, assume all enums are strings
         elif issubclass(annotation, pydantic.BaseModel):
