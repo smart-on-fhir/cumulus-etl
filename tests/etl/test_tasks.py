@@ -4,6 +4,8 @@ import os
 from unittest import mock
 
 import ddt
+import pyarrow
+import pydantic
 
 from cumulus_etl import common, errors
 from cumulus_etl.etl import tasks
@@ -340,3 +342,32 @@ class TestTaskCompletion(TaskTestCase):
         self.make_json("Device", "A")
         summaries = await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
         self.assertTrue(summaries[0].had_errors)
+
+
+@ddt.ddt
+class TestModelTask(TaskTestCase):
+    """Test case for model task methods"""
+
+    async def test_convert_pydantic_fields_to_pyarrow(self):
+        """Verify that we can convert pydantic fields to pyarrow types"""
+
+        class Model(pydantic.BaseModel):
+            string_field: str
+            boolean_field: bool
+            integer_field: int
+            float_field: float
+
+        fields = Model.model_fields
+        schema = tasks.BaseModelTask.convert_pydantic_fields_to_pyarrow(fields)
+        print(schema)
+        self.assertEqual(
+            pyarrow.struct(
+                [
+                    pyarrow.field("string_field", pyarrow.string()),
+                    pyarrow.field("boolean_field", pyarrow.bool_()),
+                    pyarrow.field("integer_field", pyarrow.int32()),
+                    pyarrow.field("float_field", pyarrow.float32()),
+                ]
+            ),
+            schema,
+        )
