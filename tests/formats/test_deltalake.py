@@ -170,8 +170,8 @@ class TestDeltaLake(utils.AsyncTestCase):
                 {"id": "missing-date-update", "meta": {}, "value": 2},
                 {"id": "missing-date-both", "meta": {}, "value": 2},
                 {"id": "missing-meta-table", "meta": {"lastUpdated": now}, "value": 2},
-                {"id": "missing-meta-update", "meta": {}, "value": 2},
-                {"id": "missing-meta-both", "meta": {}, "value": 2},
+                {"id": "missing-meta-update", "value": 2},
+                {"id": "missing-meta-both", "value": 2},
                 {"id": "unmatched-table", "value": 1},
                 {"id": "unmatched-update", "value": 2},
             ]
