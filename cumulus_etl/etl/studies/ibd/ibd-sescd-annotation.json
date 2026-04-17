@@ -15,17 +15,12 @@
       "description": "Span-augmented SES-CD affected surface finding for a single segment.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -68,17 +63,12 @@
       "description": "Span-augmented SES-CD narrowing finding for a single segment.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -125,21 +115,43 @@
       "title": "SESCDSegmentFindings",
       "type": "object"
     },
+    "SESCDSegmentFindingsAnnotation": {
+      "description": "SES-CD reconstructed from the descriptive findings of an endoscopy\nreport across the five standard bowel segments. Use this when the\nendoscopist did NOT plainly write a computed SES-CD score; for the\nplainly-written case, use ReportedSESCDMention.",
+      "properties": {
+        "ileum": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the ileum segment."
+        },
+        "right_colon": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the right colon segment."
+        },
+        "transverse_colon": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the transverse colon segment."
+        },
+        "left_colon": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the left colon segment."
+        },
+        "rectum": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the rectum segment."
+        }
+      },
+      "title": "SESCDSegmentFindingsAnnotation",
+      "type": "object"
+    },
     "SESCDSegmentMention": {
       "description": "SES-CD findings for a single bowel segment, reconstructed from the\ndescriptive endoscopic narrative. The parent SESCDMention identifies\nwhich anatomic segment this corresponds to; segment_name is also\ncarried here so that a flattened/serialized segment record remains\nself-describing.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -231,17 +243,12 @@
       "description": "Per-segment SES-CD subscores as explicitly stated in the report.\nOnly populated when the endoscopist writes out the segment-level\nnumber (e.g., \"ileum subscore 4\"); do not infer from descriptive\nfindings.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -283,33 +290,6 @@
       "title": "SESCDSegmentSubscoreMention",
       "type": "object"
     },
-    "SESCDSegmentsAnnotation": {
-      "description": "SES-CD reconstructed from the descriptive findings of an endoscopy\nreport across the five standard bowel segments. Use this when the\nendoscopist did NOT plainly write a computed SES-CD score; for the\nplainly-written case, use ReportedSESCDMention.",
-      "properties": {
-        "ileum": {
-          "$ref": "#/$defs/SESCDSegmentFindings",
-          "description": "SES-CD findings for the ileum segment."
-        },
-        "right_colon": {
-          "$ref": "#/$defs/SESCDSegmentFindings",
-          "description": "SES-CD findings for the right colon segment."
-        },
-        "transverse_colon": {
-          "$ref": "#/$defs/SESCDSegmentFindings",
-          "description": "SES-CD findings for the transverse colon segment."
-        },
-        "left_colon": {
-          "$ref": "#/$defs/SESCDSegmentFindings",
-          "description": "SES-CD findings for the left colon segment."
-        },
-        "rectum": {
-          "$ref": "#/$defs/SESCDSegmentFindings",
-          "description": "SES-CD findings for the rectum segment."
-        }
-      },
-      "title": "SESCDSegmentsAnnotation",
-      "type": "object"
-    },
     "SESCDUlcerSize": {
       "description": "SES-CD ulcer size descriptor (0-3).",
       "enum": [
@@ -325,17 +305,12 @@
       "description": "Span-augmented SES-CD ulcer size finding for a single segment.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -377,17 +352,12 @@
       "description": "Span-augmented SES-CD ulcerated surface finding for a single segment.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -433,7 +403,7 @@
       "title": "Total Score"
     },
     "segment_findings": {
-      "$ref": "#/$defs/SESCDSegmentsAnnotation"
+      "$ref": "#/$defs/SESCDSegmentFindingsAnnotation"
     },
     "segment_subscores": {
       "$ref": "#/$defs/SESCDSegmentSubscoreAnnotation"
