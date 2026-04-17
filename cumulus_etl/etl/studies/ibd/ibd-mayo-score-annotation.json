@@ -1,0 +1,324 @@
+{
+  "$defs": {
+    "MayoScoreEndoscopyMention": {
+      "description": "Mayo endoscopic findings subscore.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "0 = normal or inactive disease; 1 = mild disease (erythema, decreased vascular pattern, mild friability); 2 = moderate disease (marked erythema, absent vascular pattern, friability, erosions); 3 = severe disease (spontaneous bleeding, ulceration)",
+          "title": "Score"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MayoScoreEndoscopyMention",
+      "type": "object"
+    },
+    "MayoScorePhysicianGlobalAssessmentMention": {
+      "description": "Mayo Physician Global Assessment (PGA).",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "0 = normal; 1 = mild disease; 2 = moderate disease; 3 = severe disease",
+          "title": "Score"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MayoScorePhysicianGlobalAssessmentMention",
+      "type": "object"
+    },
+    "MayoScoreRectalBleedingMention": {
+      "description": "Rectal bleeding subscore (most severe over the day).",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "0 = no blood seen; 1 = streaks of blood with stool less than half the time; 2 = obvious blood with stool most of the time; 3 = blood alone passed",
+          "title": "Score"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MayoScoreRectalBleedingMention",
+      "type": "object"
+    },
+    "MayoScoreStoolFrequencyMention": {
+      "description": "Stool frequency subscore (relative to patient's normal).",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "enum": [
+                0,
+                1,
+                2,
+                3
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "0 = normal number of stools; 1 = 1-2 stools/day more than normal; 2 = 3-4 stools/day more than normal; 3 = 5+ stools/day more than normal",
+          "title": "Score"
+        },
+        "stools_per_day": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reported stools per day, if documented",
+          "title": "Stools Per Day"
+        },
+        "increase_over_baseline": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stools per day above patient's normal baseline, if documented",
+          "title": "Increase Over Baseline"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MayoScoreStoolFrequencyMention",
+      "type": "object"
+    },
+    "MayoScoreTotalMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "reported_total_score": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Total Mayo score as explicitly stated in the note, if any",
+          "title": "Reported Total Score"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "MayoScoreTotalMention",
+      "type": "object"
+    },
+    "MayoScoreVariant": {
+      "enum": [
+        "FULL_MAYO",
+        "PARTIAL_MAYO",
+        "MODIFIED_MAYO",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "MayoScoreVariant",
+      "type": "string"
+    },
+    "MayoScoreVariantMention": {
+      "properties": {
+        "score_variant": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MayoScoreVariant"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "full_mayo = all 4 components; partial_mayo = stool freq + bleeding + PGA (no endoscopy); modified_mayo = stool freq + bleeding + endoscopy (friability excluded from endo=1)"
+        }
+      },
+      "title": "MayoScoreVariantMention",
+      "type": "object"
+    }
+  },
+  "description": "Full Mayo Score for ulcerative colitis disease activity.\nTotal Score = stool frequency + rectal bleeding + endoscopy + PGA (range 0-12).\n\ntotal_score: Explicitly stated Mayo Score total score reported in the note.\nSubscores are calculated from the following variables:\n\n1. stool_frequency: Number of stools per day above normal for the patient (0\u20133).\n2. rectal_bleeding: Severity of rectal bleeding observed by the patient (0\u20133).\n3. endoscopy: Mucosal appearance on endoscopy (0\u20133); feeds the Mayo endoscopic subscore.\n4. physician_global_assessment: Clinician's overall assessment of disease activity (0\u20133).\n\nscore_variant: Which Mayo variant is referenced.\nDifferent Mayo Score variants use different subscores.\n* full_mayo =\n    all 4 components;\n* partial_mayo =\n    stool_frequency + rectal_bleeding + physician_global_assessment (no endoscopy); \"\n* modified_mayo =\n    stool_frequency + rectal_bleeding + endoscopy (friability excluded from endo=1)\"",
+  "properties": {
+    "score_variant": {
+      "$ref": "#/$defs/MayoScoreVariantMention"
+    },
+    "total_score": {
+      "$ref": "#/$defs/MayoScoreTotalMention"
+    },
+    "stool_frequency": {
+      "$ref": "#/$defs/MayoScoreStoolFrequencyMention"
+    },
+    "rectal_bleeding": {
+      "$ref": "#/$defs/MayoScoreRectalBleedingMention"
+    },
+    "endoscopy": {
+      "$ref": "#/$defs/MayoScoreEndoscopyMention"
+    },
+    "physician_global_assessment": {
+      "$ref": "#/$defs/MayoScorePhysicianGlobalAssessmentMention"
+    }
+  },
+  "required": [
+    "score_variant",
+    "total_score",
+    "stool_frequency",
+    "rectal_bleeding",
+    "endoscopy",
+    "physician_global_assessment"
+  ],
+  "title": "IbdMayoScoreAnnotation",
+  "type": "object"
+}

@@ -1,0 +1,365 @@
+{
+  "$defs": {
+    "AbdominalPainSeverity": {
+      "enum": [
+        "NO_PAIN",
+        "MILD",
+        "MODERATE",
+        "SEVERE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "AbdominalPainSeverity",
+      "type": "string"
+    },
+    "AbdominalPainSeverityMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "pain_severity": {
+          "$ref": "#/$defs/AbdominalPainSeverity",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Severity of abdominal pain associated with defecation or bowel movements documented in the note. NO_PAIN: no abdominal pain associated with defecation or bowel movements. MILD: pain present but not interfering with activity; may be slight or minimal. MODERATE: pain noticeable and interferes with some activities but remains tolerable. SEVERE: pain severe enough to interfere with daily activities, sleep, or require analgesia. NONE_OF_THE_ABOVE: none of the above."
+        },
+        "relieved_by_defecation": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether abdominal pain is documented as improving or resolving after defecation. True: pain improves or resolves after defecation. False: pain does not improve after defecation, worsens with defecation, or is documented as not relieved by defecation.",
+          "title": "Relieved By Defecation"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "AbdominalPainSeverityMention",
+      "type": "object"
+    },
+    "RectalBleeding": {
+      "description": "Severity of visible rectal bleeding associated with bowel movements.",
+      "enum": [
+        "NO_BLOOD",
+        "STREAKS_BLOOD",
+        "OBVIOUS_BLOOD",
+        "BLOOD_ALONE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "RectalBleeding",
+      "type": "string"
+    },
+    "RectalBleedingMention": {
+      "description": "Visible rectal bleeding associated with bowel movements.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rectal_bleeding": {
+          "$ref": "#/$defs/RectalBleeding",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Severity of visible rectal bleeding associated with bowel movements. Map descriptions as follows: NO_BLOOD: no visible blood reported (including occult/FIT/guaiac-positive without visible blood, and resolved bleeding). STREAKS_BLOOD: small amounts or streaks of blood with stool, intermittent or less than half of bowel movements. OBVIOUS_BLOOD: clearly bloody stools in the majority of bowel movements. BLOOD_ALONE: blood passed without stool (e.g., bloody diarrhea described as 'just blood', clots, or blood-only bowel movements). Capture visible blood only; do not infer from hemoglobin or iron studies. NONE_OF_THE_ABOVE: None of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "RectalBleedingMention",
+      "type": "object"
+    },
+    "StoolConsistency": {
+      "description": "Predominant stool consistency. Anchored to Bristol Stool Scale (BSS).",
+      "enum": [
+        "FORMED",
+        "SOFT",
+        "LOOSE",
+        "WATERY",
+        "MIXED",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "StoolConsistency",
+      "type": "string"
+    },
+    "StoolConsistencyMention": {
+      "description": "Predominant stool consistency over the documented assessment window.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "stool_consistency": {
+          "$ref": "#/$defs/StoolConsistency",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Predominant stool consistency using BSS scale. FORMED: shaped stool that holds its form (BSS 3-4). SOFT: soft but still shaped; holds form loosely (BSS 5). LOOSE: loose, mushy, or pasty; does not hold shape (BSS 6). WATERY: watery or liquid; no meaningful solid content (BSS 7). MIXED: multiple distinct consistencies in the same assessment window with no predominant type. NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "StoolConsistencyMention",
+      "type": "object"
+    },
+    "StoolFrequencyMention": {
+      "description": "Absolute and relative stool frequency over a 24-hour period.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "stools_per_day": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Documented stools per day (point estimate).",
+          "title": "Stools Per Day"
+        },
+        "stools_per_day_min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Lower bound if a range is documented (e.g. 4 if documented '4-6/day').",
+          "title": "Stools Per Day Min"
+        },
+        "stools_per_day_max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Upper bound if a range is documented (e.g. 6 in documented '4-6/day').",
+          "title": "Stools Per Day Max"
+        },
+        "baseline_stools_per_day": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Patient's documented baseline stools per day.",
+          "title": "Baseline Stools Per Day"
+        },
+        "increase_over_baseline": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Stools/day above patient's baseline, if documented or derivable.",
+          "title": "Increase Over Baseline"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "StoolFrequencyMention",
+      "type": "object"
+    },
+    "StoolUrgencySeverity": {
+      "enum": [
+        "NOT_URGENT",
+        "MILD",
+        "MODERATE",
+        "SEVERE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "StoolUrgencySeverity",
+      "type": "string"
+    },
+    "StoolUrgencySeverityMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "urgency": {
+          "$ref": "#/$defs/StoolUrgencySeverity",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Severity of bowel urgency documented in the note. NOT_URGENT: no urgency or can defer defecation normally. MILD: some or occasional urgency, usually can hold. MODERATE: frequent or strong urgency, difficulty holding, usually reaches bathroom. SEVERE: cannot defer, near-immediate need, incontinence or near-incontinence. NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "StoolUrgencySeverityMention",
+      "type": "object"
+    },
+    "TenesmusMention": {
+      "description": "Sensation of incomplete evacuation / persistent urge after defecation.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "tenesmus_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether tenesmus (sensation of incomplete evacuation or persistent urge after defecation) is documented as present or absent. Null if not addressed.",
+          "title": "Tenesmus Present"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "TenesmusMention",
+      "type": "object"
+    }
+  },
+  "description": "Stooling annotation are a combination of subjective (patient reported) and objective (findings).\n\nStooling variables:\n    stool_frequency: Number of stools per day or qualitative change from baseline.\n    stool_consistency: Form or texture of stools (e.g., formed, loose, watery).\n    stool_urgency: Severity of the urge to defecate and ability to defer.\n    tenesmus: Presence and characterization of incomplete evacuation or persistent urge.\n    abdominal_pain: Severity and characterization of abdominal pain related to bowel activity.\n    rectal_bleeding: Presence, volume, and pattern of blood in stool or per rectum.",
+  "properties": {
+    "stool_frequency": {
+      "$ref": "#/$defs/StoolFrequencyMention"
+    },
+    "stool_consistency": {
+      "$ref": "#/$defs/StoolConsistencyMention"
+    },
+    "stool_urgency": {
+      "$ref": "#/$defs/StoolUrgencySeverityMention"
+    },
+    "tenesmus": {
+      "$ref": "#/$defs/TenesmusMention"
+    },
+    "abdominal_pain": {
+      "$ref": "#/$defs/AbdominalPainSeverityMention"
+    },
+    "rectal_bleeding": {
+      "$ref": "#/$defs/RectalBleedingMention"
+    }
+  },
+  "required": [
+    "stool_frequency",
+    "stool_consistency",
+    "stool_urgency",
+    "tenesmus",
+    "abdominal_pain",
+    "rectal_bleeding"
+  ],
+  "title": "IbdStoolingAnnotation",
+  "type": "object"
+}

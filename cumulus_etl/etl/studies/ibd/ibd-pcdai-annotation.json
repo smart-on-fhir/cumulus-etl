@@ -1,0 +1,992 @@
+{
+  "$defs": {
+    "EIMArthritisMention": {
+      "description": "EIM Arthritis variable.\n\nMechanical joint pain, osteoarthritis, sports injury, and septic\narthritis should NOT be marked attributable_to_ibd. Axial\nspondyloarthropathy and sacroiliitis ARE IBD-associated arthropathies\nand should be marked attributable_to_ibd=True when documented as such.\n\nSee EIMMention for shared fields.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EIMStatus",
+          "default": "NOT_ASSESSED",
+          "description": "Arthritis status. Allowed values: PRESENT: peripheral arthritis, oligoarthritis, polyarthritis, enthesitis, sacroiliitis, axial spondyloarthropathy, or other inflammatory joint involvement is documented as currently present. Arthralgia (joint pain without inflammation) alone does NOT qualify unless inflammatory features (swelling, warmth, effusion, morning stiffness) are also documented; ABSENT: arthritis is explicitly denied or the joint exam is documented as normal; NOT_ASSESSED (default): the note does not address joints at all."
+        },
+        "attributable_to_ibd": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed values: True: note attributes the finding to IBD or to an IBD-associated extra-intestinal manifestation; False: alternative cause is documented (e.g., infection, trauma, drug reaction, unrelated disease); None: status is PRESENT but attribution is not addressed, OR status is ABSENT or NOT_ASSESSED",
+          "title": "Attributable To Ibd"
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented EIM finding refers to. Allowed values: PRIOR_24_TO_48_HOURS: the note explicitly refers to the prior 24-48 hours (e.g., 'last 24-48 hours,' 'last two days,' 'yesterday,' or equivalent); PAST_WEEK: the note explicitly refers to the past week (e.g., 'past week,' 'over the last week,' or equivalent); POINT_IN_TIME: the note refers only to the current visit, today, or the current exam; None: the time window is not specified in the note."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "EIMArthritisMention",
+      "type": "object"
+    },
+    "EIMErythemaNodosumMention": {
+      "description": "EIM Erythema Nodosum is highly specific to IBD-associated EIM in this clinical context,\nso attribution is usually implicit; capture an explicit alternative attribution only when the note states one\n(sarcoidosis, streptococcal infection, drug reaction, tuberculosis).\n\nSee EIMMention for shared fields.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EIMStatus",
+          "default": "NOT_ASSESSED",
+          "description": "Erythema Nodosum status. Allowed values: PRESENT: erythema nodosum is documented, or tender erythematous subcutaneous nodules on the shins or lower extremities are documented in a manner consistent with erythema nodosum; ABSENT: erythema nodosum is explicitly denied or the skin exam is documented as normal; NOT_ASSESSED (default): the note does not address skin findings at all."
+        },
+        "attributable_to_ibd": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed values: True: note attributes the finding to IBD or to an IBD-associated extra-intestinal manifestation; False: alternative cause is documented (e.g., infection, trauma, drug reaction, unrelated disease); None: status is PRESENT but attribution is not addressed, OR status is ABSENT or NOT_ASSESSED",
+          "title": "Attributable To Ibd"
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented EIM finding refers to. Allowed values: PRIOR_24_TO_48_HOURS: the note explicitly refers to the prior 24-48 hours (e.g., 'last 24-48 hours,' 'last two days,' 'yesterday,' or equivalent); PAST_WEEK: the note explicitly refers to the past week (e.g., 'past week,' 'over the last week,' or equivalent); POINT_IN_TIME: the note refers only to the current visit, today, or the current exam; None: the time window is not specified in the note."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "EIMErythemaNodosumMention",
+      "type": "object"
+    },
+    "EIMFeverMention": {
+      "description": "EIM Fever variable.\n\nEIM fever criterion (Hyams 1991): temperature >= 38.5 C (101.3 F)\nfor >= 3 days over the past week.\n\nWhen fever is explicitly denied, populate status=ABSENT, max_temp_c=\nnull, days_febrile_past_week=0, meets_threshold=False.\n\nSee EIMMention for shared fields.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EIMStatus",
+          "default": "NOT_ASSESSED",
+          "description": "Fever status. Allowed values: PRESENT: documented fever is within the recall window, regardless of whether the threshold is met (threshold evaluation is captured separately in meets_threshold); ABSENT: fever is explicitly denied (e.g., 'no fevers, no chills') or temperatures are all documented afebrile; NOT_ASSESSED (default): the note does not address fever or temperature at all."
+        },
+        "attributable_to_ibd": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed values: True: note attributes the finding to IBD or to an IBD-associated extra-intestinal manifestation; False: alternative cause is documented (e.g., infection, trauma, drug reaction, unrelated disease); None: status is PRESENT but attribution is not addressed, OR status is ABSENT or NOT_ASSESSED",
+          "title": "Attributable To Ibd"
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented fever pattern refers to. PRIOR_24_TO_48_HOURS: the note explicitly refers to the prior 24-48 hours (e.g., 'last 24-48 hours,' 'last two days,' 'yesterday,' or equivalent); PAST_WEEK: note explicitly states 'past week,' 'over the last week,' or equivalent; POINT_IN_TIME: note refers only to the current visit or today (e.g., a single in-clinic temperature); Leave null when the window is not specified."
+        },
+        "max_temp_c": {
+          "anyOf": [
+            {
+              "maximum": 45.0,
+              "minimum": 30.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Highest documented temperature attributable to the patient over the recall window, in degrees Celsius. Convert from Fahrenheit if needed: C = (F - 32) * 5/9. Leave null when no temperature is documented or when fever is explicitly denied.",
+          "title": "Max Temp C"
+        },
+        "days_febrile_past_week": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Count of febrile days in the past week. Use 0 when fever is explicitly denied. Leave null when fever is documented without a duration.",
+          "title": "Days Febrile Past Week"
+        },
+        "meets_threshold": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether the documented fever pattern meets the fever criterion: temperature >= 38.5 C (101.3 F) for >= 3 days over the past week. Allowed values: True: the note explicitly meets BOTH the temperature threshold (>=38.5 C) AND the duration criterion (>=3 days), e.g., 'Tmax 39.2 daily for the past week'; False: the note documents fever that clearly does not meet the threshold (e.g., 'low-grade fever to 38.0 once'), or explicitly denies fever; None: fever is documented but the pattern cannot be resolved against the threshold.",
+          "title": "Meets Threshold"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "EIMFeverMention",
+      "type": "object"
+    },
+    "EIMPyodermaGangrenosumMention": {
+      "description": "Pyoderma gangrenosum variable.\n\nPyoderma gangrenosum is highly specific to IBD-associated EIM, so attribution is usually implicit;\ncapture an explicit alternative attribution only when the note states one\n(rheumatoid arthritis, hematologic malignancy, idiopathic).\n\nSee EIMMention for shared fields.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EIMStatus",
+          "default": "NOT_ASSESSED",
+          "description": "Pyoderma Gangrenosum status. Allowed values: PRESENT: pyoderma gangrenosum is documented, or a painful ulcerative skin lesion with violaceous undermined borders is documented; ABSENT: pyoderma gangrenosum is explicitly denied or the skin exam is documented as normal; NOT_ASSESSED (default): the note does not address skin findings at all."
+        },
+        "attributable_to_ibd": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed values: True: note attributes the finding to IBD or to an IBD-associated extra-intestinal manifestation; False: alternative cause is documented (e.g., infection, trauma, drug reaction, unrelated disease); None: status is PRESENT but attribution is not addressed, OR status is ABSENT or NOT_ASSESSED",
+          "title": "Attributable To Ibd"
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented EIM finding refers to. Allowed values: PRIOR_24_TO_48_HOURS: the note explicitly refers to the prior 24-48 hours (e.g., 'last 24-48 hours,' 'last two days,' 'yesterday,' or equivalent); PAST_WEEK: the note explicitly refers to the past week (e.g., 'past week,' 'over the last week,' or equivalent); POINT_IN_TIME: the note refers only to the current visit, today, or the current exam; None: the time window is not specified in the note."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "EIMPyodermaGangrenosumMention",
+      "type": "object"
+    },
+    "EIMStatus": {
+      "enum": [
+        "PRESENT",
+        "ABSENT",
+        "NOT_ASSESSED"
+      ],
+      "title": "EIMStatus",
+      "type": "string"
+    },
+    "EIMUveitisMention": {
+      "description": "EIM Uveitis Variable.\n\nSee EIMMention for shared fields.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/EIMStatus",
+          "default": "NOT_ASSESSED",
+          "description": "Uveitis status. Allowed values: PRESENT: uveitis, iritis, anterior uveitis, panuveitis, or other intraocular inflammation is active or under treatment; ABSENT: uveitis is explicitly denied (e.g. 'no eye symptoms,' 'denies vision changes') or the eye exam is documented as normal; NOT_ASSESSED (default): the note does not address ocular symptoms or eye exam at all."
+        },
+        "attributable_to_ibd": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Allowed values: True: note attributes the finding to IBD or to an IBD-associated extra-intestinal manifestation; False: alternative cause is documented (e.g., infection, trauma, drug reaction, unrelated disease); None: status is PRESENT but attribution is not addressed, OR status is ABSENT or NOT_ASSESSED",
+          "title": "Attributable To Ibd"
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented EIM finding refers to. Allowed values: PRIOR_24_TO_48_HOURS: the note explicitly refers to the prior 24-48 hours (e.g., 'last 24-48 hours,' 'last two days,' 'yesterday,' or equivalent); PAST_WEEK: the note explicitly refers to the past week (e.g., 'past week,' 'over the last week,' or equivalent); POINT_IN_TIME: the note refers only to the current visit, today, or the current exam; None: the time window is not specified in the note."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "EIMUveitisMention",
+      "type": "object"
+    },
+    "IbdEIMAnnotation": {
+      "description": "Extra-Intestinal Manifestations (EIM) annotation class\n\nEIM Variables:\n1. Fever (>=38.5 C / 101.3 F for >=3 days over the past week)\n2. Uveitis (intraocular inflammation attributable to IBD)\n3. Arthritis (peripheral or axial, attributable to IBD)\n4. Erythema nodosum (tender subcutaneous nodules, typically shins)\n5. Pyoderma gangrenosum (ulcerative skin lesion, violaceous borders)",
+      "properties": {
+        "fever": {
+          "$ref": "#/$defs/EIMFeverMention"
+        },
+        "uveitis": {
+          "$ref": "#/$defs/EIMUveitisMention"
+        },
+        "arthritis": {
+          "$ref": "#/$defs/EIMArthritisMention"
+        },
+        "erythema_nodosum": {
+          "$ref": "#/$defs/EIMErythemaNodosumMention"
+        },
+        "pyoderma_gangrenosum": {
+          "$ref": "#/$defs/EIMPyodermaGangrenosumMention"
+        }
+      },
+      "required": [
+        "fever",
+        "uveitis",
+        "arthritis",
+        "erythema_nodosum",
+        "pyoderma_gangrenosum"
+      ],
+      "title": "IbdEIMAnnotation",
+      "type": "object"
+    },
+    "PCDAIAbdominalPain": {
+      "enum": [
+        "NONE",
+        "MILD",
+        "MODERATE_OR_SEVERE",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIAbdominalPain",
+      "type": "string"
+    },
+    "PCDAIAbdominalPainMention": {
+      "description": "PCDAI-compatible abdominal pain variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "abdominal_pain": {
+          "$ref": "#/$defs/PCDAIAbdominalPain",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible abdominal pain variable. Allowed values: NONE: no abdominal pain; MILD: Does not interfere with activities; MODERATE_OR_SEVERE: Daily, longer lasting, affects activities, nocturnal; NOT_ASSESSED: abdominal pain assessment was not performed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'abdominal_pain' refers to. Leave null when the window is not specified"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIAbdominalPainMention",
+      "type": "object"
+    },
+    "PCDAIAbdominalTenderness": {
+      "enum": [
+        "NO_TENDERNESS_NO_MASS",
+        "TENDERNESS_OR_PAINLESS_MASS",
+        "GUARDING_OR_DEFINITE_MASS",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIAbdominalTenderness",
+      "type": "string"
+    },
+    "PCDAIAbdominalTendernessMention": {
+      "description": "PCDAI-compatible 'abdominal tenderness' variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "abdominal_tenderness": {
+          "$ref": "#/$defs/PCDAIAbdominalTenderness",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible abdominal tenderness variable. Allowed values: NO_TENDERNESS_NO_MASS: No tenderness, no mass; TENDERNESS_OR_PAINLESS_MASS: tenderness, or mass without tenderness; GUARDING_OR_DEFINITE_MASS: tenderness, involuntary guarding, or definite mass; NOT_ASSESSED: Abdominal tenderness was not examined. "
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIAbdominalTendernessMention",
+      "type": "object"
+    },
+    "PCDAIGeneralWellBeing": {
+      "enum": [
+        "WELL",
+        "BELOW_PAR",
+        "VERY_POOR",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIGeneralWellBeing",
+      "type": "string"
+    },
+    "PCDAIGeneralWellBeingMention": {
+      "description": "PCDAI-compatible 'general well being' variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "general_well_being": {
+          "$ref": "#/$defs/PCDAIGeneralWellBeing",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible general well being variable. Allowed values: WELL: no limitation of activities; BELOW_PAR: occasional difficulty in maintaining age-appropriate activities; VERY_POOR: frequent limitation of activity; NOT_ASSESSED: general well being was not assessed. "
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'general_well_being' refers to. Leave null when the window is not specified"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIGeneralWellBeingMention",
+      "type": "object"
+    },
+    "PCDAIHeight": {
+      "enum": [
+        "NORMAL_GROWTH",
+        "MILD_DECELERATION",
+        "SIGNIFICANT_DECELERATION",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIHeight",
+      "type": "string"
+    },
+    "PCDAIHeightMention": {
+      "description": "PCDAI-compatible 'height' variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "height": {
+          "$ref": "#/$defs/PCDAIHeight",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible height variable. Allowed values: NORMAL_GROWTH: <1 channel decrease (or height velocity \u2265 -1SD) ;MILD_DECELERATION: Channel decrease \u22651 and <2 (or height velocity <-1SD and >-2SD) ;SIGNIFICANT_DECELERATION: \u22652 channel decrease (or height velocity \u2264-2SD) ; NOT_ASSESSED: height was not assessed."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIHeightMention",
+      "type": "object"
+    },
+    "PCDAILabAlbuminMention": {
+      "description": "PCDAI-compatible 'ALB' (Albumin) variable, normal range 3.5-5.5 g/dL",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "albumin": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Albumin measured in units 'g/dL'.",
+          "title": "Albumin"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAILabAlbuminMention",
+      "type": "object"
+    },
+    "PCDAILabESRMention": {
+      "description": "PCDAI-compatible 'ESR' (erythrocyte sedimentation rate) variable, normal range 0-20 mm/hr",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "esr": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "ESR (erythrocyte sedimentation rate) measured in units 'mm/hour'.",
+          "title": "Esr"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAILabESRMention",
+      "type": "object"
+    },
+    "PCDAILabHematocritMention": {
+      "description": "PCDAI-compatible 'Hematocrit' (HCT) variable, normal range 36% to 51%",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "hematocrit": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hematocrit measured as percentage (%)",
+          "title": "Hematocrit"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAILabHematocritMention",
+      "type": "object"
+    },
+    "PCDAIPerianalDisease": {
+      "enum": [
+        "NONE_OR_ASYMPTOMATIC_TAGS",
+        "INDOLENT_FISTULA",
+        "ACTIVE_PERIANAL_DISEASE",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIPerianalDisease",
+      "type": "string"
+    },
+    "PCDAIPerianalDiseaseMention": {
+      "description": "PCDAI-compatible 'perianal' variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "perianal_disease": {
+          "$ref": "#/$defs/PCDAIPerianalDisease",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible perianal disease variable. Allowed values: NONE_OR_ASYMPTOMATIC_TAGS: None or asymptomatic tags; INDOLENT_FISTULA: 1\u20132 indolent fistulae, scant drainage, and no tenderness; ACTIVE_PERIANAL_DISEASE: Active fistula, drainage, tenderness, or abscess; NOT_ASSESSED: perianal disease was not assessed."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIPerianalDiseaseMention",
+      "type": "object"
+    },
+    "PCDAIStoolsPerDay": {
+      "enum": [
+        "NORMAL_OR_NEAR_NORMAL",
+        "MILD_TO_MODERATE",
+        "SEVERE",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIStoolsPerDay",
+      "type": "string"
+    },
+    "PCDAIStoolsPerDayMention": {
+      "description": "PCDAI-compatible 'stools per day' variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "stools_per_day": {
+          "$ref": "#/$defs/PCDAIStoolsPerDay",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible stools per day variable.Allowed values: NORMAL_OR_NEAR_NORMAL: 0\u20131 liquid stools, no blood; MILD_TO_MODERATE: 2-5 liquid or \u22642 semi-formed with small blood; SEVERE: \u22656 liquid, gross blood, or nocturnal diarrhea; NOT_ASSESSED: stools per day was not assessed. "
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'stools_per_day' refers to. Leave null when the window is not specified"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIStoolsPerDayMention",
+      "type": "object"
+    },
+    "PCDAITotalScoreMention": {
+      "description": "Pediatric Crohn Disease Activity Index (PCDAI)\nTotal score documented by the clinician at the point of care.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "total_score": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Documented clinician-reported PCDAI total score.",
+          "title": "Total Score"
+        },
+        "pcdai_variant": {
+          "$ref": "#/$defs/PCDAIVariant",
+          "default": "UNSPECIFIED",
+          "description": "Documented PCDAI variant. Allowed values: PCDAI: full 11-item Pediatric Crohn Disease Activity Index; ABBREVIATED_PCDAI: abbreviated PCDAI (aPCDAI); SHORT_PCDAI: short PCDAI (sPCDAI); WEIGHTED_PCDAI: weighted PCDAI (wPCDAI); UNSPECIFIED: PCDAI is mentioned but the specific variant is not stated."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'total_score' refers to. Leave null when the window is not specified"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAITotalScoreMention",
+      "type": "object"
+    },
+    "PCDAIVariant": {
+      "enum": [
+        "PCDAI",
+        "aPCDAI",
+        "sPCDAI",
+        "wPCDAI",
+        "UNSPECIFIED"
+      ],
+      "title": "PCDAIVariant",
+      "type": "string"
+    },
+    "PCDAIWeight": {
+      "enum": [
+        "GAIN_OR_VOLUNTARY",
+        "INVOLUNTARY_LOSS_UNDER_10",
+        "INVOLUNTARY_LOSS_10_OR_MORE",
+        "NOT_ASSESSED"
+      ],
+      "title": "PCDAIWeight",
+      "type": "string"
+    },
+    "PCDAIWeightMention": {
+      "description": "PCDAI-compatible 'Weight' variable",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "weight": {
+          "$ref": "#/$defs/PCDAIWeight",
+          "default": "NOT_ASSESSED",
+          "description": "PCDAI-compatible weight variable. Allowed values: GAIN_OR_VOLUNTARY: Weight gain, weight voluntarily stable, or voluntary weight loss; INVOLUNTARY_LOSS_UNDER_10: Weight involuntarily stable or weight loss 1\u20139% ; INVOLUNTARY_LOSS_10_OR_MORE: Weight loss \u226510% .\n\nDefault to GAIN_OR_VOLUNTARY only when explicitly documented intentional weight loss, dieting, athletic cut, or stable-by-choice. \n\nDefault to INVOLUNTARY_LOSS_* when weight loss is explicitly documented in the context of disease activity, poor appetite, GI symptoms, or without any voluntary framing. \n\nWhen intent is ambiguous and weight is stable or gaining, prefer GAIN_OR_VOLUNTARY; When ambiguous and weight is dropping, prefer the involuntary bucket matching the magnitude."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PCDAIWeightMention",
+      "type": "object"
+    },
+    "RecallWindow": {
+      "enum": [
+        "PAST_WEEK",
+        "PRIOR_24_TO_48_HOURS",
+        "POINT_IN_TIME"
+      ],
+      "title": "RecallWindow",
+      "type": "string"
+    }
+  },
+  "description": "PCDAI-compatible Annotation to extract PCDAI variables.\n\ntotal_score: Explicitly stated PCDAI total score reported in the note.\nSubscores are calculated from the following variables:\n\nHistory (recall from the previous week):\n1. abdominal_pain\n2. stools_per_day (frequency, consistency, blood, nocturnal)\n3. general_well_being (patient functioning)\n\nExamination:\n4. abdominal_tenderness\n5. perianal_disease\n6. eim (Extra-intestinal manifestations)\n(fever, uveitis, arthritis, erythema nodosum, pyoderma gangrenosum)\n7. weight\n8. height (growth velocity)\n\nLaboratory:\n9.  lab_hematocrit (HCT)\n10. lab_esr (erythrocyte sedimentation rate)\n11. lab_albumin",
+  "properties": {
+    "total_score": {
+      "$ref": "#/$defs/PCDAITotalScoreMention"
+    },
+    "abdominal_pain": {
+      "$ref": "#/$defs/PCDAIAbdominalPainMention"
+    },
+    "abdominal_tenderness": {
+      "$ref": "#/$defs/PCDAIAbdominalTendernessMention"
+    },
+    "stools_per_day": {
+      "$ref": "#/$defs/PCDAIStoolsPerDayMention"
+    },
+    "general_well_being": {
+      "$ref": "#/$defs/PCDAIGeneralWellBeingMention"
+    },
+    "height": {
+      "$ref": "#/$defs/PCDAIHeightMention"
+    },
+    "weight": {
+      "$ref": "#/$defs/PCDAIWeightMention"
+    },
+    "perianal_disease": {
+      "$ref": "#/$defs/PCDAIPerianalDiseaseMention"
+    },
+    "eim": {
+      "$ref": "#/$defs/IbdEIMAnnotation"
+    },
+    "lab_hematocrit": {
+      "$ref": "#/$defs/PCDAILabHematocritMention"
+    },
+    "lab_esr": {
+      "$ref": "#/$defs/PCDAILabESRMention"
+    },
+    "lab_albumin": {
+      "$ref": "#/$defs/PCDAILabAlbuminMention"
+    }
+  },
+  "required": [
+    "total_score",
+    "abdominal_pain",
+    "abdominal_tenderness",
+    "stools_per_day",
+    "general_well_being",
+    "height",
+    "weight",
+    "perianal_disease",
+    "eim",
+    "lab_hematocrit",
+    "lab_esr",
+    "lab_albumin"
+  ],
+  "title": "IbdPCDAIAnnotation",
+  "type": "object"
+}

@@ -1,0 +1,644 @@
+{
+  "$defs": {
+    "AnatomicSegment": {
+      "description": "GI segments relevant to IBD endoscopic assessment.\nIncludes upper GI (CD), lower GI (CD + UC), and post-surgical anatomy.",
+      "enum": [
+        "esophagus",
+        "stomach",
+        "duodenum",
+        "jejunum",
+        "proximal_ileum",
+        "neoterminal_ileum",
+        "terminal_ileum",
+        "ileocecal_valve",
+        "cecum",
+        "ascending_colon",
+        "hepatic_flexure",
+        "transverse_colon",
+        "splenic_flexure",
+        "descending_colon",
+        "sigmoid_colon",
+        "rectosigmoid",
+        "rectum",
+        "anus",
+        "anastomosis",
+        "ileal_pouch",
+        "pouch_inlet",
+        "afferent_limb",
+        "rectal_cuff",
+        "stoma",
+        "unspecified"
+      ],
+      "title": "AnatomicSegment",
+      "type": "string"
+    },
+    "AnatomicSegmentMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "anatomic_segment": {
+          "$ref": "#/$defs/AnatomicSegment",
+          "default": "unspecified",
+          "description": "Anatomic segment of endoscopic procedure"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "AnatomicSegmentMention",
+      "type": "object"
+    },
+    "ContinuousPattern": {
+      "description": "Pattern of inflammation across the examined extent.",
+      "enum": [
+        "TRUE",
+        "FALSE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "ContinuousPattern",
+      "type": "string"
+    },
+    "ContinuousPatternMention": {
+      "description": "Whether inflammatory involvement is described as continuous.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "continuous": {
+          "$ref": "#/$defs/ContinuousPattern",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Whether inflammation is described as continuous. TRUE: means continuous/uninterrupted involvement is documented. FALSE: means inflammation is described as discontinuous, patchy, skip, or segmental. NONE_OF_THE_ABOVE: means continuity is not mentioned or cannot be determined."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "ContinuousPatternMention",
+      "type": "object"
+    },
+    "EndoscopyMention": {
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "procedure_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EndoscopyProcedure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Endoscopy procedure"
+        },
+        "max_segment_reached": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnatomicSegment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Most proximal segment reached, e.g. terminal_ileum."
+        },
+        "skip_lesions_present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "True if discontinuous involvement is documented.",
+          "title": "Skip Lesions Present"
+        },
+        "rectal_involvement": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "True if rectum is inflamed, False if rectal sparing is documented, None if rectum not assessed. Drives UC vs CD discrimination downstream.",
+          "title": "Rectal Involvement"
+        },
+        "upper_gi_involvement": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "True if any upper GI segment shows IBD-attributable findings.",
+          "title": "Upper Gi Involvement"
+        },
+        "ileal_involvement": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "True if TI or neo-TI shows IBD-attributable findings.",
+          "title": "Ileal Involvement"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "EndoscopyMention",
+      "type": "object"
+    },
+    "EndoscopyProcedure": {
+      "enum": [
+        "ileocolonoscopy",
+        "colonoscopy",
+        "flexible_sigmoidoscopy",
+        "proctoscopy",
+        "egd",
+        "push_enteroscopy",
+        "balloon_enteroscopy",
+        "capsule_endoscopy",
+        "pouchoscopy",
+        "exam_under_anesthesia",
+        "unknown"
+      ],
+      "title": "EndoscopyProcedure",
+      "type": "string"
+    },
+    "FistulaOrificeMention": {
+      "description": "Endoscopically visible fistula opening (CD).",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "present": {
+          "default": null,
+          "description": "fistula present",
+          "title": "Present",
+          "type": "boolean"
+        },
+        "count": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "fistula count",
+          "title": "Count"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "FistulaOrificeMention",
+      "type": "object"
+    },
+    "MucosalAppearance": {
+      "description": "Elemental mucosal descriptors. Multiple may apply to a single segment.\nIntentionally fine-grained so downstream code can compose any score.",
+      "enum": [
+        "normal",
+        "pale",
+        "erythema",
+        "edema",
+        "loss_of_vascular_pattern",
+        "decreased_vascular_pattern",
+        "granularity",
+        "friability",
+        "spontaneous_bleeding",
+        "exudate",
+        "mucopus",
+        "cobblestoning",
+        "pseudopolyps",
+        "inflammatory_polyps",
+        "scarring",
+        "mucosal_atrophy",
+        "lead_pipe_appearance",
+        "nodularity",
+        "aphthous_lesions"
+      ],
+      "title": "MucosalAppearance",
+      "type": "string"
+    },
+    "MucosalAppearanceMention": {
+      "description": "A single mucosal appearance descriptor mentioned for a bowel segment.\n\nUse multiple MucosalAppearanceMention objects when more than one descriptor\napplies to the same segment.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "appearance": {
+          "$ref": "#/$defs/MucosalAppearance",
+          "description": "Single elemental mucosal descriptor documented."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans",
+        "appearance"
+      ],
+      "title": "MucosalAppearanceMention",
+      "type": "object"
+    },
+    "PhysicianGlobalAssessmentMention": {
+      "description": "Physician global assessment (PGA) of overall endoscopic disease severity.\n\nChart review instruction:\nCapture the endoscopist's overall qualitative impression of inflammatory\nseverity for the bowel segment or exam being described. Prefer explicit\nsummary statements such as \"normal\", \"minimal disease\", \"mild colitis\",\n\"moderate inflammation\", or \"severe active disease\".\n\nDo not calculate or infer a score.\nDo not upcode based only on individual findings such as erythema,\nfriability, erosions, or ulcers unless the report also gives an overall\nseverity impression.\n\nUse:\n- NONE: explicitly no active inflammatory disease / normal / remission\n- MINIMAL: explicitly minimal disease or minimal activity\n- MILD: explicitly mild disease/activity/inflammation/colitis\n- MODERATE: explicitly moderate disease/activity/inflammation/colitis\n- SEVERE: explicitly severe disease/activity/inflammation/colitis\n- NONE_OF_THE_ABOVE: no clear overall physician global assessment stated",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "physician_global_assessment": {
+          "$ref": "#/$defs/SeverityQualifier",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Physician overall free-text global assessment of endoscopic severity. Record only an explicitly stated overall severity impression, not a derived score. NONE: no active inflammatory disease or normal/remission; MINIMAL: minimal disease/activity; MILD: mild disease/activity; MODERATE: moderate disease/activity; SEVERE: severe disease/activity; NONE_OF_THE_ABOVE: no explicit overall physician global assessment is documented."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PhysicianGlobalAssessmentMention",
+      "type": "object"
+    },
+    "SegmentFindings": {
+      "description": "All endoscopic findings for a single anatomic segment.\nOne SegmentFinding per segment examined (or explicitly negated).",
+      "properties": {
+        "segment": {
+          "$ref": "#/$defs/AnatomicSegmentMention",
+          "description": "Segment examined."
+        },
+        "examined": {
+          "default": true,
+          "description": "True if the segment was actually visualized during the procedure; False otherwise.",
+          "title": "Examined",
+          "type": "boolean"
+        },
+        "severity_qualifier": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeverityQualifier"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Severity documented for the findings in this segment."
+        },
+        "appearances": {
+          "description": "Mucosal appearances documented in this segment",
+          "items": {
+            "$ref": "#/$defs/MucosalAppearanceMention"
+          },
+          "title": "Appearances",
+          "type": "array"
+        },
+        "ulceration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UlcerMention"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ulcer findings documented in this segment"
+        },
+        "stenosis": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StenosisCharacterMention"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Stenosis character findings documented in this segment"
+        },
+        "fistula_orifice": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FistulaOrificeMention"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fistula orifice findings documented in this segment"
+        },
+        "continuous": {
+          "$ref": "#/$defs/ContinuousPatternMention",
+          "description": "Distribution pattern documented in this segment"
+        }
+      },
+      "title": "SegmentFindings",
+      "type": "object"
+    },
+    "SeverityQualifier": {
+      "description": "Free-text severity descriptor as documented by the endoscopist.\nNOT a score. Downstream endpoint code may translate, but this field\nonly captures what the report says.",
+      "enum": [
+        "NONE",
+        "MINIMAL",
+        "MILD",
+        "MODERATE",
+        "SEVERE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "SeverityQualifier",
+      "type": "string"
+    },
+    "StenosisCharacter": {
+      "enum": [
+        "none",
+        "inflammatory",
+        "fibrotic",
+        "mixed",
+        "anastomotic",
+        "unspecified"
+      ],
+      "title": "StenosisCharacter",
+      "type": "string"
+    },
+    "StenosisCharacterMention": {
+      "description": "Stricture/stenosis characterization.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "character": {
+          "$ref": "#/$defs/StenosisCharacter",
+          "default": "none",
+          "description": "Stenosis character"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "StenosisCharacterMention",
+      "type": "object"
+    },
+    "UlcerDepth": {
+      "enum": [
+        "erosion",
+        "superficial_ulcer",
+        "deep_ulcer",
+        "excavated_ulcer",
+        "unspecified"
+      ],
+      "title": "UlcerDepth",
+      "type": "string"
+    },
+    "UlcerMention": {
+      "description": "Per-segment ulceration characterization.",
+      "properties": {
+        "has_mention": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Has Mention"
+        },
+        "spans": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "depth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UlcerDepth"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ulcer depth"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UlcerShape"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ulcer shape"
+        },
+        "largest_size_mm": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Largest ulcer diameter in mm if reported.",
+          "title": "Largest Size Mm"
+        },
+        "surface_area_percent": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Approximate percent of segment surface area ulcerated, if reported. ",
+          "title": "Surface Area Percent"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "UlcerMention",
+      "type": "object"
+    },
+    "UlcerShape": {
+      "enum": [
+        "aphthous",
+        "round",
+        "linear",
+        "serpiginous",
+        "stellate",
+        "geographic",
+        "longitudinal",
+        "unspecified"
+      ],
+      "title": "UlcerShape",
+      "type": "string"
+    }
+  },
+  "description": "Document-level extraction of endoscopic findings from a single colonoscopy\nor sigmoidoscopy report. Disease-agnostic at the extraction layer; Mayo\nendoscopic subscore and SES-CD derivation are computed downstream.\n\nVariables:\n* procedure: Procedure metadata including type, extent of examination, and preparation quality.\n* continuous: Whether mucosal involvement follows a continuous (UC-typical) or skip-lesion pattern.\n* segment_findings: Per-segment endoscopic findings (e.g., erythema, ulceration, stenosis) for each examined anatomical segment.\n* endoscopist_global_assessment: Endoscopist's overall impression of disease activity or mucosal appearance.",
+  "properties": {
+    "procedure": {
+      "$ref": "#/$defs/EndoscopyMention"
+    },
+    "continuous": {
+      "$ref": "#/$defs/ContinuousPatternMention"
+    },
+    "segment_findings": {
+      "description": "List of SegmentFindings",
+      "items": {
+        "$ref": "#/$defs/SegmentFindings"
+      },
+      "title": "Segment Findings",
+      "type": "array"
+    },
+    "endoscopist_global_assessment": {
+      "$ref": "#/$defs/PhysicianGlobalAssessmentMention",
+      "description": "Endoscopist global assessment."
+    }
+  },
+  "required": [
+    "procedure",
+    "continuous"
+  ],
+  "title": "IbdEndoscopyAnnotation",
+  "type": "object"
+}
