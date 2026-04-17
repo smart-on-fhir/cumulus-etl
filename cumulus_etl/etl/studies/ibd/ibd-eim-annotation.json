@@ -4,17 +4,12 @@
       "description": "EIM Arthritis variable.\n\nMechanical joint pain, osteoarthritis, sports injury, and septic\narthritis should NOT be marked attributable_to_ibd. Axial\nspondyloarthropathy and sacroiliitis ARE IBD-associated arthropathies\nand should be marked attributable_to_ibd=True when documented as such.\n\nSee EIMMention for shared fields.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -63,17 +58,12 @@
       "description": "EIM Erythema Nodosum is highly specific to IBD-associated EIM in this clinical context,\nso attribution is usually implicit; capture an explicit alternative attribution only when the note states one\n(sarcoidosis, streptococcal infection, drug reaction, tuberculosis).\n\nSee EIMMention for shared fields.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -122,17 +112,12 @@
       "description": "EIM Fever variable.\n\nEIM fever criterion (Hyams 1991): temperature >= 38.5 C (101.3 F)\nfor >= 3 days over the past week.\n\nWhen fever is explicitly denied, populate status=ABSENT, max_temp_c=\nnull, days_febrile_past_week=0, meets_threshold=False.\n\nSee EIMMention for shared fields.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -224,17 +209,12 @@
       "description": "Pyoderma gangrenosum variable.\n\nPyoderma gangrenosum is highly specific to IBD-associated EIM, so attribution is usually implicit;\ncapture an explicit alternative attribution only when the note states one\n(rheumatoid arthritis, hematologic malignancy, idiopathic).\n\nSee EIMMention for shared fields.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -292,17 +272,12 @@
       "description": "EIM Uveitis Variable.\n\nSee EIMMention for shared fields.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },

@@ -4,17 +4,12 @@
       "description": "Mayo endoscopic findings subscore.",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -52,17 +47,12 @@
       "description": "Mayo Physician Global Assessment (PGA).",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -100,17 +90,12 @@
       "description": "Rectal bleeding subscore (most severe over the day).",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -148,17 +133,12 @@
       "description": "Stool frequency subscore (relative to patient's normal).",
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -221,17 +201,12 @@
     "MayoScoreTotalMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },

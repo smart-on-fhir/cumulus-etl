@@ -3,17 +3,12 @@
     "AgeAtDiagnosisMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -44,17 +39,12 @@
     "DiagnosisDateEndoscopyMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -85,17 +75,12 @@
     "DiagnosisDateMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -136,17 +121,12 @@
     "IBDTypeMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
