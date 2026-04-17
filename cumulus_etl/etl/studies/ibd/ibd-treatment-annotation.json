@@ -465,7 +465,7 @@
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations \nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
     "rx_start_date_mention": {
       "$ref": "#/$defs/RxStartDateMention"
