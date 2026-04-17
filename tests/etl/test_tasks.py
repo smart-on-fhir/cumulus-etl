@@ -344,7 +344,6 @@ class TestTaskCompletion(TaskTestCase):
         self.assertTrue(summaries[0].had_errors)
 
 
-@ddt.ddt
 class TestModelTask(TaskTestCase):
     """Test case for model task methods"""
 
@@ -359,7 +358,6 @@ class TestModelTask(TaskTestCase):
 
         fields = Model.model_fields
         schema = tasks.BaseModelTask.convert_pydantic_fields_to_pyarrow(fields)
-        print(schema)
         self.assertEqual(
             pyarrow.struct(
                 [
