@@ -5,6 +5,7 @@ import shutil
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 
 from cumulus_etl import cli, common, errors
@@ -29,8 +30,8 @@ class ConvertTestsBase(utils.AsyncTestCase):
     ) -> None:
         args = [
             "convert",
-            input_path or self.original_path,
-            output_path or self.target_path,
+            str(input_path or self.original_path),
+            str(output_path or self.target_path),
         ]
         await cli.main(args)
 
@@ -47,9 +48,9 @@ class TestConvert(ConvertTestsBase):
         os.makedirs(f"{self.original_path}/ignored")
 
         job_timestamp = "2023-02-28__19.53.08"
-        config_dir = f"{self.original_path}/JobConfig/{job_timestamp}"
-        os.makedirs(config_dir)
-        common.write_json(f"{config_dir}/job_config.json", {"codebook_id": "1234"})
+        config_dir = cfs.FsPath(f"{self.original_path}/JobConfig/{job_timestamp}")
+        config_dir.makedirs()
+        config_dir.joinpath(f"{config_dir}/job_config.json").write_json({"codebook_id": "1234"})
 
         return job_timestamp
 
@@ -75,9 +76,9 @@ class TestConvert(ConvertTestsBase):
         self.prepare_original_dir()
 
         # Fake a previous job in the target folder with a different codebook ID
-        config_dir = f"{self.target_path}/JobConfig/2020-10-16__11.13.00"
-        os.makedirs(config_dir)
-        common.write_json(f"{config_dir}/job_config.json", {"codebook_id": "abcd"})
+        config_dir = cfs.FsPath(f"{self.target_path}/JobConfig/2020-10-16__11.13.00")
+        config_dir.makedirs()
+        config_dir.joinpath("job_config.json").write_json({"codebook_id": "abcd"})
 
         with self.assertRaises(SystemExit) as cm:
             await self.run_convert()
@@ -94,7 +95,7 @@ class TestConvert(ConvertTestsBase):
         self.assertEqual(expected_tables, set(os.listdir(self.target_path)))
         self.assertEqual(
             {"codebook_id": "1234"},
-            common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
+            cfs.FsPath(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json").read_json(),
         )
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # spot check some patients
         self.assertEqual(2, len(patients))
@@ -109,7 +110,7 @@ class TestConvert(ConvertTestsBase):
         delta_timestamp = "2023-02-29__19.53.08"
         delta_path = os.path.join(self.tmpdir, "delta")
         os.makedirs(f"{delta_path}/patient")
-        with common.NdjsonWriter(f"{delta_path}/patient/new.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{delta_path}/patient/new.ndjson")) as writer:
             writer.write(
                 {
                     "resourceType": "Patient",
@@ -119,7 +120,9 @@ class TestConvert(ConvertTestsBase):
             )
             writer.write({"resourceType": "Patient", "id": "z-gen", "birthDate": "2005"})
         os.makedirs(f"{delta_path}/etl__completion_encounters")
-        with common.NdjsonWriter(f"{delta_path}/etl__completion_encounters/new.ndjson") as writer:
+        with common.NdjsonWriter(
+            cfs.FsPath(f"{delta_path}/etl__completion_encounters/new.ndjson")
+        ) as writer:
             # Newer timestamp for the existing row
             writer.write(
                 {
@@ -136,19 +139,21 @@ class TestConvert(ConvertTestsBase):
                     "export_time": "2021-12-12T17:00:20+00:00",
                 }
             )
-        delta_config_dir = f"{delta_path}/JobConfig/{delta_timestamp}"
-        os.makedirs(delta_config_dir)
-        common.write_json(f"{delta_config_dir}/job_config.json", {"delta": "yup"})
+        delta_config_dir = cfs.FsPath(f"{delta_path}/JobConfig/{delta_timestamp}")
+        delta_config_dir.makedirs()
+        delta_config_dir.joinpath("job_config.json").write_json({"delta": "yup"})
         await self.run_convert(input_path=delta_path)
 
         # How did that change the delta lake dir? Hopefully we only interwove the new data
         self.assertEqual(  # confirm this is still here
             {"codebook_id": "1234"},
-            common.read_json(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json"),
+            cfs.FsPath(f"{self.target_path}/JobConfig/{job_timestamp}/job_config.json").read_json(),
         )
         self.assertEqual(
             {"delta": "yup"},
-            common.read_json(f"{self.target_path}/JobConfig/{delta_timestamp}/job_config.json"),
+            cfs.FsPath(
+                f"{self.target_path}/JobConfig/{delta_timestamp}/job_config.json"
+            ).read_json(),
         )
         patients = utils.read_delta_lake(f"{self.target_path}/patient")  # re-check the patients
         self.assertEqual(3, len(patients))
@@ -189,14 +194,16 @@ class TestConvert(ConvertTestsBase):
             f"{self.original_path}/covid_symptom__nlp_results",
         )
         # And make a second batch, that has a meta file
-        common.write_json(
-            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.meta",
+        cfs.FsPath(
+            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.meta"
+        ).write_json(
             # Reference a group that doesn't exist to prove we are reading this file and not just
             # pooling group_fields that we see in the data.
             {"groups": ["nonexistent"]},
         )
-        common.write_json(
-            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.ndjson",
+        cfs.FsPath(
+            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.ndjson"
+        ).write_json(
             {"id": "D1.0", "docref_id": "D1"},
         )
         os.makedirs(f"{self.original_path}/JobConfig")
@@ -227,7 +234,9 @@ class TestConvert(ConvertTestsBase):
             f"{self.datadir}/simple/output/condition",
             f"{self.original_path}/condition",
         )
-        common.write_json(f"{self.original_path}/condition/condition.meta", {"deleted": ["a", "b"]})
+        cfs.FsPath(f"{self.original_path}/condition/condition.meta").write_json(
+            {"deleted": ["a", "b"]}
+        )
         os.makedirs(f"{self.original_path}/JobConfig")
 
         # Run conversion
@@ -244,23 +253,23 @@ class TestConvertOnS3(s3mock.S3Mixin, ConvertTestsBase):
     async def test_convert_from_s3(self, mock_write):
         """Quick test that we can read from an arbitrary input dir using fsspec"""
         # Set up input
-        common.write_json(
-            f"{self.bucket_url}/JobConfig/2024-08-09__16.32.51/job_config.json",
+        self.bucket_path.joinpath("JobConfig/2024-08-09__16.32.51/job_config.json").write_json(
             {"comment": "unittest"},
         )
-        common.write_json(
-            f"{self.bucket_url}/condition/condition.000.ndjson",
+        self.bucket_path.joinpath("condition/condition.000.ndjson").write_json(
             {"id": "con1"},
         )
 
         # Run conversion
-        await self.run_convert(input_path=self.bucket_url)
+        await self.run_convert(input_path=self.bucket_path)
 
         # Verify results
         self.assertEqual(mock_write.call_count, 1)
         self.assertEqual([{"id": "con1"}], mock_write.call_args[0][0].rows)
         print(os.listdir(f"{self.target_path}"))
         self.assertEqual(
-            common.read_json(f"{self.target_path}/JobConfig/2024-08-09__16.32.51/job_config.json"),
+            cfs.FsPath(
+                f"{self.target_path}/JobConfig/2024-08-09__16.32.51/job_config.json"
+            ).read_json(),
             {"comment": "unittest"},
         )

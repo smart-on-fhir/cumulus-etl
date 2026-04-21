@@ -4,11 +4,11 @@ Support for mocking out an S3 server during a test.
 
 import os
 
+import cumulus_fhir_support as cfs
 import moto
 import s3fs
 from moto.server import ThreadedMotoServer
 
-from cumulus_etl import store
 from tests import utils
 
 
@@ -45,13 +45,19 @@ class S3Mixin(utils.AsyncTestCase):
         s3mock.start()
 
         # Insert our new endpoint into the default S3 args
-        self.patch_object(store.Root, "fsspec_options", new=self.fake_fsspec_options)
+        orig_register = cfs.FsPath.register_options
+
+        def option_wrapper(**kwargs):
+            orig_register(**kwargs, endpoint_url=S3Mixin.ENDPOINT_URL)
+
+        option_wrapper()
+        self.patch("cumulus_fhir_support.FsPath.register_options", new=option_wrapper)
 
         # Create a helpful S3FS filesystem already safely using our endpoint, and a starting bucket
         s3fs.S3FileSystem.clear_instance_cache()
         self.s3fs = s3fs.S3FileSystem(endpoint_url=S3Mixin.ENDPOINT_URL)
         self.bucket = "mockbucket"
-        self.bucket_url = f"s3://{self.bucket}"
+        self.bucket_path = cfs.FsPath(f"s3://{self.bucket}")
 
         try:
             self.s3fs.mkdir(self.bucket)  # create the bucket as a quickstart
@@ -66,10 +72,3 @@ class S3Mixin(utils.AsyncTestCase):
     def _kill_moto_server(self):
         self.server.stop()
         s3fs.S3FileSystem.clear_instance_cache()
-
-    @staticmethod
-    def fake_fsspec_options(obj) -> dict:
-        original = store.get_fs_options(obj.protocol)
-        if obj.protocol == "s3":
-            original["endpoint_url"] = S3Mixin.ENDPOINT_URL
-        return original

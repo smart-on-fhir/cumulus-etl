@@ -3,7 +3,9 @@
 import tempfile
 from unittest import mock
 
-from cumulus_etl import common, errors, nlp
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import errors, nlp
 from tests.ctakesmock import CtakesMixin
 from tests.utils import AsyncTestCase
 
@@ -33,15 +35,17 @@ class TestNLPWatcher(AsyncTestCase):
         self.assertEqual(errors.CNLPT_MISSING, cm.exception.code)
 
     def test_restart_ctakes_no_folder(self):
-        self.assertFalse(nlp.restart_ctakes_with_bsv("", ""))
+        self.assertFalse(nlp.restart_ctakes_with_bsv(None, cfs.FsPath("")))
 
     def test_restart_ctakes_nonexistent_folder(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            self.assertFalse(nlp.restart_ctakes_with_bsv(f"{tmpdir}/nope", ""))
+            self.assertFalse(
+                nlp.restart_ctakes_with_bsv(cfs.FsPath(f"{tmpdir}/nope"), cfs.FsPath(""))
+            )
 
     def test_restart_ctakes_file_not_folder(self):
         with tempfile.NamedTemporaryFile() as file:
-            self.assertFalse(nlp.restart_ctakes_with_bsv(file.name, ""))
+            self.assertFalse(nlp.restart_ctakes_with_bsv(cfs.FsPath(file.name), cfs.FsPath("")))
 
 
 class TestCTakesWatcher(CtakesMixin, AsyncTestCase):
@@ -55,7 +59,10 @@ class TestCTakesWatcher(CtakesMixin, AsyncTestCase):
         mock_poll.return_value = mock_poller
 
         with tempfile.NamedTemporaryFile() as file:
-            common.write_text(file.name, "C0028081|T184|night sweats|Sweats")
+            path = cfs.FsPath(file.name)
+            path.write_text("C0028081|T184|night sweats|Sweats")
             with self.assertRaises(SystemExit) as cm:
-                nlp.restart_ctakes_with_bsv(self.ctakes_overrides.name, file.name)
+                nlp.restart_ctakes_with_bsv(
+                    cfs.FsPath(self.ctakes_overrides.name), cfs.FsPath(file.name)
+                )
             self.assertEqual(errors.CTAKES_RESTART_FAILED, cm.exception.code)

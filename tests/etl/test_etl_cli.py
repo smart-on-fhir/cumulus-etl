@@ -11,11 +11,12 @@ import shutil
 import tempfile
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 import respx
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import common, errors, feedback, loaders, store
+from cumulus_etl import common, errors, feedback, loaders
 from cumulus_etl.etl import context
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
@@ -65,7 +66,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_single_task(self):
         # Grab all observations before we mock anything
-        observations = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
+        observations = loaders.FhirNdjsonLoader(cfs.FsPath(self.input_path)).load_resources(
             {"Observation"}, progress=feedback.Progress()
         )
 
@@ -88,7 +89,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_multiple_tasks(self):
         # Grab all observations before we mock anything
-        loaded = loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
+        loaded = loaders.FhirNdjsonLoader(cfs.FsPath(self.input_path)).load_resources(
             {"Observation", "Patient"}, progress=feedback.Progress()
         )
 
@@ -126,8 +127,8 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
         # Clear out the saved test codebook first
-        codebook_path = os.path.join(self.phi_path, "codebook.json")
-        os.remove(codebook_path)
+        codebook_path = cfs.FsPath(self.phi_path, "codebook.json")
+        codebook_path.rm()
 
         # Cause a system exit as soon as we try to write a file.
         # The goal is that the codebook is already in place by this time.
@@ -138,9 +139,9 @@ class TestEtlJobFlow(BaseEtlSimple):
                 await self.run_etl(tasks=["patient"])
 
         # Ensure we wrote a valid codebook out
-        codebook = common.read_json(codebook_path)
+        codebook = codebook_path.read_json()
         self.assertEqual("1234", codebook["id_salt"])
-        mappings = common.read_json(os.path.join(self.phi_path, "codebook-cached-mappings.json"))
+        mappings = cfs.FsPath(self.phi_path, "codebook-cached-mappings.json").read_json()
         self.assertDictEqual(
             {
                 "323456": "58d7507019c4ebe8daaf70f796578d12284de4a0e0fd85b968cda8ef85dee949",
@@ -203,7 +204,7 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_completion_args(self, etl_args, loader_vals, expected_vals):
         """Verify that we parse completion args with the correct fallbacks and checks."""
         # Grab all observations before we mock anything
-        observations = await loaders.FhirNdjsonLoader(store.Root(self.input_path)).load_resources(
+        observations = await loaders.FhirNdjsonLoader(cfs.FsPath(self.input_path)).load_resources(
             {"Observation"}, progress=feedback.Progress()
         )
         observations.group_name = loader_vals[0]
@@ -256,11 +257,13 @@ class TestEtlJobFlow(BaseEtlSimple):
         with tempfile.TemporaryDirectory() as tmpdir:
             await self.run_etl("--allow-missing-resources", tasks=["patient"], input_path=tmpdir)
 
-        self.assertEqual("", common.read_text(f"{self.output_path}/patient/patient.000.ndjson"))
+        self.assertEqual(
+            "", cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_text()
+        )
 
     async def test_missing_resources_skips_tasks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            common.write_json(f"{tmpdir}/p.ndjson", {"id": "A", "resourceType": "Patient"})
+            cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
             await self.run_etl(input_path=tmpdir)
 
         self.assertEqual(
@@ -269,12 +272,10 @@ class TestEtlJobFlow(BaseEtlSimple):
 
     async def test_unknown_extensions_get_printed(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            common.write_json(
-                f"{tmpdir}/unknown-extension.ndjson",
+            cfs.FsPath(f"{tmpdir}/unknown-extension.ndjson").write_json(
                 {"id": "A", "resourceType": "Patient", "extension": [{"url": "unknown"}]},
             )
-            common.write_json(
-                f"{tmpdir}/unknown-modifier-extension.ndjson",
+            cfs.FsPath(f"{tmpdir}/unknown-modifier-extension.ndjson").write_json(
                 {"id": "B", "resourceType": "Patient", "modifierExtension": [{"url": "unknown"}]},
             )
 
@@ -294,7 +295,7 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["patient"], input_path=tmpdir)
 
         self.assertEqual(
-            common.read_json(f"{self.output_path}/patient/patient.000.ndjson"),
+            cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_json(),
             {
                 "resourceType": "Patient",
                 "id": "50ffe70a1bdf3b6e73adac15e4ab7f9d7e247466d7a6c395c2ae9098741a62bd",
@@ -315,7 +316,7 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["patient"], input_path=tmpdir)
 
         self.assertEqual(
-            common.read_json(f"{self.output_path}/patient/patient.000.ndjson"),
+            cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_json(),
             {
                 "resourceType": "Patient",
                 "id": "50ffe70a1bdf3b6e73adac15e4ab7f9d7e247466d7a6c395c2ae9098741a62bd",
@@ -399,7 +400,7 @@ class TestEtlJobContext(BaseEtlSimple):
 
     def setUp(self):
         super().setUp()
-        self.context_path = os.path.join(self.phi_path, "context.json")
+        self.context_path = cfs.FsPath(self.phi_path, "context.json")
 
     async def test_context_updated_on_success(self):
         """Verify that we update the success timestamp etc. when the job succeeds"""
@@ -416,14 +417,14 @@ class TestEtlJobContext(BaseEtlSimple):
             "last_successful_input": "/input",
             "last_successful_output": "/output",
         }
-        common.write_json(self.context_path, input_context)
+        self.context_path.write_json(input_context)
 
         with mock.patch("cumulus_etl.etl.pipeline.etl_job", side_effect=ZeroDivisionError):
             with self.assertRaises(ZeroDivisionError):
                 await self.run_etl()
 
         # Confirm we didn't change anything
-        self.assertEqual(input_context, common.read_json(self.context_path))
+        self.assertEqual(input_context, self.context_path.read_json())
 
 
 class TestEtlFormats(BaseEtlSimple):
@@ -538,8 +539,8 @@ class TestEtlNlp(BaseEtlSimple):
             "47f2c3b7cd114908b8c1a56bb26db2a9d9901a5d5571a327a69474a641a9fc3d",
         ]
 
-    def path_for_checksum(self, prefix, checksum):
-        return os.path.join(
+    def path_for_checksum(self, prefix, checksum) -> cfs.FsPath:
+        return cfs.FsPath(
             self.phi_path, "ctakes-cache", prefix, checksum[0:4], f"sha256-{checksum}.json"
         )
 
@@ -565,20 +566,19 @@ class TestEtlNlp(BaseEtlSimple):
         for index, checksum in enumerate(self.expected_checksums):
             ner = fake_ctakes_extract(facts[index])
             self.assertEqual(
-                ner.as_json(), common.read_json(self.path_for_checksum(self.CACHE_FOLDER, checksum))
+                ner.as_json(), self.path_for_checksum(self.CACHE_FOLDER, checksum).read_json()
             )
             self.assertEqual(
                 [0, 0],
-                common.read_json(self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)),
+                self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum).read_json(),
             )
 
     async def test_does_not_hit_server_if_cache_exists(self):
         for index, checksum in enumerate(self.expected_checksums):
             # Write out some fake results to the cache location
             filename = self.path_for_checksum(self.CACHE_FOLDER, checksum)
-            os.makedirs(os.path.dirname(filename))
-            common.write_json(
-                filename,
+            filename.parent.makedirs()
+            filename.write_json(
                 {
                     "SignSymptomMention": [
                         {
@@ -601,8 +601,8 @@ class TestEtlNlp(BaseEtlSimple):
             )
 
             cnlp_filename = self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)
-            os.makedirs(os.path.dirname(cnlp_filename))
-            common.write_json(cnlp_filename, [0])
+            cnlp_filename.parent.makedirs()
+            cnlp_filename.write_json([0])
 
         await self.run_etl(tasks=["covid_symptom__nlp_results"])
 
@@ -629,8 +629,8 @@ class TestEtlNlp(BaseEtlSimple):
         """
         # Make new input dir with some docrefs that only have a URL, no data.
         with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(f"{tmpdir}/DocumentReference.ndjson") as writer:
-                src = store.Root(self.input_path)
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DocumentReference.ndjson")) as writer:
+                src = cfs.FsPath(self.input_path)
                 docref_iter = common.read_resource_ndjson(src, "DocumentReference")
 
                 # Replace first row's data with a partial URL

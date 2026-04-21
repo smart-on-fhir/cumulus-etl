@@ -5,10 +5,11 @@ import os
 import shutil
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import pyarrow
 import pyathena
 
-from cumulus_etl import cli, common, errors, store
+from cumulus_etl import cli, common, errors
 from tests.etl import BaseEtlSimple
 from tests.nlp.utils import NlpModelTestCase
 from tests.s3mock import S3Mixin
@@ -82,7 +83,7 @@ class TestNlpCli(HelperMixin, NlpModelTestCase, BaseEtlSimple):
         }
 
         tmpdir = self.make_tempdir()
-        with common.NdjsonWriter(f"{tmpdir}/notes.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/notes.ndjson")) as writer:
             writer.write(valid)
             writer.write(ignored)
 
@@ -135,7 +136,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
                 "WorkGroup": {
                     "Configuration": {
                         "ResultConfiguration": {
-                            "OutputLocation": f"{self.bucket_url}/",
+                            "OutputLocation": f"{self.bucket_path}/",
                         },
                     },
                 },
@@ -187,7 +188,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
 
     @staticmethod
     def ids_from_ndjson_file(path: str) -> list[str]:
-        return [x["note_ref"] for x in common.read_ndjson(store.Root(path), path)]
+        return [x["note_ref"] for x in common.read_ndjson(cfs.FsPath(path))]
 
     async def test_deltalake_format(self):
         self.mock_nlp()
@@ -266,7 +267,9 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
                 f"{root}/nlp_gpt_oss_120b_v1.ids",
             },
         )
-        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            cfs.FsPath(f"s3://{root}/nlp_gpt_oss_120b_v1.ids").read_text(), all_four_ids
+        )
         self.assertEqual(
             set(
                 self.ids_from_ndjson_file(
@@ -285,7 +288,9 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
                 f"{root}/nlp_gpt_oss_120b_v1.ids",
             },
         )
-        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            cfs.FsPath(f"s3://{root}/nlp_gpt_oss_120b_v1.ids").read_text(), all_four_ids
+        )
 
         # Re-running once we delete a line from IDs should re-upload that one ID
         first_three_ids = (
@@ -293,7 +298,7 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             "DiagnosticReport/e9f014644c29678b824fc98caa8c551d1fb81e14e78bbe87d6ecef2e1630c265\n"
             "DocumentReference/c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971\n"
         )
-        common.write_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids", first_three_ids)
+        cfs.FsPath(f"s3://{root}/nlp_gpt_oss_120b_v1.ids").write_text(first_three_ids)
         await self.run_nlp("--output-format=ndjson")
         self.assertEqual(
             set(self.s3fs.find(root)),
@@ -303,7 +308,9 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
                 f"{root}/nlp_gpt_oss_120b_v1.ids",
             },
         )
-        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            cfs.FsPath(f"s3://{root}/nlp_gpt_oss_120b_v1.ids").read_text(), all_four_ids
+        )
         self.assertEqual(
             set(
                 self.ids_from_ndjson_file(
@@ -339,7 +346,9 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
 
         # First, simple run
         await self.run_nlp("--output-format=ndjson", input_path=self.tmpdir)
-        self.assertEqual(common.read_text(f"s3://{root}/nlp_gpt_oss_120b_v1.ids"), all_four_ids)
+        self.assertEqual(
+            cfs.FsPath(f"s3://{root}/nlp_gpt_oss_120b_v1.ids").read_text(), all_four_ids
+        )
         self.assertEqual(
             self.ids_from_ndjson_file(
                 f"s3://{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.ndjson"

@@ -7,7 +7,7 @@ from collections.abc import Callable, Collection
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp
 from cumulus_etl.upload_notes import labeling, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
@@ -29,7 +29,7 @@ def init_checks(args: argparse.Namespace):
 
 
 def gather_resources(
-    root_input: store.Root,
+    root_input: cfs.FsPath,
     codebook: deid.Codebook,
     args: argparse.Namespace,
 ) -> common.Directory:
@@ -73,7 +73,7 @@ def _get_unique_id_for_no_grouping(resource: dict) -> str:
 
 
 async def read_notes_from_ndjson(
-    dirname: str,
+    root: cfs.FsPath,
     codebook: deid.Codebook,
     *,
     src_dir: str,
@@ -82,7 +82,6 @@ async def read_notes_from_ndjson(
     common.print_header("Downloading note text...")
 
     # Grab notes
-    root = store.Root(dirname)
     resources = common.read_resource_ndjson(root, {"DiagnosticReport", "DocumentReference"})
 
     # Now bundle each note together with some metadata and ID mappings
@@ -279,13 +278,14 @@ async def push_to_label_studio(
 def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     parser.usage = "cumulus-etl upload-notes [OPTION]... INPUT LS_URL PHI"
 
-    parser.add_argument("dir_input", metavar="/path/to/input")
+    parser.add_argument("dir_input", metavar="/path/to/input", type=cfs.FsPath)
     parser.add_argument("label_studio_url", metavar="https://example.com/labelstudio")
-    parser.add_argument("dir_phi", metavar="/path/to/phi")
+    parser.add_argument("dir_phi", metavar="/path/to/phi", type=cfs.FsPath)
 
     parser.add_argument(
         "--export-to",
         metavar="PATH",
+        type=cfs.FsPath,
         help="Where to put exported documents (default is to delete after use)",
     )
 
@@ -333,11 +333,13 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--label-by-csv",
         metavar="FILE",
+        type=cfs.FsPath,
         help="path to a .csv file with annotations (must have note ID, label, and span columns)",
     )
     group.add_argument(
         "--label-by-anon-csv",
         metavar="FILE",
+        type=cfs.FsPath,
         help="path to a .csv file with annotations "
         "(must have anonymized note ID, label, and span columns)",
     )
@@ -350,12 +352,18 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
 
     group = nlp.add_note_selection(parser)
     # Add some deprecated aliases for some note selection options. Deprecated since Sep 2025.
-    group.add_argument("--anon-docrefs", dest="select_by_anon_csv", help=argparse.SUPPRESS)
-    group.add_argument("--docrefs", dest="select_by_csv", help=argparse.SUPPRESS)
+    group.add_argument(
+        "--anon-docrefs", dest="select_by_anon_csv", type=cfs.FsPath, help=argparse.SUPPRESS
+    )
+    group.add_argument("--docrefs", dest="select_by_csv", type=cfs.FsPath, help=argparse.SUPPRESS)
 
     group = parser.add_argument_group("Label Studio")
     group.add_argument(
-        "--ls-token", metavar="PATH", help="token file for Label Studio access", required=True
+        "--ls-token",
+        metavar="PATH",
+        help="token file for Label Studio access",
+        required=True,
+        type=cfs.FsPath,
     )
     group.add_argument(
         "--ls-project",
@@ -383,14 +391,13 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     init_checks(args)
 
     # record filesystem options like --s3-region before creating Roots
-    store.set_user_fs_options(vars(args))
+    common.set_user_fs_options(vars(args))
 
     args.dir_input = cli_utils.process_input_dir(args.dir_input)
-    root_input = store.Root(args.dir_input)
-    store.Root(args.dir_phi, create=True)  # create PHI if needed (very edge case)
+    args.dir_phi.makedirs()  # create PHI if needed (very edge case)
 
     # Read token file early for quick error feedback
-    access_token = common.read_text(args.ls_token).strip()
+    access_token = args.ls_token.read_text().strip()
 
     match args.grouping:
         case "encounter":
@@ -402,9 +409,9 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     print("Preparing metadata…")  # i.e. the codebook
 
     with deid.Codebook(args.dir_phi) as codebook:
-        ndjson_folder = gather_resources(root_input, codebook, args)
+        ndjson_folder = gather_resources(args.dir_input, codebook, args)
         notes = await read_notes_from_ndjson(
-            ndjson_folder.name,
+            cfs.FsPath(ndjson_folder.name),
             codebook,
             get_unique_id=get_unique_id,
             src_dir=args.dir_input,

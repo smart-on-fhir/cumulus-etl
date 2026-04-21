@@ -3,6 +3,7 @@
 import os
 from unittest import mock
 
+import cumulus_fhir_support as cfs
 import ddt
 import pyarrow
 import pydantic
@@ -45,7 +46,7 @@ class TestTasks(TaskTestCase):
         We've seen this situation when folks try to combine NDJSON results themselves.
         (They got OperationOutcomes mixed into Conditions.)
         """
-        with common.NdjsonWriter(f"{self.input_dir}/conditions.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{self.input_dir}/conditions.ndjson")) as writer:
             # First line looks normal, so our sniffer will think this is a Condition file
             writer.write({"resourceType": "Condition", "id": "normal"})
             writer.write(bogus_row)
@@ -137,14 +138,14 @@ class TestTasks(TaskTestCase):
                 "resourceType": "Patient",
                 "id": "30d95f17d9f51f3a151c51bf0a7fcb1717363f3a87d2dbace7d594ee68d3a82f",
             },
-            common.read_json(f"{self.errors_dir}/patient/write-error.000.ndjson"),
+            cfs.FsPath(f"{self.errors_dir}/patient/write-error.000.ndjson").read_json(),
         )
         self.assertEqual(
             {
                 "resourceType": "Patient",
                 "id": "ed9ab553005a7c9bdb26ecf9f612ea996ad99b1a96a34bf88c260f1c901d8289",
             },
-            common.read_json(f"{self.errors_dir}/patient/write-error.002.ndjson"),
+            cfs.FsPath(f"{self.errors_dir}/patient/write-error.002.ndjson").read_json(),
         )
 
     async def test_batch_is_given_schema(self):

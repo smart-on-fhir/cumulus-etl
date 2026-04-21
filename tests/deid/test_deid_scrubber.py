@@ -52,9 +52,9 @@ class TestScrubber(utils.AsyncTestCase):
 
         for resource, unsorted_files in resource_buckets.items():
             os.makedirs(output_dir, exist_ok=True)
-            with common.NdjsonWriter(f"{output_dir}/{resource}.ndjson") as output_file:
+            with common.NdjsonWriter(cfs.FsPath(f"{output_dir}/{resource}.ndjson")) as output_file:
                 for filename in sorted(unsorted_files):
-                    parsed_json = common.read_json(f"{input_dir}/{filename}")
+                    parsed_json = cfs.FsPath(f"{input_dir}/{filename}").read_json()
                     output_file.write(parsed_json)
 
     @mock.patch("uuid.uuid4", new=lambda: "1234")
@@ -383,6 +383,8 @@ class TestScrubber(utils.AsyncTestCase):
         scrubber.save()
 
         with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir = cfs.FsPath(tmpdir)
+
             # Start with one encounter in db
             db = CodebookDB(tmpdir)
             db.encounter("1")
@@ -407,7 +409,7 @@ class TestScrubber(utils.AsyncTestCase):
             scrubber.scrub_resource(encounter_bad)
 
             # make sure that we raise an error on an unexpected cookbook version
-            common.write_json(f"{tmpdir}/codebook.json", {"version": ".99"})
+            tmpdir.joinpath("codebook.json").write_json({"version": ".99"})
             with self.assertRaises(Exception) as context:
                 Scrubber(tmpdir)
             self.assertIn(".99", str(context.exception))

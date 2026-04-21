@@ -5,10 +5,11 @@ https://github.com/smart-on-fhir/bulk-data-client/wiki/Bulk-Data-Export-Log-Item
 """
 
 import datetime
-import os
 import re
 
-from cumulus_etl import common, fhir, store
+import cumulus_fhir_support as cfs
+
+from cumulus_etl import common, fhir
 
 
 class BulkExportLogParser:
@@ -34,20 +35,20 @@ class BulkExportLogParser:
     class NoLogs(LogParsingError):
         pass
 
-    def __init__(self, root: store.Root):
+    def __init__(self, root: cfs.FsPath):
         self.group_name: str = None
         self.export_datetime: datetime.datetime = None
         self.export_url: str = None
 
-        self._parse(root, self._find(root))
+        self._parse(self._find(root))
 
-    def _parse(self, root: store.Root, path: str) -> None:
+    def _parse(self, path: cfs.FsPath) -> None:
         # Go through every row, looking for the final kickoff event.
         # We only want to look at one series of events for one bulk export.
         # So we pick the last one, in case there are multiple in the log.
         # Those early events might be false starts.
         export_id = None
-        for row in common.read_ndjson(root, path):
+        for row in common.read_ndjson(path):
             if row.get("eventId") == "kickoff":
                 export_id = row.get("exportId")
         if not export_id:
@@ -55,7 +56,7 @@ class BulkExportLogParser:
 
         # Now read through the log file again, only looking for the events from the one export.
         try:
-            for row in common.read_ndjson(root, path):
+            for row in common.read_ndjson(path):
                 if row.get("exportId") != export_id:
                     continue
                 match row.get("eventId"):
@@ -78,13 +79,12 @@ class BulkExportLogParser:
         details = row["eventDetail"]
         self.export_datetime = datetime.datetime.fromisoformat(details["transactionTime"])
 
-    def _find(self, root: store.Root) -> str:
+    def _find(self, root: cfs.FsPath) -> cfs.FsPath:
         """Finds the log file inside the root"""
-        try:
-            paths = root.ls()
-        except FileNotFoundError as exc:
-            raise self.NoLogs("Folder does not exist") from exc
-        filenames = {os.path.basename(p): p for p in paths}
+        if not root.exists():
+            raise self.NoLogs("Folder does not exist")
+
+        filenames = {p.name: p for p in root.ls()}
 
         # In the easy case, it's just sitting there at log.ndjson,
         # which is the filename that bulk-data-client uses.

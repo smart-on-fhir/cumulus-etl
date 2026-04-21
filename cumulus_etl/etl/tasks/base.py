@@ -1,7 +1,6 @@
 """ETL tasks"""
 
 import dataclasses
-import os
 from collections.abc import AsyncIterator, Iterator
 from typing import ClassVar
 
@@ -12,7 +11,7 @@ import rich.table
 import rich.text
 
 import cumulus_etl
-from cumulus_etl import batching, common, completion, deid, feedback, formats, store
+from cumulus_etl import batching, common, completion, deid, feedback, formats
 from cumulus_etl.etl import config
 
 # Defined here, as syntactic sugar for when you subclass your own task and re-define read_entries()
@@ -358,7 +357,8 @@ class EtlTask:
         if not self.task_config.dir_errors:
             return
 
-        error_root = store.Root(os.path.join(self.task_config.dir_errors, self.name), create=True)
+        error_root = self.task_config.dir_errors.joinpath(self.name)
+        error_root.makedirs()
         error_path = error_root.joinpath(f"write-error.{batch_index:03}.ndjson")
         common.write_rows_to_ndjson(error_path, batch.rows)
 
@@ -368,7 +368,7 @@ class EtlTask:
     #
     ##########################################################################################
 
-    def read_ndjson_from_disk(self, input_root: store.Root, resource: str) -> Iterator[dict]:
+    def read_ndjson_from_disk(self, input_root: cfs.FsPath, resource: str) -> Iterator[dict]:
         yield from common.read_resource_ndjson(input_root, resource)
 
     def read_ndjson(
@@ -382,7 +382,7 @@ class EtlTask:
         If `resources` is not provided, the task's main resources (via self.get_resource_types())
         will be used.
         """
-        input_root = store.Root(self.task_config.dir_input)
+        input_root = self.task_config.dir_input
         resources = resources or sorted(self.get_resource_types())
 
         if progress:

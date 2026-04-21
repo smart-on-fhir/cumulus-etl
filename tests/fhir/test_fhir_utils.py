@@ -2,6 +2,7 @@
 
 import datetime
 
+import cumulus_fhir_support as cfs
 import ddt
 
 from cumulus_etl import common, fhir
@@ -151,7 +152,7 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
     def test_role_info_wrong_role_target_ignored(self):
         tmpdir = self.make_tempdir()
 
-        with common.NdjsonWriter(f"{tmpdir}/roles.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/roles.ndjson")) as writer:
             writer.write(
                 {
                     "resourceType": "PractitionerRole",
@@ -183,7 +184,7 @@ class TestDocrefNotesUtils(utils.AsyncTestCase):
     def test_role_info_names(self):
         tmpdir = self.make_tempdir()
 
-        with common.NdjsonWriter(f"{tmpdir}/people.ndjson") as writer:
+        with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/people.ndjson")) as writer:
             writer.write(
                 {
                     "resourceType": "Practitioner",

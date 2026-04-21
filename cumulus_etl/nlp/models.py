@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator, Iterable
 from typing import NoReturn, Self
 
 import boto3
+import cumulus_fhir_support as cfs
 import openai
 import rich
 import rich.text
@@ -43,7 +44,7 @@ class Prompt:
     system: str
     user: str
     schema: type[BaseModel]
-    cache_dir: str
+    cache_dir: cfs.FsPath
     cache_namespace: str
     cache_checksum: str
 
@@ -348,7 +349,7 @@ class OpenAIProvider(Provider):
 
         return batch_id
 
-    async def _send_batch(self, cache_dir: str, cache_namespace: str) -> str:
+    async def _send_batch(self, cache_dir: cfs.FsPath, cache_namespace: str) -> str:
         prompt_file = await self.client.files.create(
             file=pathlib.Path(self.batch_filename),
             purpose="batch",
@@ -371,13 +372,13 @@ class OpenAIProvider(Provider):
 
         return batch.id
 
-    async def finish_batch(self, cache_dir: str, cache_namespace: str) -> str | None:
+    async def finish_batch(self, cache_dir: cfs.FsPath, cache_namespace: str) -> str | None:
         if self.batch_filename:
             return await self._send_batch(cache_dir, cache_namespace)
         return None
 
     async def wait_for_batch(
-        self, batch_id: str, *, schema: type[BaseModel], cache_dir: str, cache_namespace: str
+        self, batch_id: str, *, schema: type[BaseModel], cache_dir: cfs.FsPath, cache_namespace: str
     ) -> None:
         # Poll the batches until completion
         batch = await self.client.batches.retrieve(batch_id=batch_id)
@@ -584,7 +585,7 @@ class Model:
         self,
         *,
         schema: type[BaseModel],
-        cache_dir: str,
+        cache_dir: cfs.FsPath,
         cache_namespace: str,
         prompt_iter: AsyncIterator[Prompt],
     ) -> None:
@@ -623,7 +624,12 @@ class Model:
             )
 
     async def _wait_for_batches(
-        self, batch_ids: set[str], *, schema: type[BaseModel], cache_dir: str, cache_namespace: str
+        self,
+        batch_ids: set[str],
+        *,
+        schema: type[BaseModel],
+        cache_dir: cfs.FsPath,
+        cache_namespace: str,
     ) -> None:
         status_box = rich.text.Text()
 
