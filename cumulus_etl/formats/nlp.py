@@ -50,14 +50,15 @@ class AthenaMixin:  # like most mixins, this should go first in inheritance list
     def write_format(self, batch: Batch, path: cfs.FsPath) -> None:
         super().write_format(batch, path)
         self._update_finished_groups(batch.groups)
+        if self._index == 0 and self._connection:
+            # Register after dropping the first batch, as it's nice to be able to show immediate
+            # progress in Athena (and if we get interrupted later, the table will at least exist).
+            # As more batches come in, the table will automatically expand.
+            self._register_athena_table()
 
     def _update_finished_groups(self, groups: set[str]) -> None:
         id_list = "\n".join(sorted(groups)) + "\n"
         common.append_text(self.group_id_path(), id_list)
-
-    def finalize(self) -> None:
-        if self._connection:
-            self._register_athena_table()
 
     def _athena_args(self) -> tuple[str, str]:
         """Returns pre-location and post-location sql args"""
