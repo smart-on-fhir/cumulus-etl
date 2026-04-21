@@ -6,6 +6,7 @@ import shutil
 from unittest import mock
 
 import cumulus_fhir_support as cfs
+import ddt
 import pyarrow
 import pyathena
 
@@ -124,6 +125,7 @@ class TestNlpCli(HelperMixin, NlpModelTestCase, BaseEtlSimple):
             )
 
 
+@ddt.ddt
 class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
     def mock_nlp(self, encryption: bool = True):
         self.mock_age_results()
@@ -420,18 +422,34 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             },
         )
 
-    async def test_existing_delta_lake_error(self):
+    @ddt.data(
+        ("random issue", errors.TASK_FAILED),
+        ("DROP TABLE not supported for Delta Lake", errors.ATHENA_TABLE_STILL_CRAWLER),
+    )
+    @ddt.unpack
+    async def test_existing_delta_lake_error(self, err_msg, exit_code):
         self.mock_nlp()
 
-        # Try a random non-delta-lake error first - this will bubble up
-        self.cursor.execute.side_effect = ValueError
-        with self.assertRaises(ValueError):
+        self.cursor.execute.side_effect = ValueError(err_msg)
+        with self.assert_fatal_exit(exit_code):
             await self.run_nlp()
 
-        # Now try with the correct error message, it will be caught and handled separately
-        self.cursor.execute.side_effect = ValueError("DROP TABLE not supported for Delta Lake")
-        with self.assert_fatal_exit(errors.ATHENA_TABLE_STILL_CRAWLER):
+    @mock.patch("cumulus_etl.formats.Format.finalize", side_effect=KeyboardInterrupt)
+    async def test_when_interrupted_table_will_exist(self, mock_finalize):
+        self.mock_nlp()
+
+        with self.assertRaises(KeyboardInterrupt):
             await self.run_nlp()
+
+        self.assertEqual(self.cursor.execute.call_count, 2)
+        self.assertEqual(
+            self.cursor.execute.call_args_list[0],
+            mock.call("DROP TABLE IF EXISTS example_nlp__nlp_gpt_oss_120b"),
+        )
+        self.assertTrue(
+            self.cursor.execute.call_args_list[1][0][0].strip().startswith("CREATE EXTERNAL TABLE"),
+            self.cursor.execute.call_args_list[1][0][0],
+        )
 
     async def test_column_schema(self):
         self.mock_nlp()
