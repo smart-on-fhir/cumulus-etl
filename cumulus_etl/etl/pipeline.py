@@ -7,7 +7,7 @@ import cumulus_fhir_support as cfs
 import rich
 import rich.table
 
-from cumulus_etl import cli_utils, common, deid, errors, feedback, loaders, store
+from cumulus_etl import cli_utils, common, deid, errors, feedback, loaders
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.config import JobConfig, JobSummary, validate_etl_output_folder
 from cumulus_etl.etl.tasks import task_factory
@@ -159,7 +159,7 @@ async def prepare_pipeline(
     args: argparse.Namespace, job_datetime: datetime.datetime, *, nlp: bool
 ) -> tuple[deid.Scrubber, loaders.LoaderResults, list[type[task_factory.AnyTask]]]:
     # record filesystem options like --s3-region before creating Roots
-    store.set_user_fs_options(vars(args))
+    common.set_user_fs_options(vars(args))
 
     root_input = cli_utils.process_input_dir(args.dir_input)
     args.dir_phi.makedirs()  # create PHI folder, if needed

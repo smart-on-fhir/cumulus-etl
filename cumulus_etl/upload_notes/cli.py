@@ -7,7 +7,7 @@ from collections.abc import Callable, Collection
 
 import cumulus_fhir_support as cfs
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp
 from cumulus_etl.upload_notes import labeling, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
@@ -391,7 +391,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     init_checks(args)
 
     # record filesystem options like --s3-region before creating Roots
-    store.set_user_fs_options(vars(args))
+    common.set_user_fs_options(vars(args))
 
     args.dir_input = cli_utils.process_input_dir(args.dir_input)
     args.dir_phi.makedirs()  # create PHI if needed (very edge case)

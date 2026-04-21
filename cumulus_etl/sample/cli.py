@@ -10,7 +10,7 @@ from collections.abc import AsyncIterable, Iterable, Iterator
 import cumulus_fhir_support as cfs
 import rich
 
-from cumulus_etl import cli_utils, common, deid, errors, nlp, store
+from cumulus_etl import cli_utils, common, deid, errors, nlp
 
 
 class MultiResourceWriter:
@@ -237,7 +237,7 @@ async def prep_and_sample(args: argparse.Namespace) -> tuple[Iterator[dict], int
 
 async def sample_main(args: argparse.Namespace) -> None:
     # record filesystem options like --s3-region before creating Roots
-    store.set_user_fs_options(vars(args))
+    common.set_user_fs_options(vars(args))
 
     # Check CLI args
     if args.count <= 0:

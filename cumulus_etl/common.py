@@ -104,6 +104,11 @@ def warn_on_missing_resources(found_files: dict[str, str | None], resources: set
 ###############################################################################
 
 
+def set_user_fs_options(args: dict) -> None:
+    """Records user arguments that can affect filesystem options (like s3_region)"""
+    cfs.FsPath.register_options(kms_key=args.get("s3_kms_key"), region=args.get("s3_region"))
+
+
 def append_text(path: cfs.FsPath, text: str) -> None:
     """
     Adds data to the given path, in text format

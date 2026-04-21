@@ -10,7 +10,7 @@ from collections.abc import Generator
 import cumulus_fhir_support as cfs
 import pyarrow
 
-from cumulus_etl import cli_utils, completion, feedback, formats, store
+from cumulus_etl import cli_utils, common, completion, feedback, formats
 from cumulus_etl.etl.tasks import task_factory
 
 
@@ -49,7 +49,7 @@ def get_task_tables() -> Generator[tuple[dict, pyarrow.Schema]]:
 async def init_main(args: argparse.Namespace) -> None:
     """Main logic for initialization"""
     # record filesystem options like --s3-region before creating Roots
-    store.set_user_fs_options(vars(args))
+    common.set_user_fs_options(vars(args))
 
     output_root = args.dir_output
 

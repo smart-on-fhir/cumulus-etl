@@ -71,17 +71,17 @@ def get_note_date(note: dict) -> datetime.datetime | None:
     return None
 
 
-def _cache_metadata_path(cache_dir: str, namespace: str, filename: str) -> cfs.FsPath:
+def _cache_metadata_path(cache_dir: cfs.FsPath, namespace: str, filename: str) -> cfs.FsPath:
     return cache_dir.joinpath(f"nlp-cache/{namespace}/{filename}")
 
 
-def cache_metadata_write(cache_dir: str, namespace: str, content: dict) -> None:
+def cache_metadata_write(cache_dir: cfs.FsPath, namespace: str, content: dict) -> None:
     path = _cache_metadata_path(cache_dir, namespace, "metadata.json")
     path.parent.makedirs()
     path.write_json(content, indent=2)
 
 
-def cache_metadata_read(cache_dir: str, namespace: str) -> dict:
+def cache_metadata_read(cache_dir: cfs.FsPath, namespace: str) -> dict:
     path = _cache_metadata_path(cache_dir, namespace, "metadata.json")
     return path.read_json(default={})
 

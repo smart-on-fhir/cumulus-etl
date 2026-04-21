@@ -11,7 +11,7 @@ from functools import partial
 import cumulus_fhir_support as cfs
 import pyarrow
 
-from cumulus_etl import cli_utils, common, completion, errors, feedback, formats, store
+from cumulus_etl import cli_utils, common, completion, errors, feedback, formats
 from cumulus_etl.etl import config, tasks
 from cumulus_etl.etl.tasks import task_factory
 
@@ -191,7 +191,7 @@ def define_convert_parser(parser: argparse.ArgumentParser) -> None:
 async def convert_main(args: argparse.Namespace) -> None:
     """Main logic for converting"""
     # record filesystem options like --s3-region before using args
-    store.set_user_fs_options(vars(args))
+    common.set_user_fs_options(vars(args))
 
     validate_folders(args.input_dir, args.output_dir)
 
