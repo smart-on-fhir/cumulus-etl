@@ -152,8 +152,6 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
             },
         }
         content.update(kwargs)
-        print(content)
-        print(kwargs)
         return cls.ibd_treatment_annotation_model().model_validate(content)
 
     # - ibd-surgery-annotation.json
@@ -168,6 +166,165 @@ class TestIbdTasks(NlpModelTestCase, BaseEtlSimple):
         }
         content.update(kwargs)
         return cls.ibd_surgery_annotation_model().model_validate(content)
+
+    # - ibd-eim-annotation.json
+    @classmethod
+    def ibd_eim_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-eim-annotation.json")
+
+    @classmethod
+    def ibd_eim_annotation(cls, **kwargs):
+        content = {
+            "fever": {"has_mention": False, "spans": []},
+            "uveitis": {"has_mention": False, "spans": []},
+            "arthritis": {"has_mention": False, "spans": []},
+            "erythema_nodosum": {"has_mention": False, "spans": []},
+            "pyoderma_gangrenosum": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return cls.ibd_eim_annotation_model().model_validate(content)
+
+    # - ibd-endoscopy-annotation.json
+    @classmethod
+    def ibd_endoscopy_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-endoscopy-annotation.json")
+
+    @classmethod
+    def ibd_endoscopy_annotation(cls, **kwargs):
+        content = {
+            "procedure": {"has_mention": False, "spans": []},
+            "continuous": {"has_mention": False, "spans": []},
+            "endoscopist_global_assessment": {"has_mention": False, "spans": []},
+            "segment_findings": [],
+        }
+        content.update(kwargs)
+        return cls.ibd_endoscopy_annotation_model().model_validate(content)
+
+    # - ibd-mayo-score-annotation.json
+    @classmethod
+    def ibd_mayo_score_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-mayo-score-annotation.json")
+
+    @classmethod
+    def ibd_mayo_score_annotation(cls, **kwargs):
+        content = {
+            "score_variant": {"has_mention": False, "spans": []},
+            "total_score": {"has_mention": False, "spans": []},
+            "stool_frequency": {"has_mention": False, "spans": []},
+            "rectal_bleeding": {"has_mention": False, "spans": []},
+            "endoscopy": {"has_mention": False, "spans": []},
+            "physician_global_assessment": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return cls.ibd_mayo_score_annotation_model().model_validate(content)
+
+    # - ibd-pcdai-annotation.json
+    @classmethod
+    def ibd_pcdai_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-pcdai-annotation.json")
+
+    @classmethod
+    def ibd_pcdai_annotation(cls, **kwargs):
+        content = {
+            "total_score": {"has_mention": False, "spans": []},
+            "abdominal_pain": {"has_mention": False, "spans": []},
+            "abdominal_tenderness": {"has_mention": False, "spans": []},
+            "stools_per_day": {"has_mention": False, "spans": []},
+            "general_well_being": {"has_mention": False, "spans": []},
+            "height": {"has_mention": False, "spans": []},
+            "weight": {"has_mention": False, "spans": []},
+            "perianal_disease": {"has_mention": False, "spans": []},
+            "eim": {
+                "fever": {"has_mention": False, "spans": []},
+                "uveitis": {"has_mention": False, "spans": []},
+                "arthritis": {"has_mention": False, "spans": []},
+                "erythema_nodosum": {"has_mention": False, "spans": []},
+                "pyoderma_gangrenosum": {"has_mention": False, "spans": []},
+            },
+            "lab_hematocrit": {"has_mention": False, "spans": []},
+            "lab_esr": {"has_mention": False, "spans": []},
+            "lab_albumin": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return cls.ibd_pcdai_annotation_model().model_validate(content)
+
+    # - ibd-pucai-annotation.json
+    @classmethod
+    def ibd_pucai_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-pucai-annotation.json")
+
+    @classmethod
+    def ibd_pucai_annotation(cls, **kwargs):
+        content = {
+            "total_score": {"has_mention": False, "spans": []},
+            "abdominal_pain": {"has_mention": False, "spans": []},
+            "rectal_bleeding": {"has_mention": False, "spans": []},
+            "stool_consistency": {"has_mention": False, "spans": []},
+            "stools_per_day": {"has_mention": False, "spans": []},
+            "nocturnal_stools": {"has_mention": False, "spans": []},
+            "activity_level": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return cls.ibd_pucai_annotation_model().model_validate(content)
+
+    # - ibd-sescd-annotation.json
+    @classmethod
+    def ibd_sescd_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-sescd-annotation.json")
+
+    @classmethod
+    def ibd_sescd_annotation(cls, **kwargs):
+        content = {
+            "segment_findings": {
+                "ileum": {"has_mention": False, "spans": []},
+                "right_colon": {"has_mention": False, "spans": []},
+                "transverse_colon": {"has_mention": False, "spans": []},
+                "left_colon": {"has_mention": False, "spans": []},
+                "rectum": {"has_mention": False, "spans": []},
+            },
+            "segment_subscores": {
+                "ileum": {"has_mention": False, "spans": []},
+                "right_colon": {"has_mention": False, "spans": []},
+                "transverse_colon": {"has_mention": False, "spans": []},
+                "left_colon": {"has_mention": False, "spans": []},
+                "rectum": {"has_mention": False, "spans": []},
+            },
+        }
+        content.update(kwargs)
+        return cls.ibd_sescd_annotation_model().model_validate(content)
+
+    # - ibd-stooling-annotation.json
+    @classmethod
+    def ibd_stooling_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-stooling-annotation.json")
+
+    @classmethod
+    def ibd_stooling_annotation(cls, **kwargs):
+        content = {
+            "stool_frequency": {"has_mention": False, "spans": []},
+            "stool_consistency": {"has_mention": False, "spans": []},
+            "stool_urgency": {"has_mention": False, "spans": []},
+            "tenesmus": {"has_mention": False, "spans": []},
+            "abdominal_pain": {"has_mention": False, "spans": []},
+            "rectal_bleeding": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return cls.ibd_stooling_annotation_model().model_validate(content)
+
+    # - ibd-uceis-annotation.json
+    @classmethod
+    def ibd_uceis_annotation_model(cls):
+        return cls.load_pydantic_model("ibd/ibd-uceis-annotation.json")
+
+    @classmethod
+    def ibd_uceis_annotation(cls, **kwargs):
+        content = {
+            "vascular_pattern": {"has_mention": False, "spans": []},
+            "bleeding": {"has_mention": False, "spans": []},
+            "erosion_ulcer": {"has_mention": False, "spans": []},
+        }
+        content.update(kwargs)
+        return cls.ibd_uceis_annotation_model().model_validate(content)
 
     # Path to relevant Tasks files
     SYSTEM_PROMPT = """You are a clinical chart reviewer for an IBD (inflammatory bowel disease) outcomes study.
@@ -264,6 +421,102 @@ Here is the clinical document for you to analyze:
             lambda test_cls, annotation_data: test_cls.ibd_surgery_annotation(**annotation_data),
             {},
             "ibd-surgery-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_eim_annotation_model(),
+            lambda model: f"ibd__nlp_eim_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_eim_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_eim_annotation(**annotation_data),
+            {},
+            "ibd-eim-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_endoscopy_annotation_model(),
+            lambda model: f"ibd__nlp_endoscopy_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_endoscopy_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_endoscopy_annotation(**annotation_data),
+            {},
+            "ibd-endoscopy-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_mayo_score_annotation_model(),
+            lambda model: f"ibd__nlp_mayo_score_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_mayo_score_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_mayo_score_annotation(**annotation_data),
+            {},
+            "ibd-mayo-score-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_pcdai_annotation_model(),
+            lambda model: f"ibd__nlp_pcdai_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_pcdai_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_pcdai_annotation(**annotation_data),
+            {},
+            "ibd-pcdai-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_pucai_annotation_model(),
+            lambda model: f"ibd__nlp_pucai_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_pucai_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_pucai_annotation(**annotation_data),
+            {},
+            "ibd-pucai-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_sescd_annotation_model(),
+            lambda model: f"ibd__nlp_sescd_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_sescd_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_sescd_annotation(**annotation_data),
+            {},
+            "ibd-sescd-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_stooling_annotation_model(),
+            lambda model: f"ibd__nlp_stooling_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_stooling_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_stooling_annotation(**annotation_data),
+            {},
+            "ibd-stooling-output.ndjson",
+        ),
+        (
+            lambda test_cls: test_cls.ibd_uceis_annotation_model(),
+            lambda model: f"ibd__nlp_uceis_{model}",
+            lambda test_cls: test_cls.SYSTEM_PROMPT.replace(
+                "%JSON-SCHEMA%",
+                json.dumps(test_cls.ibd_uceis_annotation_model().model_json_schema()),
+            ),
+            lambda test_cls, note_text: test_cls.USER_PROMPT.replace("%CLINICAL-NOTE%", note_text),
+            lambda test_cls, annotation_data: test_cls.ibd_uceis_annotation(**annotation_data),
+            {},
+            "ibd-uceis-output.ndjson",
         ),
     ]
 

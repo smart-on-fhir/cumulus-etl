@@ -37,39 +37,100 @@ models = [
 name = "diagnosis"
 response-schema = "ibd-diagnosis-annotation.json"
 # Version History:
+# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 2
+version = 3
 
 [[task]]
 name = "genetic_findings"
 response-schema = "ibd-genetic-findings-annotation.json"
 # Version History:
+# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 2
+version = 3
 
 [[task]]
 name = "paris_classification"
 response-schema = "ibd-paris-classification-annotation.json"
 # Version History:
+# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 2
+version = 3
 
 [[task]]
 name = "treatment"
 response-schema = "ibd-treatment-annotation.json"
 # Version History:
+# ** 4 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 3 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 2 (2026-03-23): New medication model
 # ** 1 (2026-03): Initial version
-version = 3
+version = 4
 
 [[task]]
 name = "surgery"
 response-schema = "ibd-surgery-annotation.json"
 # Version History:
+# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 2
+version = 3
+
+[[task]]
+name = "eim"
+response-schema = "ibd-eim-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "endoscopy"
+response-schema = "ibd-endoscopy-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "mayo_score"
+response-schema = "ibd-mayo-score-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "pcdai"
+response-schema = "ibd-pcdai-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "pucai"
+response-schema = "ibd-pucai-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "sescd"
+response-schema = "ibd-sescd-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "stooling"
+response-schema = "ibd-stooling-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "uceis"
+response-schema = "ibd-uceis-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1

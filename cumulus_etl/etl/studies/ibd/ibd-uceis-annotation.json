@@ -1,0 +1,152 @@
+{
+  "$defs": {
+    "UCEISBleeding": {
+      "description": "UCEIS bleeding descriptor (0-3).",
+      "enum": [
+        "NONE_VISIBLE",
+        "MUCOSAL",
+        "LUMINAL_MILD",
+        "LUMINAL_MODERATE_OR_SEVERE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "UCEISBleeding",
+      "type": "string"
+    },
+    "UCEISBleedingMention": {
+      "description": "UCEIS bleeding descriptor documented on endoscopy.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "bleeding": {
+          "$ref": "#/$defs/UCEISBleeding",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "UCEIS bleeding descriptor. NONE_VISIBLE: No visible blood. MUCOSAL: Small spots or streaks of blood adherent to the mucosal. LUMINAL_MILD: Luminal mild: mild free blood visible in the bowel lumen. LUMINAL_MODERATE_OR_SEVERE: Luminal moderate or severe: definite luminal blood that is moderate to heavy. NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "UCEISBleedingMention",
+      "type": "object"
+    },
+    "UCEISErosionsUlcers": {
+      "description": "UCEIS erosions and ulcers descriptor (0-3).",
+      "enum": [
+        "NONE_VISIBLE",
+        "EROSIONS",
+        "SUPERFICIAL_ULCER",
+        "DEEP_ULCER",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "UCEISErosionsUlcers",
+      "type": "string"
+    },
+    "UCEISErosionsUlcersMention": {
+      "description": "UCEIS erosions and ulcers descriptor documented on endoscopy.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "erosions_and_ulcers": {
+          "$ref": "#/$defs/UCEISErosionsUlcers",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "UCEIS erosions and ulcers descriptor. NONE: no erosions or ulcers; mucosal surface intact. EROSIONS: small superficial mucosal breaks or erosions without deeper ulceration. SUPERFICIAL_ULCER: larger ulcerated areas that remain shallow/superficial. DEEP_ULCER: deep excavated ulceration. NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "UCEISErosionsUlcersMention",
+      "type": "object"
+    },
+    "UCEISVascularPattern": {
+      "description": "UCEIS vascular pattern descriptor (0-2).",
+      "enum": [
+        "NORMAL",
+        "PATCHY_OBLITERATION",
+        "OBLITERATED",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "UCEISVascularPattern",
+      "type": "string"
+    },
+    "UCEISVascularPatternMention": {
+      "description": "UCEIS vascular pattern descriptor documented on endoscopy.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "vascular_pattern": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UCEISVascularPattern"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "UCEIS vascular pattern descriptor. NORMAL: normal vascular pattern with clearly visible mucosal vessels. PATCHY_OBLITERATION: patchy loss or partial obscuration of the normal vascular pattern. OBLITERATED: complete loss of the vascular pattern. NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "UCEISVascularPatternMention",
+      "type": "object"
+    }
+  },
+  "description": "UCEIS annotation descriptor documented on endoscopy.",
+  "properties": {
+    "vascular_pattern": {
+      "$ref": "#/$defs/UCEISVascularPatternMention"
+    },
+    "bleeding": {
+      "$ref": "#/$defs/UCEISBleedingMention"
+    },
+    "erosion_ulcer": {
+      "$ref": "#/$defs/UCEISErosionsUlcersMention"
+    }
+  },
+  "required": [
+    "vascular_pattern",
+    "bleeding",
+    "erosion_ulcer"
+  ],
+  "title": "IbdUCEISAnnotation",
+  "type": "object"
+}

@@ -1,0 +1,418 @@
+{
+  "$defs": {
+    "SESCDAffectedSurface": {
+      "description": "SES-CD affected surface descriptor (0-3).",
+      "enum": [
+        "UNAFFECTED_SEGMENT",
+        "PCT_LT_50",
+        "PCT_50_TO_75",
+        "PCT_GT_75"
+      ],
+      "title": "SESCDAffectedSurface",
+      "type": "string"
+    },
+    "SESCDAffectedSurfaceMention": {
+      "description": "Span-augmented SES-CD affected surface finding for a single segment.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SESCDAffectedSurface"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SES-CD affected surface descriptor (any disease involvement, ulcerated or not). UNAFFECTED_SEGMENT: no affected surface in the segment. PCT_LT_50: less than 50% of the segment surface is affected. PCT_50_TO_75: 50% to 75% of the segment surface is affected. PCT_GT_75: more than 75% of the segment surface is affected. "
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "SESCDAffectedSurfaceMention",
+      "type": "object"
+    },
+    "SESCDNarrowing": {
+      "description": "SES-CD narrowing descriptor (0-3).",
+      "enum": [
+        "NONE",
+        "SINGLE_PASSABLE",
+        "MULTIPLE_PASSABLE",
+        "CANNOT_BE_PASSED",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "SESCDNarrowing",
+      "type": "string"
+    },
+    "SESCDNarrowingMention": {
+      "description": "Span-augmented SES-CD narrowing finding for a single segment.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "value": {
+          "$ref": "#/$defs/SESCDNarrowing",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "SES-CD narrowing descriptor. Per Daperno 2004, score the most severe narrowing in the segment. NONE: no narrowing present. SINGLE_PASSABLE: one narrowing is present and can be passed. MULTIPLE_PASSABLE: multiple narrowings are present and can be passed. CANNOT_BE_PASSED: a narrowing is present that cannot be passed. NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "SESCDNarrowingMention",
+      "type": "object"
+    },
+    "SESCDSegmentFindings": {
+      "description": "SES-CD findings for a single bowel segment, reconstructed from the\ndescriptive endoscopic narrative. The parent SESCDMention identifies\nwhich anatomic segment this corresponds to; segment_name is also\ncarried here so that a flattened/serialized segment record remains\nself-describing.",
+      "properties": {
+        "segment": {
+          "$ref": "#/$defs/SESCDSegmentMention",
+          "description": "Anatomic name of the bowel segment this mention describes."
+        },
+        "ulcer_size": {
+          "$ref": "#/$defs/SESCDUlcerSizeMention",
+          "description": "Ulcer size finding for this segment."
+        },
+        "ulcerated_surface": {
+          "$ref": "#/$defs/SESCDUlceratedSurfaceMention",
+          "description": "Ulcerated surface finding for this segment."
+        },
+        "affected_surface": {
+          "$ref": "#/$defs/SESCDAffectedSurfaceMention",
+          "description": "Affected surface finding for this segment."
+        },
+        "narrowing": {
+          "$ref": "#/$defs/SESCDNarrowingMention",
+          "description": "Narrowing finding for this segment."
+        }
+      },
+      "title": "SESCDSegmentFindings",
+      "type": "object"
+    },
+    "SESCDSegmentFindingsAnnotation": {
+      "description": "SES-CD reconstructed from the descriptive findings of an endoscopy\nreport across the five standard bowel segments. Use this when the\nendoscopist did NOT plainly write a computed SES-CD score; for the\nplainly-written case, use ReportedSESCDMention.",
+      "properties": {
+        "ileum": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the ileum segment."
+        },
+        "right_colon": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the right colon segment."
+        },
+        "transverse_colon": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the transverse colon segment."
+        },
+        "left_colon": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the left colon segment."
+        },
+        "rectum": {
+          "$ref": "#/$defs/SESCDSegmentFindings",
+          "description": "SES-CD findings for the rectum segment."
+        }
+      },
+      "title": "SESCDSegmentFindingsAnnotation",
+      "type": "object"
+    },
+    "SESCDSegmentMention": {
+      "description": "SES-CD findings for a single bowel segment, reconstructed from the\ndescriptive endoscopic narrative. The parent SESCDMention identifies\nwhich anatomic segment this corresponds to; segment_name is also\ncarried here so that a flattened/serialized segment record remains\nself-describing.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "segment_name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SESCDSegmentName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Anatomic name of the bowel segment this mention describes."
+        },
+        "segment_status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SESCDSegmentStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether this bowel segment was assessable for SES-CD. EXAMINED: segment was examined endoscopically. RESECTED: segment has been surgically resected. NOT_EXPLORED: segment was not explored during this exam (e.g., terminal ileum not intubated). NONE_OF_THE_ABOVE: none of the above."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "SESCDSegmentMention",
+      "type": "object"
+    },
+    "SESCDSegmentName": {
+      "description": "Anatomic name of the bowel segment scored. Included on each\nSESCDSegmentMention so that a serialized segment is self-describing\neven when flattened out of its parent SESCDMention context.",
+      "enum": [
+        "ILEUM",
+        "RIGHT_COLON",
+        "TRANSVERSE_COLON",
+        "LEFT_COLON",
+        "RECTUM"
+      ],
+      "title": "SESCDSegmentName",
+      "type": "string"
+    },
+    "SESCDSegmentStatus": {
+      "description": "Whether the bowel segment was available for SES-CD assessment.",
+      "enum": [
+        "EXAMINED",
+        "RESECTED",
+        "NOT_EXPLORED"
+      ],
+      "title": "SESCDSegmentStatus",
+      "type": "string"
+    },
+    "SESCDSegmentSubscoreAnnotation": {
+      "description": "Per-segment SES-CD subscores as explicitly stated in the report.\nOnly populated when the endoscopist writes out the segment-level\nnumber (e.g., \"ileum subscore 4\"); do not infer from descriptive\nfindings.",
+      "properties": {
+        "ileum": {
+          "$ref": "#/$defs/SESCDSegmentSubscoreMention",
+          "description": "Reported SES-CD subscore for the ileum, if explicitly stated."
+        },
+        "right_colon": {
+          "$ref": "#/$defs/SESCDSegmentSubscoreMention",
+          "description": "Reported SES-CD subscore for the right colon, if explicitly stated."
+        },
+        "transverse_colon": {
+          "$ref": "#/$defs/SESCDSegmentSubscoreMention",
+          "description": "Reported SES-CD subscore for the transverse colon, if explicitly stated."
+        },
+        "left_colon": {
+          "$ref": "#/$defs/SESCDSegmentSubscoreMention",
+          "description": "Reported SES-CD subscore for the left colon, if explicitly stated."
+        },
+        "rectum": {
+          "$ref": "#/$defs/SESCDSegmentSubscoreMention",
+          "description": "Reported SES-CD subscore for the rectum, if explicitly stated."
+        }
+      },
+      "title": "SESCDSegmentSubscoreAnnotation",
+      "type": "object"
+    },
+    "SESCDSegmentSubscoreMention": {
+      "description": "Per-segment SES-CD subscores as explicitly stated in the report.\nOnly populated when the endoscopist writes out the segment-level\nnumber (e.g., \"ileum subscore 4\"); do not infer from descriptive\nfindings.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "segment_name": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SESCDSegmentName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Anatomic name of the bowel segment this mention describes."
+        },
+        "score": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reported SES-CD subscore, if explicitly stated.",
+          "title": "Score"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "SESCDSegmentSubscoreMention",
+      "type": "object"
+    },
+    "SESCDUlcerSize": {
+      "description": "SES-CD ulcer size descriptor (0-3).",
+      "enum": [
+        "NONE",
+        "APHTHOUS",
+        "LARGE",
+        "VERY_LARGE"
+      ],
+      "title": "SESCDUlcerSize",
+      "type": "string"
+    },
+    "SESCDUlcerSizeMention": {
+      "description": "Span-augmented SES-CD ulcer size finding for a single segment.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SESCDUlcerSize"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SES-CD ulcer size descriptor. NONE: no ulcers seen. APHTHOUS: aphthous ulcers measuring 0.1 to 0.5 cm. LARGE: ulcers measuring 0.5 to 2 cm. VERY_LARGE: ulcers larger than 2 cm. "
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "SESCDUlcerSizeMention",
+      "type": "object"
+    },
+    "SESCDUlceratedSurface": {
+      "description": "SES-CD ulcerated surface descriptor (0-3).",
+      "enum": [
+        "NONE",
+        "PCT_LT_10",
+        "PCT_10_TO_30",
+        "PCT_GT_30"
+      ],
+      "title": "SESCDUlceratedSurface",
+      "type": "string"
+    },
+    "SESCDUlceratedSurfaceMention": {
+      "description": "Span-augmented SES-CD ulcerated surface finding for a single segment.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SESCDUlceratedSurface"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "SES-CD ulcerated surface descriptor. Should be NONE whenever ulcer size is NONE. NONE: no ulcerated surface. PCT_LT_10: less than 10% of the segment surface is ulcerated. PCT_10_TO_30: 10% to 30% of the segment surface is ulcerated. GT_30_PERCENT: more than 30% of the segment surface is ulcerated. "
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "SESCDUlceratedSurfaceMention",
+      "type": "object"
+    }
+  },
+  "description": "Captures an SES-CD score plainly written in the endoscopy report\n(e.g., \"SES-CD = 7\", \"Simple Endoscopic Score for Crohn's Disease: 12\").\n\nThis is distinct from SESCDMention, which reconstructs SES-CD from the\ndescriptive narrative. Use this class when the endoscopist has already\ncomputed and documented the score, and use SESCDMention when the score\nmust be derived from descriptions of ulcers, surfaces, and narrowings.",
+  "properties": {
+    "total_score": {
+      "anyOf": [
+        {
+          "maximum": 60,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The total SES-CD score as explicitly stated in the report. SES-CD totals range from 0 to 60 (five segments, each contributing 0-12). Leave as None if no total is plainly written.",
+      "title": "Total Score"
+    },
+    "segment_findings": {
+      "$ref": "#/$defs/SESCDSegmentFindingsAnnotation"
+    },
+    "segment_subscores": {
+      "$ref": "#/$defs/SESCDSegmentSubscoreAnnotation"
+    }
+  },
+  "required": [
+    "segment_findings",
+    "segment_subscores"
+  ],
+  "title": "IbdSESCDAnnotation",
+  "type": "object"
+}

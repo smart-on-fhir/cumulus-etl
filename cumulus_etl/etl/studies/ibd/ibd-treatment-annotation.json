@@ -11,17 +11,12 @@
     "AdverseDrugEventAntiTNFMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -44,17 +39,12 @@
     "AdverseDrugEventIBDMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -86,17 +76,12 @@
     "AntiTNFResponseMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -171,17 +156,12 @@
     "RxClassMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -213,17 +193,12 @@
     "RxEffectivenessMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -261,17 +236,12 @@
     "RxResponseMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -294,17 +264,12 @@
     "RxStartDateMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -349,17 +314,12 @@
     "RxStatusMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -382,17 +342,12 @@
     "RxTNFStartDateMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -434,17 +389,12 @@
     "RxTreatmentPhaseMention": {
       "properties": {
         "has_mention": {
-          "anyOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "title": "Has Mention"
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
         },
         "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
           "items": {
             "type": "string"
           },
@@ -465,7 +415,7 @@
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations \nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate \nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
     "rx_start_date_mention": {
       "$ref": "#/$defs/RxStartDateMention"

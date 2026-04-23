@@ -1,0 +1,406 @@
+{
+  "$defs": {
+    "PUCAIAbdominalPain": {
+      "enum": [
+        "NONE",
+        "CAN_BE_IGNORED",
+        "CANNOT_BE_IGNORED",
+        "NOT_ASSESSED"
+      ],
+      "title": "PUCAIAbdominalPain",
+      "type": "string"
+    },
+    "PUCAIAbdominalPainMention": {
+      "description": "PUCAI-compatible abdominal pain variable.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "abdominal_pain": {
+          "$ref": "#/$defs/PUCAIAbdominalPain",
+          "default": "NOT_ASSESSED",
+          "description": "PUCAI-compatible abdominal pain variable. Allowed values: NONE: no abdominal pain; CAN_BE_IGNORED: pain can be ignored; CANNOT_BE_IGNORED: pain cannot be ignored; NOT_ASSESSED: abdominal pain assessment was not performed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'abdominal_pain' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAIAbdominalPainMention",
+      "type": "object"
+    },
+    "PUCAIActivityLevel": {
+      "enum": [
+        "NO_LIMITATION",
+        "OCCASIONAL_LIMITATION",
+        "SEVERE_RESTRICTION",
+        "NOT_ASSESSED"
+      ],
+      "title": "PUCAIActivityLevel",
+      "type": "string"
+    },
+    "PUCAIActivityLevelMention": {
+      "description": "PUCAI-compatible activity level variable. Captures functional limitation\nin age-appropriate activities attributable to UC symptoms.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "activity_level": {
+          "$ref": "#/$defs/PUCAIActivityLevel",
+          "default": "NOT_ASSESSED",
+          "description": "PUCAI-compatible activity level variable. Allowed values: NO_LIMITATION: no limitation of activity; OCCASIONAL_LIMITATION: occasional limitation of activity; SEVERE_RESTRICTION: severe restriction of activity; NOT_ASSESSED: activity level was not assessed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'activity_level' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAIActivityLevelMention",
+      "type": "object"
+    },
+    "PUCAINocturnalStools": {
+      "enum": [
+        "NONE",
+        "ANY_EPISODE_CAUSING_WAKENING",
+        "NOT_ASSESSED"
+      ],
+      "title": "PUCAINocturnalStools",
+      "type": "string"
+    },
+    "PUCAINocturnalStoolsMention": {
+      "description": "PUCAI-compatible nocturnal stools variable. PUCAI counts nocturnal\nstooling only when it causes the patient to wake from sleep \u2014 passing\na stool on a planned nighttime bathroom trip does not qualify.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "nocturnal_stools": {
+          "$ref": "#/$defs/PUCAINocturnalStools",
+          "default": "NOT_ASSESSED",
+          "description": "PUCAI-compatible nocturnal stools variable. Allowed values: NONE: no nocturnal stools causing wakening; ANY_EPISODE_CAUSING_WAKENING: any episode of stooling that caused the patient to wake from sleep; NOT_ASSESSED: nocturnal stooling was not assessed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'nocturnal_stools' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAINocturnalStoolsMention",
+      "type": "object"
+    },
+    "PUCAIRectalBleeding": {
+      "enum": [
+        "NONE",
+        "SMALL_AMOUNT_LESS_THAN_HALF",
+        "SMALL_AMOUNT_MOST_STOOLS",
+        "LARGE_AMOUNT",
+        "NOT_ASSESSED"
+      ],
+      "title": "PUCAIRectalBleeding",
+      "type": "string"
+    },
+    "PUCAIRectalBleedingMention": {
+      "description": "PUCAI-compatible rectal bleeding variable.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "rectal_bleeding": {
+          "$ref": "#/$defs/PUCAIRectalBleeding",
+          "default": "NOT_ASSESSED",
+          "description": "PUCAI-compatible rectal bleeding variable. Allowed values: NONE: no rectal bleeding; SMALL_AMOUNT_LESS_THAN_HALF: small amount of blood in less than 50% of stools; SMALL_AMOUNT_MOST_STOOLS: small amount of blood with most stools; LARGE_AMOUNT: large amount of blood (more than 50% of stool content); NOT_ASSESSED: rectal bleeding was not assessed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'rectal_bleeding' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAIRectalBleedingMention",
+      "type": "object"
+    },
+    "PUCAIStoolConsistency": {
+      "enum": [
+        "FORMED",
+        "PARTIALLY_FORMED",
+        "COMPLETELY_UNFORMED",
+        "NOT_ASSESSED"
+      ],
+      "title": "PUCAIStoolConsistency",
+      "type": "string"
+    },
+    "PUCAIStoolConsistencyMention": {
+      "description": "PUCAI-compatible stool consistency variable. Captures the consistency of\nMOST stools over the recall window, not the worst stool of the day.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "stool_consistency": {
+          "$ref": "#/$defs/PUCAIStoolConsistency",
+          "default": "NOT_ASSESSED",
+          "description": "PUCAI-compatible stool consistency variable, describing the consistency of MOST stools over the recall window. Allowed values: FORMED: most stools are formed; PARTIALLY_FORMED: most stools are partially formed; COMPLETELY_UNFORMED: most stools are completely unformed (liquid); NOT_ASSESSED: stool consistency was not assessed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'stool_consistency' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAIStoolConsistencyMention",
+      "type": "object"
+    },
+    "PUCAIStoolsPerDay": {
+      "enum": [
+        "NUM_STOOLS_0_TO_2",
+        "NUM_STOOLS_3_TO_5",
+        "NUM_STOOLS_6_TO_8",
+        "NUM_STOOLS_9_OR_MORE",
+        "NOT_ASSESSED"
+      ],
+      "title": "PUCAIStoolsPerDay",
+      "type": "string"
+    },
+    "PUCAIStoolsPerDayMention": {
+      "description": "PUCAI-compatible number of stools per 24 hours variable.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "stools_per_day": {
+          "$ref": "#/$defs/PUCAIStoolsPerDay",
+          "default": "NOT_ASSESSED",
+          "description": "PUCAI-compatible number of stools per 24 hours variable. Allowed values: NUM_STOOLS_0_TO_2: 0-2 stools per 24 hours; NUM_STOOLS_3_TO_5: 3-5 stools per 24 hours; NUM_STOOLS_6_TO_8: 6-8 stools per 24 hours; NUM_STOOLS_9_OR_MORE: more than 8 stools per 24 hours; NOT_ASSESSED: stool count per 24 hours was not assessed."
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'stools_per_day' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAIStoolsPerDayMention",
+      "type": "object"
+    },
+    "PUCAITotalScoreMention": {
+      "description": "Pediatric Ulcerative Colitis Activity Index (PUCAI)\nTotal score documented by the clinician at the point of care.\nRange 0-85, in increments of 5 or 10.\n\nSeverity bands (Turner 2007):\n  <10  remission\n  10-34 mild\n  35-64 moderate\n  >=65  severe",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "total_score": {
+          "anyOf": [
+            {
+              "maximum": 85,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Documented clinician-reported PUCAI total score (0-85).",
+          "title": "Total Score"
+        },
+        "recall_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecallWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Time window the documented 'total_score' refers to. Leave null when the window is not specified."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PUCAITotalScoreMention",
+      "type": "object"
+    },
+    "RecallWindow": {
+      "enum": [
+        "PAST_WEEK",
+        "PRIOR_24_TO_48_HOURS",
+        "POINT_IN_TIME"
+      ],
+      "title": "RecallWindow",
+      "type": "string"
+    }
+  },
+  "description": "PUCAI-compatible Annotation to extract PUCAI total_score and variables.\n\ntotal_score: Explicitly stated PUCAI total score reported in the note.\nSubscores are calculated from the following variables:\n\n1. abdominal_pain: Severity of abdominal pain (none / can be ignored / cannot be ignored).\n2. rectal_bleeding: Amount of rectal bleeding (none / small / large).\n3. stool_consistency: Consistency of most stools (formed / partially formed / completely unformed).\n4. stools_per_day: Number of stools per 24-hour period relative to age-based norms.\n5. nocturnal_stools: Presence of any stool awakening the patient from sleep.\n6. activity_level: Subjective patient or parent-reported functional activity level.",
+  "properties": {
+    "total_score": {
+      "$ref": "#/$defs/PUCAITotalScoreMention"
+    },
+    "abdominal_pain": {
+      "$ref": "#/$defs/PUCAIAbdominalPainMention"
+    },
+    "rectal_bleeding": {
+      "$ref": "#/$defs/PUCAIRectalBleedingMention"
+    },
+    "stool_consistency": {
+      "$ref": "#/$defs/PUCAIStoolConsistencyMention"
+    },
+    "stools_per_day": {
+      "$ref": "#/$defs/PUCAIStoolsPerDayMention"
+    },
+    "nocturnal_stools": {
+      "$ref": "#/$defs/PUCAINocturnalStoolsMention"
+    },
+    "activity_level": {
+      "$ref": "#/$defs/PUCAIActivityLevelMention"
+    }
+  },
+  "required": [
+    "total_score",
+    "abdominal_pain",
+    "rectal_bleeding",
+    "stool_consistency",
+    "stools_per_day",
+    "nocturnal_stools",
+    "activity_level"
+  ],
+  "title": "IbdPUCAIAnnotation",
+  "type": "object"
+}
