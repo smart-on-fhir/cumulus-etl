@@ -1,5 +1,4 @@
 import json
-import shutil
 from typing import ClassVar
 
 import pydantic
