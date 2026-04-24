@@ -1,0 +1,79 @@
+{
+  "$defs": {
+    "DocumentType": {
+      "enum": [
+        "gi_clinic_note",
+        "inpatient_progress_note",
+        "endoscopy_report",
+        "operative_report",
+        "pathology_report",
+        "discharge_summary",
+        "genetics_note",
+        "nutrition_note",
+        "subspecialty_consult_note",
+        "radiology_report",
+        "pediatric_surgery_consult_note",
+        "infusion_or_pharmacy_record",
+        "transfer_or_transition_note",
+        "other",
+        "unknown"
+      ],
+      "title": "DocumentType",
+      "type": "string"
+    },
+    "DocumentTypeMention": {
+      "description": "Identifies the clinical document type for a given note or report.\n\nUsed upstream of all IBD extraction schemas to route notes to relevant\nextractors and to gate human chart-review effort toward highest-yield\ndocument types.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "document_type": {
+          "$ref": "#/$defs/DocumentType",
+          "default": "unknown",
+          "description": "\nClassify this document into exactly one DocumentType. Choose the most specific match\nbased on the document's primary purpose and authoring context. When a document contains\ncontent from multiple types (e.g., a discharge summary quoting endoscopy findings),\nclassify by the document's own type, not its quoted content.\n\nGI_CLINIC_NOTE: outpatient GI/IBD visit note (physician, fellow, NP, PA); includes telehealth;\nINPATIENT_PROGRESS_NOTE: daily inpatient progress note (attending, fellow, resident) during a hospital admission;\nENDOSCOPY_REPORT: formal procedure report for any luminal endoscopy (colonoscopy, EGD, capsule, pouchoscopy, etc.);\nOPERATIVE_REPORT: formal surgical procedure report (colectomy, ileocecectomy, fistula repair, etc.);\nPATHOLOGY_REPORT: surgical pathology or biopsy report on any GI specimen (endoscopic or resection);\nDISCHARGE_SUMMARY: end-of-admission summary regardless of discharging service;\nGENETICS_NOTE: genetics/genomics clinic note, genetic counseling note, or molecular genetics lab report;\nNUTRITION_NOTE: dietitian or nutrition support note; includes EEN/PEN therapy plans;\nSUBSPECIALTY_CONSULT_NOTE: formal consult note from a non-GI subspecialty (rheumatology, ophthalmology, dermatology, immunology, etc.);\nRADIOLOGY_REPORT: imaging report (MRE, CT, ultrasound, X-ray, nuclear medicine);\nPEDIATRIC_SURGERY_CONSULT_NOTE: pediatric surgery consult note that does not describe a completed procedure;\nINFUSION_OR_PHARMACY_RECORD: infusion center administration record, pharmacy dispensing record, or prior authorization document;\nTRANSFER_OR_TRANSITION_NOTE: transition-of-care summary, transfer note, referral letter, or outside-records summary;\nOTHER: document is identifiable but does not match any type above;\nUNKNOWN: document type cannot be determined from available content; use only as a last resort.\n"
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "LLM model confidence in the document type (0 to 100). Lower values reflect ambiguous document titles and document content.",
+          "title": "Confidence"
+        }
+      },
+      "required": [
+        "has_mention",
+        "confidence"
+      ],
+      "title": "DocumentTypeMention",
+      "type": "object"
+    }
+  },
+  "description": "Classifies the document type of a clinical note before downstream IBD processing.\nDocument type determines which extraction pipelines are applicable and\nhow findings should be interpreted in the context of IBD care.",
+  "properties": {
+    "document_type": {
+      "$ref": "#/$defs/DocumentTypeMention"
+    }
+  },
+  "required": [
+    "document_type"
+  ],
+  "title": "DocumentTypeAnnotation",
+  "type": "object"
+}

@@ -134,3 +134,17 @@ response-schema = "ibd-uceis-annotation.json"
 # Version History:
 # ** 1 (2026-04): Initial version
 version = 1
+
+[[task]]
+name = "document_type"
+response-schema = "ibd-document-type-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
+
+[[task]]
+name = "topic_relevance"
+response-schema = "ibd-topic-relevance-annotation.json"
+# Version History:
+# ** 1 (2026-04): Initial version
+version = 1
