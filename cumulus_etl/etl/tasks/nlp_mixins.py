@@ -99,6 +99,23 @@ class MlflowTrackingMixin:
         except Exception as exc:
             logging.warning("MLflow logging failed (non-fatal): %s", exc)
 
+    def _log_to_mlflow(self) -> None:
+        if not self._env_defined(self.MLFLOW_TRACKING_URI):
+            logging.warning(
+                "Missing MLFlow environment variables. "
+                "Set MLFLOW_TRACKING_URI to track experiments. "
+                "Skipping MLflow logging for this run."
+            )
+            return
+        mlflow.set_tracking_uri(self._env_defined(self.MLFLOW_TRACKING_URI))
+
+        mlflow.set_experiment(self.mlflow_experiment)
+
+        with mlflow.start_run():
+            self._log_params()
+            self._log_metrics()
+            self._log_artifacts()
+
     def _log_params(self) -> None:
         mlflow.log_params(
             {
@@ -163,20 +180,3 @@ class MlflowTrackingMixin:
                 self._mlflow_predictions,
                 artifact_file="predictions.json",
             )
-
-    def _log_to_mlflow(self) -> None:
-        if not self._env_defined(self.MLFLOW_TRACKING_URI):
-            logging.warning(
-                "Missing MLFlow environment variables. "
-                "Set MLFLOW_TRACKING_URI to track experiments. "
-                "Skipping MLflow logging for this run."
-            )
-            return
-        mlflow.set_tracking_uri(self._env_defined(self.MLFLOW_TRACKING_URI))
-
-        mlflow.set_experiment(self.mlflow_experiment)
-
-        with mlflow.start_run():
-            self._log_params()
-            self._log_metrics()
-            self._log_artifacts()

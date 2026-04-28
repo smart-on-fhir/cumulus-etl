@@ -9,6 +9,7 @@ dependencies = [
     "httpx",
     "jambo >= 0.1.7",
     "label-studio-sdk >= 2",
+    "mlflow >= 3",
     "nltk >= 3.9",
     "openai",
     "philter-lite",
