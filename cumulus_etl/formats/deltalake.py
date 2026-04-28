@@ -69,7 +69,7 @@ class DeltaLakeFormat(Format):
             builder = (
                 pyspark.sql.SparkSession.builder.appName("cumulus-etl")
                 .config("spark.databricks.delta.schema.autoMerge.enabled", "true")
-                .config("spark.driver.memory", "4g")
+                .config("spark.driver.memory", "6g")
                 .config(
                     "spark.sql.catalog.spark_catalog",
                     "org.apache.spark.sql.delta.catalog.DeltaCatalog",
