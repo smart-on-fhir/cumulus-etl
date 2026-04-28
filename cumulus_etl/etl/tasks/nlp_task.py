@@ -1,7 +1,6 @@
 """Base NLP task support"""
 
 import copy
-import dataclasses
 import enum
 import json
 import logging
@@ -22,17 +21,11 @@ import rich.table
 
 from cumulus_etl import common, errors, feedback, nlp
 from cumulus_etl.etl import tasks
+from cumulus_etl.etl.tasks.nlp_mixins import MlflowTrackingMixin
+from cumulus_etl.etl.tasks.nlp_types import NoteDetails, NoteStats
 
 ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
 TRAILING_WHITESPACE = re.compile(r"\s+$", flags=re.MULTILINE)
-
-
-@dataclasses.dataclass
-class NoteStats:
-    seen: int = 0  # on disk, available to us
-    considered: int = 0  # and passed select-by / status filters
-    with_text: int = 0  # and had text
-    with_results: int = 0  # and had a response from the NLP
 
 
 class BaseNlpTask(tasks.EtlTask):
@@ -157,20 +150,6 @@ class BaseNlpTask(tasks.EtlTask):
     def remove_trailing_whitespace(note_text: str) -> str:
         """Sometimes NLP can be mildly confused by trailing whitespace, so this removes it"""
         return TRAILING_WHITESPACE.sub("", note_text)
-
-
-@dataclasses.dataclass(kw_only=True)
-class NoteDetails:
-    note_ref: str
-    encounter_id: str
-    subject_ref: str
-
-    note_text: str
-    note: dict
-
-    orig_note_ref: str
-    orig_note_text: str
-    orig_note: dict
 
 
 class BaseModelTask(BaseNlpTask):
@@ -491,6 +470,7 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
     fallback_system_prompt = shared.get("system-prompt")
     fallback_user_prompt = shared.get("user-prompt")
     fallback_models = shared.get("models", [])
+    fallback_use_mlflow = shared.get("use-mlflow", False)
 
     tasks = []
 
@@ -502,6 +482,7 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
         model_system_prompt = task_def.get("system-prompt", fallback_system_prompt)
         model_user_prompt = task_def.get("user-prompt", fallback_user_prompt)
         models = task_def.get("models", fallback_models)
+        use_mlflow = task_def.get("use-mlflow", fallback_use_mlflow)
 
         # Check for required fields
         if not response_schema:
@@ -540,7 +521,13 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
             else:
                 raise ValueError(f"Unrecognized model name '{model}'.")
 
-            class DynamicTask(BaseModelTaskWithSpans):
+            # Define BaseTaskClasses, supporting MlFlow mixins as needed
+            if use_mlflow:
+                TaskBases = (MlflowTrackingMixin, BaseModelTaskWithSpans)
+            else:
+                TaskBases = BaseModelTaskWithSpans
+
+            class DynamicTask(TaskBases):
                 name = task_name
                 task_version = version
                 client_class = model_class

@@ -33,6 +33,8 @@ models = [
     "gpt-oss-120b",
 ]
 
+use-mlflow = true
+
 [[task]]
 name = "diagnosis"
 response-schema = "ibd-diagnosis-annotation.json"
