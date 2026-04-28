@@ -33,7 +33,6 @@ models = [
     "gpt-oss-120b",
 ]
 
-
 [[task]]
 name = "diagnosis"
 response-schema = "ibd-diagnosis-annotation.json"
