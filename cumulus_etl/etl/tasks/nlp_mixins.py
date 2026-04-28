@@ -1,11 +1,11 @@
-import os
 import logging
-from typing import Any, Iterable
+import os
+from collections.abc import Iterable
 
 import mlflow
 
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.tasks.nlp_types import NoteDetails, NoteStats
+from cumulus_etl.etl.tasks.nlp_types import NoteDetails
 
 
 class MlflowTrackingMixin:
@@ -168,8 +168,8 @@ class MlflowTrackingMixin:
         if not self._env_defined(self.MLFLOW_TRACKING_URI):
             logging.warning(
                 "Missing MLFlow environment variables. "
-                "Set MLFLOW_TRACKING_URI to track experiments. ",
-                "Skipping MLflow logging for this run.",
+                "Set MLFLOW_TRACKING_URI to track experiments. "
+                "Skipping MLflow logging for this run."
             )
             return
         mlflow.set_tracking_uri(self._env_defined(self.MLFLOW_TRACKING_URI))
