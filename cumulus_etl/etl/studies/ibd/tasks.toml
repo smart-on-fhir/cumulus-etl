@@ -62,7 +62,7 @@ response-schema = "ibd-paris-classification-annotation.json"
 # ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 3
+version = 10000
 
 [[task]]
 name = "treatment"

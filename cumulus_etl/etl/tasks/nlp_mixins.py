@@ -4,8 +4,8 @@ from collections.abc import Iterable
 
 import mlflow
 
-from cumulus_etl.etl import tasks
-from cumulus_etl.etl.tasks.nlp_types import NoteDetails
+from cumulus_etl.etl.tasks import base
+from cumulus_etl.etl.tasks import nlp_types
 
 
 class MlflowTrackingMixin:
@@ -30,11 +30,9 @@ class MlflowTrackingMixin:
 
     Artifacts
         prompts/system_prompt.txt
-        prompts/user_prompt.txt       (when set)
+        prompts/user_prompt.txt
         predictions.json
 
-    Tags
-        task_name, model_id, study   + any custom tags from [mlflow.tags]
     """
 
     # This mixin assumes that the task class it's mixed into has
@@ -45,7 +43,7 @@ class MlflowTrackingMixin:
     def mlflow_experiment(self) -> str:
         return f"{self.name}_{self.task_version}"
 
-    def _make_prediction_row(self, details: NoteDetails, result: dict) -> dict:
+    def _make_prediction_row(self, details: nlp_types.NoteDetails, result: dict) -> dict:
         """
         Build a single row for the predictions table.
 
@@ -73,7 +71,7 @@ class MlflowTrackingMixin:
         # process_note regardless of whether a run is active.
         self._mlflow_predictions: list[dict] = []
 
-    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
+    async def process_note(self, details: nlp_types.NoteDetails) -> base.EntryBundle | None:
         """
         Delegates to the real implementation and records a summary of each note's result.
 
@@ -116,9 +114,10 @@ class MlflowTrackingMixin:
     def _log_params(self) -> None:
         mlflow.log_params(
             {
+                "task": self.name,
                 "task_version": self.task_version,
                 "model_id": self.client_class.CONFIG_ID,
-                "system_prompt": self.get_system_prompt()[:500],  # truncate for UI
+                "system_prompt": self.get_system_prompt(),
                 "response_schema": self.response_format.model_json_schema(),
             }
         )
