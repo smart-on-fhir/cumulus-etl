@@ -37,6 +37,13 @@ class MlflowTrackingMixin:
 
     """
 
+    @property
+    def mlflow_run_name(self) -> str:
+        # Define a run_name if we don't have one already using:
+        # - a `name` attribute defining the task name (including study prefix, the task, the model)
+        # - a `task_version` attribute defining the task task_version
+        return self.mlflow_run if self.mlflow_run else f"{self.name}_{self.task_version}"
+
     def _make_prediction_row(self, details: nlp_types.NoteDetails, result: dict) -> dict:
         """
         Build a single row for the predictions table.
@@ -104,11 +111,7 @@ class MlflowTrackingMixin:
 
         self._mlflow_end_time: float = time.time()
 
-        # Define a run_name if we don't have one already using:
-        # - a `name` attribute defining the task name (including study prefix, the task, the model)
-        # - a `task_version` attribute defining the task task_version
-        run_name = self.mlflow_run if self.mlflow_run else f"{self.name}_{self.task_version}"
-        with mlflow.start_run(run_name=run_name):
+        with mlflow.start_run(run_name=self.mlflow_run_name):
             self._log_params()
             self._log_metrics()
             self._log_artifacts()
@@ -119,6 +122,7 @@ class MlflowTrackingMixin:
                 "task": self.name,
                 "task_version": self.task_version,
                 "model_id": self.client_class.CONFIG_ID,
+                "mlflow_run_name": self.mlflow_run_name,
                 "system_prompt": self.get_system_prompt(),
                 "response_schema": self.response_format.model_json_schema(),
                 "runtime.start": datetime.fromtimestamp(
