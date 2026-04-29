@@ -525,15 +525,20 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
             if use_mlflow:
                 TaskBases = (MlflowTrackingMixin, BaseModelTaskWithSpans)
             else:
-                TaskBases = BaseModelTaskWithSpans
+                TaskBases = (BaseModelTaskWithSpans,)
 
-            class DynamicTask(TaskBases):
-                name = task_name
-                task_version = version
-                client_class = model_class
-                system_prompt = model_system_prompt
-                user_prompt = model_user_prompt
-                response_format = model_response_format
+            DynamicTask = type(
+                "DynamicTask",
+                TaskBases,
+                {
+                    "name": task_name,
+                    "task_version": version,
+                    "client_class": model_class,
+                    "system_prompt": model_system_prompt,
+                    "user_prompt": model_user_prompt,
+                    "response_format": model_response_format,
+                },
+            )
 
             tasks.append(DynamicTask)
 
