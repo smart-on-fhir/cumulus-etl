@@ -35,6 +35,8 @@ models = [
 
 use-mlflow = true
 
+mlflow-experiment-name = "ibd_etl_infra_test"
+
 [[task]]
 name = "diagnosis"
 response-schema = "ibd-diagnosis-annotation.json"
