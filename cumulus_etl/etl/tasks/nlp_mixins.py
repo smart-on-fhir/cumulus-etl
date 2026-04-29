@@ -164,8 +164,6 @@ class MlflowTrackingMixin:
         elapsed = self._mlflow_end_time - self._mlflow_start_time
         mlflow.log_metrics(
             {
-                "runtime.start": self._mlflow_start_time,
-                "runtime.end": self._mlflow_end_time,
                 "runtime.time_taken_seconds": round(elapsed, 3),
                 "runtime.time_taken_per_note_seconds": round(elapsed / ns.with_results, 3)
                 if ns.with_results
