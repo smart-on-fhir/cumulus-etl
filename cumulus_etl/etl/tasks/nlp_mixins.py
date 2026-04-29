@@ -1,13 +1,11 @@
 import logging
 import os
 import time
-from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import mlflow
 
-from cumulus_etl.etl.tasks import base
-from cumulus_etl.etl.tasks import nlp_types
+from cumulus_etl.etl.tasks import base, nlp_types
 
 
 class MlflowTrackingMixin:
@@ -124,11 +122,9 @@ class MlflowTrackingMixin:
                 "system_prompt": self.get_system_prompt(),
                 "response_schema": self.response_format.model_json_schema(),
                 "runtime.start": datetime.fromtimestamp(
-                    self._mlflow_start_time, tz=timezone.utc
+                    self._mlflow_start_time, tz=UTC
                 ).isoformat(),
-                "runtime.end": datetime.fromtimestamp(
-                    self._mlflow_end_time, tz=timezone.utc
-                ).isoformat(),
+                "runtime.end": datetime.fromtimestamp(self._mlflow_end_time, tz=UTC).isoformat(),
             }
         )
 
