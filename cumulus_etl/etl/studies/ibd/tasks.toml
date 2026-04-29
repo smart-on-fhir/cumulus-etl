@@ -68,6 +68,7 @@ response-schema = "ibd-paris-classification-annotation.json"
 # ** 1 (2026-03): Initial version
 version = 4
 # version = 10000
+# mlflow-run = "paris_classification_with_caching"
 
 [[task]]
 name = "treatment"

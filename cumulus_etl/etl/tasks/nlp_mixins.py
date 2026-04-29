@@ -39,14 +39,6 @@ class MlflowTrackingMixin:
 
     """
 
-    # This mixin assumes that the task class it's mixed into has
-    # - a `name` attribute defining the task name (including study prefix, the task, the model)
-    # - a `task_version` attribute defining the task task_version
-    # Combining these should give us a unique identifier for the task run, which we can use as the MLflow experiment name.
-    @property
-    def mlflow_run(self) -> str:
-        return f"{self.name}_{self.task_version}"
-
     def _make_prediction_row(self, details: nlp_types.NoteDetails, result: dict) -> dict:
         """
         Build a single row for the predictions table.
@@ -113,7 +105,12 @@ class MlflowTrackingMixin:
         mlflow.set_experiment(self.mlflow_experiment_name)
 
         self._mlflow_end_time: float = time.time()
-        with mlflow.start_run(run_name=self.mlflow_run):
+
+        # Define a run_name if we don't have one already using:
+        # - a `name` attribute defining the task name (including study prefix, the task, the model)
+        # - a `task_version` attribute defining the task task_version
+        run_name = self.mlflow_run if self.mlflow_run else f"{self.name}_{self.task_version}"
+        with mlflow.start_run(run_name=run_name):
             self._log_params()
             self._log_metrics()
             self._log_artifacts()
