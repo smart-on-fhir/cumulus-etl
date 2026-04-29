@@ -46,7 +46,9 @@ class MlflowTrackingMixin:
         return f"{self.name}_{self.version}"
 
     @staticmethod
-    def _env_defined(env_keys: Iterable[str]) -> bool:
+    def _env_defined(env_keys: Iterable[str] | str) -> bool:
+        if isinstance(env_keys, str):
+            env_keys = [env_keys]
         return all(os.environ.get(key) for key in env_keys)
 
     def _make_prediction_row(self, details: NoteDetails, result: dict) -> dict:
