@@ -99,7 +99,7 @@ class MlflowTrackingMixin:
         try:
             self._log_to_mlflow()
         except Exception as exc:
-            logging.warning("MLflow logging failed (non-fatal): %s", exc)
+            logging.warning("MLflow logging failed (non-fatal): %s", exc, exc_info=True)
 
     def _log_to_mlflow(self) -> None:
         if not self._env_defined("MLFLOW_TRACKING_URI"):
