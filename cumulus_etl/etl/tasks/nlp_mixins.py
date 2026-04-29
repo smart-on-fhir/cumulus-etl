@@ -40,7 +40,7 @@ class MlflowTrackingMixin:
     # - a `task_version` attribute defining the task task_version
     # Combining these should give us a unique identifier for the task run, which we can use as the MLflow experiment name.
     @property
-    def mlflow_experiment(self) -> str:
+    def mlflow_run(self) -> str:
         return f"{self.name}_{self.task_version}"
 
     def _make_prediction_row(self, details: nlp_types.NoteDetails, result: dict) -> dict:
@@ -54,9 +54,6 @@ class MlflowTrackingMixin:
         """
         return {
             "note_ref": details.note_ref,
-            "encounter_ref": f"Encounter/{details.encounter_id}",
-            "task_version": self.task_version,
-            "model_id": self.client_class.CONFIG_ID,
             # Serialize just the structured result, not the surrounding metadata
             "result": str(result.get("result", "")),
         }
@@ -69,7 +66,11 @@ class MlflowTrackingMixin:
         # Accumulates rows for log_table
         # Initialized here so the list is always safe to append to in
         # process_note regardless of whether a run is active.
-        self._mlflow_predictions: list[dict] = []
+        self._mlflow_predictions: dict = {
+            "notes": [],
+            "responses": [],
+            "results": [],
+        }
 
     async def process_note(self, details: nlp_types.NoteDetails) -> base.EntryBundle | None:
         """
@@ -81,7 +82,9 @@ class MlflowTrackingMixin:
         result = await super().process_note(details)
 
         if result:
-            self._mlflow_predictions.append(self._make_prediction_row(details, result))
+            self._mlflow_predictions["notes"].append(details.note_text)
+            self._mlflow_predictions["responses"].append(str(result.get("result", "")))
+            self._mlflow_predictions["results"].append(result)
 
         return result
 
@@ -104,9 +107,9 @@ class MlflowTrackingMixin:
             return
         mlflow.set_tracking_uri(mlflow_tracking_uri)
 
-        mlflow.set_experiment(self.mlflow_experiment)
+        mlflow.set_experiment(self.mlflow_experiment_name)
 
-        with mlflow.start_run(run_name=self.mlflow_experiment_name):
+        with mlflow.start_run(run_name=self.mlflow_run):
             self._log_params()
             self._log_metrics()
             self._log_artifacts()
