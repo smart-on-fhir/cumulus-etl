@@ -39,11 +39,11 @@ class MlflowTrackingMixin:
 
     # This mixin assumes that the task class it's mixed into has
     # - a `name` attribute defining the task name (including study prefix, the task, the model)
-    # - a `version` attribute defining the task version
+    # - a `task_version` attribute defining the task task_version
     # Combining these should give us a unique identifier for the task run, which we can use as the MLflow experiment name.
     @property
     def mlflow_experiment(self) -> str:
-        return f"{self.name}_{self.version}"
+        return f"{self.name}_{self.task_version}"
 
     @staticmethod
     def _env_defined(env_keys: Iterable[str] | str) -> bool:
