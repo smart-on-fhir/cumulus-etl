@@ -63,6 +63,7 @@ response-schema = "ibd-paris-classification-annotation.json"
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
 version = 10000
+mlflow-run = "paris_classification_with_caching"
 
 [[task]]
 name = "treatment"

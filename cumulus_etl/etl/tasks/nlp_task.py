@@ -472,6 +472,7 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
     fallback_models = shared.get("models", [])
     fallback_use_mlflow = shared.get("use-mlflow", False)
     fallback_mlflow_experiment_name = shared.get("mlflow-experiment-name", None)
+    fallback_mlflow_run_name = shared.get("mlflow-run", None)
 
     tasks = []
 
@@ -485,6 +486,7 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
         models = task_def.get("models", fallback_models)
         use_mlflow = task_def.get("use-mlflow", fallback_use_mlflow)
         mlflow_experiment_name = task_def.get("mlflow-experiment", fallback_mlflow_experiment_name)
+        mlflow_run_name = task_def.get("mlflow-run", fallback_mlflow_run_name)
 
         # Check for required fields
         if not response_schema:
@@ -540,6 +542,7 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
                     "user_prompt": model_user_prompt,
                     "response_format": model_response_format,
                     "mlflow_experiment_name": mlflow_experiment_name,
+                    "mlflow_run": mlflow_run_name,
                 },
             )
 
