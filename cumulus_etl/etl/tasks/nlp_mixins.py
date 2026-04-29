@@ -72,6 +72,7 @@ class MlflowTrackingMixin:
             "response": [],
         }
         self._mlflow_start_time: float = time.time()
+        mlflow.openai.autolog()
 
     async def process_note(self, details: nlp_types.NoteDetails) -> base.EntryBundle | None:
         """
