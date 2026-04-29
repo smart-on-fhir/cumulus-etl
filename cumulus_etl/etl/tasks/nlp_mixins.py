@@ -69,9 +69,8 @@ class MlflowTrackingMixin:
         # Initialized here so the list is always safe to append to in
         # process_note regardless of whether a run is active.
         self._mlflow_predictions: dict = {
-            "notes": [],
-            "responses": [],
-            "results": [],
+            "note": [],
+            "response": [],
         }
         self._mlflow_start_time: float = time.time()
 
@@ -85,9 +84,8 @@ class MlflowTrackingMixin:
         result = await super().process_note(details)
 
         if result:
-            self._mlflow_predictions["notes"].append(details.note_text)
-            self._mlflow_predictions["responses"].append(str(result.get("result", "")))
-            self._mlflow_predictions["results"].append(result)
+            self._mlflow_predictions["note"].append(details.note_text)
+            self._mlflow_predictions["response"].append(str(result.get("result", "")))
 
         return result
 
