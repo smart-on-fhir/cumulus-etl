@@ -45,12 +45,6 @@ class MlflowTrackingMixin:
     def mlflow_experiment(self) -> str:
         return f"{self.name}_{self.task_version}"
 
-    @staticmethod
-    def _env_defined(env_keys: Iterable[str] | str) -> bool:
-        if isinstance(env_keys, str):
-            env_keys = [env_keys]
-        return all(os.environ.get(key) for key in env_keys)
-
     def _make_prediction_row(self, details: NoteDetails, result: dict) -> dict:
         """
         Build a single row for the predictions table.
@@ -102,14 +96,15 @@ class MlflowTrackingMixin:
             logging.warning("MLflow logging failed (non-fatal): %s", exc, exc_info=True)
 
     def _log_to_mlflow(self) -> None:
-        if not self._env_defined("MLFLOW_TRACKING_URI"):
+        mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+        if not mlflow_tracking_uri:
             logging.warning(
                 "Missing MLFlow environment variables. "
                 "Set MLFLOW_TRACKING_URI to track experiments. "
                 "Skipping MLflow logging for this run."
             )
             return
-        mlflow.set_tracking_uri(self._env_defined("MLFLOW_TRACKING_URI"))
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
 
         mlflow.set_experiment(self.mlflow_experiment)
 
