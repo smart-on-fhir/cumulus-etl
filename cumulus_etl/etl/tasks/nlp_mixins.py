@@ -108,7 +108,7 @@ class MlflowTrackingMixin:
 
         mlflow.set_experiment(self.mlflow_experiment)
 
-        with mlflow.start_run(self.mlflow_experiment_name):
+        with mlflow.start_run(run_name=self.mlflow_experiment_name):
             self._log_params()
             self._log_metrics()
             self._log_artifacts()
