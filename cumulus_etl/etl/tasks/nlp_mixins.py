@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 from collections.abc import Iterable
 
 import mlflow
@@ -24,9 +25,10 @@ class MlflowTrackingMixin:
         task_version, model_id, response_schema (JSON), system_prompt (truncated)
 
     Metrics
-        notes.{seen,considered,with_text,with_results,yield_rate}
-        tokens.{new_input,cache_read,cache_written,output,total}
+        notes.{seen, considered, with_text, with_results, yield_rate}
+        tokens.{new_input, cache_read, cache_written, output, total, cache_hit_rate}
         cost.estimated_usd  (only when model.prices is set)
+        runtime.{start, end, time_taken_seconds, time_taken_per_note_seconds, tokens_per_second}
 
     Artifacts
         prompts/system_prompt.txt
@@ -71,6 +73,7 @@ class MlflowTrackingMixin:
             "responses": [],
             "results": [],
         }
+        self._mlflow_start_time: float = time.time()
 
     async def process_note(self, details: nlp_types.NoteDetails) -> base.EntryBundle | None:
         """
@@ -141,15 +144,34 @@ class MlflowTrackingMixin:
 
         # --- Token usage ---
         stats = self.model.stats
+        total_tokens = stats.new_input_tokens + stats.cache_read_input_tokens + stats.output_tokens
+        total_input_tokens = stats.new_input_tokens + stats.cache_read_input_tokens
+        cache_hit_rate = (
+            stats.cache_read_input_tokens / total_input_tokens if total_input_tokens else 0.0
+        )
         mlflow.log_metrics(
             {
                 "tokens.new_input": stats.new_input_tokens,
                 "tokens.cache_read": stats.cache_read_input_tokens,
                 "tokens.cache_written": stats.cache_written_input_tokens,
                 "tokens.output": stats.output_tokens,
-                "tokens.total": (
-                    stats.new_input_tokens + stats.cache_read_input_tokens + stats.output_tokens
-                ),
+                "tokens.total": total_tokens,
+                "tokens.cache_hit_rate": round(cache_hit_rate, 4),
+            }
+        )
+
+        # --- Runtime ---
+        end_time = time.time()
+        elapsed = end_time - self._mlflow_start_time
+        mlflow.log_metrics(
+            {
+                "runtime.start": self._mlflow_start_time,
+                "runtime.end": end_time,
+                "runtime.time_taken_seconds": round(elapsed, 3),
+                "runtime.time_taken_per_note_seconds": round(elapsed / ns.seen, 3)
+                if ns.seen
+                else 0.0,
+                "runtime.tokens_per_second": round(total_tokens / elapsed, 1) if elapsed else 0.0,
             }
         )
 
