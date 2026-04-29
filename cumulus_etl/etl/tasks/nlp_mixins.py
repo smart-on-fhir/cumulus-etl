@@ -100,14 +100,14 @@ class MlflowTrackingMixin:
             logging.warning("MLflow logging failed (non-fatal): %s", exc)
 
     def _log_to_mlflow(self) -> None:
-        if not self._env_defined(self.MLFLOW_TRACKING_URI):
+        if not self._env_defined("MLFLOW_TRACKING_URI"):
             logging.warning(
                 "Missing MLFlow environment variables. "
                 "Set MLFLOW_TRACKING_URI to track experiments. "
                 "Skipping MLflow logging for this run."
             )
             return
-        mlflow.set_tracking_uri(self._env_defined(self.MLFLOW_TRACKING_URI))
+        mlflow.set_tracking_uri(self._env_defined("MLFLOW_TRACKING_URI"))
 
         mlflow.set_experiment(self.mlflow_experiment)
 
