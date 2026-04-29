@@ -2,6 +2,7 @@ import logging
 import os
 import time
 from collections.abc import Iterable
+from datetime import datetime, timezone
 
 import mlflow
 
@@ -23,6 +24,7 @@ class MlflowTrackingMixin:
     --------------
     Parameters
         task_version, model_id, response_schema (JSON), system_prompt (truncated)
+        runtime.start, runtime.end  (ISO 8601 UTC — human-readable form of the epoch metrics above)
 
     Metrics
         notes.{seen, considered, with_text, with_results, yield_rate}
@@ -110,6 +112,7 @@ class MlflowTrackingMixin:
 
         mlflow.set_experiment(self.mlflow_experiment_name)
 
+        self._mlflow_end_time: float = time.time()
         with mlflow.start_run(run_name=self.mlflow_run):
             self._log_params()
             self._log_metrics()
@@ -123,6 +126,12 @@ class MlflowTrackingMixin:
                 "model_id": self.client_class.CONFIG_ID,
                 "system_prompt": self.get_system_prompt(),
                 "response_schema": self.response_format.model_json_schema(),
+                "runtime.start": datetime.fromtimestamp(
+                    self._mlflow_start_time, tz=timezone.utc
+                ).isoformat(),
+                "runtime.end": datetime.fromtimestamp(
+                    self._mlflow_end_time, tz=timezone.utc
+                ).isoformat(),
             }
         )
 
@@ -159,15 +168,14 @@ class MlflowTrackingMixin:
         )
 
         # --- Runtime ---
-        end_time = time.time()
-        elapsed = end_time - self._mlflow_start_time
+        elapsed = self._mlflow_end_time - self._mlflow_start_time
         mlflow.log_metrics(
             {
                 "runtime.start": self._mlflow_start_time,
-                "runtime.end": end_time,
+                "runtime.end": self._mlflow_end_time,
                 "runtime.time_taken_seconds": round(elapsed, 3),
-                "runtime.time_taken_per_note_seconds": round(elapsed / ns.seen, 3)
-                if ns.seen
+                "runtime.time_taken_per_note_seconds": round(elapsed / ns.with_results, 3)
+                if ns.with_results
                 else 0.0,
                 "runtime.tokens_per_second": round(total_tokens / elapsed, 1) if elapsed else 0.0,
             }
