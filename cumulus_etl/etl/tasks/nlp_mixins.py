@@ -37,27 +37,12 @@ class MlflowTrackingMixin:
 
     """
 
+    # Define a run_name if we don't have one already using:
+    # - a `name` attribute defining the task name (including study prefix, the task, the model)
+    # - a `task_version` attribute defining the task task_version
     @property
     def mlflow_run_name(self) -> str:
-        # Define a run_name if we don't have one already using:
-        # - a `name` attribute defining the task name (including study prefix, the task, the model)
-        # - a `task_version` attribute defining the task task_version
         return self.mlflow_run if self.mlflow_run else f"{self.name}_{self.task_version}"
-
-    def _make_prediction_row(self, details: nlp_types.NoteDetails, result: dict) -> dict:
-        """
-        Build a single row for the predictions table.
-
-        Deliberately omits raw note text by default — clinical text must NOT
-        leave the PHI-safe environment unless the MLflow server has been
-        specifically approved for that data.  Override in a subclass to add
-        columns if your tracking environment is PHI-approved.
-        """
-        return {
-            "note_ref": details.note_ref,
-            # Serialize just the structured result, not the surrounding metadata
-            "result": str(result.get("result", "")),
-        }
 
     #########
     # Task-specific overrides
@@ -72,7 +57,23 @@ class MlflowTrackingMixin:
             "response": [],
         }
         self._mlflow_start_time: float = time.time()
+        # Patch the OpenAI client globally — traces are captured into whatever
+        # run is active at call time, so the run must be started before any
+        # OpenAI calls happen (see prepare_task).
         mlflow.openai.autolog()
+
+    async def prepare_task(self) -> bool:
+        result = await super().prepare_task()
+        if not result:
+            return result
+
+        mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
+        if mlflow_tracking_uri:
+            mlflow.set_tracking_uri(mlflow_tracking_uri)
+            mlflow.set_experiment(self.mlflow_experiment_name)
+            mlflow.start_run(run_name=self.mlflow_run_name)
+
+        return result
 
     async def process_note(self, details: nlp_types.NoteDetails) -> base.EntryBundle | None:
         """
@@ -90,6 +91,9 @@ class MlflowTrackingMixin:
         return result
 
     def finish_task(self) -> None:
+        """
+        Finishes the task per-normal, then logs an MLflow run with all params, metrics, and artifacts.
+        """
         super().finish_task()  # prints existing rich tables
 
         try:
@@ -98,24 +102,22 @@ class MlflowTrackingMixin:
             logging.warning("MLflow logging failed (non-fatal): %s", exc, exc_info=True)
 
     def _log_to_mlflow(self) -> None:
-        mlflow_tracking_uri = os.environ.get("MLFLOW_TRACKING_URI")
-        if not mlflow_tracking_uri:
+        if not mlflow.active_run():
             logging.warning(
                 "Missing MLFlow environment variables. "
                 "Set MLFLOW_TRACKING_URI to track experiments. "
                 "Skipping MLflow logging for this run."
             )
             return
-        mlflow.set_tracking_uri(mlflow_tracking_uri)
-
-        mlflow.set_experiment(self.mlflow_experiment_name)
 
         self._mlflow_end_time: float = time.time()
 
-        with mlflow.start_run(run_name=self.mlflow_run_name):
+        try:
             self._log_params()
             self._log_metrics()
             self._log_artifacts()
+        finally:
+            mlflow.end_run()
 
     def _log_params(self) -> None:
         mlflow.log_params(
