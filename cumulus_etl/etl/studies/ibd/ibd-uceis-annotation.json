@@ -16,7 +16,7 @@
       "description": "UCEIS bleeding descriptor documented on endoscopy.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -57,7 +57,7 @@
       "description": "UCEIS erosions and ulcers descriptor documented on endoscopy.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -97,7 +97,7 @@
       "description": "UCEIS vascular pattern descriptor documented on endoscopy.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },

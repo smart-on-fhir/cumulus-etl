@@ -14,7 +14,7 @@
     "AbdominalPainSeverityMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -68,7 +68,7 @@
       "description": "Visible rectal bleeding associated with bowel movements.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -110,7 +110,7 @@
       "description": "Predominant stool consistency over the documented assessment window.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -139,7 +139,7 @@
       "description": "Absolute and relative stool frequency over a 24-hour period.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -238,7 +238,7 @@
     "StoolUrgencySeverityMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -267,7 +267,7 @@
       "description": "Sensation of incomplete evacuation / persistent urge after defecation.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },

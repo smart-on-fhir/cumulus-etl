@@ -3,7 +3,7 @@
     "AgeAtDiagnosisMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -39,7 +39,7 @@
     "DiagnosisDateEndoscopyMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -75,7 +75,7 @@
     "DiagnosisDateMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -108,6 +108,63 @@
       "title": "DiagnosisDateMention",
       "type": "object"
     },
+    "IBDActivity": {
+      "description": "Current documented IBD disease activity.\n\nUse ACTIVE when the note documents current active disease, flare,\nongoing inflammation, or active symptoms attributable to IBD.\n\nUse REMISSION when the note documents remission, quiescent disease,\ninactive disease, no active disease, or asymptomatic/inactive IBD as\nthe current state.",
+      "enum": [
+        "REMISSION",
+        "ACTIVE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "IBDActivity",
+      "type": "string"
+    },
+    "IBDActivityAndSeverityMention": {
+      "description": "Current documented IBD disease activity and severity.\n\nExtract current disease activity separately from severity.\n\nExamples:\n* \"IBD in remission\" -> activity=REMISSION, severity=NONE_OF_THE_ABOVE\n* \"active Crohn's disease\" -> activity=ACTIVE, severity=NONE_OF_THE_ABOVE\n* \"mild disease\" -> activity=ACTIVE, severity=MILD\n* \"mild to moderate disease\" -> activity=ACTIVE, severity=MILD_TO_MODERATE\n* \"moderate disease\" -> activity=ACTIVE, severity=MODERATE\n* \"moderate to severe disease\" -> activity=ACTIVE, severity=MODERATE_TO_SEVERE\n* \"severe disease\" -> activity=ACTIVE, severity=SEVERE\n\nPreserve the exact supporting phrase in spans.\n\nIf a severity term is negated, such as \"no severe disease\", do not assign\nthat severity level unless another non-negated severity is documented.\n\nIf multiple severities are documented for different anatomic segments,\nsuch as \"severe proctitis with mild left-sided involvement\", use the\nhighest documented severity.\n\nDo not infer severity from medication intensity alone.\nDo not use historical severity if the note says the patient is now in remission.\nDo not classify family history as patient disease activity or severity.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "ibd_activity": {
+          "$ref": "#/$defs/IBDActivity",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Current documented IBD disease activity. ACTIVE: current active disease, active inflammation, active flare, currently flaring, or active IBD symptoms are documented and attributed to IBD; REMISSION: remission, quiescent disease, inactive disease, no active disease, or asymptomatic/inactive IBD is documented as the current state. NONE_OF_THE_ABOVE: current IBD activity is not documented."
+        },
+        "ibd_severity": {
+          "$ref": "#/$defs/IBDSeverity",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Current documented IBD disease severity. Use the enum value that best matches the clinician's wording. MILD: phrases such as 'mild disease' or 'mild activity'. MILD_TO_MODERATE: phrases such as 'mild to moderate disease'. MODERATE: phrases such as 'moderate disease' or 'moderate activity'. MODERATE_TO_SEVERE: phrases such as 'moderate to severe disease'. SEVERE: phrases such as 'severe disease' or 'severe activity'. NONE_OF_THE_ABOVE: severity is not documented, or only activity is documented without a severity grade, such as 'active disease' or 'active flare'."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "IBDActivityAndSeverityMention",
+      "type": "object"
+    },
+    "IBDSeverity": {
+      "description": "Current documented IBD disease severity.\n\nThese values intentionally include common clinician range phrases because\nLLM extraction quality is usually better when enum options closely match\nthe language used in clinical notes.",
+      "enum": [
+        "MILD",
+        "MILD_TO_MODERATE",
+        "MODERATE",
+        "MODERATE_TO_SEVERE",
+        "SEVERE",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "IBDSeverity",
+      "type": "string"
+    },
     "IBDType": {
       "enum": [
         "Crohn's disease",
@@ -121,7 +178,7 @@
     "IBDTypeMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -147,26 +204,30 @@
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to initial diagnosis.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to initial diagnosis and current disease status.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
-    "ibd_type_mention": {
+    "ibd_type": {
       "$ref": "#/$defs/IBDTypeMention"
     },
-    "age_at_diagnosis_mention": {
+    "age_at_diagnosis": {
       "$ref": "#/$defs/AgeAtDiagnosisMention"
     },
-    "diagnosis_date_mention": {
+    "diagnosis_date": {
       "$ref": "#/$defs/DiagnosisDateMention"
     },
-    "diagnosis_date_endoscopy_mention": {
+    "diagnosis_date_endoscopy": {
       "$ref": "#/$defs/DiagnosisDateEndoscopyMention"
+    },
+    "ibd_activity_and_severity": {
+      "$ref": "#/$defs/IBDActivityAndSeverityMention"
     }
   },
   "required": [
-    "ibd_type_mention",
-    "age_at_diagnosis_mention",
-    "diagnosis_date_mention",
-    "diagnosis_date_endoscopy_mention"
+    "ibd_type",
+    "age_at_diagnosis",
+    "diagnosis_date",
+    "diagnosis_date_endoscopy",
+    "ibd_activity_and_severity"
   ],
   "title": "IbdDiagnosisAnnotation",
   "type": "object"
