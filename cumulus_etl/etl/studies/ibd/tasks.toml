@@ -109,7 +109,7 @@ response-schema = "ibd-mayo-score-annotation.json"
 # Version History:
 # ** 2 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 1 (2026-04): Initial version
-version = 1
+version = 2
 
 [[task]]
 name = "pcdai"
