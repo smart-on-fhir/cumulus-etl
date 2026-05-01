@@ -15,7 +15,7 @@
       "description": "Span-augmented SES-CD affected surface finding for a single segment.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -63,7 +63,7 @@
       "description": "Span-augmented SES-CD narrowing finding for a single segment.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -146,7 +146,7 @@
       "description": "SES-CD findings for a single bowel segment, reconstructed from the\ndescriptive endoscopic narrative. The parent SESCDMention identifies\nwhich anatomic segment this corresponds to; segment_name is also\ncarried here so that a flattened/serialized segment record remains\nself-describing.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -243,7 +243,7 @@
       "description": "Per-segment SES-CD subscores as explicitly stated in the report.\nOnly populated when the endoscopist writes out the segment-level\nnumber (e.g., \"ileum subscore 4\"); do not infer from descriptive\nfindings.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -305,7 +305,7 @@
       "description": "Span-augmented SES-CD ulcer size finding for a single segment.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -352,7 +352,7 @@
       "description": "Span-augmented SES-CD ulcerated surface finding for a single segment.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },

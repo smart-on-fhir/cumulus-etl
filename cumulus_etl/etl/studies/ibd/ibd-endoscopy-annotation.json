@@ -35,7 +35,7 @@
     "AnatomicSegmentMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -74,7 +74,7 @@
       "description": "Whether inflammatory involvement is described as continuous.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -102,7 +102,7 @@
     "EndoscopyMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -219,7 +219,7 @@
       "description": "Endoscopically visible fistula opening (CD).",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -289,7 +289,7 @@
       "description": "A single mucosal appearance descriptor mentioned for a bowel segment.\n\nUse multiple MucosalAppearanceMention objects when more than one descriptor\napplies to the same segment.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -318,7 +318,7 @@
       "description": "Physician global assessment (PGA) of overall endoscopic disease severity.\n\nChart review instruction:\nCapture the endoscopist's overall qualitative impression of inflammatory\nseverity for the bowel segment or exam being described. Prefer explicit\nsummary statements such as \"normal\", \"minimal disease\", \"mild colitis\",\n\"moderate inflammation\", or \"severe active disease\".\n\nDo not calculate or infer a score.\nDo not upcode based only on individual findings such as erythema,\nfriability, erosions, or ulcers unless the report also gives an overall\nseverity impression.\n\nUse:\n- NONE: explicitly no active inflammatory disease / normal / remission\n- MINIMAL: explicitly minimal disease or minimal activity\n- MILD: explicitly mild disease/activity/inflammation/colitis\n- MODERATE: explicitly moderate disease/activity/inflammation/colitis\n- SEVERE: explicitly severe disease/activity/inflammation/colitis\n- NONE_OF_THE_ABOVE: no clear overall physician global assessment stated",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -446,7 +446,7 @@
       "description": "Stricture/stenosis characterization.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -486,7 +486,7 @@
       "description": "Per-segment ulceration characterization.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
