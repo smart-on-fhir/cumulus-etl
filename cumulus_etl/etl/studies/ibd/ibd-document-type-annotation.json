@@ -45,20 +45,21 @@
         "confidence": {
           "anyOf": [
             {
-              "maximum": 100,
-              "minimum": 0,
-              "type": "integer"
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
             },
             {
               "type": "null"
             }
           ],
-          "description": "LLM model confidence in the document type (0 to 100). Lower values reflect ambiguous document titles and document content.",
+          "description": "LLM model confidence in the document type from 0.0 to 1.0. Lower values reflect ambiguous document titles and document content.",
           "title": "Confidence"
         }
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "DocumentTypeMention",

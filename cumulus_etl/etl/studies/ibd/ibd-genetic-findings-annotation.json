@@ -12,7 +12,7 @@
     "MonogenicPrimaryMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -40,7 +40,7 @@
     "MonogenicSecondaryMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },

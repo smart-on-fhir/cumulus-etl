@@ -4,7 +4,7 @@
       "description": "Mayo endoscopic findings subscore.",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -47,7 +47,7 @@
       "description": "Mayo Physician Global Assessment (PGA).",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -90,7 +90,7 @@
       "description": "Rectal bleeding subscore (most severe over the day).",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -133,7 +133,7 @@
       "description": "Stool frequency subscore (relative to patient's normal).",
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -201,7 +201,7 @@
     "MayoScoreTotalMention": {
       "properties": {
         "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text (false by default).",
+          "description": "Indicates whether the concept was mentioned in the text.",
           "title": "Has Mention",
           "type": "boolean"
         },
@@ -248,6 +248,19 @@
     },
     "MayoScoreVariantMention": {
       "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
         "score_variant": {
           "anyOf": [
             {
@@ -261,6 +274,10 @@
           "description": "full_mayo = all 4 components; partial_mayo = stool freq + bleeding + PGA (no endoscopy); modified_mayo = stool freq + bleeding + endoscopy (friability excluded from endo=1)"
         }
       },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
       "title": "MayoScoreVariantMention",
       "type": "object"
     }

@@ -115,10 +115,11 @@ class TestIbdDiagnosisTask(IbdTaskTestBase):
     TASK_NAME_SLUG = "diagnosis"
     FIXTURE_NAME = "ibd-diagnosis-output.ndjson"
     DEFAULT_CONTENT: ClassVar[dict] = {
-        "ibd_type_mention": {"has_mention": False, "spans": [], "ibd_type": "Crohn's disease"},
-        "age_at_diagnosis_mention": {"has_mention": False, "spans": []},
-        "diagnosis_date_mention": {"has_mention": False, "spans": []},
-        "diagnosis_date_endoscopy_mention": {"has_mention": False, "spans": []},
+        "ibd_type": {"has_mention": False, "spans": [], "ibd_type": "Crohn's disease"},
+        "ibd_activity_and_severity": {"has_mention": False, "spans": []},
+        "age_at_diagnosis": {"has_mention": False, "spans": []},
+        "diagnosis_date": {"has_mention": False, "spans": []},
+        "diagnosis_date_endoscopy": {"has_mention": False, "spans": []},
     }
 
 
@@ -360,7 +361,7 @@ class TestIbdDocumentTypeTask(IbdTaskTestBase):
     TASK_NAME_SLUG = "document_type"
     FIXTURE_NAME = "ibd-document-type-output.ndjson"
     DEFAULT_CONTENT: ClassVar[dict] = {
-        "document_type": {"has_mention": False, "confidence": None},
+        "document_type": {"has_mention": False, "spans": [], "confidence": None},
     }
 
 
@@ -370,17 +371,17 @@ class TestIbdTopicRelevanceTask(IbdTaskTestBase):
     TASK_NAME_SLUG = "topic_relevance"
     FIXTURE_NAME = "ibd-topic-relevance-output.ndjson"
     DEFAULT_CONTENT: ClassVar[dict] = {
-        "pucai": {"has_mention": False, "confidence": 0.0},
-        "pcdai": {"has_mention": False, "confidence": 0.0},
-        "eim": {"has_mention": False, "confidence": 0.0},
-        "mayo_score": {"has_mention": False, "confidence": 0.0},
-        "uceis": {"has_mention": False, "confidence": 0.0},
-        "ses_cd": {"has_mention": False, "confidence": 0.0},
-        "paris_classification": {"has_mention": False, "confidence": 0.0},
-        "endoscopy": {"has_mention": False, "confidence": 0.0},
-        "diagnosis": {"has_mention": False, "confidence": 0.0},
-        "genetics": {"has_mention": False, "confidence": 0.0},
-        "surgery": {"has_mention": False, "confidence": 0.0},
-        "stooling": {"has_mention": False, "confidence": 0.0},
-        "medications": {"has_mention": False, "confidence": 0.0},
+        "pucai": {"has_mention": False, "spans": [], "confidence": None},
+        "pcdai": {"has_mention": False, "spans": [], "confidence": None},
+        "eim": {"has_mention": False, "spans": [], "confidence": None},
+        "mayo_score": {"has_mention": False, "spans": [], "confidence": None},
+        "uceis": {"has_mention": False, "spans": [], "confidence": None},
+        "ses_cd": {"has_mention": False, "spans": [], "confidence": None},
+        "paris_classification": {"has_mention": False, "spans": [], "confidence": None},
+        "endoscopy": {"has_mention": False, "spans": [], "confidence": None},
+        "diagnosis": {"has_mention": False, "spans": [], "confidence": None},
+        "genetics": {"has_mention": False, "spans": [], "confidence": None},
+        "surgery": {"has_mention": False, "spans": [], "confidence": None},
+        "stooling": {"has_mention": False, "spans": [], "confidence": None},
+        "medications": {"has_mention": False, "spans": [], "confidence": None},
     }

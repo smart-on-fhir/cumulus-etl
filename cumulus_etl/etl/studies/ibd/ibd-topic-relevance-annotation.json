@@ -22,11 +22,18 @@
           "description": "EXPLICIT: an IBD diagnosis is stated, confirmed, or actively under evaluation (Crohn's disease, ulcerative colitis, IBD-unclassified, indeterminate colitis, or very early onset IBD); IMPLICIT: IBD is not named, but findings are consistent with new-onset or established IBD without a confirmed label (chronic bloody diarrhea workup, granulomas on biopsy, terminal ileitis on imaging, elevated fecal calprotectin, or endoscopic-pathologic correlation supporting IBD); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -44,6 +51,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "DiagnosisTopicRelevanceMention",
@@ -71,11 +79,18 @@
           "description": "EXPLICIT: one or more EIMs are named or discussed in the context of IBD (arthritis, arthropathy, sacroiliitis, uveitis, episcleritis, erythema nodosum, pyoderma gangrenosum, aphthous stomatitis, primary sclerosing cholangitis, autoimmune hepatitis, nephrolithiasis, or thromboembolic disease); IMPLICIT: joint, skin, eye, or hepatobiliary findings are documented in a patient with known or suspected IBD, without explicit IBD attribution, but consistent with established EIM patterns; NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -93,6 +108,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "EIMTopicRelevanceMention",
@@ -120,11 +136,18 @@
           "description": "EXPLICIT: an endoscopic procedure is documented with IBD-relevant mucosal findings or used to assess IBD disease activity or mucosal healing (ulceration, friability, erythema, granularity, pseudopolyps, stricture, skip lesions, cobblestoning, or a formal endoscopic severity score); IMPLICIT: endoscopic findings are referenced in passing without a formal procedure report (e.g., 'prior scope showed ileitis', 'healing noted on last colonoscopy'), or an endoscopic procedure is planned or pending with IBD as the stated indication; NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -142,6 +165,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "EndoscopyTopicRelevanceMention",
@@ -169,11 +193,18 @@
           "description": "EXPLICIT: genetic testing, a named gene variant, or a monogenic IBD syndrome is documented in the context of IBD evaluation (IL10, IL10RA, IL10RB, XIAP, CYBB, WAS, FOXP3, TTC7A, IPEX syndrome, chronic granulomatous disease, or a named IBD gene panel result); IMPLICIT: genetic evaluation is not named, but clinical features raise concern for a monogenic or immune dysregulation etiology warranting workup (IBD onset before age 6, consanguinity, family history of monogenic IBD, immunodeficiency features, or refractory infantile-onset colitis); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -191,6 +222,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "GeneticsTopicRelevanceMention",
@@ -218,11 +250,18 @@
           "description": "EXPLICIT: Mayo Score, partial Mayo, Mayo endoscopic subscore, or Mayo subscore is named, scored, or directly referenced as a UC disease activity assessment; IMPLICIT: Mayo Score is not named, but \u22653 of its component domains are documentable in a UC context (stool frequency relative to normal, rectal bleeding severity, physician global assessment, or endoscopic appearance); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -240,6 +279,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "MayoScoreTopicRelevanceMention",
@@ -267,11 +307,18 @@
           "description": "EXPLICIT: one or more IBD-specific medication names or drug classes are explicitly mentioned (e.g., mesalamine, azathioprine, infliximab, vedolizumab, ustekinumab, budesonide, methotrexate, or JAK); IMPLICIT: medication management is referenced without naming a specific IBD drug or class (e.g., 'biologic therapy', 'immunosuppression', 'steroid taper', 'infusion therapy'); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -289,6 +336,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "MedicationsTopicRelevanceMention",
@@ -316,11 +364,18 @@
           "description": "EXPLICIT: PCDAI or one of its variants (aPCDAI, sPCDAI, wPCDAI) is named, scored, or directly referenced as an assessment; IMPLICIT: PCDAI is not named, but sufficient Crohn disease activity elements are documented to infer PCDAI relevance (abdominal pain, stooling pattern, general well-being or activity limitation, weight loss, abdominal exam findings, perirectal disease, extraintestinal manifestations, or inflammatory labs); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -338,6 +393,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "PCDAITopicRelevanceMention",
@@ -365,11 +421,18 @@
           "description": "EXPLICIT: PUCAI is named, scored, or directly referenced as an assessment (e.g., 'PUCAI 20', 'PUCAI in remission', individual PUCAI items documented); IMPLICIT: PUCAI is not named, but \u22653 of its 5 component domains are documentable (stool frequency, rectal bleeding, abdominal pain, activity limitation, nocturnal symptoms); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -387,6 +450,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "PUCAITopicRelevanceMention",
@@ -414,11 +478,18 @@
           "description": "EXPLICIT: Paris Classification descriptors are named or formally assigned (age at diagnosis A1a/A1b/A2, CD location L1\u2013L4 with upper disease modifier, CD behavior B1\u2013B3 with perianal modifier p, UC extent E1\u2013E4, or growth impairment G0/G1); IMPLICIT: Paris Classification is not named, but pediatric IBD phenotype elements are documented in sufficient detail to assign a class (anatomic distribution on endoscopy or imaging, stricturing or penetrating behavior, perianal involvement, upper GI involvement, or growth parameter assessment); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -436,6 +507,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "ParisClassificationTopicRelevanceMention",
@@ -463,11 +535,18 @@
           "description": "EXPLICIT: SES-CD is named, scored, or directly referenced as an endoscopic severity assessment in a Crohn's disease context; IMPLICIT: SES-CD is not named, but \u22652 of its 4 scored domains are described across one or more ileocolonic segments (ulcer size, ulcerated surface proportion, affected surface proportion, or luminal narrowing/stenosis); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -485,6 +564,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "SESCDTopicRelevanceMention",
@@ -512,11 +592,18 @@
           "description": "EXPLICIT: stooling pattern is formally documented with quantitative or semi-quantitative detail relevant to IBD activity assessment (stool frequency per day, Bristol Stool Scale type, presence and grade of rectal bleeding, mucus in stool, nocturnal awakening due to bowel urgency, tenesmus, or fecal incontinence); IMPLICIT: stooling is referenced qualitatively without structured documentation but carries IBD-relevant information ('loose stools', 'blood in stool', 'going more frequently', 'diarrhea improved on current regimen', 'no nocturnal symptoms'); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -534,6 +621,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "StoolingTopicRelevanceMention",
@@ -561,11 +649,18 @@
           "description": "EXPLICIT: an IBD-related surgical procedure is named, planned, or documented as part of the patient's history or current management plan (ileocolic resection, subtotal colectomy, proctocolectomy, ileal pouch-anal anastomosis, ileostomy, colostomy, strictureplasty, fistulotomy, seton placement, drainage procedure, or diverting ostomy); IMPLICIT: surgery is not named, but clinical indicators strongly suggest prior or planned IBD-related surgery (surgical referral for medically refractory disease, stoma care or ostomy output documentation without naming the procedure, or post-operative anastomosis or wound management notes); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -583,6 +678,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "SurgeryTopicRelevanceMention",
@@ -619,11 +715,18 @@
           "description": "EXPLICIT: UCEIS is named, scored, or directly referenced as an endoscopic severity assessment in a UC context; IMPLICIT: UCEIS is not named, but \u22652 of its 3 endoscopic component domains are documented in a UC context (mucosal vascular pattern, bleeding source and severity, erosions or ulcer characteristics); NONE_OF_THE_ABOVE: not enough evidence."
         },
         "confidence": {
+          "anyOf": [
+            {
+              "maximum": 1.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "description": "Confidence in the relevance classification from 0.0 to 1.0. When relevance is NONE_OF_THE_ABOVE, this reflects confidence in absence, not presence.",
-          "maximum": 1.0,
-          "minimum": 0.0,
-          "title": "Confidence",
-          "type": "number"
+          "title": "Confidence"
         },
         "reasoning": {
           "anyOf": [
@@ -641,6 +744,7 @@
       },
       "required": [
         "has_mention",
+        "spans",
         "confidence"
       ],
       "title": "UCEISTopicRelevanceMention",
