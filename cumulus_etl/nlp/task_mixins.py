@@ -3,9 +3,10 @@ import os
 import time
 from datetime import UTC, datetime
 
+from cumulus_etl.nlp import types
 import mlflow
 
-from cumulus_etl.etl.tasks import base, nlp_types
+from cumulus_etl.etl.tasks import base
 
 
 class MlflowTrackingMixin:
@@ -14,48 +15,41 @@ class MlflowTrackingMixin:
 
     Lifecycle
     ---------
-    - __init__     : initializes the predictions accumulator
-    - process_note : Accumulates per-note input/output rows (NOTE: These contain PHI)
-    - finish_task  : logs all params, metrics, and artifacts in a single run
+    - __init__:     initializes the predictions accumulator and enables openai autologging
+                    NOTE: THIS LOGS PHI TO MLFLOW.
+    - finish_task:  logs all params, metrics, and artifacts in a single run
 
     What is logged
     --------------
     Parameters
-        task_version, model_id, response_schema (JSON), system_prompt (truncated)
-        runtime.start, runtime.end  (ISO 8601 UTC — human-readable form of the epoch metrics above)
+    - task_version, model_id, response_schema (JSON), system_prompt,
+      runtime.start, runtime.end  (human-readable form of the epoch metrics)
 
     Metrics
-        notes.{seen, considered, with_text, with_results, yield_rate}
-        tokens.{new_input, cache_read, cache_written, output, total, cache_hit_rate}
-        cost.estimated_usd  (only when model.prices is set)
-        runtime.{start, end, time_taken_seconds, time_taken_per_note_seconds, tokens_per_second}
+    - notes.{seen, considered, with_text, with_results, yield_rate},
+      tokens.{new_input, cache_read, cache_written, output, total, cache_hit_rate},
+      cost.estimated_usd  (only when model.prices is set), and
+      runtime.{start, end, time_taken_seconds, time_taken_per_note_seconds, tokens_per_second}
 
     Artifacts
-        prompts/system_prompt.txt
-        prompts/user_prompt.txt
-        predictions.json
+    - prompts/system_prompt.txt
+    - prompts/user_prompt.txt
 
+    Traces
+    - All OpenAI API calls are automatically captured by mlflow.openai.autolog() and
+      attached to the run.
     """
 
-    # Define a run_name if we don't have one already using:
-    # - a `name` attribute defining the task name (including study prefix, the task, the model)
-    # - a `task_version` attribute defining the task task_version
     @property
     def mlflow_run_name(self) -> str:
-        return self.mlflow_run if self.mlflow_run else f"{self.name}_{self.task_version}"
+        return self._mlflow_run_name or f"{self.name}_{self.task_version}"
 
     #########
     # Task-specific overrides
     #
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, mlflow_run_name: str | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        # Accumulates rows for log_table
-        # Initialized here so the list is always safe to append to in
-        # process_note regardless of whether a run is active.
-        self._mlflow_predictions: dict = {
-            "note": [],
-            "response": [],
-        }
+        self._mlflow_run_name = mlflow_run_name
         self._mlflow_start_time: float = time.time()
         # Patch the OpenAI client globally — traces are captured into whatever
         # run is active at call time, so the run must be started before any
@@ -72,21 +66,6 @@ class MlflowTrackingMixin:
             mlflow.set_tracking_uri(mlflow_tracking_uri)
             mlflow.set_experiment(self.mlflow_experiment_name)
             mlflow.start_run(run_name=self.mlflow_run_name)
-
-        return result
-
-    async def process_note(self, details: nlp_types.NoteDetails) -> base.EntryBundle | None:
-        """
-        Delegates to the real implementation and records a summary of each note's result.
-
-        Override in a study-specific subclass if you need richer columns —
-        for example, adding NLP label counts.  Always call super() first.
-        """
-        result = await super().process_note(details)
-
-        if result:
-            self._mlflow_predictions["note"].append(details.note_text)
-            self._mlflow_predictions["response"].append(str(result.get("result", "")))
 
         return result
 

@@ -21,8 +21,6 @@ import rich.table
 
 from cumulus_etl import common, errors, feedback, nlp
 from cumulus_etl.etl import tasks
-from cumulus_etl.etl.tasks.nlp_mixins import MlflowTrackingMixin
-from cumulus_etl.etl.tasks.nlp_types import NoteDetails, NoteStats
 
 ESCAPED_WHITESPACE = re.compile(r"(\\\s)+")
 TRAILING_WHITESPACE = re.compile(r"\s+$", flags=re.MULTILINE)
@@ -56,7 +54,7 @@ class BaseNlpTask(tasks.EtlTask):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.note_stats = NoteStats()
+        self.note_stats = nlp.NoteStats()
         self.read_finished_groups()
 
     def group_name_from_note(self, note: dict) -> str:
@@ -104,7 +102,7 @@ class BaseNlpTask(tasks.EtlTask):
         :returns: a tuple of original-resource, scrubbed-resource, and note text
         """
         warned_connection_error = False
-        self.note_stats = NoteStats()  # reset stats in case we're running through notes again
+        self.note_stats = nlp.NoteStats()  # reset stats in case we're running through notes again
 
         note_filter = self.task_config.resource_filter or cfs.make_note_filter()
 
@@ -204,7 +202,7 @@ class BaseModelTask(BaseNlpTask):
         self,
         *,
         progress: feedback.Progress = None,
-    ) -> AsyncGenerator[NoteDetails]:
+    ) -> AsyncGenerator[nlp.NoteDetails]:
         async for orig_note, note, orig_note_text in self.read_notes(progress=progress):
             try:
                 note_ref, encounter_id, subject_ref = nlp.get_note_info(note)
@@ -216,7 +214,7 @@ class BaseModelTask(BaseNlpTask):
             note_text = self.remove_trailing_whitespace(orig_note_text)
             orig_note_ref = f"{orig_note['resourceType']}/{orig_note['id']}"
 
-            yield NoteDetails(
+            yield nlp.NoteDetails(
                 note_ref=note_ref,
                 encounter_id=encounter_id,
                 subject_ref=subject_ref,
@@ -227,7 +225,7 @@ class BaseModelTask(BaseNlpTask):
                 orig_note=orig_note,
             )
 
-    def make_prompt(self, details: NoteDetails) -> nlp.Prompt:
+    def make_prompt(self, details: nlp.NoteDetails) -> nlp.Prompt:
         return nlp.Prompt(
             system=self.get_system_prompt(),
             user=self.get_user_prompt(details.note_text),
@@ -238,7 +236,7 @@ class BaseModelTask(BaseNlpTask):
         )
 
     # May be overridden if necessary by subclasses
-    async def process_note(self, details: NoteDetails) -> tasks.EntryBundle | None:
+    async def process_note(self, details: nlp.NoteDetails) -> tasks.EntryBundle | None:
         response = await self.model.prompt(self.make_prompt(details))
 
         # Pass serialize_as_any=True so we don't get warnings about finding strings when it
@@ -311,7 +309,7 @@ class BaseModelTask(BaseNlpTask):
         prompt = self.user_prompt or "%CLINICAL-NOTE%"
         return prompt.replace("%CLINICAL-NOTE%", note_text)
 
-    def post_process(self, parsed: dict, details: NoteDetails) -> None:
+    def post_process(self, parsed: dict, details: nlp.NoteDetails) -> None:
         """Subclasses can fill this out if they like"""
 
     @classmethod
@@ -383,11 +381,11 @@ class BaseModelTaskWithSpans(BaseModelTask):
     It assumes any field named "spans" in the hierarchy of the pydantic model should be converted.
     """
 
-    def post_process(self, parsed: dict, details: NoteDetails) -> None:
+    def post_process(self, parsed: dict, details: nlp.NoteDetails) -> None:
         if not self._process_dict(parsed, details):
             self.add_error(details.orig_note)
 
-    def _process_dict(self, parsed: dict, details: NoteDetails) -> bool:
+    def _process_dict(self, parsed: dict, details: nlp.NoteDetails) -> bool:
         """Returns False if any span couldn't be matched"""
         all_found = True
 
@@ -472,7 +470,6 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
     fallback_models = shared.get("models", [])
     fallback_use_mlflow = shared.get("use-mlflow", False)
     fallback_mlflow_experiment_name = shared.get("mlflow-experiment-name", None)
-    fallback_mlflow_run_name = shared.get("mlflow-run", None)
 
     tasks = []
 
@@ -486,7 +483,6 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
         models = task_def.get("models", fallback_models)
         use_mlflow = task_def.get("use-mlflow", fallback_use_mlflow)
         mlflow_experiment_name = task_def.get("mlflow-experiment", fallback_mlflow_experiment_name)
-        mlflow_run_name = task_def.get("mlflow-run", fallback_mlflow_run_name)
 
         # Check for required fields
         if not response_schema:
@@ -527,7 +523,7 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
 
             # Define BaseTaskClasses, supporting MlFlow mixins as needed
             if use_mlflow:
-                TaskBases = (MlflowTrackingMixin, BaseModelTaskWithSpans)
+                TaskBases = (nlp.MlflowTrackingMixin, BaseModelTaskWithSpans)
             else:
                 TaskBases = (BaseModelTaskWithSpans,)
 
@@ -542,7 +538,6 @@ def _parse_nlp_config_helper(prefix: str, path: str) -> list[type[BaseModelTaskW
                     "user_prompt": model_user_prompt,
                     "response_format": model_response_format,
                     "mlflow_experiment_name": mlflow_experiment_name,
-                    "mlflow_run": mlflow_run_name,
                 },
             )
 

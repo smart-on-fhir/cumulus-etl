@@ -1,3 +1,5 @@
+"""Miscellaneous note types used across NLP tasks."""
+
 import dataclasses
 
 

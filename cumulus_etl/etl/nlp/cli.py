@@ -62,6 +62,10 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="previous NLP task results will be deleted before uploading the new ones",
     )
+    parser.add_argument(
+        "--mlflow-run-name",
+        help="mlflow run name to use for experiment tracking",
+    )
 
 
 async def check_input_size(
@@ -280,7 +284,12 @@ async def nlp_main(args: argparse.Namespace) -> None:
             resource_filter=res_filter,
         )
 
-        task = task_class(config, scrubber)
+        # If the task is subclassing our MlflowTrackingMixin, make sure we
+        # pass along the CLI defined mlflow_run_name for experiment tracking
+        if issubclass(task_class, nlp.MlflowTrackingMixin):
+            task = task_class(config, scrubber, mlflow_run_name=args.mlflow_run_name)
+        else:
+            task = task_class(config, scrubber)
         task_summaries = await task.run()
         summaries.extend(task_summaries)
 
