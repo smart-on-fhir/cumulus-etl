@@ -1,7 +1,5 @@
 """Support code for NLP servers"""
 
-from .types import NoteDetails, NoteStats
-from .task_mixins import MlflowTrackingMixin
 from .extract import TransformerModel, ctakes_extract, ctakes_httpx_client, list_polarity
 from .models import (
     ClaudeSonnet45Model,
@@ -25,6 +23,8 @@ from .selection import (
     get_refs_from_csv,
     query_athena_table,
 )
+from .task_mixins import MlflowTrackingMixin
+from .types import NoteDetails, NoteStats
 from .utils import (
     cache_checksum,
     cache_metadata_read,

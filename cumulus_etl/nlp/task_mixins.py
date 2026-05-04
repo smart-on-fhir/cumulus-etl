@@ -3,10 +3,7 @@ import os
 import time
 from datetime import UTC, datetime
 
-from cumulus_etl.nlp import types
 import mlflow
-
-from cumulus_etl.etl.tasks import base
 
 
 class MlflowTrackingMixin:
