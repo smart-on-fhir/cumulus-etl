@@ -45,7 +45,9 @@ response-schema = "ibd-diagnosis-annotation.json"
 # ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 4
+# version = 4
+# NOTE: Changing version for mlflow testing purposes - don't want to have to delete our actual NLP cache
+version = 10000
 
 [[task]]
 name = "genetic_findings"
@@ -65,9 +67,9 @@ response-schema = "ibd-paris-classification-annotation.json"
 # ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 4
-# version = 10000
-# mlflow-run = "paris_classification_with_caching"
+# version = 4
+# NOTE: Changing version for mlflow testing purposes - don't want to have to delete our actual NLP cache
+version = 10000
 
 [[task]]
 name = "treatment"
