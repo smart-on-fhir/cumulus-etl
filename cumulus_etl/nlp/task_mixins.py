@@ -174,10 +174,3 @@ class MlflowTrackingMixin:
         mlflow.log_text(self.get_system_prompt(), "prompts/system_prompt.txt")
         if self.user_prompt:
             mlflow.log_text(self.user_prompt, "prompts/user_prompt.txt")
-
-        # Per-note prediction table (opt-in, PHI-safe by default)
-        if self._mlflow_predictions:
-            mlflow.log_table(
-                self._mlflow_predictions,
-                artifact_file="predictions.json",
-            )
