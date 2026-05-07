@@ -44,9 +44,16 @@ class MlflowTrackingMixin:
     #########
     # Task-specific overrides
     #
-    def __init__(self, *args, mlflow_run_name: str | None = None, **kwargs) -> None:
+    def __init__(
+        self,
+        *args,
+        mlflow_run_name: str | None = None,
+        mlflow_run_name_autotag: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self._mlflow_run_name = mlflow_run_name
+        self._mlflow_run_name_autotag = mlflow_run_name_autotag
         self._mlflow_start_time: float = time.time()
         # Patch the OpenAI client globally — traces are captured into whatever
         # run is active at call time, so the run must be started before any
@@ -77,6 +84,17 @@ class MlflowTrackingMixin:
         except Exception as exc:
             logging.warning("MLflow logging failed (non-fatal): %s", exc, exc_info=True)
 
+    def _parse_run_name_tags(self) -> dict[str, str]:
+        """Parse --mlflow-run-name into tags using KEY_VALUE-KEY_VALUE convention."""
+        if not self._mlflow_run_name:
+            return {}
+        tags = {}
+        for pair in self._mlflow_run_name.split("-"):
+            parts = pair.split("_", 1)
+            if len(parts) == 2:
+                tags[parts[0]] = parts[1]
+        return tags
+
     def _log_to_mlflow(self) -> None:
         if not mlflow.active_run():
             logging.warning(
@@ -92,24 +110,26 @@ class MlflowTrackingMixin:
             self._log_params()
             self._log_metrics()
             self._log_artifacts()
+            if self._mlflow_run_name_autotag:
+                mlflow.set_tags(self._parse_run_name_tags())
         finally:
             mlflow.end_run()
 
     def _log_params(self) -> None:
-        mlflow.log_params(
-            {
-                "task": self.name,
-                "task_version": self.task_version,
-                "model_id": self.client_class.CONFIG_ID,
-                "mlflow_run_name": self.mlflow_run_name,
-                "system_prompt": self.get_system_prompt(),
-                "response_schema": self.response_format.model_json_schema(),
-                "runtime.start": datetime.fromtimestamp(
-                    self._mlflow_start_time, tz=UTC
-                ).isoformat(),
-                "runtime.end": datetime.fromtimestamp(self._mlflow_end_time, tz=UTC).isoformat(),
-            }
-        )
+        params = {
+            "task": self.name,
+            "task_version": self.task_version,
+            "model_id": self.client_class.CONFIG_ID,
+            "mlflow_run_name": self.mlflow_run_name,
+            "system_prompt": self.get_system_prompt(),
+            "response_schema": self.response_format.model_json_schema(),
+            "runtime.start": datetime.fromtimestamp(self._mlflow_start_time, tz=UTC).isoformat(),
+            "runtime.end": datetime.fromtimestamp(self._mlflow_end_time, tz=UTC).isoformat(),
+        }
+        # Track the tags as params as well for easier visualization/filtering in mlflow
+        if self._mlflow_run_name_autotag:
+            params.update(self._parse_run_name_tags())
+        mlflow.log_params(params)
 
     def _log_metrics(self) -> None:
         # --- Note throughput ---

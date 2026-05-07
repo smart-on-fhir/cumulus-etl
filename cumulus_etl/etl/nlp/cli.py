@@ -13,7 +13,6 @@ import argparse
 import cumulus_fhir_support as cfs
 import pyathena
 import rich
-import rich.prompt
 
 from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.etl import pipeline
@@ -65,6 +64,11 @@ def define_nlp_parser(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--mlflow-run-name",
         help="mlflow run name to use for experiment tracking",
+    )
+    parser.add_argument(
+        "--mlflow-run-name-autotag",
+        action="store_true",
+        help="parse --mlflow-run-name into tags/params using KEY_VALUE-KEY_VALUE convention",
     )
 
 
@@ -287,7 +291,12 @@ async def nlp_main(args: argparse.Namespace) -> None:
         # If the task is subclassing our MlflowTrackingMixin, make sure we
         # pass along the CLI defined mlflow_run_name for experiment tracking
         if issubclass(task_class, nlp.MlflowTrackingMixin):
-            task = task_class(config, scrubber, mlflow_run_name=args.mlflow_run_name)
+            task = task_class(
+                config,
+                scrubber,
+                mlflow_run_name=args.mlflow_run_name,
+                mlflow_run_name_autotag=args.mlflow_run_name_autotag,
+            )
         else:
             task = task_class(config, scrubber)
         task_summaries = await task.run()
