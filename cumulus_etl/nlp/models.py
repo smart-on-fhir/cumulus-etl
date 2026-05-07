@@ -704,16 +704,61 @@ class Gpt4oModel(Model):
     )
 
 
-class Gpt5Model(Model):
-    CONFIG_ID = "gpt5"
-    AZURE_ID = "gpt-5"
+class Gpt51Model(Model):
+    CONFIG_ID = "gpt51"
+    AZURE_ID = "gpt-5.1"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
-        # "GPT-5 2025-08-07 Global"
-        date=datetime.date(2025, 10, 15),
+        # "GPT-5.1 Global"
+        date=datetime.date(2026, 5, 7),
         new_input_tokens=0.00125,
         cache_read_input_tokens=0.00013,
         output_tokens=0.01,
+    )
+    AZURE_BATCHES = True
+
+
+class Gpt54Model(Model):
+    CONFIG_ID = "gpt54"
+    AZURE_ID = "gpt-5.4"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "GPT-5.4 Global"
+        # NOTE: These prices use the <272k context length number;
+        # for long contexts, Azure has a different pricing that is 2x higher,
+        # We expect most of our usage to fall under shorter context, so we use that price here.
+        date=datetime.date(2026, 5, 7),
+        new_input_tokens=0.00250,
+        cache_read_input_tokens=0.000250,
+        output_tokens=0.01,
+    )
+    AZURE_BATCHES = False
+
+
+class Gpt54MiniModel(Model):
+    CONFIG_ID = "gpt54mini"
+    AZURE_ID = "gpt-5.4-mini"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "GPT-5.4-Mini Global"
+        date=datetime.date(2026, 5, 7),
+        new_input_tokens=0.00075,
+        cache_read_input_tokens=0.00008,
+        output_tokens=0.0045,
+    )
+    AZURE_BATCHES = False
+
+
+class Gpt54NanoModel(Model):
+    CONFIG_ID = "gpt54nano"
+    AZURE_ID = "gpt-5.4-nano"
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "GPT-5 Global"
+        date=datetime.date(2026, 5, 7),
+        new_input_tokens=0.0002,
+        cache_read_input_tokens=0.00002,
+        output_tokens=0.00125,
     )
     AZURE_BATCHES = False
 
