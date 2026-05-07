@@ -387,11 +387,11 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
         )
         self.s3fs.copy(
             f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
-            f"{root}/nlp_gpt5_v1/nlp_gpt5_v1.000.parquet",
+            f"{root}/nlp_gpt51_v1/nlp_gpt51_v1.000.parquet",
         )
         self.s3fs.copy(
             f"{root}/nlp_gpt_oss_120b_v1.ids",
-            f"{root}/nlp_gpt5_v1.ids",
+            f"{root}/nlp_gpt51_v1.ids",
         )
 
         # Second normal backup, which will append to previous results
@@ -405,8 +405,8 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
                 f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
                 f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.001.parquet",
                 f"{root}/nlp_gpt_oss_120b_v1.ids",
-                f"{root}/nlp_gpt5_v1/nlp_gpt5_v1.000.parquet",
-                f"{root}/nlp_gpt5_v1.ids",
+                f"{root}/nlp_gpt51_v1/nlp_gpt51_v1.000.parquet",
+                f"{root}/nlp_gpt51_v1.ids",
             },
         )
 
@@ -417,8 +417,8 @@ class TestAthenaRun(HelperMixin, S3Mixin, NlpModelTestCase, BaseEtlSimple):
             {
                 f"{root}/nlp_gpt_oss_120b_v1/nlp_gpt_oss_120b_v1.000.parquet",
                 f"{root}/nlp_gpt_oss_120b_v1.ids",
-                f"{root}/nlp_gpt5_v1/nlp_gpt5_v1.000.parquet",
-                f"{root}/nlp_gpt5_v1.ids",
+                f"{root}/nlp_gpt51_v1/nlp_gpt51_v1.000.parquet",
+                f"{root}/nlp_gpt51_v1.ids",
             },
         )
 

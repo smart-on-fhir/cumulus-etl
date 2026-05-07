@@ -43,7 +43,7 @@ class IbdTaskTestBase(NlpModelTestCase, BaseEtlSimple):
     DATA_ROOT: ClassVar[str] = "ibd"
     SUPPORTED_MODELS: ClassVar[list[tuple[str, str]]] = [
         ("gpt_oss_120b", "gpt-oss-120b"),
-        ("gpt5", "gpt-5"),
+        ("gpt51", "gpt-5.1"),
     ]
 
     # Subclasses define these four:

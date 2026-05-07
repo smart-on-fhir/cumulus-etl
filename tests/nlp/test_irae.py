@@ -53,7 +53,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
         ("gpt4o", "gpt-4o"),
-        ("gpt5", "gpt-5"),
+        ("gpt51", "gpt-5.1"),
         ("llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack
@@ -143,7 +143,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
         ("gpt4o", "gpt-4o"),
-        ("gpt5", "gpt-5"),
+        ("gpt51", "gpt-5.1"),
         ("llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack
@@ -219,7 +219,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
         ("gpt4o", "gpt-4o"),
-        ("gpt5", "gpt-5"),
+        ("gpt51", "gpt-5.1"),
         ("llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack
@@ -300,7 +300,7 @@ class TestIraeTask(NlpModelTestCase, BaseEtlSimple):
     @ddt.data(
         ("gpt_oss_120b", "gpt-oss-120b"),
         ("gpt4o", "gpt-4o"),
-        ("gpt5", "gpt-5"),
+        ("gpt51", "gpt-5.1"),
         ("llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack

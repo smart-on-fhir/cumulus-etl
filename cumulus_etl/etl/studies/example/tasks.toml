@@ -27,7 +27,7 @@ models = [
     "claude-sonnet45",
     "gpt4",
     "gpt4o",
-    "gpt5",
+    "gpt51",
     "gpt-oss-120b",
     "llama4-scout",
 ]

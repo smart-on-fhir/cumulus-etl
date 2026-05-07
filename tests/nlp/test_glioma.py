@@ -152,7 +152,7 @@ Here is the clinical document for you to analyze:
     SUPPORTED_MODELS: ClassVar[list[ModelOption]] = [
         ("gpt_oss_120b", "gpt-oss-120b"),
         ("gpt4o", "gpt-4o"),
-        ("gpt5", "gpt-5"),
+        ("gpt51", "gpt-5.1"),
         ("llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     ]
     TEST_TASK_OPTIONS: ClassVar[list[TaskOption]] = [

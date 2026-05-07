@@ -22,7 +22,7 @@ class TestExampleTask(NlpModelTestCase, BaseEtlSimple):
         ("example_nlp__nlp_gpt_oss_120b", "gpt-oss-120b"),
         ("example_nlp__nlp_gpt4", "gpt-4"),
         ("example_nlp__nlp_gpt4o", "gpt-4o"),
-        ("example_nlp__nlp_gpt5", "gpt-5"),
+        ("example_nlp__nlp_gpt51", "gpt-5.1"),
         ("example_nlp__nlp_llama4_scout", "Llama-4-Scout-17B-16E-Instruct"),
     )
     @ddt.unpack

@@ -456,7 +456,7 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
     @ddt.data(
         ("local", nlp.ClaudeSonnet45Model),
         ("azure", nlp.ClaudeSonnet45Model),
-        ("bedrock", nlp.Gpt5Model),
+        ("bedrock", nlp.Gpt51Model),
     )
     @ddt.unpack
     async def test_wrong_tool_for_model(self, provider, model):
