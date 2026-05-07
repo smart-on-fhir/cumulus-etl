@@ -740,7 +740,7 @@ class Gpt54MiniModel(Model):
     AZURE_ID = "gpt-5.4-mini"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
-        # "GPT-5.4-Mini Global"
+        # "GPT-5.4 mini Global"
         date=datetime.date(2026, 5, 7),
         new_input_tokens=0.00075,
         cache_read_input_tokens=0.00008,
@@ -754,7 +754,7 @@ class Gpt54NanoModel(Model):
     AZURE_ID = "gpt-5.4-nano"
     AZURE_PRICES = TokenPrices(
         # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
-        # "GPT-5 Global"
+        # "GPT-5 nano Global"
         date=datetime.date(2026, 5, 7),
         new_input_tokens=0.0002,
         cache_read_input_tokens=0.00002,
