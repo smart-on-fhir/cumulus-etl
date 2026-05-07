@@ -767,7 +767,13 @@ class GptOss120bModel(Model):
     CONFIG_ID = "gpt-oss-120b"
     AZURE_ID = "gpt-oss-120b"
     AZURE_BATCHES = False
-    # AZURE_PRICES = TokenPrices(...)  # TODO: find online
+    AZURE_PRICES = TokenPrices(
+        # https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/
+        # "gpt-oss-120b under Open Source Models"
+        date=datetime.date(2026, 5, 7),
+        new_input_tokens=0.00015,
+        output_tokens=0.0006,
+    )
     BEDROCK_ID = "openai.gpt-oss-120b-1:0"
     BEDROCK_CACHE = False
     BEDROCK_PRICES = TokenPrices(
