@@ -34,7 +34,7 @@ models = [
 ]
 
 use-mlflow = true
-mlflow-experiment-name = "ibd_etl_infra_test"
+mlflow-experiment-name = "ibd_gpt51_vs_gptoss120b"
 
 [[task]]
 name = "diagnosis"
