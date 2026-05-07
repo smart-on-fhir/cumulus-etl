@@ -36,6 +36,7 @@ models = [
 use-mlflow = true
 mlflow-experiment-name = "ibd_gpt51_vs_gptoss120b"
 
+
 [[task]]
 name = "diagnosis"
 response-schema = "ibd-diagnosis-annotation.json"
@@ -70,6 +71,17 @@ response-schema = "ibd-paris-classification-annotation.json"
 # version = 4
 # NOTE: Changing version for mlflow testing purposes - don't want to have to delete our actual NLP cache
 version = 10000
+
+# GARBAGE TO REMOVE
+# GARBAGE TO REMOVE
+# GARBAGE TO REMOVE
+[[task]]
+name = "paris_classification_batch"
+response-schema = "ibd-paris-classification-annotation.json"
+version = 10000
+# GARBAGE TO REMOVE
+# GARBAGE TO REMOVE
+# GARBAGE TO REMOVE
 
 [[task]]
 name = "treatment"
