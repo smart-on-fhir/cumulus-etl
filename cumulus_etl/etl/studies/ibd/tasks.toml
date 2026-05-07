@@ -29,7 +29,7 @@ Here is the clinical document for you to analyze:
 
 models = [
     "claude-sonnet45",
-    "gpt5",
+    "gpt51",
     "gpt-oss-120b",
 ]
 
