@@ -46,14 +46,6 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: AWSBucketRequiresEncryption
-            Effect: Deny
-            Principal: "*"
-            Action: s3:PutObject
-            Resource: !Sub "arn:aws:s3:::${S3Bucket}/*"
-            Condition:
-              StringNotEquals:
-                s3:x-amz-server-side-encryption: aws:kms
           - Sid: AWSBucketAllowUploads
             Effect: Allow
             Principal:
@@ -92,14 +84,6 @@ Resources:
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: AWSBucketRequiresEncryption
-            Effect: Deny
-            Principal: "*"
-            Action: s3:PutObject
-            Resource: !Sub "arn:aws:s3:::${PHIBucket}/*"
-            Condition:
-              StringNotEquals:
-                s3:x-amz-server-side-encryption: aws:kms
           - Sid: AWSBucketAllowAccess
             Effect: Allow
             Principal:
@@ -230,23 +214,6 @@ Resources:
         IgnorePublicAcls: True
         RestrictPublicBuckets: True
 
-  AthenaBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Properties:
-      Bucket: !Ref AthenaBucket
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          # We don't expect non-Athena uploads to this bucket, but just as a safeguard against misconfiguration,
-          # let's enforce encryption on all incoming data.
-          - Sid: AWSBucketRequiresEncryption
-            Effect: Deny
-            Principal: "*"
-            Action: s3:PutObject
-            Resource: !Sub "arn:aws:s3:::${AthenaBucket}/*"
-            Condition:
-              StringNotEquals:
-                s3:x-amz-server-side-encryption: aws:kms
 
   AthenaWorkGroup:
     Type: AWS::Athena::WorkGroup
