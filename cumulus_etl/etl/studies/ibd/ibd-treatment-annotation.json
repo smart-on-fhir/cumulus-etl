@@ -1,14 +1,34 @@
 {
   "$defs": {
-    "AdverseDrugEvent": {
+    "DatePrecision": {
       "enum": [
-        "Allergy or adverse drug event",
-        "None of the above (e.g. not mentioned, patient does not have an allergy or adverse drug event related to this medication, etc)"
+        "DAY",
+        "MONTH",
+        "YEAR"
       ],
-      "title": "AdverseDrugEvent",
+      "title": "DatePrecision",
       "type": "string"
     },
-    "AdverseDrugEventAntiTNFMention": {
+    "RxAdverseDrugEvent": {
+      "description": "Adverse drug event category for IBD medications, scoped to events that\nplausibly drive a change in IBD therapy (discontinuation, switch, or\nescalation). Categories are intentionally broad and chart-review friendly.",
+      "enum": [
+        "INFECTION",
+        "CORTICOSTEROID_TOXICITY",
+        "INFUSION_OR_HYPERSENSITIVITY_REACTION",
+        "BLOOD",
+        "LIVER",
+        "SKIN",
+        "PANCREAS",
+        "NEUROLOGIC",
+        "KIDNEY",
+        "CANCER",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "RxAdverseDrugEvent",
+      "type": "string"
+    },
+    "RxAdverseDrugEventMention": {
+      "description": "A mention of an adverse drug event attributed to an IBD medication.\n\nUse only when the chart links the event to medication toxicity, intolerance,\nallergy, reaction, or complication. Do not classify ordinary IBD symptoms as\nADEs unless the note documents them as medication-related.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -24,136 +44,71 @@
           "type": "array"
         },
         "ade": {
-          "$ref": "#/$defs/AdverseDrugEvent",
-          "default": "None of the above (e.g. not mentioned, patient does not have an allergy or adverse drug event related to this medication, etc)",
-          "description": "Did the patient have an allergy or adverse drug event related to Anti-TNF medication?"
+          "$ref": "#/$defs/RxAdverseDrugEvent",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Treatment-limiting adverse drug event category for this IBD medication, when the note attributes the event to the drug. Most categories match their name. CORTICOSTEROID_TOXICITY covers Cushingoid features, growth suppression, bone, metabolic, ocular, and mood/behavioral steroid effects. INFUSION_OR_HYPERSENSITIVITY_REACTION covers infusion reactions, injection-site reactions, serum sickness, and acute allergic reactions. Skin cancer is CANCER, not SKIN. Acute drug-administration reactions are INFUSION_OR_HYPERSENSITIVITY_REACTION, not SKIN. NONE_OF_THE_ABOVE if no drug-attributed ADE is documented, the event is not treatment-limiting, or it fits no category above."
         }
       },
       "required": [
         "has_mention",
         "spans"
       ],
-      "title": "AdverseDrugEventAntiTNFMention",
-      "type": "object"
-    },
-    "AdverseDrugEventIBDMention": {
-      "properties": {
-        "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text.",
-          "title": "Has Mention",
-          "type": "boolean"
-        },
-        "spans": {
-          "description": "The verbatim text where this concept was mentioned.",
-          "items": {
-            "type": "string"
-          },
-          "title": "Spans",
-          "type": "array"
-        },
-        "ade": {
-          "$ref": "#/$defs/AdverseDrugEvent",
-          "default": "None of the above (e.g. not mentioned, patient does not have an allergy or adverse drug event related to this medication, etc)",
-          "description": "Did the patient have an allergy or adverse drug event related to IBD medication?"
-        }
-      },
-      "required": [
-        "has_mention",
-        "spans"
-      ],
-      "title": "AdverseDrugEventIBDMention",
-      "type": "object"
-    },
-    "AntiTNFResponse": {
-      "enum": [
-        "Anti-TNF therapy was discontinued, therapy was escalated (eg, addition of second biologic), or surgery (eg, colectomy, ileocecectomy).",
-        "Anti-TNF therapy was successful, patient shows clinical improvement or symptom reduction",
-        "None of the above (e.g. not mentioned, patient was not given anti-TNF therapy, etc)"
-      ],
-      "title": "AntiTNFResponse",
-      "type": "string"
-    },
-    "AntiTNFResponseMention": {
-      "properties": {
-        "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text.",
-          "title": "Has Mention",
-          "type": "boolean"
-        },
-        "spans": {
-          "description": "The verbatim text where this concept was mentioned.",
-          "items": {
-            "type": "string"
-          },
-          "title": "Spans",
-          "type": "array"
-        },
-        "anti_tnf_response": {
-          "$ref": "#/$defs/AntiTNFResponse",
-          "default": "None of the above (e.g. not mentioned, patient was not given anti-TNF therapy, etc)",
-          "description": "What was the anti-TNF medication response?"
-        }
-      },
-      "required": [
-        "has_mention",
-        "spans"
-      ],
-      "title": "AntiTNFResponseMention",
+      "title": "RxAdverseDrugEventMention",
       "type": "object"
     },
     "RxAnnotation": {
-      "description": "A collection of medication-related mentions for a single medication instance.\nIncludes mentions of medication class, status, treatment phase, and response.",
+      "description": "Medication or medication-class treatment context.\n\nThe exact medication name, brand name, biosimilar, abbreviation, or class\nphrase should be captured in the supporting spans, especially in\nrx_class. All nested mentions should refer to the same medication\nor medication-class context when possible.",
       "properties": {
-        "rx_name": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "The name of the medication mentioned in the chart. This should be a string, and can include generic or brand names, as well as abbreviations. If multiple medications are mentioned in the same context, create separate RxAnnotation instances for each medication with their respective details.",
-          "title": "Rx Name"
-        },
-        "rx_class_mention": {
+        "rx_class": {
           "$ref": "#/$defs/RxClassMention"
         },
-        "rx_status_mention": {
+        "rx_status": {
           "$ref": "#/$defs/RxStatusMention"
         },
-        "rx_treatment_phase_mention": {
+        "rx_treatment_phase": {
           "$ref": "#/$defs/RxTreatmentPhaseMention"
         },
-        "rx_response_mention": {
+        "rx_start_date": {
+          "$ref": "#/$defs/RxStartDateMention"
+        },
+        "rx_response": {
           "$ref": "#/$defs/RxResponseMention"
+        },
+        "rx_adverse_drug_events": {
+          "description": "ADE(s) attributed to this medication or medication class. Create one mention per ADE category. Leave empty if no ADE is documented for this medication context.",
+          "items": {
+            "$ref": "#/$defs/RxAdverseDrugEventMention"
+          },
+          "title": "Rx Adverse Drug Events",
+          "type": "array"
         }
       },
       "required": [
-        "rx_class_mention",
-        "rx_status_mention",
-        "rx_treatment_phase_mention",
-        "rx_response_mention"
+        "rx_class",
+        "rx_status",
+        "rx_treatment_phase",
+        "rx_start_date",
+        "rx_response"
       ],
       "title": "RxAnnotation",
       "type": "object"
     },
     "RxClass": {
-      "description": "IBD Medication Class",
+      "description": "IBD Medication Class.",
       "enum": [
-        "Anti-TNF",
-        "Anti-Interleukin",
-        "Anti-Integrin",
-        "Aminosalicylate",
-        "Corticosteroid",
-        "Immunomodulator",
-        "None of the above (e.g. not mentioned, non-ibd medication, etc)"
+        "ANTI_TNF",
+        "ANTI_INTERLEUKIN",
+        "ANTI_INTEGRIN",
+        "AMINOSALICYLATE",
+        "CORTICOSTEROID",
+        "IMMUNOMODULATOR",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "RxClass",
       "type": "string"
     },
     "RxClassMention": {
+      "description": "A mention of an IBD medication class in the clinical record.\n\nAssign by pharmacologic class only. The supporting span should include the\nexact medication name, brand name, biosimilar name, abbreviation, or class\nphrase when present.\n\nTreatment phase, treatment intent, active-vs-historical status, and\nmedication response are captured separately.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -170,8 +125,8 @@
         },
         "rx_class": {
           "$ref": "#/$defs/RxClass",
-          "default": "None of the above (e.g. not mentioned, non-ibd medication, etc)",
-          "description": "Which, if any, of these IBD medication classes is the patient taking currently?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "IBD medication class for this medication. Choose one: ANTI_TNF: for infliximab/Remicade and biosimilars, adalimumab/Humira and biosimilars, golimumab/Simponi, or certolizumab/Cimzia; ANTI_INTERLEUKIN: for ustekinumab/Stelara and biosimilars such as Starjemza, or risankizumab/Skyrizi; ANTI_INTEGRIN: for vedolizumab/Entyvio or natalizumab/Tysabri; AMINOSALICYLATE: for mesalamine/5-ASA names such as Pentasa, Lialda, Apriso, Asacol, Delzicol, Rowasa, Canasa, sulfasalazine, balsalazide, or olsalazine; CORTICOSTEROID: for prednisone, methylprednisolone/Solu-Medrol, hydrocortisone/Solu-Cortef, or budesonide when used as IBD therapy; IMMUNOMODULATOR: for azathioprine/Imuran, mercaptopurine/6-MP/Purinethol, methotrexate, tacrolimus, or cyclosporine; NONE_OF_THE_ABOVE: if no IBD medication class can be inferred, the class is unclear, or the medication is outside these classes, such as antibiotics, antiemetics, iron, vaccines, fluids."
         }
       },
       "required": [
@@ -181,59 +136,19 @@
       "title": "RxClassMention",
       "type": "object"
     },
-    "RxEffectiveness": {
-      "enum": [
-        "Medication was effective in treating IBD",
-        "Medication failed to treat IBD",
-        "None of the above (e.g. not mentioned, patient was not given IBD medication, etc)"
-      ],
-      "title": "RxEffectiveness",
-      "type": "string"
-    },
-    "RxEffectivenessMention": {
-      "properties": {
-        "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text.",
-          "title": "Has Mention",
-          "type": "boolean"
-        },
-        "spans": {
-          "description": "The verbatim text where this concept was mentioned.",
-          "items": {
-            "type": "string"
-          },
-          "title": "Spans",
-          "type": "array"
-        },
-        "rx_effectiveness": {
-          "$ref": "#/$defs/RxEffectiveness",
-          "default": "None of the above (e.g. not mentioned, patient was not given IBD medication, etc)",
-          "description": "Are the patient medications effective in treating IBD?"
-        }
-      },
-      "required": [
-        "has_mention",
-        "spans"
-      ],
-      "title": "RxEffectivenessMention",
-      "type": "object"
-    },
     "RxResponse": {
       "enum": [
-        "COMPLETE_RESPONSE",
+        "RESPONSE_OR_REMISSION",
         "PARTIAL_RESPONSE",
-        "MINOR_RESPONSE",
-        "STABLE_DISEASE",
-        "PROGRESSIVE_DISEASE",
-        "MIXED_RESPONSE",
-        "PSEUDOPROGRESSION",
-        "NOT_EVALUABLE",
-        "None of the above (e.g. response not mentioned, something other than what is listed, etc)"
+        "PRIMARY_NON_RESPONSE",
+        "LOSS_OF_RESPONSE",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "RxResponse",
       "type": "string"
     },
     "RxResponseMention": {
+      "description": "Documented response of IBD disease activity to a specific medication.\nResponse is attributed to the medication, not overall disease course.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -250,8 +165,8 @@
         },
         "rx_response": {
           "$ref": "#/$defs/RxResponse",
-          "default": "None of the above (e.g. response not mentioned, something other than what is listed, etc)",
-          "description": "What, if known, is the patient's response to this medication?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "IBD medication response for this medication. Choose one: RESPONSE_OR_REMISSION: documented improvement, clinical response, steroid-free remission, or sustained good control on this medication, with no later loss of effect noted; PARTIAL_RESPONSE: documented improvement but incomplete remission or persistent disease activity; PRIMARY_NON_RESPONSE: no meaningful initial response after an adequate induction or initial treatment trial; LOSS_OF_RESPONSE: initial response or remission followed later by recurrent symptoms, flare, active inflammation, dose escalation, switch, or discontinuation for active disease; NONE_OF_THE_ABOVE: response not mentioned, or not captured by these options."
         }
       },
       "required": [
@@ -276,7 +191,7 @@
           "title": "Spans",
           "type": "array"
         },
-        "ibd_medication_start_date": {
+        "rx_start_date": {
           "anyOf": [
             {
               "type": "string"
@@ -286,8 +201,20 @@
             }
           ],
           "default": null,
-          "description": "What was the date of the first IBD medication dose? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
-          "title": "Ibd Medication Start Date"
+          "description": "Date of the first dose of this medication, in ISO YYYY-MM-DD format (e.g. 2021-01-15). Always emit a full YYYY-MM-DD value. If only month or year precision is supported by the text, use the first possible date consistent with it (January 2021 -> 2021-01-01; 2021 -> 2021-01-01) and record the actual precision in rx_start_date_precision.",
+          "title": "Rx Start Date"
+        },
+        "rx_start_date_precision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatePrecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Precision actually supported by the source text for rx_start_date. DAY: day, month, and year were explicitly stated; MONTH: month and year were explicitly stated; YEAR: only year was explicitly stated; Use Null when rx_start_date is null."
         }
       },
       "required": [
@@ -298,15 +225,15 @@
       "type": "object"
     },
     "RxStatus": {
-      "description": "Medication Status (including Intent because chart review is NOT always identical to Med Request)\nhttps://build.fhir.org/valueset-medicationrequest-status.html\nhttps://build.fhir.org/valueset-medicationrequest-intent.html",
+      "description": "Medication Status, including intent, because chart review is not always\nidentical to FHIR MedicationRequest.status or MedicationRequest.intent.",
       "enum": [
-        "Medication order is active (currently prescribed and intended for ongoing use).",
-        "Medication is planned/ordered/prescribed but therapy has not yet started.",
-        "Medication course is finished (all doses given or intended duration completed).",
-        "Medication was stopped or permanently discontinued before completion.",
-        "Medication order was canceled/withdrawn before any doses were administered.",
-        "Medication is temporarily paused (on-hold, suspended, or interrupted).",
-        "None of the above (e.g. specific status not mentioned, status not captured by these options, etc)"
+        "INTENDED",
+        "CANCELLED",
+        "ACTIVE",
+        "ON_HOLD",
+        "COMPLETED",
+        "STOPPED",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "RxStatus",
       "type": "string"
@@ -328,8 +255,8 @@
         },
         "rx_status": {
           "$ref": "#/$defs/RxStatus",
-          "default": "None of the above (e.g. specific status not mentioned, status not captured by these options, etc)",
-          "description": "What, if known, is the status of this medication?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Status of this IBD medication. Choose one: INTENDED: planned, ordered, or prescribed but not yet started; CANCELLED: order withdrawn before any doses were administered; ACTIVE: currently prescribed, currently taking, or ongoing; ON_HOLD: temporarily paused, suspended, or interrupted; COMPLETED: finite course finished as intended; STOPPED: permanently discontinued; NONE_OF_THE_ABOVE: status not mentioned, unclear, or not captured by these options."
         }
       },
       "required": [
@@ -339,49 +266,13 @@
       "title": "RxStatusMention",
       "type": "object"
     },
-    "RxTNFStartDateMention": {
-      "properties": {
-        "has_mention": {
-          "description": "Indicates whether the concept was mentioned in the text.",
-          "title": "Has Mention",
-          "type": "boolean"
-        },
-        "spans": {
-          "description": "The verbatim text where this concept was mentioned.",
-          "items": {
-            "type": "string"
-          },
-          "title": "Spans",
-          "type": "array"
-        },
-        "anti_tnf_start_date": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "What was the date of the first anti-TNF medication dose? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
-          "title": "Anti Tnf Start Date"
-        }
-      },
-      "required": [
-        "has_mention",
-        "spans"
-      ],
-      "title": "RxTNFStartDateMention",
-      "type": "object"
-    },
     "RxTreatmentPhase": {
-      "description": "Treatment Phase",
+      "description": "IBD treatment phase (induction, maintenance, or rescue).",
       "enum": [
-        "Induction therapy",
-        "Maintenance therapy",
-        "Rescue therapy",
-        "None of the above (e.g. specific phase not mentioned, phase not captured by these options, etc)"
+        "INDUCTION",
+        "MAINTENANCE",
+        "RESCUE",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "RxTreatmentPhase",
       "type": "string"
@@ -403,8 +294,8 @@
         },
         "rx_treatment_phase": {
           "$ref": "#/$defs/RxTreatmentPhase",
-          "default": "None of the above (e.g. specific phase not mentioned, phase not captured by these options, etc)",
-          "description": "Which, if any, of these IBD treatment phases is the patient in?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "IBD treatment phase for this medication. Choose one: INDUCTION: initial therapy intended to bring active disease into remission; MAINTENANCE: ongoing therapy to sustain remission and prevent relapse; RESCUE: therapy for a severe or treatment-refractory flare; NONE_OF_THE_ABOVE: treatment phase not mentioned, unclear, or not captured by these options."
         }
       },
       "required": [
@@ -415,43 +306,17 @@
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to their treatments and associated findings.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "Create one RxAnnotation per medication or medication-class context when possible.\n\nMedication class, status, treatment phase, response, start date, and adverse\ndrug events should refer to the same medication or medication-class context.\nThe exact medication name, brand name, biosimilar, abbreviation, or class phrase\nshould be captured in the supporting spans when present.",
   "properties": {
-    "rx_start_date_mention": {
-      "$ref": "#/$defs/RxStartDateMention"
-    },
-    "rx_tnf_start_date_mention": {
-      "$ref": "#/$defs/RxTNFStartDateMention"
-    },
     "rx_annotations": {
-      "description": "A list of which IBD medications patient is taking currently.",
+      "description": "Medication-level annotations for IBD medications mentioned in the chart. Include current, historical, planned, stopped, held, completed, or failed medications. Create separate RxAnnotation instances for separate medications.",
       "items": {
         "$ref": "#/$defs/RxAnnotation"
       },
       "title": "Rx Annotations",
       "type": "array"
-    },
-    "anti_tnf_response_mention": {
-      "$ref": "#/$defs/AntiTNFResponseMention"
-    },
-    "rx_effectiveness_mention": {
-      "$ref": "#/$defs/RxEffectivenessMention"
-    },
-    "adverse_drug_event_ibd_mention": {
-      "$ref": "#/$defs/AdverseDrugEventIBDMention"
-    },
-    "adverse_drug_event_anti_tnf_mention": {
-      "$ref": "#/$defs/AdverseDrugEventAntiTNFMention"
     }
   },
-  "required": [
-    "rx_start_date_mention",
-    "rx_tnf_start_date_mention",
-    "anti_tnf_response_mention",
-    "rx_effectiveness_mention",
-    "adverse_drug_event_ibd_mention",
-    "adverse_drug_event_anti_tnf_mention"
-  ],
   "title": "IbdTreatmentAnnotations",
   "type": "object"
 }
