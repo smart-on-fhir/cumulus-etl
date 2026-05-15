@@ -69,12 +69,13 @@ version = 4
 name = "treatment"
 response-schema = "ibd-treatment-annotation.json"
 # Version History:
+# ** 6 (2026-05): Overhall as part of https://github.com/smart-on-fhir/cumulus-library-ibd-cds/pull/99
 # ** 5 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 4 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 3 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 2 (2026-03-23): New medication model
 # ** 1 (2026-03): Initial version
-version = 5
+version = 6
 
 [[task]]
 name = "surgery"
