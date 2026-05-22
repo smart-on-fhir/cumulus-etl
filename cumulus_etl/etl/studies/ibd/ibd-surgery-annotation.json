@@ -1,15 +1,29 @@
 {
   "$defs": {
+    "DatePrecision": {
+      "enum": [
+        "DAY",
+        "MONTH",
+        "YEAR"
+      ],
+      "title": "DatePrecision",
+      "type": "string"
+    },
     "Surgery": {
       "enum": [
-        "Colectomy",
-        "Ileocecectomy",
-        "None of the above (e.g. not mentioned, patient received some other type of IBD surgery, etc)"
+        "COLECTOMY",
+        "BOWEL_RESECTION",
+        "STRICTUROPLASTY",
+        "OSTOMY_OR_FECAL_DIVERSION",
+        "PERIANAL_CROHNS_SURGERY",
+        "NON_QUALIFYING_SURGERY",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "Surgery",
       "type": "string"
     },
     "SurgeryMention": {
+      "description": "Extraction of a completed IBD-related surgical procedure from clinical text.\n\nCaptures the procedure category and, when stated, the date of the surgery\nalong with the precision actually supported by the source text. Scoped to\ncompleted events (past or during the current encounter); planned, discussed,\ndeclined, and family-history surgeries are excluded at the extraction layer.\n\nAttributes:\n    surgery: The category of completed IBD-related surgery referenced in the text.\n    surgery_date: ISO-format date the surgery was performed, or null when no\n        date information is present.\n    surgery_date_precision: The precision actually supported by the source\n        text for surgery_date.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -24,12 +38,12 @@
           "title": "Spans",
           "type": "array"
         },
-        "ibd_surgical_therapy": {
+        "surgery": {
           "$ref": "#/$defs/Surgery",
-          "default": "None of the above (e.g. not mentioned, patient received some other type of IBD surgery, etc)",
-          "description": "Did the patient receive surgical treatment for IBD?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Classify a completed IBD-related surgery \u2014 performed in the past or during the current encounter. Do not classify planned, recommended, possible, denied, or family-history surgeries. COLECTOMY: colectomy, proctocolectomy, or IPAA / J-pouch at any stage. BOWEL_RESECTION: ileocecectomy, ileocolic resection, or small bowel resection. STRICTUROPLASTY: strictureplasty (any technique). OSTOMY_OR_FECAL_DIVERSION: diverting ostomy, new ileostomy, colostomy, fecal diversion, or ostomy revision. PERIANAL_CROHNS_SURGERY: seton, perianal fistula surgery, or perianal abscess drainage in Crohn's disease. NON_QUALIFYING_SURGERY: endoscopy, biopsy, ostomy reversal, or unrelated surgery (e.g., appendectomy, cholecystectomy). NONE_OF_THE_ABOVE: no completed IBD-related surgery documented."
         },
-        "ibd_surgical_therapy_date": {
+        "surgery_date": {
           "anyOf": [
             {
               "type": "string"
@@ -39,8 +53,20 @@
             }
           ],
           "default": null,
-          "description": "What was the date of the IBD surgical treatment? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
-          "title": "Ibd Surgical Therapy Date"
+          "description": "Date the surgery was performed, in ISO YYYY-MM-DD format (e.g., 2021-01-15). Emit null when no date information is present in the text. When only partial precision is available, emit the first date consistent with the stated precision (January 2021 -> 2021-01-01; 2021 -> 2021-01-01) and record the actual precision in surgery_date_precision.",
+          "title": "Surgery Date"
+        },
+        "surgery_date_precision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatePrecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Precision actually supported by the source text for surgery_date. DAY: day, month, and year were explicitly stated; MONTH: month and year were explicitly stated; YEAR: only year was explicitly stated; null: surgery_date is null or no date information is available."
         }
       },
       "required": [
@@ -51,7 +77,7 @@
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to surgical outcomes related to IBD.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to IBD surgical events.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
     "surgery_mentions": {
       "description": "A list of mentions of which IBD related surgeries the patient has undergone.",
