@@ -1,15 +1,29 @@
 {
   "$defs": {
-    "GeneticCause": {
+    "ClinicalSignificance": {
       "enum": [
-        "Confirmed pathogenic variant",
-        "Likely or suspected pathogenic variant",
-        "None of the above"
+        "PATHOGENIC",
+        "LIKELY_PATHOGENIC",
+        "UNCERTAIN",
+        "LIKELY_BENIGN",
+        "BENIGN",
+        "NONE_OF_THE_ABOVE"
       ],
-      "title": "GeneticCause",
+      "title": "ClinicalSignificance",
+      "type": "string"
+    },
+    "LabInterpretationNormal": {
+      "description": "Lab Interpretation Normality",
+      "enum": [
+        "NORMAL",
+        "ABNORMAL",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "LabInterpretationNormal",
       "type": "string"
     },
     "MonogenicPrimaryMention": {
+      "description": "IBD is monogenic in origin and the genetic defect is the disease\n(e.g., IL10R deficiency, NEMO deficiency presenting as monogenic IBD).\n\nDo not extract family history or carrier status.\nDo not use this field for pharmacogenomic testing such as TPMT or NUDT15.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -24,10 +38,23 @@
           "title": "Spans",
           "type": "array"
         },
-        "ibd_monogenic": {
-          "$ref": "#/$defs/GeneticCause",
-          "default": "None of the above",
-          "description": "Was there a documented genetic cause of IBD?"
+        "clinical_significance": {
+          "$ref": "#/$defs/ClinicalSignificance",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Documented primary monogenic or syndromic genetic cause of the patient's IBD. PATHOGENIC: pathogenic variant/disease-causing genetic IBD diagnosis; LIKELY_PATHOGENIC: likely pathogenic variant is documented as explaining IBD; UNCERTAIN: uncertain genetic finding or VUS is mentioned but not confirmed causal of IBD; LIKELY_BENIGN: likely benign finding documented; BENIGN: benign finding documented; NONE_OF_THE_ABOVE: no monogenic IBD cause is documented. "
+        },
+        "gene_symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Gene symbol for the monogenic IBD finding, if stated, normalized to an uppercase HGNC-style gene symbol when possible, such as IL10RA, IL10RB, XIAP, FOXP3, TTC7A, LRBA, CTLA4, STAT3, STAT1, NCF2, or CYBB. Use null if no monogenic IBD gene is stated.",
+          "title": "Gene Symbol"
         }
       },
       "required": [
@@ -38,6 +65,7 @@
       "type": "object"
     },
     "MonogenicSecondaryMention": {
+      "description": "IBD or IBD-like intestinal inflammation documented as\nsecondary to a monogenic or syndromic genetic disorder.\n\nCapture only when the note explicitly states that the patient's IBD,  enterocolitis, colitis, or\nintestinal inflammation is secondary to or caused by an underlying monogenic disorder,\nimmune dysregulation syndrome, or genetic syndrome.\n\nDo not use this field for pharmacogenomic testing such as TPMT or NUDT15.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -52,10 +80,23 @@
           "title": "Spans",
           "type": "array"
         },
-        "ibd_monogenic_secondary": {
-          "$ref": "#/$defs/GeneticCause",
-          "default": "None of the above",
-          "description": "Was IBD documented as secondary to a monogenic cause?"
+        "clinical_significance": {
+          "$ref": "#/$defs/ClinicalSignificance",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Whether the patient's IBD or IBD-like intestinal inflammation is documented as secondary to a monogenic or syndromic genetic disorder. PATHOGENIC: pathogenic genetic diagnosis is documented as causing or explaining the intestinal disease. LIKELY_PATHOGENIC: likely pathogenic genetic diagnosis is documented as causing or explaining the intestinal disease. UNCERTAIN: uncertain genetic finding or VUS is mentioned but not confirmed causal. LIKELY_BENIGN: likely benign finding documented. BENIGN: benign finding documented. NONE_OF_THE_ABOVE: no monogenic or syndromic secondary cause of IBD is documented. "
+        },
+        "gene_symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Gene symbol for the secondary monogenic IBD finding, if stated, normalized to an uppercase HGNC-style gene symbol when possible, such as CYBB, NCF1, NCF2, NCF4 (CGD), FOXP3 (IPEX), WAS (Wiskott-Aldrich), XIAP, BIRC4 (XLP-2), STAT1, STAT3, DOCK8 (CMC/hyper-IgE), LRBA, CTLA4.",
+          "title": "Gene Symbol"
         }
       },
       "required": [
@@ -64,20 +105,69 @@
       ],
       "title": "MonogenicSecondaryMention",
       "type": "object"
+    },
+    "PharmacogenomicsMention": {
+      "description": "Patient's TPMT or NUDT15 result, simplified for thiopurine dosing safety.\n\nCapture results reported as metabolizer status (e.g., normal/intermediate/poor),\nenzyme activity (e.g., low/normal TPMT activity), or genotype (e.g., TPMT *1/*1,\nTPMT *1/*3A). All three routes inform the same dosing decision.\n\nExamples:\n* \"TPMT normal metabolizer\" -> NORMAL\n\n* \"TPMT intermediate metabolizer\" -> ABNORMAL\n* \"TPMT *1/*3A, reduced activity\" -> ABNORMAL\n* \"low TPMT activity\" -> ABNORMAL\n* \"NUDT15 intermediate metabolizer\" -> ABNORMAL\n* \"TPMT pending\" -> NONE_OF_THE_ABOVE\n\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.\nDo not extract pending or carrier-only TPMT/NUDT15 results.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "metabolizer_status": {
+          "$ref": "#/$defs/LabInterpretationNormal",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Simplified TPMT or NUDT15 result. NORMAL: normal metabolizer, normal enzyme activity, or wild-type genotype such as TPMT *1/*1. ABNORMAL: intermediate or poor metabolizer, reduced or absent enzyme activity, or any non-wild-type genotype documented as altering thiopurine metabolism. NONE_OF_THE_ABOVE: no TPMT or NUDT15 result is documented."
+        },
+        "gene_symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Thiopurine-relevant gene tested, as TPMT or NUDT15. Use null if no specific gene is named.",
+          "title": "Gene Symbol"
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "PharmacogenomicsMention",
+      "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to genetic findings related to IBD.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
-    "monogenic_primary_mention": {
+    "monogenic_primary": {
       "$ref": "#/$defs/MonogenicPrimaryMention"
     },
-    "monogenic_secondary_mention": {
+    "monogenic_secondary": {
       "$ref": "#/$defs/MonogenicSecondaryMention"
+    },
+    "pharmacogenomics": {
+      "items": {
+        "$ref": "#/$defs/PharmacogenomicsMention"
+      },
+      "title": "Pharmacogenomics",
+      "type": "array"
     }
   },
   "required": [
-    "monogenic_primary_mention",
-    "monogenic_secondary_mention"
+    "monogenic_primary",
+    "monogenic_secondary",
+    "pharmacogenomics"
   ],
   "title": "IbdGeneticFindingsAnnotation",
   "type": "object"

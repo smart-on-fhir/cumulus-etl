@@ -1,38 +1,38 @@
 {
   "$defs": {
     "AnatomicSegment": {
-      "description": "GI segments relevant to IBD endoscopic assessment.\nIncludes upper GI (CD), lower GI (CD + UC), and post-surgical anatomy.",
       "enum": [
-        "esophagus",
-        "stomach",
-        "duodenum",
-        "jejunum",
-        "proximal_ileum",
-        "neoterminal_ileum",
-        "terminal_ileum",
-        "ileocecal_valve",
-        "cecum",
-        "ascending_colon",
-        "hepatic_flexure",
-        "transverse_colon",
-        "splenic_flexure",
-        "descending_colon",
-        "sigmoid_colon",
-        "rectosigmoid",
-        "rectum",
-        "anus",
-        "anastomosis",
-        "ileal_pouch",
-        "pouch_inlet",
-        "afferent_limb",
-        "rectal_cuff",
-        "stoma",
-        "unspecified"
+        "ESOPHAGUS",
+        "STOMACH",
+        "DUODENUM",
+        "JEJUNUM",
+        "PROXIMAL_ILEUM",
+        "NEOTERMINAL_ILEUM",
+        "TERMINAL_ILEUM",
+        "ILEOCECAL_VALVE",
+        "CECUM",
+        "ASCENDING_COLON",
+        "HEPATIC_FLEXURE",
+        "TRANSVERSE_COLON",
+        "SPLENIC_FLEXURE",
+        "DESCENDING_COLON",
+        "SIGMOID_COLON",
+        "RECTOSIGMOID",
+        "RECTUM",
+        "ANUS",
+        "ANASTOMOSIS",
+        "ILEAL_POUCH",
+        "POUCH_INLET",
+        "AFFERENT_LIMB",
+        "RECTAL_CUFF",
+        "STOMA",
+        "UNSPECIFIED"
       ],
       "title": "AnatomicSegment",
       "type": "string"
     },
     "AnatomicSegmentMention": {
+      "description": "GI segments relevant to IBD endoscopic assessment.\nIncludes upper GI (CD), lower GI (CD + UC), and post-surgical anatomy.\n\nUse the most specific segment stated in the note.\n\nIf a finding is described but the segment is not stated, use UNSPECIFIED.\n\nDo not infer a segment from disease subtype or typical IBD distribution.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -49,7 +49,7 @@
         },
         "anatomic_segment": {
           "$ref": "#/$defs/AnatomicSegment",
-          "default": "unspecified",
+          "default": "UNSPECIFIED",
           "description": "Anatomic segment of endoscopic procedure"
         }
       },
@@ -100,6 +100,7 @@
       "type": "object"
     },
     "EndoscopyMention": {
+      "description": "Endoscopic procedure documented in the note.\n\nCapture the procedure type and exam-level features such as the most proximal\nsegment reached, skip lesions, rectal involvement, upper GI involvement, and\nileal involvement.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -200,17 +201,17 @@
     },
     "EndoscopyProcedure": {
       "enum": [
-        "ileocolonoscopy",
-        "colonoscopy",
-        "flexible_sigmoidoscopy",
-        "proctoscopy",
-        "egd",
-        "push_enteroscopy",
-        "balloon_enteroscopy",
-        "capsule_endoscopy",
-        "pouchoscopy",
-        "exam_under_anesthesia",
-        "unknown"
+        "ILEOCOLONOSCOPY",
+        "COLONOSCOPY",
+        "FLEXIBLE_SIGMOIDOSCOPY",
+        "PROCTOSCOPY",
+        "EGD",
+        "PUSH_ENTEROSCOPY",
+        "BALLOON_ENTEROSCOPY",
+        "CAPSULE_ENDOSCOPY",
+        "POUCHOSCOPY",
+        "EXAM_UNDER_ANESTHESIA",
+        "UNKNOWN"
       ],
       "title": "EndoscopyProcedure",
       "type": "string"
@@ -232,10 +233,17 @@
           "type": "array"
         },
         "present": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
           "default": null,
           "description": "fistula present",
-          "title": "Present",
-          "type": "boolean"
+          "title": "Present"
         },
         "count": {
           "anyOf": [
@@ -262,31 +270,31 @@
     "MucosalAppearance": {
       "description": "Elemental mucosal descriptors. Multiple may apply to a single segment.\nIntentionally fine-grained so downstream code can compose any score.",
       "enum": [
-        "normal",
-        "pale",
-        "erythema",
-        "edema",
-        "loss_of_vascular_pattern",
-        "decreased_vascular_pattern",
-        "granularity",
-        "friability",
-        "spontaneous_bleeding",
-        "exudate",
-        "mucopus",
-        "cobblestoning",
-        "pseudopolyps",
-        "inflammatory_polyps",
-        "scarring",
-        "mucosal_atrophy",
-        "lead_pipe_appearance",
-        "nodularity",
-        "aphthous_lesions"
+        "NORMAL",
+        "PALE",
+        "ERYTHEMA",
+        "EDEMA",
+        "LOSS_OF_VASCULAR_PATTERN",
+        "DECREASED_VASCULAR_PATTERN",
+        "GRANULARITY",
+        "FRIABILITY",
+        "SPONTANEOUS_BLEEDING",
+        "EXUDATE",
+        "MUCOPUS",
+        "COBBLESTONING",
+        "PSEUDOPOLYPS",
+        "INFLAMMATORY_POLYPS",
+        "SCARRING",
+        "MUCOSAL_ATROPHY",
+        "LEAD_PIPE_APPEARANCE",
+        "NODULARITY",
+        "APHTHOUS_LESIONS"
       ],
       "title": "MucosalAppearance",
       "type": "string"
     },
     "MucosalAppearanceMention": {
-      "description": "A single mucosal appearance descriptor mentioned for a bowel segment.\n\nUse multiple MucosalAppearanceMention objects when more than one descriptor\napplies to the same segment.",
+      "description": "A single mucosal appearance descriptor mentioned for a bowel segment.\n\nUse multiple MucosalAppearanceMention objects when more than one descriptor applies to the same segment.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -315,7 +323,7 @@
       "type": "object"
     },
     "PhysicianGlobalAssessmentMention": {
-      "description": "Physician global assessment (PGA) of overall endoscopic disease severity.\n\nChart review instruction:\nCapture the endoscopist's overall qualitative impression of inflammatory\nseverity for the bowel segment or exam being described. Prefer explicit\nsummary statements such as \"normal\", \"minimal disease\", \"mild colitis\",\n\"moderate inflammation\", or \"severe active disease\".\n\nDo not calculate or infer a score.\nDo not upcode based only on individual findings such as erythema,\nfriability, erosions, or ulcers unless the report also gives an overall\nseverity impression.\n\nUse:\n- NONE: explicitly no active inflammatory disease / normal / remission\n- MINIMAL: explicitly minimal disease or minimal activity\n- MILD: explicitly mild disease/activity/inflammation/colitis\n- MODERATE: explicitly moderate disease/activity/inflammation/colitis\n- SEVERE: explicitly severe disease/activity/inflammation/colitis\n- NONE_OF_THE_ABOVE: no clear overall physician global assessment stated",
+      "description": "Physician overall qualitative assessment of endoscopic disease severity.\n\nCapture only an explicitly stated overall impression, such as normal,\nminimal, mild, moderate, or severe disease/activity.\n\nDo not calculate severity from individual findings such as erythema, friability, erosions, or ulcers.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -333,7 +341,7 @@
         "physician_global_assessment": {
           "$ref": "#/$defs/SeverityQualifier",
           "default": "NONE_OF_THE_ABOVE",
-          "description": "Physician overall free-text global assessment of endoscopic severity. Record only an explicitly stated overall severity impression, not a derived score. NONE: no active inflammatory disease or normal/remission; MINIMAL: minimal disease/activity; MILD: mild disease/activity; MODERATE: moderate disease/activity; SEVERE: severe disease/activity; NONE_OF_THE_ABOVE: no explicit overall physician global assessment is documented."
+          "description": "Explicit overall endoscopic severity impression. NONE: normal, remission, or no active inflammatory disease; MINIMAL: minimal disease/activity; MILD: mild disease/activity; MODERATE: moderate disease/activity; SEVERE: severe disease/activity; NONE_OF_THE_ABOVE: no explicit overall severity impression is documented."
         }
       },
       "required": [
@@ -418,7 +426,6 @@
       "type": "object"
     },
     "SeverityQualifier": {
-      "description": "Free-text severity descriptor as documented by the endoscopist.\nNOT a score. Downstream endpoint code may translate, but this field\nonly captures what the report says.",
       "enum": [
         "NONE",
         "MINIMAL",
@@ -432,12 +439,12 @@
     },
     "StenosisCharacter": {
       "enum": [
-        "none",
-        "inflammatory",
-        "fibrotic",
-        "mixed",
-        "anastomotic",
-        "unspecified"
+        "NONE",
+        "INFLAMMATORY",
+        "FIBROTIC",
+        "MIXED",
+        "ANASTOMOTIC",
+        "UNSPECIFIED"
       ],
       "title": "StenosisCharacter",
       "type": "string"
@@ -460,7 +467,7 @@
         },
         "character": {
           "$ref": "#/$defs/StenosisCharacter",
-          "default": "none",
+          "default": "NONE",
           "description": "Stenosis character"
         }
       },
@@ -473,11 +480,11 @@
     },
     "UlcerDepth": {
       "enum": [
-        "erosion",
-        "superficial_ulcer",
-        "deep_ulcer",
-        "excavated_ulcer",
-        "unspecified"
+        "EROSION",
+        "SUPERFICIAL_ULCER",
+        "DEEP_ULCER",
+        "EXCAVATED_ULCER",
+        "UNSPECIFIED"
       ],
       "title": "UlcerDepth",
       "type": "string"
@@ -561,20 +568,20 @@
     },
     "UlcerShape": {
       "enum": [
-        "aphthous",
-        "round",
-        "linear",
-        "serpiginous",
-        "stellate",
-        "geographic",
-        "longitudinal",
-        "unspecified"
+        "APHTHOUS",
+        "ROUND",
+        "LINEAR",
+        "SERPIGINOUS",
+        "STELLATE",
+        "GEOGRAPHIC",
+        "LONGITUDINAL",
+        "UNSPECIFIED"
       ],
       "title": "UlcerShape",
       "type": "string"
     }
   },
-  "description": "Document-level extraction of endoscopic findings from a single colonoscopy\nor sigmoidoscopy report. Disease-agnostic at the extraction layer; Mayo\nendoscopic subscore and SES-CD derivation are computed downstream.\n\nVariables:\n* procedure: Procedure metadata including type, extent of examination, and preparation quality.\n* continuous: Whether mucosal involvement follows a continuous (UC-typical) or skip-lesion pattern.\n* segment_findings: Per-segment endoscopic findings (e.g., erythema, ulceration, stenosis) for each examined anatomical segment.\n* endoscopist_global_assessment: Endoscopist's overall impression of disease activity or mucosal appearance.",
+  "description": "Document-level extraction of endoscopic findings from a single endoscopy report or endoscopy-related note section.\n\nVariables:\n* procedure: Procedure type, exam extent, and exam-level involvement flags.\n* continuous: Whether inflammatory involvement is described as continuous or discontinuous/patchy/skip.\n* segment_findings:  Per-segment endoscopic findings such as mucosal appearance, ulceration, stenosis, or fistula orifice.\n* physician_global_assessment: Physician's explicit overall impression of endoscopic disease severity.",
   "properties": {
     "procedure": {
       "$ref": "#/$defs/EndoscopyMention"
@@ -590,9 +597,9 @@
       "title": "Segment Findings",
       "type": "array"
     },
-    "endoscopist_global_assessment": {
+    "physician_global_assessment": {
       "$ref": "#/$defs/PhysicianGlobalAssessmentMention",
-      "description": "Endoscopist global assessment."
+      "description": "Physician global assessment."
     }
   },
   "required": [

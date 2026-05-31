@@ -1,6 +1,7 @@
 {
   "$defs": {
     "AgeAtDiagnosisMention": {
+      "description": "Patient's age at the time of their initial IBD diagnosis, in completed months.\n\nDo not derive age from documented diagnosis dates combined with date of birth.\n\nDo not extract IBD family history, IBD negated, IBD rule-out, or IBD suspected/probable/working-diagnosis.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -18,6 +19,8 @@
         "age_at_diagnosis_months": {
           "anyOf": [
             {
+              "maximum": 300,
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -25,7 +28,7 @@
             }
           ],
           "default": null,
-          "description": "How many months old was the patient at IBD diagnosis?",
+          "description": "Patient's age in completed months at the time of their first IBD diagnosis. Extract only when the note explicitly states the patient's age at IBD diagnosis (e.g., 'diagnosed at 18 months', 'IBD diagnosed at age 4'). For ages stated in years, use the floor in months (age 4 -> 48).",
           "title": "Age At Diagnosis Months"
         }
       },
@@ -36,7 +39,17 @@
       "title": "AgeAtDiagnosisMention",
       "type": "object"
     },
+    "DatePrecision": {
+      "enum": [
+        "DAY",
+        "MONTH",
+        "YEAR"
+      ],
+      "title": "DatePrecision",
+      "type": "string"
+    },
     "DiagnosisDateEndoscopyMention": {
+      "description": "Date of the endoscopic procedure that first established the patient's IBD diagnosis.\n\nIf multiple endoscopic procedures are described, use the earliest one that established the IBD diagnosis.\nPrefer the procedure date over the pathology confirmation date.\n\nDo not extract from surveillance endoscopies or endoscopies that did not establish the IBD diagnosis.\n\nDo not extract IBD family history, IBD negated, IBD rule-out, or IBD suspected/probable/working-diagnosis.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -61,8 +74,20 @@
             }
           ],
           "default": null,
-          "description": "What was the date of IBD diagnosis confirmed by endoscopy? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
+          "description": "Date of the endoscopic procedure that first established the IBD diagnosis, in ISO YYYY-MM-DD format (e.g. 2021-01-15). Always emit a full YYYY-MM-DD value. If only month or year precision is supported by the text, use the first possible date consistent with it (January 2021 -> 2021-01-01; 2021 -> 2021-01-01) and record the actual precision in ibd_diagnosis_date_endoscopy_precision.",
           "title": "Ibd Diagnosis Date Endoscopy"
+        },
+        "ibd_diagnosis_date_endoscopy_precision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatePrecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Precision actually supported by the source text for ibd_diagnosis_date_endoscopy. DAY: day, month, and year were explicitly stated; MONTH: month and year were explicitly stated; YEAR: only year was explicitly stated; Use Null when ibd_diagnosis_date_endoscopy is null."
         }
       },
       "required": [
@@ -73,6 +98,7 @@
       "type": "object"
     },
     "DiagnosisDateMention": {
+      "description": "Date on which the patient was first diagnosed with IBD (any subtype).\n\nIf multiple IBD diagnoses are described (e.g., original diagnosis and later reclassification), use the earliest.\nExtract documented IBD diagnoses in any evidence source, including endoscopic procedures.\n\nDo not extract IBD family history, IBD negated, IBD rule-out, or IBD suspected/probable/working-diagnosis.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -97,8 +123,20 @@
             }
           ],
           "default": null,
-          "description": "What was the date of IBD diagnosis? Use YYYY-MM-DD format in your response. Annotations MUST include day, month, and year (e.g. 01/15/2021). If you have Month or Year level precision, your annotation should take the form of the first possible date consistent with that annotation.",
+          "description": "Earliest date on which IBD is affirmatively documented as a diagnosis, in ISO YYYY-MM-DD format (e.g. 2021-01-15). Always emit a full YYYY-MM-DD value. If only month or year precision is supported by the text, use the first possible date consistent with it (January 2021 -> 2021-01-01; 2021 -> 2021-01-01) and record the actual precision in ibd_diagnosis_date_precision.",
           "title": "Ibd Diagnosis Date"
+        },
+        "ibd_diagnosis_date_precision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatePrecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Precision actually supported by the source text for ibd_diagnosis_date. DAY: day, month, and year were explicitly stated; MONTH: month and year were explicitly stated; YEAR: only year was explicitly stated; Use null when ibd_diagnosis_date is null."
         }
       },
       "required": [
@@ -119,7 +157,7 @@
       "type": "string"
     },
     "IBDActivityAndSeverityMention": {
-      "description": "Current documented IBD disease activity and severity.\n\nExtract current disease activity separately from severity.\n\nExamples:\n* \"IBD in remission\" -> activity=REMISSION, severity=NONE_OF_THE_ABOVE\n* \"active Crohn's disease\" -> activity=ACTIVE, severity=NONE_OF_THE_ABOVE\n* \"mild disease\" -> activity=ACTIVE, severity=MILD\n* \"mild to moderate disease\" -> activity=ACTIVE, severity=MILD_TO_MODERATE\n* \"moderate disease\" -> activity=ACTIVE, severity=MODERATE\n* \"moderate to severe disease\" -> activity=ACTIVE, severity=MODERATE_TO_SEVERE\n* \"severe disease\" -> activity=ACTIVE, severity=SEVERE\n\nPreserve the exact supporting phrase in spans.\n\nIf a severity term is negated, such as \"no severe disease\", do not assign\nthat severity level unless another non-negated severity is documented.\n\nIf multiple severities are documented for different anatomic segments,\nsuch as \"severe proctitis with mild left-sided involvement\", use the\nhighest documented severity.\n\nDo not infer severity from medication intensity alone.\nDo not use historical severity if the note says the patient is now in remission.\nDo not classify family history as patient disease activity or severity.",
+      "description": "Current documented IBD disease activity and severity.\n\nExamples:\n* \"IBD in remission\" -> activity=REMISSION, severity=NONE_OF_THE_ABOVE\n* \"active Crohn's disease\" -> activity=ACTIVE, severity=NONE_OF_THE_ABOVE\n* \"mild disease\" -> activity=ACTIVE, severity=MILD\n* \"mild to moderate disease\" -> activity=ACTIVE, severity=MILD_TO_MODERATE\n* \"moderate disease\" -> activity=ACTIVE, severity=MODERATE\n* \"moderate to severe disease\" -> activity=ACTIVE, severity=MODERATE_TO_SEVERE\n* \"severe disease\" -> activity=ACTIVE, severity=SEVERE\n\nIf a severity is negated (e.g., \"no severe disease\"), do not assign that severity.\n\nIf multiple severities appear for different anatomic segments\n(e.g., \"severe proctitis with mild left-sided involvement\"), use the highest severity.\n\nDo not infer severity from medication intensity, and do not use historical severity if the patient is now in remission.\n\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -167,15 +205,17 @@
     },
     "IBDType": {
       "enum": [
-        "Crohn's disease",
-        "Ulcerative Colitis",
-        "IBD unclassified",
-        "None of the above (e.g. not mentioned, patient does not have IBD, etc)"
+        "CD",
+        "UC",
+        "IBDU",
+        "IBD_NOS",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "IBDType",
       "type": "string"
     },
     "IBDTypeMention": {
+      "description": "Patient's documented IBD subtype.\n\nIf multiple IBD subtypes appear, classify based on the most recently affirmed IBD diagnosis in this note.\n\nCaptures explicit diagnostic statements only; do not infer subtype from\nsymptoms, medication use, imaging findings, endoscopy findings, or pathology\nfindings unless the note states the diagnosis or subtype.\n\nDo not extract negated IBD, rule-out IBD, suspected/probable/working-diagnosis IBD, or non-IBD colitis.\nDo not extract a family history of IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -192,8 +232,8 @@
         },
         "ibd_type": {
           "$ref": "#/$defs/IBDType",
-          "default": "None of the above (e.g. not mentioned, patient does not have IBD, etc)",
-          "description": "Which subtype of inflammatory bowel disease (IBD) is documented for this patient?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Documented IBD subtype using only evidence from this note. Choose exactly one value. CD: Crohn's disease, Crohn colitis, or regional enteritis; UC: ulcerative colitis, ulcerative proctitis, or ulcerative pancolitis; IBDU: formal diagnosis of IBD-unclassified, IBD-U, or indeterminate colitis; IBD_NOS: existing patient IBD diagnosis documented not classified as CD, UC, or formal IBDU; also use for generic phrases such as 'follow-up for IBD'; NONE_OF_THE_ABOVE: no patient-level IBD diagnosis is documented in this note. "
         }
       },
       "required": [
@@ -204,7 +244,7 @@
       "type": "object"
     }
   },
-  "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to initial diagnosis and current disease status.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
+  "description": "Patient-level IBD diagnosis annotations extracted from a single clinical note.\n\nCaptures the patient's IBD subtype, age at first diagnosis, first diagnosis date,\ndiagnostic endoscopy date when documented, and current disease activity/severity.\n\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
   "properties": {
     "ibd_type": {
       "$ref": "#/$defs/IBDTypeMention"

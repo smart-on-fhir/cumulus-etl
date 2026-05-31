@@ -26,7 +26,7 @@ Here is the clinical document for you to analyze:
 
 %CLINICAL-NOTE%
 """
-
+ 
 models = [
     "claude-sonnet45",
     "gpt51",
@@ -38,55 +38,63 @@ models = [
 name = "diagnosis"
 response-schema = "ibd-diagnosis-annotation.json"
 # Version History:
+# ** 5 (2026-05): Enum Key=Value, docstrings updated, (+) IBD_NOS is distinct from IBDU (formally "unclassified").
 # ** 4 (2026-05): Adds IBD Activity and Severity; 
 #                 Minor changes to has_mention in SpanAugmentedMention
 # ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
-version = 4
+version = 5
+
 
 [[task]]
 name = "genetic_findings"
 response-schema = "ibd-genetic-findings-annotation.json"
 # Version History:
-# ** 4 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
-# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
-# ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
-# ** 1 (2026-03): Initial version
-version = 4
-
-[[task]]
-name = "paris_classification"
-response-schema = "ibd-paris-classification-annotation.json"
-# Version History:
-# ** 4 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
-# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
-# ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
-# ** 1 (2026-03): Initial version
-version = 4
-
-[[task]]
-name = "treatment"
-response-schema = "ibd-treatment-annotation.json"
-# Version History:
-# ** 6 (2026-05): Overhaul as part of https://github.com/smart-on-fhir/cumulus-library-ibd-cds/pull/99
-# ** 5 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
-# ** 4 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
-# ** 3 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
-# ** 2 (2026-03-23): New medication model
-# ** 1 (2026-03): Initial version
-version = 6
-
-[[task]]
-name = "surgery"
-response-schema = "ibd-surgery-annotation.json"
-# Version History:
-# ** 5 (2026-05): Major refactor to surgery model
+# ** 5 (2026-05): Enum Key=Value, docstrings updated, (+) genetic thiopurine tests seperated from "cause of IBD".
 # ** 4 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
 # ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
 # ** 1 (2026-03): Initial version
 version = 5
+
+
+[[task]]
+name = "paris_classification"
+response-schema = "ibd-paris-classification-annotation.json"
+# Version History:
+# ** 5 (2026-05): Enum Key=Value, docstrings updated, (+) Paris growth and age at diagnosis
+# ** 4 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
+# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
+# ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
+# ** 1 (2026-03): Initial version
+version = 5
+
+
+[[task]]
+name = "treatment"
+response-schema = "ibd-treatment-annotation.json"
+# Version History:
+# ** 7 (2026-05): JAK inhibitors added. Importantly: 150+ IBD patients
+# ** 6 (2026-05): Enum Key=Value, docstrings updated, LEFT JOIN UNNEST ADE, (+) ADE categories from Dr Collen.
+# ** 5 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
+# ** 4 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
+# ** 3 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
+# ** 2 (2026-03-23): New medication model
+# ** 1 (2026-03): Initial version
+version = 7
+
+
+[[task]]
+name = "surgery"
+response-schema = "ibd-surgery-annotation.json"
+# Version History:
+# ** 4 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class and Major refactor to surgery model
+# ** 3 (2026-04): Various changes to base-classes (e.g. SpanAugmentedMention)
+# ** 2 (2026-04): Fixes uses of irritable bowel disease (IBD) to inflammatory bowel disease (IBD)
+# ** 1 (2026-03): Initial version
+version = 4
+
 
 [[task]]
 name = "eim"
@@ -96,13 +104,16 @@ response-schema = "ibd-eim-annotation.json"
 # ** 1 (2026-04): Initial version
 version = 2
 
+
 [[task]]
 name = "endoscopy"
 response-schema = "ibd-endoscopy-annotation.json"
 # Version History:
+# ** 3 (2026-05): Enum Key=Value, docstrings updated
 # ** 2 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 1 (2026-04): Initial version
-version = 2
+version = 3
+
 
 [[task]]
 name = "mayo_score"
@@ -112,6 +123,7 @@ response-schema = "ibd-mayo-score-annotation.json"
 # ** 1 (2026-04): Initial version
 version = 2
 
+
 [[task]]
 name = "pcdai"
 response-schema = "ibd-pcdai-annotation.json"
@@ -119,6 +131,7 @@ response-schema = "ibd-pcdai-annotation.json"
 # ** 2 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 1 (2026-04): Initial version
 version = 2
+
 
 [[task]]
 name = "pucai"
@@ -128,6 +141,7 @@ response-schema = "ibd-pucai-annotation.json"
 # ** 1 (2026-04): Initial version
 version = 2
 
+
 [[task]]
 name = "sescd"
 response-schema = "ibd-sescd-annotation.json"
@@ -135,6 +149,7 @@ response-schema = "ibd-sescd-annotation.json"
 # ** 2 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 1 (2026-04): Initial version
 version = 2
+
 
 [[task]]
 name = "stooling"
@@ -144,6 +159,7 @@ response-schema = "ibd-stooling-annotation.json"
 # ** 1 (2026-04): Initial version
 version = 2
 
+
 [[task]]
 name = "uceis"
 response-schema = "ibd-uceis-annotation.json"
@@ -151,6 +167,7 @@ response-schema = "ibd-uceis-annotation.json"
 # ** 2 (2026-05): Minor changes to has_mention in SpanAugmentedMention base class
 # ** 1 (2026-04): Initial version
 version = 2
+
 
 [[task]]
 name = "document_type"

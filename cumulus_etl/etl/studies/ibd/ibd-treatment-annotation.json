@@ -28,7 +28,7 @@
       "type": "string"
     },
     "RxAdverseDrugEventMention": {
-      "description": "A mention of an adverse drug event attributed to an IBD medication.\n\nUse only when the chart links the event to medication toxicity, intolerance,\nallergy, reaction, or complication. Do not classify ordinary IBD symptoms as\nADEs unless the note documents them as medication-related.",
+      "description": "A mention of an adverse drug event (ADE) attributed to an IBD medication.\n\nUse only when the chart links the event to medication toxicity, intolerance,\nallergy, reaction, or complication. Do not classify ordinary IBD symptoms as\nADEs unless the note documents them as medication-related.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -46,7 +46,7 @@
         "ade": {
           "$ref": "#/$defs/RxAdverseDrugEvent",
           "default": "NONE_OF_THE_ABOVE",
-          "description": "Treatment-limiting adverse drug event category for this IBD medication, when the note attributes the event to the drug. Most categories match their name. CORTICOSTEROID_TOXICITY covers Cushingoid features, growth suppression, bone, metabolic, ocular, and mood/behavioral steroid effects. INFUSION_OR_HYPERSENSITIVITY_REACTION covers infusion reactions, injection-site reactions, serum sickness, and acute allergic reactions. Skin cancer is CANCER, not SKIN. Acute drug-administration reactions are INFUSION_OR_HYPERSENSITIVITY_REACTION, not SKIN. NONE_OF_THE_ABOVE if no drug-attributed ADE is documented, the event is not treatment-limiting, or it fits no category above."
+          "description": "Treatment-limiting ADE category for this IBD medication, when the note attributes the ADE to the drug. Choose one: INFECTION: serious/opportunistic infection, TB, sepsis, abscess, pneumonia; BLOOD: low WBC, leukopenia, neutropenia, anemia, thrombocytopenia, pancytopenia, or bone marrow suppression; LIVER: elevated liver enzymes, hepatitis, hepatotoxicity, or liver injury; PANCREAS: pancreatitis or pancreatic enzyme elevation; NEUROLOGIC: demyelination, neuropathy, seizure, PML, or severe neurologic toxicity; KIDNEY: nephrotoxicity, nephritis, renal injury, AKI, or kidney dysfunction; CORTICOSTEROID_TOXICITY: steroid-attributed toxicity such as Cushingoid features, stunting/linear growth suppression, osteopenia/osteoporosis/low bone density, striae, steroid acne, sleep disturbance, metabolic, ocular, or mood/behavioral effects; INFUSION_OR_HYPERSENSITIVITY_REACTION: infusion reaction, injection-site reaction, anaphylaxis, serum sickness, or acute allergic reaction; CANCER: malignancy, lymphoma, or skin cancer; SKIN: non-cancer skin toxicity, such as rash, psoriasis, eczema, alopecia, severe skin reaction, or acneiform eruption; NONE_OF_THE_ABOVE: no drug-attributed ADE, event is not treatment-limiting, or the ADE does not fit any category above. Skin cancer is CANCER, not SKIN. Steroid acne and steroid-induced striae are CORTICOSTEROID_TOXICITY, not SKIN. Acute drug-administration reactions are INFUSION_OR_HYPERSENSITIVITY_REACTION, not SKIN."
         }
       },
       "required": [
@@ -102,6 +102,7 @@
         "AMINOSALICYLATE",
         "CORTICOSTEROID",
         "IMMUNOMODULATOR",
+        "JAK_INHIBITOR",
         "NONE_OF_THE_ABOVE"
       ],
       "title": "RxClass",
@@ -126,7 +127,7 @@
         "rx_class": {
           "$ref": "#/$defs/RxClass",
           "default": "NONE_OF_THE_ABOVE",
-          "description": "IBD medication class for this medication. Choose one: ANTI_TNF: for infliximab/Remicade and biosimilars, adalimumab/Humira and biosimilars, golimumab/Simponi, or certolizumab/Cimzia; ANTI_INTERLEUKIN: for ustekinumab/Stelara and biosimilars such as Starjemza, or risankizumab/Skyrizi; ANTI_INTEGRIN: for vedolizumab/Entyvio or natalizumab/Tysabri; AMINOSALICYLATE: for mesalamine/5-ASA names such as Pentasa, Lialda, Apriso, Asacol, Delzicol, Rowasa, Canasa, sulfasalazine, balsalazide, or olsalazine; CORTICOSTEROID: for prednisone, methylprednisolone/Solu-Medrol, hydrocortisone/Solu-Cortef, or budesonide when used as IBD therapy; IMMUNOMODULATOR: for azathioprine/Imuran, mercaptopurine/6-MP/Purinethol, methotrexate, tacrolimus, or cyclosporine; NONE_OF_THE_ABOVE: if no IBD medication class can be inferred, the class is unclear, or the medication is outside these classes, such as antibiotics, antiemetics, iron, vaccines, fluids."
+          "description": "IBD medication class for this medication. Choose one: ANTI_TNF: for infliximab/Remicade and biosimilars, adalimumab/Humira and biosimilars, golimumab/Simponi, or certolizumab/Cimzia; ANTI_INTERLEUKIN: for ustekinumab/Stelara and biosimilars such as Starjemza, or risankizumab/Skyrizi; ANTI_INTEGRIN: for vedolizumab/Entyvio or natalizumab/Tysabri; AMINOSALICYLATE: for mesalamine/5-ASA names such as Pentasa, Lialda, Apriso, Asacol, Delzicol, Rowasa, Canasa, sulfasalazine, balsalazide, or olsalazine; CORTICOSTEROID: for prednisone, methylprednisolone/Solu-Medrol, hydrocortisone/Solu-Cortef, or budesonide when used as IBD therapy; IMMUNOMODULATOR: for azathioprine/Imuran, mercaptopurine/6-MP/Purinethol, methotrexate, tacrolimus, or cyclosporine; JAK_INHIBITOR: for tofacitinib/Xeljanz, upadacitinib/Rinvoq, or filgotinib/Jyseleca; NONE_OF_THE_ABOVE: if no IBD medication class can be inferred, the class is unclear, or the medication is outside these classes, such as antibiotics, antiemetics, iron, vaccines, fluids."
         }
       },
       "required": [

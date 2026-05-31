@@ -2,17 +2,18 @@
   "$defs": {
     "CDParisBehaviorExclusive": {
       "enum": [
-        "B1: nonstricturing, nonpenetrating",
-        "B2: stricturing",
-        "B3: penetrating",
-        "B2B3: both penetrating and stricturing disease, either at the same or different times",
-        "Unknown/unclear",
-        "None of the above (e.g. not mentioned, patient does not have CD, etc)"
+        "B1",
+        "B2",
+        "B3",
+        "B2B3",
+        "UNKNOWN",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "CDParisBehaviorExclusive",
       "type": "string"
     },
     "CDParisBehaviorExclusiveMention": {
+      "description": "Mutually exclusive Crohn's disease Paris behavior.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -29,8 +30,8 @@
         },
         "behavior": {
           "$ref": "#/$defs/CDParisBehaviorExclusive",
-          "default": "None of the above (e.g. not mentioned, patient does not have CD, etc)",
-          "description": "What was the Crohn's disease (CD) behavior using the Paris classification?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Mutually exclusive Crohn's disease Paris behavior. B1: nonstricturing, nonpenetrating; B2: stricturing, including fixed narrowing, stenosis, or obstruction attributed to Crohn's disease; B3: penetrating, including intra-abdominal fistula, sinus tract, inflammatory mass, phlegmon, abscess, or perforation attributed to Crohn's disease. Do not use B3 for isolated perianal disease alone; B2B3: both stricturing and penetrating Crohn's disease are documented, either at the same time or at different times; UNKNOWN: Crohn's disease is documented, but behavior is unknown or unclear; NONE_OF_THE_ABOVE: None of the above, such as not mentioned, patient does not have Crohn's disease."
         }
       },
       "required": [
@@ -41,6 +42,7 @@
       "type": "object"
     },
     "CDParisBehaviorPerianalModifierMention": {
+      "description": "Crohn's disease Paris perianal disease modifier.\n\nDo not use PRESENT for nonspecific hemorrhoids, skin tags, fissures, rectal pain, or perianal symptoms\nunless attributed to Crohn's disease.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -56,10 +58,9 @@
           "type": "array"
         },
         "perianal_disease": {
-          "default": false,
-          "description": "Did the patient have Crohn's disease (CD) with perianal disease?",
-          "title": "Perianal Disease",
-          "type": "boolean"
+          "$ref": "#/$defs/ParisModifierStatus",
+          "default": "NOT_MENTIONED",
+          "description": "Crohn's disease Paris perianal disease modifier. PRESENT: documented Crohn's related perianal disease, such as perianal fistula, perianal abscess, seton placement, rectovaginal fistula, or perianal surgery for Crohn's disease; ABSENT: documented Crohn's disease and perianal disease is explicitly absent, ruled out, or described as not involved; UNKNOWN: Crohn's disease is documented and possible perianal disease is mentioned, but attribution to Crohn's disease is unclear; NOT_MENTIONED: perianal disease is not addressed, or the patient does not have Crohn's disease. "
         }
       },
       "required": [
@@ -72,17 +73,17 @@
     "CDParisLocationExclusive": {
       "description": "L1, L2, L3 are mutually exclusive, L4a and L4b are not mutually exclusive.",
       "enum": [
-        "L1: distal 1/3 ileum +/- limited cecal disease",
-        "L2: colonic",
-        "L3: ileocolonic",
-        "Other location",
-        "Unknown/unclear location",
-        "None of the above (e.g. not mentioned, patient does not have CD, etc)"
+        "L1",
+        "L2",
+        "L3",
+        "UNKNOWN",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "CDParisLocationExclusive",
       "type": "string"
     },
     "CDParisLocationExclusiveMention": {
+      "description": "Mutually exclusive lower-GI Crohn's disease Paris location.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -99,8 +100,8 @@
         },
         "location": {
           "$ref": "#/$defs/CDParisLocationExclusive",
-          "default": "None of the above (e.g. not mentioned, patient does not have CD, etc)",
-          "description": "What is the Crohn's disease (CD) location using the Paris classification ?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Mutually exclusive Crohn's disease Paris lower-GI location. L1: distal 1/3 ileum with or without limited cecal disease; L2: colonic disease without ileal involvement; L3: ileocolonic disease; UNKNOWN: Crohn's disease is documented, but the lower-GI location is unknown or unclear, including upper-GI Crohn's disease without documented L1/L2/L3 location; NONE_OF_THE_ABOVE: None of the above (e.g. not mentioned, patient does not have CD, etc)"
         }
       },
       "required": [
@@ -111,6 +112,7 @@
       "type": "object"
     },
     "CDParisLocationL4aMention": {
+      "description": "Crohn's disease Paris L4a modifier.\n\nUse when Crohn's disease involves the upper GI tract *PROXIMAL* to the\nLigament of Treitz, such as esophageal, gastric, or duodenal Crohn's disease.\n\nDo not use PRESENT for nonspecific gastritis, reflux, vomiting, abdominal pain, or\nunrelated upper-GI symptoms unless attributed to Crohn's disease.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -126,10 +128,9 @@
           "type": "array"
         },
         "l4a": {
-          "default": false,
-          "description": "Does the patient have Crohn's disease (CD) with Paris classification L4a: upper disease proximal to the Ligament of Treitz?",
-          "title": "L4A",
-          "type": "boolean"
+          "$ref": "#/$defs/ParisModifierStatus",
+          "default": "NOT_MENTIONED",
+          "description": "Crohn's disease Paris L4a modifier. PRESENT: documented Crohn's involvement proximal to the Ligament of Treitz. ABSENT: documented Crohn's disease and L4a/proximal upper-GI involvement is explicitly absent, ruled out, or described as not involved. UNKNOWN: Crohn's disease is documented and upper-GI involvement is mentioned, but the location is unclear or cannot be assigned to L4a versus L4b. NOT_MENTIONED: L4a is not addressed, or the patient does not have Crohn's disease. "
         }
       },
       "required": [
@@ -140,6 +141,7 @@
       "type": "object"
     },
     "CDParisLocationL4bMention": {
+      "description": "Crohn's disease Paris L4b modifier.\n\nUse when Crohn's disease involves the upper small bowel *DISTAL* to the\nLigament of Treitz and proximal to the distal 1/3 ileum, such as jejunal\nor proximal ileal Crohn's disease.\n\nDo not use PRESENT for nonspecific abdominal pain, nonspecific enteritis,\nnonspecific small-bowel inflammation, or unrelated GI symptoms unless\nattributed to Crohn's disease.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -155,10 +157,9 @@
           "type": "array"
         },
         "l4b": {
-          "default": false,
-          "description": "Does the patient have Crohn's disease (CD) with Paris classification L4b: upper disease distal to the Ligament of Treitz and proximal to distal 1/3 ileum?",
-          "title": "L4B",
-          "type": "boolean"
+          "$ref": "#/$defs/ParisModifierStatus",
+          "default": "NOT_MENTIONED",
+          "description": "Crohn's disease Paris L4b modifier. PRESENT: documented Crohn's involvement distal to the Ligament of Treitz and proximal to the distal 1/3 ileum, such as jejunal or proximal ileal Crohn's; ABSENT: documented Crohn's disease and L4b/proximal small-bowel involvement is explicitly absent, ruled out, or described as not involved; UNKNOWN: Crohn's disease is documented and upper-GI or proximal small-bowel involvement is mentioned, but the location is unclear or cannot be assigned to L4a versus L4b; NOT_MENTIONED: L4b is not addressed, or the patient does not have Crohn's disease. "
         }
       },
       "required": [
@@ -168,19 +169,111 @@
       "title": "CDParisLocationL4bMention",
       "type": "object"
     },
+    "ParisAgeAtDiagnosis": {
+      "enum": [
+        "A1A",
+        "A1B",
+        "A2",
+        "A3",
+        "UNKNOWN",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "ParisAgeAtDiagnosis",
+      "type": "string"
+    },
+    "ParisAgeAtDiagnosisMention": {
+      "description": "Paris age at IBD diagnosis.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "age_at_diagnosis": {
+          "$ref": "#/$defs/ParisAgeAtDiagnosis",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Paris age at IBD diagnosis. A1A: birth to <10 years; A1B: 10 \u2264 age < 17; A2: 17 \u2264 age \u2264 40; A3: >40 years; UNKNOWN: age at diagnosis is discussed but cannot be classified;NONE_OF_THE_ABOVE: none of the above or age at diagnosis is not documented in this note."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "ParisAgeAtDiagnosisMention",
+      "type": "object"
+    },
+    "ParisGrowth": {
+      "enum": [
+        "G0",
+        "G1",
+        "UNKNOWN",
+        "NONE_OF_THE_ABOVE"
+      ],
+      "title": "ParisGrowth",
+      "type": "string"
+    },
+    "ParisGrowthMention": {
+      "description": "Paris growth effect.",
+      "properties": {
+        "has_mention": {
+          "description": "Indicates whether the concept was mentioned in the text.",
+          "title": "Has Mention",
+          "type": "boolean"
+        },
+        "spans": {
+          "description": "The verbatim text where this concept was mentioned.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Spans",
+          "type": "array"
+        },
+        "growth": {
+          "$ref": "#/$defs/ParisGrowth",
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Paris growth effect. G1: growth delay, growth failure, impaired linear growth, or short stature attributed to IBD or explicitly documented as Paris G1; G0: only when the note explicitly documents no growth delay or normal growth status; UNKNOWN: growth is discussed but Paris growth status cannot be determined.NONE_OF_THE_ABOVE: none of the above or growth status is not documented in this note."
+        }
+      },
+      "required": [
+        "has_mention",
+        "spans"
+      ],
+      "title": "ParisGrowthMention",
+      "type": "object"
+    },
+    "ParisModifierStatus": {
+      "description": "Status for non-exclusive Paris modifiers.",
+      "enum": [
+        "PRESENT",
+        "ABSENT",
+        "UNKNOWN",
+        "NOT_MENTIONED"
+      ],
+      "title": "ParisModifierStatus",
+      "type": "string"
+    },
     "UCParisLocation": {
       "enum": [
-        "E1: ulcerative proctitis",
-        "E2: left-sided UC (distal to splenic flexure)",
-        "E3: extensive (hepatic flexure distally)",
-        "E4: pancolitis (proximal to hepatic flexure)",
-        "Unknown/unclear",
-        "None of the above (e.g. not mentioned, patient does not have UC, etc)"
+        "E1",
+        "E2",
+        "E3",
+        "E4",
+        "UNKNOWN",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "UCParisLocation",
       "type": "string"
     },
     "UCParisLocationMention": {
+      "description": "Mutually exclusive ulcerative colitis Paris extent/location.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -197,8 +290,8 @@
         },
         "location": {
           "$ref": "#/$defs/UCParisLocation",
-          "default": "None of the above (e.g. not mentioned, patient does not have UC, etc)",
-          "description": "What was the ulcerative colitis (UC) Paris classification location?"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Mutually exclusive ulcerative colitis Paris extent/location. E1: ulcerative proctitis, limited to the rectum; E2: left-sided UC, distal to the splenic flexure; E3: extensive UC, extending proximal to the splenic flexure but distal to the hepatic flexure; E4: pancolitis, extending proximal to the hepatic flexure; UNKNOWN: ulcerative colitis is documented, but the extent/location is unknown or unclear; NONE_OF_THE_ABOVE: None of the above, such as not mentioned, or patient does not have UC. "
         }
       },
       "required": [
@@ -210,15 +303,16 @@
     },
     "UCParisSeverity": {
       "enum": [
-        "S0: never severe",
-        "S1: ever severe (PUCAI >/= 65)",
-        "Unknown/unclear",
-        "None of the above (e.g. not mentioned, patient does not have UC, etc)"
+        "S0",
+        "S1",
+        "UNKNOWN",
+        "NONE_OF_THE_ABOVE"
       ],
       "title": "UCParisSeverity",
       "type": "string"
     },
     "UCParisSeverityMention": {
+      "description": "Ulcerative colitis Paris severity.\n\nDo not infer S0 merely because severe disease is not mentioned.\n\nPrefer explicit Paris codes when present.\nDo not extract family history of IBD, negated IBD, rule-out IBD, or suspected/probable/working-diagnosis IBD.",
       "properties": {
         "has_mention": {
           "description": "Indicates whether the concept was mentioned in the text.",
@@ -235,8 +329,8 @@
         },
         "severity": {
           "$ref": "#/$defs/UCParisSeverity",
-          "default": "None of the above (e.g. not mentioned, patient does not have UC, etc)",
-          "description": "What was the ulcerative colitis (UC) Paris classification severity"
+          "default": "NONE_OF_THE_ABOVE",
+          "description": "Ulcerative colitis Paris severity. S0: never severe UC. Use only when the chart explicitly documents never severe disease or Paris S0; S1: ever severe UC, including Paris S1, PUCAI >= 65, acute severe UC; UNKNOWN: ulcerative colitis is documented, but severity is unknown or unclear; NONE_OF_THE_ABOVE: None of the above, such as not mentioned or patient does not have UC."
         }
       },
       "required": [
@@ -249,36 +343,44 @@
   },
   "description": "An object-model for annotations of inflammatory bowel disorder observations\nfound in a patient's chart, related to Paris classification.\nTake care to avoid false positives, like confusing information that only\nappears in family history for patient history. Annotations should indicate\nthe relevant details of the finding, as well as some additional evidence\nmetadata to validate findings post-hoc.",
   "properties": {
-    "cd_paris_location_exclusive_mention": {
+    "cd_paris_location_exclusive": {
       "$ref": "#/$defs/CDParisLocationExclusiveMention"
     },
-    "cd_paris_location_l4a_mention": {
+    "cd_paris_location_l4a": {
       "$ref": "#/$defs/CDParisLocationL4aMention"
     },
-    "cd_paris_location_l4b_mention": {
+    "cd_paris_location_l4b": {
       "$ref": "#/$defs/CDParisLocationL4bMention"
     },
-    "cd_paris_behavior_exclusive_mention": {
+    "cd_paris_behavior_exclusive": {
       "$ref": "#/$defs/CDParisBehaviorExclusiveMention"
     },
-    "cd_paris_behavior_perianal_modifier_mention": {
+    "cd_paris_behavior_perianal_modifier": {
       "$ref": "#/$defs/CDParisBehaviorPerianalModifierMention"
     },
-    "uc_paris_location_mention": {
+    "uc_paris_location": {
       "$ref": "#/$defs/UCParisLocationMention"
     },
-    "uc_paris_severity_mention": {
+    "uc_paris_severity": {
       "$ref": "#/$defs/UCParisSeverityMention"
+    },
+    "age_at_diagnosis": {
+      "$ref": "#/$defs/ParisAgeAtDiagnosisMention"
+    },
+    "growth": {
+      "$ref": "#/$defs/ParisGrowthMention"
     }
   },
   "required": [
-    "cd_paris_location_exclusive_mention",
-    "cd_paris_location_l4a_mention",
-    "cd_paris_location_l4b_mention",
-    "cd_paris_behavior_exclusive_mention",
-    "cd_paris_behavior_perianal_modifier_mention",
-    "uc_paris_location_mention",
-    "uc_paris_severity_mention"
+    "cd_paris_location_exclusive",
+    "cd_paris_location_l4a",
+    "cd_paris_location_l4b",
+    "cd_paris_behavior_exclusive",
+    "cd_paris_behavior_perianal_modifier",
+    "uc_paris_location",
+    "uc_paris_severity",
+    "age_at_diagnosis",
+    "growth"
   ],
   "title": "IbdParisClassificationAnnotation",
   "type": "object"
