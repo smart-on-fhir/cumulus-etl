@@ -145,7 +145,6 @@ class TestEtlJobFlow(BaseEtlSimple):
             assert output["excluded_resources"] == 'patient,condition'
         with open(f"{self.output_path}/etl__completion_encounters/etl__completion_encounters.000.ndjson") as f:
             output= json.loads(f.readline())
-            print(output)
             assert output["excluded_resources"] == 'patient,condition'
 
     async def test_cannot_mix_nlp_and_fhir_tasks(self):
