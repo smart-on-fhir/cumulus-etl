@@ -20,8 +20,9 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install build
+        python -m pip install uv
+        uv venv
+        uv pip install build
 
     - name: Set version from tag
       run: |
@@ -30,7 +31,9 @@ jobs:
         [ -s changes.txt ] || exit 1  # validate that we successfully set the version
 
     - name: Build
-      run: python -m build
+      run: |
+        source .venv/bin/activate
+        python -m build
 
     - name: Publish
       uses: pypa/gh-action-pypi-publish@release/v1

@@ -40,15 +40,18 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install .[tests]
+          python -m pip install uv
+          uv venv
+          uv pip install .[tests]
 
       - name: Test with pytest
         run: |
+          source .venv/bin/activate
           python -m pytest --cov=cumulus_etl --cov-report=xml
 
       - name: Log missing coverage
         run: |
+          source .venv/bin/activate
           coverage report -m --skip-covered
 
       - name: Check coverage report
@@ -121,11 +124,14 @@ jobs:
 
       - name: Install linters
         run: |
-          python -m pip install --upgrade pip
-          pip install .[dev]
+          python -m pip install --upgrade uv
+          uv venv
+          uv pip install .[dev]
 
       - name: Run ruff
-        run: ruff check --output-format=github .
+        run: |
+          source .venv/bin/activate
+          ruff check --output-format=github .
 
   bdf-validation:
     name: BDF validation
