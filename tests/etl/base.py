@@ -57,6 +57,7 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
         skip_init_checks: bool = True,
         nlp: bool | None = None,
+        exclusions: str | None = None,
     ) -> None:
         if nlp is None:
             nlp = tasks and any("__" in task for task in tasks)
@@ -88,6 +89,9 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             args.append("--philter")
         if errors_to:
             args.append(f"--errors-to={errors_to}")
+        if exclusions:
+            args.append(f"--exclude-resources={','.join(exclusions)}")
+
         await cli.main(args)
 
     def enforce_consistent_uuids(self):

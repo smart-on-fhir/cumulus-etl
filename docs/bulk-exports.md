@@ -84,6 +84,22 @@ For example, maybe exporting Observations is too slow unless you slice by catego
 Just make sure that after you export all the Observations separately,
 you then combine them again into one big Observation folder before running Cumulus ETL.
 
+### Resource availability
+
+By default, Cumulus ETL assumes that you are going to have exported data for every
+[supported resource](https://docs.smarthealthit.org/cumulus/resources.html)
+available when you run the ETL. If supported resources are missing, then encounters
+will be marked as incomplete (since it looks the same as a partial group export).
+
+If you don't have a specific resource available, you can deal with this in one of two ways:
+
+1. By using `--allow-missing-resources`, the ETL will not block on files not being available - 
+but this may cause issues with downstream consumers. We recommend you only use this as a debugging
+tool if you are working on export issues.
+2. By using `--exclude-resources=[comma seperated list of resources]`, the ETL will explicitly note
+that some resources were expected to not be present. Downstream consumers can check which resources
+are not expected and then adjust appropriately based on this context.
+
 ## Archiving Exports
 
 Exports can take a long time, and it's often convenient to archive the results.

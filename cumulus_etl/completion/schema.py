@@ -53,6 +53,7 @@ def completion_schema() -> pyarrow.Schema:
             pyarrow.field("etl_version", pyarrow.string()),
             # See note above for why this isn't a pyarrow.timestamp() field.
             pyarrow.field("etl_time", pyarrow.string()),
+            pyarrow.field("excluded_resources", pyarrow.string()),
         ]
     )
 
@@ -65,5 +66,6 @@ def completion_encounters_schema() -> pyarrow.Schema:
             pyarrow.field("group_name", pyarrow.string()),
             # See note above for why this isn't a pyarrow.timestamp() field.
             pyarrow.field("export_time", pyarrow.string()),
+            pyarrow.field("excluded_resources", pyarrow.string()),
         ]
     )

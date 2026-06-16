@@ -38,6 +38,7 @@ class JobConfig:
         export_url: str | None = None,
         deleted_ids: dict[str, set[str]] | None = None,
         resource_filter: cfs.NoteFilter | None = None,
+        exclusions: list[str] | None = None,
         format_kwargs: dict | None = None,
     ):
         self.dir_input_orig = dir_input_orig
@@ -59,6 +60,7 @@ class JobConfig:
         self.export_url = export_url
         self.deleted_ids = deleted_ids or {}
         self.resource_filter = resource_filter
+        self.exclusions = exclusions
 
         # initialize format class
         self._dir_output.makedirs()
@@ -94,6 +96,7 @@ class JobConfig:
             "export_timestamp": self.export_datetime and self.export_datetime.isoformat(),
             "export_url": self.export_url,
             "codebook_id": self.codebook_id,
+            "exclusions": self.exclusions
         }
 
 

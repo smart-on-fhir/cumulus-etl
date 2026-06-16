@@ -266,6 +266,7 @@ class EtlTask:
                     "export_url": self.task_config.export_url,
                     "etl_version": cumulus_etl.__version__,
                     "etl_time": self.task_config.timestamp.isoformat(),
+                    "excluded_resources": self.task_config.exclusions
                 }
                 for output in self.outputs
                 if not output.get_name(self).startswith("etl__")
