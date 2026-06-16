@@ -3,6 +3,8 @@
 import logging
 from collections.abc import Iterator
 
+import rich
+
 from cumulus_etl import common
 from cumulus_etl.loaders.i2b2.schema import ObservationFact, PatientDimension, VisitDimension
 
@@ -14,11 +16,11 @@ def extract_csv(path_csv: str) -> Iterator[dict]:
     """
     try:
         with common.read_csv(path_csv) as reader:
-            print(f"Reading csv {path_csv}...")
+            rich.print(f"Reading csv {path_csv}...")
             yield from reader
-            print(f"Done reading {path_csv}.")
+            rich.print(f"Done reading {path_csv}.")
     except FileNotFoundError:
-        print(f"No {path_csv}, skipping.")
+        rich.print(f"No {path_csv}, skipping.")
 
 
 def extract_csv_observation_facts(path_csv: str) -> Iterator[ObservationFact]:

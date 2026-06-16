@@ -50,6 +50,11 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["blarg"])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
+    async def test_unknown_exclusion(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(exclusions=["blarg"])
+        self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
+
     async def test_help_task(self):
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(tasks=["patient", "help"])
@@ -113,6 +118,47 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertEqual(
             ["patient.000.ndjson"], os.listdir(os.path.join(self.output_path, "patient"))
         )
+
+    async def test_excluded_tasks(self):
+        # Grab all observations before we mock anything
+        loaded = loaders.FhirNdjsonLoader(cfs.FsPath(self.input_path)).load_resources(
+            {"Encounter", "Observation", "Patient"}, progress=feedback.Progress()
+        )
+
+        def fake_load_resources(internal_self, resources, progress):
+            del internal_self
+            # Confirm we did not try to load patients
+            self.assertEqual({"Observation", "Encounter"}, resources)
+            return loaded
+
+        with mock.patch.object(loaders.FhirNdjsonLoader, "load_resources", new=fake_load_resources):
+            await self.run_etl(
+                tasks=["encounter", "observation", "patient", "condition"],
+                exclusions=["patient", "condition"],
+            )
+
+        # Confirm we didn't write patients
+        self.assertEqual(
+            {
+                "etl__completion",
+                "etl__completion_encounters",
+                "observation",
+                "encounter",
+                "JobConfig",
+            },
+            set(os.listdir(self.output_path)),
+        )
+        self.assertEqual(
+            ["observation.000.ndjson"], os.listdir(os.path.join(self.output_path, "observation"))
+        )
+        with open(f"{self.output_path}/etl__completion/etl__completion.000.ndjson") as f:
+            output = json.loads(f.read())
+            assert output["excluded_resources"] == "patient,condition"
+        with open(
+            f"{self.output_path}/etl__completion_encounters/etl__completion_encounters.000.ndjson"
+        ) as f:
+            output = json.loads(f.readline())
+            assert output["excluded_resources"] == "patient,condition"
 
     async def test_cannot_mix_nlp_and_fhir_tasks(self):
         with self.assertRaises(SystemExit) as cm:
@@ -390,6 +436,7 @@ class TestEtlJobConfig(BaseEtlSimple):
                 "export_group_name": "test-group",
                 "export_timestamp": "2020-10-13T12:00:20-05:00",
                 "export_url": "https://example.org/fhir/$export",
+                "exclusions": "",
             },
             config_file,
         )

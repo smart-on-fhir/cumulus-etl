@@ -73,7 +73,15 @@ def wait_for_ctakes_restart():
     connection = socket.create_connection((url.hostname, url.port))
     poller = select.poll()
     # Poll for RDHUP to watch for remote disconnect (death or remote timeout)
-    poller.register(connection, select.POLLRDHUP)
+    try:
+        poller.register(connection, select.POLLRDHUP)
+    # Does our operating system/python build not support POLLRDHUP? If so, we'll try to
+    # catch this via an alternate mechanism.
+    # Generally speaking, we expect ETL to be run on a Linux machine, so this is not
+    # recommended - but cTAKES is not frequently used anyway, so it is a non-issue for
+    # most cases.
+    except AttributeError:  # pragma: no cover
+        poller.register(connection, select.POLLHUP)
 
     # *** Yield to caller ***
     yield

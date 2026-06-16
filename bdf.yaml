@@ -43,7 +43,7 @@ output:
     dataStandard:
       - Stratified counts of FHIR elements
     proprietary: true
-    source: "TODO"
+    source: https://github.com/smart-on-fhir/cumulus-library
 
 license:
   license_type: Apache-2.0
@@ -52,7 +52,7 @@ license:
 funding:
   source: ONC, CDC, ARPA-H
   agreement: Not specified
-  link: ""
+  link: https://arpa-h.gov/explore-funding/programs/arpa-h-bdf-toolbox
 
 domains:
   - Anything in the EHR

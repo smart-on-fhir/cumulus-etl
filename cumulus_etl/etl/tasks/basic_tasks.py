@@ -56,6 +56,7 @@ class EncounterTask(tasks.EtlTask):
                 "encounter_id": encounter["id"],
                 "group_name": self.task_config.export_group_name,
                 "export_time": self.task_config.export_datetime.isoformat(),
+                "excluded_resources": self.task_config.exclusions,
             }
             yield completion_info, encounter
 

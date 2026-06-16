@@ -95,7 +95,7 @@ def handle_completion_args(
         )
     # These next two errors can be briefer because the user clearly knows about the args.
     elif missing_datetime:
-        errors.fatal("Missing --export-datetime argument.", errors.COMPLETION_ARG_MISSING)
+        errors.fatal("Missing --export-timestamp argument.", errors.COMPLETION_ARG_MISSING)
     elif missing_group_name:
         errors.fatal("Missing --export-group argument.", errors.COMPLETION_ARG_MISSING)
 
@@ -131,6 +131,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         deleted_ids=loader_results.deleted_ids,
         export_group_name=export_group,
         export_datetime=export_datetime,
+        exclusions=','.join(args.exclusions),
         format_kwargs={"optimize_table": args.table_optimization},
     )
     config.path_config().write_json(config.as_json(), indent=4)

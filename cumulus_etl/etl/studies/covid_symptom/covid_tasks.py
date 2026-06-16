@@ -7,6 +7,7 @@ import ctakesclient
 import cumulus_fhir_support as cfs
 import pyarrow
 import pydantic
+import rich
 from ctakesclient.transformer import TransformerModel
 
 from cumulus_etl import feedback, nlp
@@ -121,7 +122,7 @@ class BaseCovidCtakesTask(tasks.BaseNlpTask):
         bsv_path = cfs.FsPath(ctakesclient.filesystem.covid_symptoms_path())
         success = nlp.restart_ctakes_with_bsv(self.task_config.ctakes_overrides, bsv_path)
         if not success:
-            print("  Skipping.")
+            rich.print("  Skipping.")
             self.summaries[0].had_errors = True
         return success
 

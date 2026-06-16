@@ -81,18 +81,18 @@ def get_default_tasks() -> list[type[AnyTask]]:
 
 
 def get_selected_tasks(
-    names: Iterable[str] | None = None,
-    *,
-    nlp: bool = False,
+    names: Iterable[str] | None = None, *, nlp: bool = False, exclusions: Iterable[str] = []
 ) -> list[type[AnyTask]]:
     """
     Returns classes for every selected task.
 
     :param names: an exact list of which tasks to select
     :param nlp: whether we are selecting from NLP or normal tasks
+    :param exclusions: a list of resources to explicitly exclude from a task list
     :returns: a list of selected EtlTask subclasses, to instantiate and run
     """
     names = set(cli_utils.expand_comma_list_arg(names, casefold=True))
+    exclusions = set(cli_utils.expand_comma_list_arg(exclusions, casefold=True))
 
     # If we are in NLP mode, we can only select NLP tasks and vice versa.
     all_tasks = get_nlp_tasks() if nlp else get_default_tasks()
@@ -105,15 +105,20 @@ def get_selected_tasks(
 
     # What to do if user didn't provide any constraints?
     if not names:
-        return get_default_tasks()
+        all_tasks = get_default_tasks()
+        names = set([x.name for x in all_tasks])
 
-    # They did list names, so now we validate those names and select those tasks.
+    # Now we validate those names and select those tasks, along with checking exclusion cases
 
     # Check for unknown names the user gave us
     all_task_names = {t.name for t in all_tasks}
     other_task_names = {t.name for t in other_tasks}
     if unknown_names := names - all_task_names - other_task_names:
         rich.print(f"Unknown task '{unknown_names.pop()}' requested.")
+        _print_task_names(all_tasks)
+        raise SystemExit(errors.TASK_UNKNOWN)
+    if unknown_names := exclusions - all_task_names - other_task_names:
+        rich.print(f"Unknown task '{unknown_names.pop()}' requested for exclusion.")
         _print_task_names(all_tasks)
         raise SystemExit(errors.TASK_UNKNOWN)
     if names - all_task_names:
@@ -124,12 +129,12 @@ def get_selected_tasks(
         )
 
     tasks = [task for task in all_tasks if task.name in names]
-
+    if exclusions != {}:
+        tasks = [task for task in tasks if task.name not in exclusions]
     if nlp:
         models = {getattr(t, "client_class", None) for t in tasks}
         if len(models) > 1:
             errors.fatal("Only one kind of NLP model can be run at once.", errors.TASK_TOO_MANY)
-
     return tasks
 
 

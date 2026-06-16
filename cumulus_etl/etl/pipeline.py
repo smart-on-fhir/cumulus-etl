@@ -62,6 +62,14 @@ def add_common_etl_args(
         type=cfs.FsPath,
         help="where to put resources that could not be processed",
     )
+    parser.add_argument(
+        "--exclude-resources",
+        dest="exclusions",
+        action="append",
+        help="Resource type(s) to be excluded from completion tracking (comma separated, "
+            "use '--task help' to see full list)",
+        default = [],
+        ),
 
     cli_utils.add_auth(parser)
     cli_utils.add_debugging(parser)
@@ -100,6 +108,7 @@ def print_config(
         table.add_row("Errors path:", args.errors_to)
     table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
     table.add_row("Batch size:", f"{args.batch_size:,}")
+    table.add_row("Excluded resources:",", ".join(sorted(r for r in args.exclusions)))
     table.add_row("Tasks:", ", ".join(sorted(t.name for t in all_tasks)))
     if "comment" in args and args.comment:
         table.add_row("Comment:", args.comment)
@@ -164,7 +173,7 @@ async def prepare_pipeline(
     root_input = cli_utils.process_input_dir(args.dir_input)
     args.dir_phi.makedirs()  # create PHI folder, if needed
 
-    selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp)
+    selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp, exclusions=args.exclusions)
     is_default_tasks = not args.task
 
     # Print configuration

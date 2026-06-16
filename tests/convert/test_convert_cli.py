@@ -266,7 +266,6 @@ class TestConvertOnS3(s3mock.S3Mixin, ConvertTestsBase):
         # Verify results
         self.assertEqual(mock_write.call_count, 1)
         self.assertEqual([{"id": "con1"}], mock_write.call_args[0][0].rows)
-        print(os.listdir(f"{self.target_path}"))
         self.assertEqual(
             cfs.FsPath(
                 f"{self.target_path}/JobConfig/2024-08-09__16.32.51/job_config.json"
