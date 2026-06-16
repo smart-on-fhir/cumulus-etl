@@ -81,6 +81,7 @@ select = [
     "PLE",  # pylint errors
     "RUF",  # the ruff developer's own rules
     "S",  # bandit security warnings
+    "T201", #checks for print statements
     "UP",  # alert you when better syntax is available in your python version
 ]
 ignore = [
