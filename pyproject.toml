@@ -58,6 +58,13 @@ cumulus-etl = "cumulus_etl.cli:main_cli"
 requires = ["flit_core >=3.12,<4"]
 build-backend = "flit_core.buildapi"
 
+[tool.coverage.run]
+omit = [
+    # i2b2 support is legacy, so we won't flag on coverage there
+    "cumulus-etl/loaders/i2b2/*"
+]
+
+
 [tool.flit.sdist]
 include = [
     "docs/",

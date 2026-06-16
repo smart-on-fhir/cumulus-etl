@@ -76,13 +76,12 @@ def wait_for_ctakes_restart():
     try:
         poller.register(connection, select.POLLRDHUP)
     # Does our operating system/python build not support POLLRDHUP? If so, we'll try to
-    # catch this via an alternate mechanism. 
+    # catch this via an alternate mechanism.
     # Generally speaking, we expect ETL to be run on a Linux machine, so this is not
     # recommended - but cTAKES is not frequently used anyway, so it is a non-issue for
     # most cases.
-    except AttributeError:
+    except AttributeError:  # pragma: no cover
         poller.register(connection, select.POLLHUP)
-
 
     # *** Yield to caller ***
     yield

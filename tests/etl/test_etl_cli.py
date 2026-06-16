@@ -50,6 +50,11 @@ class TestEtlJobFlow(BaseEtlSimple):
             await self.run_etl(tasks=["blarg"])
         self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
 
+    async def test_unknown_exclusion(self):
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_etl(exclusions=["blarg"])
+        self.assertEqual(errors.TASK_UNKNOWN, cm.exception.code)
+
     async def test_help_task(self):
         with self.assertRaises(SystemExit) as cm:
             await self.run_etl(tasks=["patient", "help"])
