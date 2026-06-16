@@ -237,11 +237,13 @@ class TestTaskCompletion(TaskTestCase):
                     "encounter_id": self.codebook.db.encounter("FirstBatch.A"),
                     "group_name": "test-group",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "excluded_resources": None,
                 },
                 {
                     "encounter_id": self.codebook.db.encounter("FirstBatch.B"),
                     "group_name": "test-group",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "excluded_resources": None,
                 },
             ],
             comp_enc_batches[0].rows,
@@ -252,6 +254,7 @@ class TestTaskCompletion(TaskTestCase):
                     "encounter_id": self.codebook.db.encounter("SecondBatch.C"),
                     "group_name": "test-group",
                     "export_time": "2012-10-10T05:30:12+00:00",
+                    "excluded_resources": None,
                 }
             ],
             comp_enc_batches[1].rows,
@@ -267,6 +270,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
                     "etl_time": "2021-09-14T21:23:45+00:00",
+                    "excluded_resources": None,
                 }
             ],
             comp_batch.rows,
@@ -299,6 +303,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
                     "etl_time": "2021-09-14T21:23:45+00:00",
+                    "excluded_resources": None,
                 },
             ],
             comp_batch.rows,
@@ -323,6 +328,7 @@ class TestTaskCompletion(TaskTestCase):
                     "export_url": self.export_url,
                     "etl_version": "1.0.0+test",
                     "etl_time": "2021-09-14T21:23:45+00:00",
+                    "excluded_resources": None,
                 }
             ],
             comp_format.write_records.call_args[0][0].rows,
