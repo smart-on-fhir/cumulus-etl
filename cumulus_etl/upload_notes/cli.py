@@ -6,6 +6,7 @@ import datetime
 from collections.abc import Callable, Collection
 
 import cumulus_fhir_support as cfs
+import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp
 from cumulus_etl.upload_notes import labeling, selector
@@ -92,7 +93,7 @@ async def read_notes_from_ndjson(
         try:
             text = cfs.get_text_from_note_res(resource)
         except Exception:
-            print(f"Skipping {note_ref}: no text found.")
+            rich.print(f"Skipping {note_ref}: no text found.")
             continue
 
         # Grab a bunch of the metadata
@@ -406,7 +407,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
             get_unique_id = _get_unique_id_for_no_grouping
 
     common.print_header()
-    print("Preparing metadata…")  # i.e. the codebook
+    rich.print("Preparing metadata…")  # i.e. the codebook
 
     with deid.Codebook(args.dir_phi) as codebook:
         ndjson_folder = gather_resources(args.dir_input, codebook, args)

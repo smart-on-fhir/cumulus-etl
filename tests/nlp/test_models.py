@@ -306,7 +306,6 @@ class TestWithSpansNLPTasks(NlpModelTestCase):
         self.assertEqual(self.format.write_records.call_count, 1)
         batch = self.format.write_records.call_args[0][0]
         self.assertEqual(len(batch.rows), 1)
-        print(batch.rows)
         # First match as expected
         self.assertEqual(
             batch.rows[0]["result"]["immunosuppressive_medication_mentions"][0]["spans"], [(0, 4)]

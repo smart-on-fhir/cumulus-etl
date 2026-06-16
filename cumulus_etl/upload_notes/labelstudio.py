@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator, Collection, Iterable
 
 import label_studio_sdk as ls
 import label_studio_sdk.data_manager as lsdm
+import rich
 
 from cumulus_etl import batching, errors, feedback
 
@@ -84,11 +85,11 @@ class LabelStudioClient:
         # Should we delete existing entries?
         if existing_tasks:
             if overwrite:
-                print(f"Overwriting {len(existing_tasks):,} existing charts.")
+                rich.print(f"Overwriting {len(existing_tasks):,} existing charts.")
                 for task_id in existing_tasks.values():
                     self._client.tasks.delete(task_id)
             else:
-                print(f"Skipping {len(existing_tasks):,} existing charts.")
+                rich.print(f"Skipping {len(existing_tasks):,} existing charts.")
                 notes = [note for note in notes if note.unique_id not in existing_tasks]
 
         # OK, import away!
@@ -100,7 +101,7 @@ class LabelStudioClient:
             async for batch in self._batch_with_progress("Uploading charts…", new_notes, 300):
                 self._client.projects.import_tasks(self._project.id, request=batch)
             if new_task_count:
-                print(f"Imported {new_task_count:,} new charts.")
+                rich.print(f"Imported {new_task_count:,} new charts.")
 
     async def _search_for_existing_tasks(self, unique_ids: Collection[str]) -> dict[str, int]:
         existing_tasks = []
