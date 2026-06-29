@@ -215,6 +215,10 @@ class LabelStudioClient:
                 field = "labels"
             case "choices":
                 field = "choices"
+            case "datetime":
+                field = "datetime"
+                # Handle Datetime field layout differently
+                match["value"][field] = list(labels)
             case "textarea":
                 field = "text"
             case _:
@@ -223,7 +227,9 @@ class LabelStudioClient:
                     errors.LABEL_CONFIG_TYPE_UNKNOWN,
                 )
 
-        match["value"][field] = list(labels)
+        # Unless a config tag has special formatting, use the same formatting everywhere
+        if not match["value"][field]:
+            match["value"][field] = list(labels)
         return match
 
     def _format_highlights_predictions(
