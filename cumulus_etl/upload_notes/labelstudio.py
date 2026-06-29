@@ -217,8 +217,6 @@ class LabelStudioClient:
                 field = "choices"
             case "datetime":
                 field = "datetime"
-                # Handle Datetime field layout differently
-                match["value"][field] = list(labels)
             case "textarea":
                 field = "text"
             case _:
@@ -228,7 +226,9 @@ class LabelStudioClient:
                 )
 
         # Unless a config tag has special formatting, use the same formatting everywhere
-        if not match["value"][field]:
+        if field == "datetime":
+            match["value"][field] = labels
+        else:
             match["value"][field] = list(labels)
         return match
 
