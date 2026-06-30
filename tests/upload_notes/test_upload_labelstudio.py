@@ -430,6 +430,74 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task(),
         )
 
+    async def test_push_datetime_highlight(self):
+        """Verify we format a DateTime sublabel config tag correctly"""
+        self.mock_config("""
+        <View>
+            <Labels name="mylabel" toName="mytext" value="$mylabel"/>
+            <Text name="mytext" value="$mytext"/>
+            <DateTime name="Sub1" toName="mytext"/>,
+        </View>""")
+        note = self.make_note(philter_label=False)
+        note.highlights = [
+            Highlight(
+                "Label1", (7, 11), "Source", sublabel_name="Sub1", sublabel_value="2020-01-02"
+            ),
+        ]
+        await self.push_tasks(note)
+        self.assertEqual(
+            {
+                "data": {
+                    "text": "Normal note text",
+                    "unique_id": "unique",
+                    "patient_id": "patient",
+                    "anon_patient_id": "patient-anon",
+                    "encounter_id": "enc",
+                    "anon_encounter_id": "enc-anon",
+                    "date": None,
+                    "docref_mappings": {"doc": "doc-anon"},
+                    "docref_spans": {"doc": [0, 16]},
+                    "mylabel": [{"value": "Label1"}],
+                    "label1_sub1_label": "2020-01-02",
+                    "label1_sub1_text": "note",
+                },
+                "predictions": [
+                    {
+                        "model_version": "Source",
+                        "result": [
+                            {
+                                "id": "b3ab0236bd5959891ffe12da4d968b1d",
+                                "from_name": "mylabel",
+                                "to_name": "mytext",
+                                "type": "labels",
+                                "value": {
+                                    "end": 11,
+                                    "labels": ["Label1"],
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                            {
+                                "id": "b3ab0236bd5959891ffe12da4d968b1d",
+                                "from_name": "Sub1",
+                                "to_name": "mytext",
+                                "type": "datetime",
+                                "value": {
+                                    "datetime": ["2020-01-02"],
+                                    "end": 11,
+                                    "score": 1.0,
+                                    "start": 7,
+                                    "text": "note",
+                                },
+                            },
+                        ],
+                    },
+                ],
+            },
+            self.get_pushed_task(),
+        )
+
     async def test_unrecognized_label_name(self):
         note = self.make_note(philter_label=False)
         note.highlights = [
