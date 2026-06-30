@@ -484,7 +484,7 @@ class TestUploadLabelStudio(AsyncTestCase):
                                 "to_name": "mytext",
                                 "type": "datetime",
                                 "value": {
-                                    "datetime": ["2020-01-02"],
+                                    "datetime": "2020-01-02",
                                     "end": 11,
                                     "score": 1.0,
                                     "start": 7,
@@ -497,6 +497,28 @@ class TestUploadLabelStudio(AsyncTestCase):
             },
             self.get_pushed_task(),
         )
+
+    async def test_push_datetime_highlight_fails_with_multiple_dates(self):
+        self.mock_config("""
+        <View>
+            <Labels name="mylabel" toName="mytext" value="$mylabel"/>
+            <Text name="mytext" value="$mytext"/>
+            <DateTime name="Sub1" toName="mytext"/>,
+        </View>""")
+        note = self.make_note(philter_label=False)
+        # Multiple date highlights from the same source should fail
+        note.highlights = [
+            Highlight(
+                "Label1", (7, 11), "Source", sublabel_name="Sub1", sublabel_value="2020-01-02"
+            ),
+            Highlight(
+                "Label1", (7, 11), "Source", sublabel_name="Sub1", sublabel_value="2022-01-02"
+            ),
+        ]
+
+        with self.assertRaises(errors.FatalError) as err:
+            await self.push_tasks(note)
+            assert err.code == errors.LABEL_VALUE_ARITY_MISMATCH
 
     async def test_unrecognized_label_name(self):
         note = self.make_note(philter_label=False)
