@@ -75,6 +75,24 @@ to make it easier to reference back to your EHR or Athena data.
 If grouping by encounter doesn't make sense for your task,
 you can turn it off with `--grouping=none`.
 
+### Capping the Number of Charts
+
+Sometimes you have more charts selected than you actually want to review
+(for example, you oversampled for an earlier NLP stage but only want a fixed number for
+an inter-rater agreement study).
+
+Pass `--count=N` to upload at most `N` charts.
+If more than `N` charts are available, a random sample of `N` is uploaded.
+The count is applied *after* grouping, so it counts the final Label Studio charts — with the
+default encounter grouping, one chart may contain several notes. (Use `--grouping=none` if you
+want the count to apply to individual notes.)
+
+Add `--seed=NUMBER` for a reproducible sample.
+
+If you'd rather sample separately, the standalone `sample` command can produce a `.csv` that you
+feed back in with `--select-by-csv`. (Note that `sample` selects individual notes, whereas
+`--count` here selects grouped charts.)
+
 ## Downloading Notes
 
 Ideally your notes are already downloaded and inlined into your DiagnosticReport or
@@ -134,6 +152,11 @@ just confirming the correct documents were chosen.
 Pass in an argument like `--export-to /host/export` to save the NDJSON for the selected documents
 in the given folder. (Note this does not save the clinical note text unless it is already inline
 -- this is just saving the DocumentReference resources).
+
+When you use `--export-to`, upload mode also writes an `uploaded_notes.csv` manifest into that
+folder, recording exactly which notes were uploaded (both real and anonymized note IDs, plus
+patient and encounter IDs). This is handy for auditing a capped upload, and the `note_ref` column
+can be fed straight back into a later run with `--select-by-csv`.
 
 ## Pre-Labeling Notes
 

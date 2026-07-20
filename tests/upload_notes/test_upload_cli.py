@@ -401,6 +401,68 @@ class TestUploadNotes(AsyncTestCase):
         await self.run_upload_notes(overwrite=overwrite)
         self.assertEqual(overwrite, self.ls_client.push_tasks.call_args[1]["overwrite"])
 
+    def get_pushed_charts(self) -> list:
+        return self.ls_client.push_tasks.call_args[0][0]
+
+    ## Tests on --count and --seed, which limit how many charts get uploaded
+    async def test_count_caps_uploads(self):
+        """--count limits how many charts get uploaded"""
+        # Default encounter grouping turns the 4 notes into 2 charts.
+        await self.run_upload_notes("--count=1", "--seed=1")
+        self.assertEqual(1, len(self.get_pushed_charts()))
+
+    async def test_count_is_reproducible_with_seed(self):
+        """The same --count and --seed pick the same charts"""
+        await self.run_upload_notes("--count=1", "--seed=1")
+        first = self.get_pushed_refs()
+        # Second run needs a fresh export dir (make_export_dir requires an empty target)
+        await self.run_upload_notes("--count=1", "--seed=1", f"--export-to={self.make_tempdir()}")
+        self.assertEqual(first, self.get_pushed_refs())
+
+    async def test_count_larger_than_available(self):
+        """--count larger than the chart count uploads everything, without error"""
+        await self.run_upload_notes("--count=100", "--seed=1")
+        self.assertEqual(2, len(self.get_pushed_charts()))
+        self.assertEqual(4, len(self.get_pushed_refs()))
+
+    async def test_count_is_applied_after_grouping(self):
+        """--count counts final charts, not individual notes"""
+        # 4 notes group into 2 encounter charts, so --count=2 keeps both charts (all 4 notes) --
+        # proving the cap counts charts rather than notes.
+        await self.run_upload_notes("--count=2", "--seed=1")
+        self.assertEqual(2, len(self.get_pushed_charts()))
+        self.assertEqual(4, len(self.get_pushed_refs()))
+
+        # Without grouping, each note is its own chart, so --count=2 keeps only 2 notes.
+        await self.run_upload_notes(
+            "--count=2", "--seed=1", "--grouping=none", f"--export-to={self.make_tempdir()}"
+        )
+        self.assertEqual(2, len(self.get_pushed_charts()))
+        self.assertEqual(2, len(self.get_pushed_refs()))
+
+    @ddt.data("0", "-1")
+    async def test_bad_count(self, count):
+        """--count must be a positive number"""
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_upload_notes(f"--count={count}")
+        self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+
+    async def test_manifest_written(self):
+        """A manifest of uploaded notes is written into the export folder"""
+        await self.run_upload_notes()
+
+        with common.read_csv(cfs.FsPath(f"{self.export_path}/uploaded_notes.csv")) as reader:
+            rows = list(reader)
+
+        # One row per uploaded real note, matching what we pushed to Label Studio
+        self.assertEqual(self.get_pushed_refs(), {row["note_ref"] for row in rows})
+
+        # And the anonymized note ref round-trips through the codebook
+        by_ref = {row["note_ref"]: row for row in rows}
+        self.assertEqual(
+            f"DocumentReference/{ANON_43}", by_ref["DocumentReference/43"]["anon_note_ref"]
+        )
+
     @ddt.data(
         ({}, True),  # default args
         ({"philter": "redact"}, True),
