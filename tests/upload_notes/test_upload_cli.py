@@ -1,6 +1,8 @@
 """Tests for upload_notes/cli.py"""
 
 import base64
+import contextlib
+import io
 import itertools
 import os
 import shutil
@@ -75,16 +77,18 @@ class TestUploadNotes(AsyncTestCase):
         no_philter=None,
         overwrite=False,
         skip_init_checks=True,
+        export_to=True,
     ) -> None:
         args = [
             "upload-notes",
             input_path or self.input_path,
             "https://localhost/labelstudio",
             phi_path or self.phi_path,
-            f"--export-to={self.export_path}",
             "--ls-project=21",
             f"--ls-token={self.token_path}",
         ]
+        if export_to:
+            args += [f"--export-to={self.export_path}"]
         if skip_init_checks:
             args += ["--skip-init-checks"]
         if anon_docrefs:
@@ -446,6 +450,20 @@ class TestUploadNotes(AsyncTestCase):
         with self.assertRaises(SystemExit) as cm:
             await self.run_upload_notes(f"--count={count}")
         self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+
+    async def test_count_without_export_to_warns(self):
+        """--count with no --export-to warns that no manifest will be saved"""
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            await self.run_upload_notes("--count=1", "--seed=1", export_to=False)
+        self.assertIn("Warning: --export-to is not set", stdout.getvalue())
+
+    async def test_no_count_without_export_to_does_not_warn(self):
+        """Without --count, no --export-to warning is printed"""
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            await self.run_upload_notes(export_to=False)
+        self.assertNotIn("Warning: --export-to is not set", stdout.getvalue())
 
     async def test_manifest_written(self):
         """A manifest of uploaded notes is written into the export folder"""
