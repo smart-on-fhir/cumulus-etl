@@ -3,13 +3,14 @@
 import argparse
 import dataclasses
 import datetime
+import random
 from collections.abc import Callable, Collection
 
 import cumulus_fhir_support as cfs
 import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp
-from cumulus_etl.upload_notes import labeling, selector
+from cumulus_etl.upload_notes import labeling, manifest, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
 PHILTER_DISABLE = "disable"
@@ -261,6 +262,20 @@ def group_notes_by_unique_id(notes: Collection[LabelStudioNote]) -> list[LabelSt
     return grouped_notes
 
 
+def sample_notes(
+    aggregated_notes: list[LabelStudioNote], args: argparse.Namespace
+) -> list[LabelStudioNote]:
+    """
+    Randomly down-sample chart-aggregated notes to at most args.count.
+
+    The cap counts final Label Studio charts, i.e. it is applied after grouping (with the default
+    encounter grouping, one chart may contain several notes).
+    """
+    if not args.count or len(aggregated_notes) <= args.count:
+        return aggregated_notes
+    return random.Random(args.seed).sample(aggregated_notes, args.count)  # noqa: S311
+
+
 async def push_to_label_studio(
     notes: Collection[LabelStudioNote], access_token: str, args: argparse.Namespace
 ) -> None:
@@ -310,6 +325,20 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         choices=["encounter", "none"],
         default="encounter",
         help="how to group together notes into one Label Studio task (default is encounter)",
+    )
+
+    group = parser.add_argument_group("sampling")
+    group.add_argument(
+        "--count",
+        type=int,
+        metavar="N",
+        help="upload at most this many charts (randomly sampled if more are selected; "
+        "a chart is a group of notes, or a single note with --grouping=none)",
+    )
+    group.add_argument(
+        "--seed",
+        type=int,
+        help="random number generator seed, for consistent --count results",
     )
 
     cli_utils.add_aws(parser, athena=True)
@@ -400,6 +429,18 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     # Read token file early for quick error feedback
     access_token = args.ls_token.read_text().strip()
 
+    # Check that --count is positive, and warn if --export-to is not set (so no manifest will be saved)
+    if args.count is not None:
+        if args.count <= 0:
+            errors.fatal(
+                f"Count must be a positive number, not '{args.count}'.", errors.ARGS_INVALID
+            )
+        if not args.export_to:
+            rich.print(
+                "Warning: --export-to is not set, so no uploaded_notes.csv manifest will be saved."
+                "To see which charts were uploaded you'll have to confirm with Label Studio."
+            )
+
     match args.grouping:
         case "encounter":
             get_unique_id = _get_unique_id_for_encounter_grouping
@@ -423,8 +464,13 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     # It's safe to philter notes after labeling because philter does not change character counts
     philter_notes(notes, args)
     notes = sort_notes(notes)
-    notes = group_notes_by_unique_id(notes)
-    await push_to_label_studio(notes, access_token, args)
+    # Group notes by unique ID (encounter or none, depending on args.grouping)
+    aggregated_notes = group_notes_by_unique_id(notes)
+    # Cap the number of uploaded charts (applied after grouping, so --count counts final charts).
+    aggregated_notes = sample_notes(aggregated_notes, args)
+    # Record which notes we're about to upload (before push, since push may skip existing tasks).
+    manifest.write_upload_manifest(aggregated_notes, args.export_to)
+    await push_to_label_studio(aggregated_notes, access_token, args)
 
 
 async def run_upload_notes(parser: argparse.ArgumentParser, argv: list[str]) -> None:

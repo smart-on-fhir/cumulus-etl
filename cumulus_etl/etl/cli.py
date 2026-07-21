@@ -131,7 +131,7 @@ async def etl_main(args: argparse.Namespace) -> None:
         deleted_ids=loader_results.deleted_ids,
         export_group_name=export_group,
         export_datetime=export_datetime,
-        exclusions=','.join(args.exclusions),
+        exclusions=",".join(args.exclusions),
         format_kwargs={"optimize_table": args.table_optimization},
     )
     config.path_config().write_json(config.as_json(), indent=4)

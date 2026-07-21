@@ -67,9 +67,9 @@ def add_common_etl_args(
         dest="exclusions",
         action="append",
         help="Resource type(s) to be excluded from completion tracking (comma separated, "
-            "use '--task help' to see full list)",
-        default = [],
-        ),
+        "use '--task help' to see full list)",
+        default=[],
+    )
 
     cli_utils.add_auth(parser)
     cli_utils.add_debugging(parser)
@@ -108,7 +108,7 @@ def print_config(
         table.add_row("Errors path:", args.errors_to)
     table.add_row("Current time:", f"{common.timestamp_datetime(job_datetime)} UTC")
     table.add_row("Batch size:", f"{args.batch_size:,}")
-    table.add_row("Excluded resources:",", ".join(sorted(r for r in args.exclusions)))
+    table.add_row("Excluded resources:", ", ".join(sorted(r for r in args.exclusions)))
     table.add_row("Tasks:", ", ".join(sorted(t.name for t in all_tasks)))
     if "comment" in args and args.comment:
         table.add_row("Comment:", args.comment)

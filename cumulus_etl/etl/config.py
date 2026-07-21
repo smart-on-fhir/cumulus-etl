@@ -96,7 +96,7 @@ class JobConfig:
             "export_timestamp": self.export_datetime and self.export_datetime.isoformat(),
             "export_url": self.export_url,
             "codebook_id": self.codebook_id,
-            "exclusions": self.exclusions
+            "exclusions": self.exclusions,
         }
 
 
