@@ -31,8 +31,12 @@ This will install the pre-commit hooks for the repo (which automatically enforce
 
 1. First, you'll want to install a Java JDK, for Delta Lake support.
 
-2. Then just run `pytest`.
-All dependencies should have been installed by the `pip install .[dev]` above.
+2. To ensure all test dependencies are installed, run this command:
+```sh
+pip install .[tests]
+```
+
+3. Then just run `pytest`.
 
 ### How to show us the patch
 
