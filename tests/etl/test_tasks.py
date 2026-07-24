@@ -7,10 +7,12 @@ import cumulus_fhir_support as cfs
 import ddt
 import pyarrow
 import pydantic
+from py4j.protocol import Py4JJavaError
 
 from cumulus_etl import common, errors
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.tasks import basic_tasks, task_factory
+from cumulus_etl.formats.base import Format
 from tests.etl import TaskTestCase
 
 
@@ -349,6 +351,60 @@ class TestTaskCompletion(TaskTestCase):
         self.make_json("Device", "A")
         summaries = await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
         self.assertTrue(summaries[0].had_errors)
+
+    async def test_py4jjavaerror_during_write(self):
+        """We should exhibit the same behavior as generic exceptions if a py4jerror was thrown."""
+
+        mock_java_exception = mock.MagicMock()
+        mock_java_exception.getClass().getName.return_value = "com.example.GenericJavaException"
+        mock_java_exception.getCause.return_value = None
+
+        generic_py4j_error = Py4JJavaError("Java error occurred", mock_java_exception)
+
+        def make_formatter(dbname: str, **kwargs):
+            mock_formatter = mock.MagicMock(dbname=dbname, **kwargs)
+
+            if dbname == "etl__completion":
+                mock_formatter.write_records.return_value = False
+                mock_formatter._write_one_batch.side_effect = generic_py4j_error
+
+            return mock_formatter
+
+        self.job_config.create_formatter = mock.MagicMock(side_effect=make_formatter)
+
+        self.make_json("Device", "A")
+        summaries = await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
+        self.assertTrue(summaries[0].had_errors)
+
+    async def test_noauthwithawsexception_during_write(self):
+        """We should raise SystemExit when a Py4J error wraps a nested NoAuthWithAWS exception."""
+
+        mock_java_exception = mock.MagicMock()
+        mock_java_exception.getClass().getName.return_value = "com.example.GenericJavaException"
+
+        mock_nested_exception = mock.MagicMock()
+        mock_nested_exception.getClass().getName.return_value = (
+            "org.apache.hadoop.fs.s3a.auth.NoAuthWithAWSException"
+        )
+
+        mock_java_exception.getCause.return_value = mock_nested_exception
+        generic_py4j_error = Py4JJavaError("Java error occurred", mock_java_exception)
+
+        def make_formatter(dbname: str, **kwargs):
+            mock_formatter = mock.MagicMock(dbname=dbname, **kwargs)
+
+            if dbname == "etl__completion":
+                mock_formatter.write_records = Format.write_records.__get__(mock_formatter)
+                mock_formatter._write_one_batch.side_effect = generic_py4j_error
+
+            return mock_formatter
+
+        self.job_config.create_formatter = mock.MagicMock(side_effect=make_formatter)
+
+        self.make_json("Device", "A")
+
+        with self.assertRaises(SystemExit):
+            await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
 
 
 class TestModelTask(TaskTestCase):
