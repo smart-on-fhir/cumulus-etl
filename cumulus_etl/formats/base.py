@@ -5,9 +5,11 @@ import logging
 from collections.abc import Collection
 
 import cumulus_fhir_support as cfs
+from py4j.protocol import Py4JJavaError
 
 from cumulus_etl.formats.batch import Batch
-from py4j.protocol import Py4JJavaError
+
+AWS_AUTH_EXCEPTION_CLASS_NAME = "org.apache.hadoop.fs.s3a.auth.NoAuthWithAWSException"
 
 
 class Format(abc.ABC):
@@ -74,18 +76,17 @@ class Format(abc.ABC):
             if nested_exception:
                 class_name = nested_exception.getClass().getName()
 
-            # This exception is generally always nested within an AccessDeniedException
-            # which may indicate issues other than authenticating with AWS.
-            if class_name == "org.apache.hadoop.fs.s3a.auth.NoAuthWithAWSException":
+            if class_name == AWS_AUTH_EXCEPTION_CLASS_NAME:
                 raise SystemExit(
-                    "Could not access the S3 bucket to initialize. "
+                    "Could not access the provided S3 bucket. "
                     + "Verify AWS_PROFILE is configured before execution."
                 )
 
-            raise
+            logging.exception("Could not process data records")
         except Exception:
             logging.exception("Could not process data records")
-            return False
+
+        return False
 
     @abc.abstractmethod
     def _write_one_batch(self, batch: Batch) -> None:
