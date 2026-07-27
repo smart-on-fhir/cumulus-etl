@@ -232,9 +232,10 @@ class LabelStudioClient:
             if len(labels) > 1:
                 errors.fatal(
                     "Datetime subvalues can only have a single value, but received multiple - ",
-                    f"fix or ignore label with id {label_id}.",
+                    f"fix or ignore label with id starting {label_id[:8]}.",
                     errors.LABEL_VALUE_ARITY_MISMATCH,
                 )
+                print(labels)
             match["value"][field] = str(labels[0])
         else:
             match["value"][field] = list(labels)
