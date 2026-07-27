@@ -5,7 +5,7 @@ import logging
 from collections.abc import Collection
 
 import cumulus_fhir_support as cfs
-from py4j.protocol import Py4JJavaError
+from py4j import protocol
 
 from cumulus_etl.formats.batch import Batch
 
@@ -69,7 +69,7 @@ class Format(abc.ABC):
         try:
             self._write_one_batch(batch)
             return True
-        except Py4JJavaError as e:
+        except protocol.Py4JJavaError as e:
             class_name = e.java_exception.getClass().getName()
 
             nested_exception = e.java_exception.getCause()

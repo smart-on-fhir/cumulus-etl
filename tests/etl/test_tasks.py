@@ -7,7 +7,7 @@ import cumulus_fhir_support as cfs
 import ddt
 import pyarrow
 import pydantic
-from py4j.protocol import Py4JJavaError
+from py4j import protocol
 
 from cumulus_etl import common, errors
 from cumulus_etl.etl import tasks
@@ -373,7 +373,7 @@ class TestTaskCompletion(TaskTestCase):
         mock_java_exception.getClass().getName.return_value = "com.example.GenericJavaException"
         mock_java_exception.getCause.return_value = None
 
-        generic_py4j_error = Py4JJavaError("Java error occurred", mock_java_exception)
+        generic_py4j_error = protocol.Py4JJavaError("Java error occurred", mock_java_exception)
 
         summaries = await self._configure_completion_write_task(side_effect=generic_py4j_error)
         self.assertTrue(summaries[0].had_errors)
@@ -389,7 +389,7 @@ class TestTaskCompletion(TaskTestCase):
 
         mock_java_exception.getCause.return_value = mock_nested_exception
 
-        generic_py4j_error = Py4JJavaError("Java error occurred", mock_java_exception)
+        generic_py4j_error = protocol.Py4JJavaError("Java error occurred", mock_java_exception)
 
         with self.assertRaises(SystemExit):
             await self._configure_completion_write_task(
