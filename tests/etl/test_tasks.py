@@ -12,7 +12,7 @@ from py4j.protocol import Py4JJavaError
 from cumulus_etl import common, errors
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.tasks import basic_tasks, task_factory
-from cumulus_etl.formats.base import Format
+from cumulus_etl.formats.base import AWS_AUTH_EXCEPTION_CLASS_NAME, Format
 from tests.etl import TaskTestCase
 
 
@@ -383,9 +383,7 @@ class TestTaskCompletion(TaskTestCase):
         mock_java_exception.getClass().getName.return_value = "com.example.GenericJavaException"
 
         mock_nested_exception = mock.MagicMock()
-        mock_nested_exception.getClass().getName.return_value = (
-            "org.apache.hadoop.fs.s3a.auth.NoAuthWithAWSException"
-        )
+        mock_nested_exception.getClass().getName.return_value = AWS_AUTH_EXCEPTION_CLASS_NAME
 
         mock_java_exception.getCause.return_value = mock_nested_exception
         generic_py4j_error = Py4JJavaError("Java error occurred", mock_java_exception)
