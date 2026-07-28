@@ -7,10 +7,12 @@ import cumulus_fhir_support as cfs
 import ddt
 import pyarrow
 import pydantic
+from py4j import protocol
 
 from cumulus_etl import common, errors
 from cumulus_etl.etl import tasks
 from cumulus_etl.etl.tasks import basic_tasks, task_factory
+from cumulus_etl.formats.base import AWS_AUTH_EXCEPTION_CLASS_NAME, Format
 from tests.etl import TaskTestCase
 
 
@@ -203,6 +205,30 @@ class TestTasks(TaskTestCase):
 class TestTaskCompletion(TaskTestCase):
     """Tests for etl__completion* handling"""
 
+    async def _configure_completion_write_task(
+        self, write_records_result=None, write_records=None, side_effect=None
+    ) -> basic_tasks.DeviceTask:
+        """A helper method to create the mock formatter for
+        completion write tests and then return the DeviceTask to run."""
+
+        def make_formatter(dbname: str, **kwargs):
+            mock_formatter = mock.MagicMock(dbname=dbname, **kwargs)
+
+            if dbname == "etl__completion":
+                mock_formatter.write_records.return_value = write_records_result
+                mock_formatter._write_one_batch.side_effect = side_effect
+
+                if write_records is not None:
+                    mock_formatter.write_records = Format.write_records.__get__(mock_formatter)
+
+            return mock_formatter
+
+        self.job_config.create_formatter = mock.MagicMock(side_effect=make_formatter)
+
+        self.make_json("Device", "A")
+
+        return await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
+
     async def test_encounter_completion(self):
         """Verify that we write out completion data correctly"""
         self.make_json("Encounter", "FirstBatch.A")
@@ -336,19 +362,39 @@ class TestTaskCompletion(TaskTestCase):
 
     async def test_error_during_write(self):
         """We should flag the task as failed if we can't write completion"""
-
-        # Change the way we mock formatters to insert an error
-        def make_formatter(dbname: str, **kwargs):
-            mock_formatter = mock.MagicMock(dbname=dbname, **kwargs)
-            if dbname == "etl__completion":
-                mock_formatter.write_records.return_value = False
-            return mock_formatter
-
-        self.job_config.create_formatter = mock.MagicMock(side_effect=make_formatter)
-
-        self.make_json("Device", "A")
-        summaries = await basic_tasks.DeviceTask(self.job_config, self.scrubber).run()
+        summaries = await self._configure_completion_write_task(write_records_result=False)
         self.assertTrue(summaries[0].had_errors)
+
+    async def test_py4jjavaerror_during_write(self):
+        """We should exhibit the same behavior as generic exception handling ifwrite_records_result
+        a Py4JJavaError was thrown without a nested NoAuthWithAWS exception."""
+
+        mock_java_exception = mock.MagicMock()
+        mock_java_exception.getClass().getName.return_value = "com.example.GenericJavaException"
+        mock_java_exception.getCause.return_value = None
+
+        generic_py4j_error = protocol.Py4JJavaError("Java error occurred", mock_java_exception)
+
+        summaries = await self._configure_completion_write_task(side_effect=generic_py4j_error)
+        self.assertTrue(summaries[0].had_errors)
+
+    async def test_noauthwithawsexception_during_write(self):
+        """We should raise SystemExit when a Py4JJavaError wraps a nested NoAuthWithAWS exception."""
+
+        mock_java_exception = mock.MagicMock()
+        mock_java_exception.getClass().getName.return_value = "com.example.GenericJavaException"
+
+        mock_nested_exception = mock.MagicMock()
+        mock_nested_exception.getClass().getName.return_value = AWS_AUTH_EXCEPTION_CLASS_NAME
+
+        mock_java_exception.getCause.return_value = mock_nested_exception
+
+        generic_py4j_error = protocol.Py4JJavaError("Java error occurred", mock_java_exception)
+
+        with self.assertRaises(SystemExit):
+            await self._configure_completion_write_task(
+                write_records=True, side_effect=generic_py4j_error
+            )
 
 
 class TestModelTask(TaskTestCase):
