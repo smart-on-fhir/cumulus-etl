@@ -230,7 +230,6 @@ class LabelStudioClient:
             # Labels are passed in as an array always, but datetime needs to be a single str
             # Throw an error if there is a mismatch here, but otherwise just convert to single str
             if len(labels) > 1:
-                print(labels)
                 rich.print(
                     "Datetime subvalues can only have a single value, but received multiple - ",
                     f"fix or ignore label with id starting {label_id[:8]}.",
@@ -266,7 +265,7 @@ class LabelStudioClient:
             text = note.text[span[0] : span[1]]
 
             # First, add the parent label
-            print(note.unique_id)
+            print(note.anon_encounter_id)
             prediction.result.append(
                 self._format_match(span[0], span[1], text, [label], label_id=label_id)
             )
