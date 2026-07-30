@@ -500,7 +500,7 @@ class TestUploadLabelStudio(AsyncTestCase):
             self.get_pushed_task(),
         )
 
-    async def test_push_datetime_highlight_fails_with_multiple_dates(self):
+    async def test_push_datetime_highlight_shows_warning_with_multiple_dates(self):
         self.mock_config("""
         <View>
             <Labels name="mylabel" toName="mytext" value="$mylabel"/>
