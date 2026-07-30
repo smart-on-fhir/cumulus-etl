@@ -231,10 +231,10 @@ class LabelStudioClient:
             # Throw an error if there is a mismatch here, but otherwise just convert to single str
             if len(labels) > 1:
                 print(labels)
-                errors.fatal(
+                rich.print(
                     "Datetime subvalues can only have a single value, but received multiple - ",
                     f"fix or ignore label with id starting {label_id[:8]}.",
-                    errors.LABEL_VALUE_ARITY_MISMATCH,
+                    f"For now, we'll just use the first value ({labels[0]}) and ignore the rest.",
                 )
             match["value"][field] = str(labels[0])
         else:
