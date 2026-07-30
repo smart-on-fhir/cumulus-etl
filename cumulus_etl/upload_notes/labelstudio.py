@@ -188,6 +188,7 @@ class LabelStudioClient:
         labels: Iterable[str],
         from_name: str | None = None,
         label_id: str | None = None,
+        note: LabelStudioNote | None = None
     ) -> dict:
         from_name = from_name or self._labels_name
         interface = self._project.get_label_interface()
@@ -235,6 +236,10 @@ class LabelStudioClient:
                     f"fix or ignore label with id starting {label_id[:8]}.",
                     f"For now, we'll just use the first value ({labels[0]}) and ignore the rest.",
                 )
+                rich.print(note.patient_id)
+                rich.print(note.anon_patient_id)
+                rich.print(note.encounter_id)
+                rich.print(note.anon_encounter_id)
             match["value"][field] = str(labels[0])
         else:
             match["value"][field] = list(labels)
@@ -265,9 +270,8 @@ class LabelStudioClient:
             text = note.text[span[0] : span[1]]
 
             # First, add the parent label
-            print(note.anon_encounter_id)
             prediction.result.append(
-                self._format_match(span[0], span[1], text, [label], label_id=label_id)
+                self._format_match(span[0], span[1], text, [label], label_id=label_id, note=note)
             )
 
             # Now add sublabels
@@ -282,6 +286,7 @@ class LabelStudioClient:
                         sublabel_values,
                         label_id=label_id,
                         from_name=sublabel_name,
+                        note=note   
                     )
                 )
                 # Keep track of values for the sublabel data columns
