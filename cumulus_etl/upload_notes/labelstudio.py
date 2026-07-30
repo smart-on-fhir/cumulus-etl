@@ -230,12 +230,12 @@ class LabelStudioClient:
             # Labels are passed in as an array always, but datetime needs to be a single str
             # Throw an error if there is a mismatch here, but otherwise just convert to single str
             if len(labels) > 1:
+                print(labels)
                 errors.fatal(
                     "Datetime subvalues can only have a single value, but received multiple - ",
                     f"fix or ignore label with id starting {label_id[:8]}.",
                     errors.LABEL_VALUE_ARITY_MISMATCH,
                 )
-                print(labels)
             match["value"][field] = str(labels[0])
         else:
             match["value"][field] = list(labels)
@@ -266,6 +266,7 @@ class LabelStudioClient:
             text = note.text[span[0] : span[1]]
 
             # First, add the parent label
+            print(note.unique_id)
             prediction.result.append(
                 self._format_match(span[0], span[1], text, [label], label_id=label_id)
             )
