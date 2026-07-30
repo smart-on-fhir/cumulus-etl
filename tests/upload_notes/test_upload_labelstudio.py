@@ -1,6 +1,8 @@
 """Tests for cumulus.upload_notes.labelstudio.py"""
 
+import contextlib
 import datetime
+import io
 import json
 import types
 from unittest import mock
@@ -516,9 +518,10 @@ class TestUploadLabelStudio(AsyncTestCase):
             ),
         ]
 
-        with self.assertRaises(errors.FatalError) as err:
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
             await self.push_tasks(note)
-            assert err.code == errors.LABEL_VALUE_ARITY_MISMATCH
+        self.assertIn("Datetime subvalues can only have a single value", stdout.getvalue())
 
     async def test_unrecognized_label_name(self):
         note = self.make_note(philter_label=False)
