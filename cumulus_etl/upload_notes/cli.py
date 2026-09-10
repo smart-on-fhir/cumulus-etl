@@ -10,7 +10,7 @@ import cumulus_fhir_support as cfs
 import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp
-from cumulus_etl.upload_notes import labeling, manifest, selector
+from cumulus_etl.upload_notes import labeling, labels, manifest, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
 PHILTER_DISABLE = "disable"
@@ -20,13 +20,44 @@ PHILTER_LABEL = "label"
 
 def init_checks(args: argparse.Namespace):
     """Do any external service checks necessary at the start"""
-    if args.skip_init_checks:
+    if args.skip_init_checks or args.no_upload:
         return
 
     if not cli_utils.is_url_available(args.label_studio_url, retry=False):
         errors.fatal(
             f"A running Label Studio server was not found at:\n    {args.label_studio_url}",
             errors.LABEL_STUDIO_MISSING,
+        )
+
+
+def check_upload_args(args: argparse.Namespace) -> None:
+    """
+    Confirms we have what we need for the work the user asked for.
+
+    The Label Studio arguments aren't required by argparse itself, because --no-upload runs don't
+    need them at all. So we check them here instead, once we know which kind of run this is.
+    """
+    if args.no_upload:
+        if not args.export_labels_to and not args.export_to:
+            errors.fatal(
+                "Nothing to do: --no-upload was given, but --export-labels-to &"
+                "--export-to are blank; this run cannot save anything.",
+                errors.ARGS_INVALID,
+            )
+        return
+
+    missing = []
+    if not args.label_studio_url:
+        missing.append("a Label Studio URL")
+    if not args.ls_token:
+        missing.append("--ls-token")
+    if args.ls_project is None:
+        missing.append("--ls-project")
+    if missing:
+        errors.fatal(
+            f"Missing {', '.join(missing)}.\n"
+            "Provide them, or pass --no-upload to prepare the notes without uploading.",
+            errors.ARGS_INVALID,
         )
 
 
@@ -292,10 +323,11 @@ async def push_to_label_studio(
 
 
 def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
-    parser.usage = "cumulus-etl upload-notes [OPTION]... INPUT LS_URL PHI"
+    parser.usage = "cumulus-etl upload-notes [OPTION]... INPUT [LS_URL] PHI"
 
     parser.add_argument("dir_input", metavar="/path/to/input", type=cfs.FsPath)
-    parser.add_argument("label_studio_url", metavar="https://example.com/labelstudio")
+    # Optional so that --no-upload runs don't have to name a server they'll never talk to.
+    parser.add_argument("label_studio_url", metavar="https://example.com/labelstudio", nargs="?")
     parser.add_argument("dir_phi", metavar="/path/to/phi", type=cfs.FsPath)
 
     parser.add_argument(
@@ -379,6 +411,13 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         help="name of an Athena table with annotations "
         "(must have note ID, label, and span columns)",
     )
+    group.add_argument(
+        "--export-labels-to",
+        metavar="PATH",
+        type=cfs.FsPath,
+        help="where to write Chart Review label files for the uploaded notes "
+        "(one .csv per label origin)",
+    )
 
     group = nlp.add_note_selection(parser)
     # Add some deprecated aliases for some note selection options. Deprecated since Sep 2025.
@@ -392,7 +431,6 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         "--ls-token",
         metavar="PATH",
         help="token file for Label Studio access",
-        required=True,
         type=cfs.FsPath,
     )
     group.add_argument(
@@ -400,10 +438,15 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         metavar="ID",
         type=int,
         help="Label Studio project ID to update",
-        required=True,
     )
     group.add_argument(
         "--overwrite", action="store_true", help="whether to overwrite an existing task for a note"
+    )
+    group.add_argument(
+        "--no-upload",
+        action="store_true",
+        help="prepare the notes but don't push them to Label Studio "
+        "(useful with --export-labels-to)",
     )
 
     cli_utils.add_debugging(parser)
@@ -416,8 +459,9 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     There are three major steps:
     1. Gather requested resources, reverse-engineering the original IDs if necessary
     2. Run Philter
-    3. Upload to Label Studio
+    3. Upload to Label Studio (unless --no-upload, which just writes the local files)
     """
+    check_upload_args(args)
     init_checks(args)
 
     # record filesystem options like --s3-region before creating Roots
@@ -427,7 +471,7 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     args.dir_phi.makedirs()  # create PHI if needed (very edge case)
 
     # Read token file early for quick error feedback
-    access_token = args.ls_token.read_text().strip()
+    access_token = args.ls_token.read_text().strip() if args.ls_token else None
 
     # Check that --count is positive, and warn if --export-to is not set (so no manifest will be saved)
     if args.count is not None:
@@ -436,10 +480,14 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
                 f"Count must be a positive number, not '{args.count}'.", errors.ARGS_INVALID
             )
         if not args.export_to:
-            rich.print(
+            warning = (
                 "Warning: --export-to is not set, so no uploaded_notes.csv manifest will be saved."
-                "To see which charts were uploaded you'll have to confirm with Label Studio."
             )
+            if not args.no_upload:
+                warning += (
+                    "To see which charts were uploaded you'll have to confirm with Label Studio."
+                )
+            rich.print(warning)
 
     match args.grouping:
         case "encounter":
@@ -470,7 +518,11 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     aggregated_notes = sample_notes(aggregated_notes, args)
     # Record which notes we're about to upload (before push, since push may skip existing tasks).
     manifest.write_upload_manifest(aggregated_notes, args.export_to)
-    await push_to_label_studio(aggregated_notes, access_token, args)
+    labels.write_label_files(aggregated_notes, args.export_labels_to)
+    if args.no_upload:
+        rich.print(f"Prepared {len(aggregated_notes):,} charts. Skipping the Label Studio upload.")
+    else:
+        await push_to_label_studio(aggregated_notes, access_token, args)
 
 
 async def run_upload_notes(parser: argparse.ArgumentParser, argv: list[str]) -> None:
