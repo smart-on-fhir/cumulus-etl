@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Collection
 
 import cumulus_fhir_support as cfs
+import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.upload_notes import labelstudio
@@ -37,6 +38,8 @@ async def add_labels(
 
     common.print_header("Labeling notes...")
 
+    labels_before = sum(len(note.highlights) for note in notes)
+
     if has_athena_table:
         _label_by_csv(
             codebook, notes, nlp.query_athena_table(args.label_by_athena_table, args), is_anon=True
@@ -48,6 +51,15 @@ async def add_labels(
     elif has_word:
         _highlight_words(notes, args.highlight_by_word, args.highlight_by_regex)
 
+    if sum(len(note.highlights) for note in notes) == labels_before:
+        # Easy to miss otherwise: the run carries on and simply produces nothing.
+        rich.print(
+            "Warning: no labels matched any of the notes. Some things to check:\n"
+            "- do the note IDs in your labels line up with the notes you selected?\n"
+            "- does every row have a 'span' column like '124:157'? "
+            "Rows without one can't be placed in the note text, so they are skipped."
+        )
+
 
 def _check_matches(
     res_type: str, res_id: str, patient_id: str, refs: cfs.RefSet, *, codebook: deid.Codebook | None
@@ -57,10 +69,15 @@ def _check_matches(
         res_type = "Patient"
         res_id = patient_id
 
+    # Accept either the real ID or its anonymized form, whichever this source happens to hold.
+    # Sources aren't consistent about it - an NLP table reached by --label-by-athena-table is
+    # often keyed by real IDs - and insisting on one form just means silently matching nothing.
+    # A real ID won't collide with one of our anonymized hashes, so checking both is safe.
+    matches = set(refs.get_data_for_id(res_type, res_id, default=set()))
     if codebook:
-        res_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
-
-    return refs.get_data_for_id(res_type, res_id)
+        anon_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
+        matches |= set(refs.get_data_for_id(res_type, anon_id, default=set()))
+    return matches
 
 
 def _label_by_csv(
@@ -82,8 +99,8 @@ def _label_by_csv(
         ],
     )
 
-    codebook = codebook if is_anon else None
-
+    # Always hand over the codebook, so both directions are tolerant: an "anonymized" source may
+    # hold real IDs, and a "real" source may hold anonymized ones.
     for note in notes:
         patient_id = note.patient_id
         for ref, doc_span in note.doc_spans.items():
