@@ -69,15 +69,10 @@ def _check_matches(
         res_type = "Patient"
         res_id = patient_id
 
-    # Accept either the real ID or its anonymized form, whichever this source happens to hold.
-    # Sources aren't consistent about it - an NLP table reached by --label-by-athena-table is
-    # often keyed by real IDs - and insisting on one form just means silently matching nothing.
-    # A real ID won't collide with one of our anonymized hashes, so checking both is safe.
-    matches = set(refs.get_data_for_id(res_type, res_id, default=set()))
     if codebook:
-        anon_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
-        matches |= set(refs.get_data_for_id(res_type, anon_id, default=set()))
-    return matches
+        res_id = codebook.fake_id(res_type, res_id, caching_allowed=False)
+
+    return refs.get_data_for_id(res_type, res_id)
 
 
 def _label_by_csv(
@@ -99,8 +94,8 @@ def _label_by_csv(
         ],
     )
 
-    # Always hand over the codebook, so both directions are tolerant: an "anonymized" source may
-    # hold real IDs, and a "real" source may hold anonymized ones.
+    codebook = codebook if is_anon else None
+
     for note in notes:
         patient_id = note.patient_id
         for ref, doc_span in note.doc_spans.items():

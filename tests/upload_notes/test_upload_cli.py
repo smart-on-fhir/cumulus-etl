@@ -908,24 +908,6 @@ class TestUploadNotes(AsyncTestCase):
         )
         self.assertEqual(tasks[1].highlights, [Highlight("test", (146, 149), "custom")])
 
-    @ddt.data("real", "anon")
-    async def test_label_by_anon_csv_accepts_either_id(self, kind):
-        """An 'anonymized' label source often holds real IDs - take either form"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
-                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="one two"))
-            note_id = "D1" if kind == "real" else ANON_D1
-            csv_file = f"{tmpdir}/labels.csv"
-            with open(csv_file, "w", newline="", encoding="utf8") as f:
-                f.write("note_ref,label,span\n")
-                f.write(f"DocumentReference/{note_id},number,0:3\n")
-            await self.run_upload_notes(
-                f"--label-by-anon-csv={csv_file}", input_path=tmpdir, philter="disable"
-            )
-
-        tasks = self.ls_client.push_tasks.call_args[0][0]
-        self.assertEqual([Highlight("number", (146, 149), "Cumulus")], tasks[0].highlights)
-
     async def test_no_labels_matched_warns(self):
         """A label source that matches nothing should say so, not just quietly do nothing"""
         with tempfile.TemporaryDirectory() as tmpdir:
