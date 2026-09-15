@@ -445,7 +445,7 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     group.add_argument(
         "--no-upload",
         action="store_true",
-        help="prepare the notes but don't push them to Label Studio "
+        help="prepare the notes but don't push them to Label Studio"
         "(useful with --export-labels-to)",
     )
 
