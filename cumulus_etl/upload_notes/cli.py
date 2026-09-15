@@ -465,7 +465,6 @@ async def upload_notes_main(args: argparse.Namespace) -> None:
     3. Upload to Label Studio (unless --no-upload, which just writes the local files)
     """
     check_upload_args(args)
-    init_checks(args)
 
     # record filesystem options like --s3-region before creating Roots
     common.set_user_fs_options(vars(args))
