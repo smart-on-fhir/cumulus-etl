@@ -18,18 +18,6 @@ PHILTER_REDACT = "redact"
 PHILTER_LABEL = "label"
 
 
-def init_checks(args: argparse.Namespace):
-    """Do any external service checks necessary at the start"""
-    if args.skip_init_checks or args.no_upload:
-        return
-
-    if not cli_utils.is_url_available(args.label_studio_url, retry=False):
-        errors.fatal(
-            f"A running Label Studio server was not found at:\n    {args.label_studio_url}",
-            errors.LABEL_STUDIO_MISSING,
-        )
-
-
 def check_upload_args(args: argparse.Namespace) -> None:
     """
     Confirms we have what we need for the work the user asked for.
@@ -58,6 +46,16 @@ def check_upload_args(args: argparse.Namespace) -> None:
             f"Missing {', '.join(missing)}.\n"
             "Provide them, or pass --no-upload to prepare the notes without uploading.",
             errors.ARGS_INVALID,
+        )
+
+    # Lastly; Do any external service checks necessary at the start?
+    if args.skip_init_checks or args.no_upload:
+        return
+
+    if not cli_utils.is_url_available(args.label_studio_url, retry=False):
+        errors.fatal(
+            f"A running Label Studio server was not found at:\n    {args.label_studio_url}",
+            errors.LABEL_STUDIO_MISSING,
         )
 
 
