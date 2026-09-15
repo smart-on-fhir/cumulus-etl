@@ -82,8 +82,8 @@ class TestUploadNotes(AsyncTestCase):
         args = [
             "upload-notes",
             input_path or self.input_path,
-            "https://localhost/labelstudio",
             phi_path or self.phi_path,
+            "--label-studio-url=https://localhost/labelstudio",
             "--ls-project=21",
             f"--ls-token={self.token_path}",
         ]
@@ -789,14 +789,17 @@ class TestUploadNotes(AsyncTestCase):
         # Each origin is its own annotator file, and each file covers every uploaded note -
         # "me" said nothing about D2, which is a blank label rather than a missing row.
         self.assertEqual(
-            [{"docref_id": "D1", "label": "number"}, {"docref_id": "D2", "label": ""}],
+            [
+                {"note_ref": "DocumentReference/D1", "label": "number"},
+                {"note_ref": "DocumentReference/D2", "label": ""},
+            ],
             read("labels-me.csv"),
         )
         self.assertEqual(
             [
-                {"docref_id": "D1", "label": "number"},
-                {"docref_id": "D1", "label": "single"},
-                {"docref_id": "D2", "label": "number"},
+                {"note_ref": "DocumentReference/D1", "label": "number"},
+                {"note_ref": "DocumentReference/D1", "label": "single"},
+                {"note_ref": "DocumentReference/D2", "label": "number"},
             ],
             read("labels-you.csv"),
         )
@@ -827,7 +830,9 @@ class TestUploadNotes(AsyncTestCase):
         self.assertFalse(self.ls_client.push_tasks.called)
         self.assertFalse(self.ls_client_mock.called)  # we never even built a client
         with common.read_csv(cfs.FsPath(f"{labels_path}/labels-cumulus.csv")) as reader:
-            self.assertEqual([{"docref_id": "D1", "label": "number"}], list(reader))
+            self.assertEqual(
+                [{"note_ref": "DocumentReference/D1", "label": "number"}], list(reader)
+            )
 
     async def test_no_upload_skips_init_checks(self):
         """A --no-upload run shouldn't ping a Label Studio server that may not exist"""
@@ -854,8 +859,8 @@ class TestUploadNotes(AsyncTestCase):
                 [
                     "upload-notes",
                     self.input_path,
-                    "https://localhost/labelstudio",
                     self.phi_path,
+                    "--label-studio-url=https://localhost/labelstudio",
                     "--skip-init-checks",
                     *ls_args,
                 ]
@@ -863,7 +868,7 @@ class TestUploadNotes(AsyncTestCase):
         self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
 
     async def test_missing_url_errors_without_no_upload(self):
-        """Dropping the URL positional must not silently shift the PHI folder into its place"""
+        """Uploading without a Label Studio URL is an error, not a silent no-op"""
         with self.assertRaises(SystemExit) as cm:
             await cli.main(
                 [

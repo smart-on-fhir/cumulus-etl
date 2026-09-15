@@ -55,9 +55,12 @@ class TestLabelFiles(AsyncTestCase):
         labels.write_label_files([note], cfs.FsPath(tmpdir))
 
         rows = self.read_labels(tmpdir)
-        self.assertEqual(["docref_id", "label"], list(rows[0].keys()))
+        self.assertEqual(["note_ref", "label"], list(rows[0].keys()))
         self.assertEqual(
-            [{"docref_id": "43", "label": "Headache"}, {"docref_id": "43", "label": "Sore throat"}],
+            [
+                {"note_ref": "DocumentReference/43", "label": "Headache"},
+                {"note_ref": "DocumentReference/43", "label": "Sore throat"},
+            ],
             rows,
         )
 
@@ -87,7 +90,10 @@ class TestLabelFiles(AsyncTestCase):
 
         rows = self.read_labels(tmpdir)
         self.assertEqual(
-            [{"docref_id": "43", "label": "Sore throat"}, {"docref_id": "44", "label": ""}],
+            [
+                {"note_ref": "DocumentReference/43", "label": "Sore throat"},
+                {"note_ref": "DocumentReference/44", "label": ""},
+            ],
             rows,
         )
 
@@ -104,11 +110,11 @@ class TestLabelFiles(AsyncTestCase):
         labels.write_label_files([note], cfs.FsPath(tmpdir))
 
         self.assertEqual(
-            [{"docref_id": "43", "label": "Sore throat"}],
+            [{"note_ref": "DocumentReference/43", "label": "Sore throat"}],
             self.read_labels(tmpdir, "labels-gpt_5_4.csv"),
         )
         self.assertEqual(
-            [{"docref_id": "43", "label": "Headache"}],
+            [{"note_ref": "DocumentReference/43", "label": "Headache"}],
             self.read_labels(tmpdir, "labels-claude_sonnet_4_5.csv"),
         )
 
@@ -125,11 +131,17 @@ class TestLabelFiles(AsyncTestCase):
         labels.write_label_files([first, second], cfs.FsPath(tmpdir))
 
         self.assertEqual(
-            [{"docref_id": "43", "label": "Fever"}, {"docref_id": "44", "label": ""}],
+            [
+                {"note_ref": "DocumentReference/43", "label": "Fever"},
+                {"note_ref": "DocumentReference/44", "label": ""},
+            ],
             self.read_labels(tmpdir, "labels-gpt.csv"),
         )
         self.assertEqual(
-            [{"docref_id": "43", "label": ""}, {"docref_id": "44", "label": "Cough"}],
+            [
+                {"note_ref": "DocumentReference/43", "label": ""},
+                {"note_ref": "DocumentReference/44", "label": "Cough"},
+            ],
             self.read_labels(tmpdir, "labels-claude.csv"),
         )
 
@@ -149,18 +161,18 @@ class TestLabelFiles(AsyncTestCase):
 
         rows = self.read_labels(tmpdir)
         self.assertEqual(
-            ["docref_id", "label", "sublabel_name", "sublabel_value"], list(rows[0].keys())
+            ["note_ref", "label", "sublabel_name", "sublabel_value"], list(rows[0].keys())
         )
         self.assertEqual(
             [
                 {
-                    "docref_id": "43",
+                    "note_ref": "DocumentReference/43",
                     "label": "Fever",
                     "sublabel_name": "Severity",
                     "sublabel_value": "Mild",
                 },
                 {
-                    "docref_id": "43",
+                    "note_ref": "DocumentReference/43",
                     "label": "Headache",
                     "sublabel_name": "",
                     "sublabel_value": "",
@@ -181,7 +193,9 @@ class TestLabelFiles(AsyncTestCase):
 
         labels.write_label_files([note], cfs.FsPath(tmpdir))
 
-        self.assertEqual([{"docref_id": "43", "label": "Rash"}], self.read_labels(tmpdir))
+        self.assertEqual(
+            [{"note_ref": "DocumentReference/43", "label": "Rash"}], self.read_labels(tmpdir)
+        )
 
     def test_mixed_sublabels_warn(self):
         """A label emitted both bare and sublabeled gets dropped by Chart Review, so warn"""
@@ -233,8 +247,65 @@ class TestLabelFiles(AsyncTestCase):
         with contextlib.redirect_stdout(stdout):
             labels.write_label_files([note], cfs.FsPath(tmpdir))
 
+        self.assertIn("1 mention across 1 note, dropped: label contains a '|'", stdout.getvalue())
         self.assertIn("Fever | chills", stdout.getvalue())
-        self.assertEqual([{"docref_id": "43", "label": "Headache"}], self.read_labels(tmpdir))
+        self.assertEqual(
+            [{"note_ref": "DocumentReference/43", "label": "Headache"}], self.read_labels(tmpdir)
+        )
+
+    def test_unplaceable_span_is_reported(self):
+        """A span that lands outside every note in the chart is dropped, and said so"""
+        tmpdir = self.make_tempdir()
+        note = self.make_note(
+            highlights=[
+                self.make_highlight("Fever", (0, 5)),
+                self.make_highlight("Ghost", (500, 505)),  # past the end of the note text
+            ],
+        )
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            labels.write_label_files([note], cfs.FsPath(tmpdir))
+
+        self.assertIn("span falls outside the text of any note", stdout.getvalue())
+        self.assertIn("Ghost", stdout.getvalue())
+        self.assertEqual(
+            [{"note_ref": "DocumentReference/43", "label": "Fever"}], self.read_labels(tmpdir)
+        )
+
+    def test_skip_summary_counts_mentions_and_notes(self):
+        """The summary counts mentions and the notes they came from, not just label names"""
+        tmpdir = self.make_tempdir()
+        first = self.make_note(
+            highlights=[
+                self.make_highlight("A|B", (0, 5)),
+                self.make_highlight("A|B", (10, 15)),  # same label, second mention
+            ],
+        )
+        second = self.make_note(
+            doc_mappings={"DocumentReference/44": "DocumentReference/anon44"},
+            doc_spans={"DocumentReference/44": (0, 26)},
+            highlights=[self.make_highlight("C|D", (0, 5))],
+        )
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            labels.write_label_files([first, second], cfs.FsPath(tmpdir))
+
+        self.assertIn("3 mentions across 2 notes", stdout.getvalue())
+
+    def test_half_sublabel_is_reported(self):
+        """Degrading a half-populated sublabel is worth mentioning too"""
+        tmpdir = self.make_tempdir()
+        note = self.make_note(
+            highlights=[self.make_highlight("Rash", (0, 5), sublabel_name="Severity")],
+        )
+
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            labels.write_label_files([note], cfs.FsPath(tmpdir))
+
+        self.assertIn("kept as a bare label", stdout.getvalue())
 
     def test_pipe_in_sublabel_name_is_dropped(self):
         """Same rule applies to sublabel names - but not to sublabel values"""
@@ -255,7 +326,7 @@ class TestLabelFiles(AsyncTestCase):
         self.assertEqual(
             [
                 {
-                    "docref_id": "43",
+                    "note_ref": "DocumentReference/43",
                     "label": "Rash",
                     "sublabel_name": "Severity",
                     "sublabel_value": "A|B",
@@ -276,7 +347,9 @@ class TestLabelFiles(AsyncTestCase):
 
         labels.write_label_files([note], cfs.FsPath(tmpdir))
 
-        self.assertEqual([{"docref_id": "43", "label": "Fever"}], self.read_labels(tmpdir))
+        self.assertEqual(
+            [{"note_ref": "DocumentReference/43", "label": "Fever"}], self.read_labels(tmpdir)
+        )
 
     def test_grouped_chart_attributes_labels_to_the_right_note(self):
         """Spans in a grouped chart still resolve back to the note they came from"""
@@ -296,12 +369,18 @@ class TestLabelFiles(AsyncTestCase):
         labels.write_label_files([note], cfs.FsPath(tmpdir))
 
         self.assertEqual(
-            [{"docref_id": "43", "label": "Sore throat"}, {"docref_id": "44", "label": "Headache"}],
+            [
+                {"note_ref": "DocumentReference/43", "label": "Sore throat"},
+                {"note_ref": "DocumentReference/44", "label": "Headache"},
+            ],
             self.read_labels(tmpdir),
         )
 
-    def test_diagnostic_reports_get_their_own_file(self):
-        """Chart Review types a whole column at once, so the two resources can't share a file"""
+    def test_both_note_types_share_one_file(self):
+        """Fully-qualified refs let both resource types live in a single file"""
+        # Chart Review takes a ref with a "/" verbatim and only guesses a resource type from the
+        # column name for bare IDs, so mixing the two is fine - and they resolve to the same
+        # chart anyway, since a Chart Review chart is a resource-agnostic Label Studio note ID.
         tmpdir = self.make_tempdir()
         note = self.make_note(
             doc_mappings={
@@ -317,11 +396,11 @@ class TestLabelFiles(AsyncTestCase):
 
         labels.write_label_files([note], cfs.FsPath(tmpdir))
 
+        self.assertEqual(["labels-cumulus.csv"], os.listdir(tmpdir))
         self.assertEqual(
-            [{"docref_id": "43", "label": "Sore throat"}],
+            [
+                {"note_ref": "DocumentReference/43", "label": "Sore throat"},
+                {"note_ref": "DiagnosticReport/us", "label": "Fever"},
+            ],
             self.read_labels(tmpdir),
-        )
-        self.assertEqual(
-            [{"diagnosticreport_id": "us", "label": "Fever"}],
-            self.read_labels(tmpdir, "labels-cumulus-dxreport.csv"),
         )

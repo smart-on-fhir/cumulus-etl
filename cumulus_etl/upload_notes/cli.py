@@ -323,11 +323,9 @@ async def push_to_label_studio(
 
 
 def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
-    parser.usage = "cumulus-etl upload-notes [OPTION]... INPUT [LS_URL] PHI"
+    parser.usage = "cumulus-etl upload-notes [OPTION]... INPUT PHI"
 
     parser.add_argument("dir_input", metavar="/path/to/input", type=cfs.FsPath)
-    # Optional so that --no-upload runs don't have to name a server they'll never talk to.
-    parser.add_argument("label_studio_url", metavar="https://example.com/labelstudio", nargs="?")
     parser.add_argument("dir_phi", metavar="/path/to/phi", type=cfs.FsPath)
 
     parser.add_argument(
@@ -427,17 +425,24 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
     group.add_argument("--docrefs", dest="select_by_csv", type=cfs.FsPath, help=argparse.SUPPRESS)
 
     group = parser.add_argument_group("Label Studio")
+    # Optional so that --no-upload runs don't have to name a server they'll never talk to.
+    group.add_argument(
+        "--label-studio-url",
+        metavar="https://example.com/labelstudio",
+        help="URL of a running Label Studio server (required unless --no-upload)",
+        default=None,
+    )
     group.add_argument(
         "--ls-token",
         metavar="PATH",
-        help="token file for Label Studio access",
+        help="token file for Label Studio access (required unless --no-upload)",
         type=cfs.FsPath,
     )
     group.add_argument(
         "--ls-project",
         metavar="ID",
         type=int,
-        help="Label Studio project ID to update",
+        help="Label Studio project ID to update (required unless --no-upload)",
     )
     group.add_argument(
         "--overwrite", action="store_true", help="whether to overwrite an existing task for a note"
