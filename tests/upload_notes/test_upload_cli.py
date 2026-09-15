@@ -662,7 +662,8 @@ class TestUploadNotes(AsyncTestCase):
         )
 
     @mock.patch("cumulus_etl.cli_utils.is_url_available")
-    async def test_init_checks(self, mock_url):
+    async def test_label_studio_url_must_be_reachable(self, mock_url):
+        """An upload run pings the server before doing any work"""
         # Start with error case for our URL check (against label studio)
         mock_url.return_value = False
         with self.assertRaises(SystemExit) as cm:
@@ -834,7 +835,7 @@ class TestUploadNotes(AsyncTestCase):
                 [{"note_ref": "DocumentReference/D1", "label": "number"}], list(reader)
             )
 
-    async def test_no_upload_skips_init_checks(self):
+    async def test_no_upload_skips_url_check(self):
         """A --no-upload run shouldn't ping a Label Studio server that may not exist"""
         with mock.patch("cumulus_etl.cli_utils.is_url_available") as mock_url:
             await self.run_upload_notes("--no-upload", skip_init_checks=False)
@@ -853,6 +854,8 @@ class TestUploadNotes(AsyncTestCase):
     )
     async def test_missing_label_studio_args_error(self, ls_args):
         """Without --no-upload, the Label Studio arguments are still required"""
+        # Note that --skip-init-checks is passed below: that flag turns off the *server* ping,
+        # and must not take the argument checks down with it.
         ls_args = [x.replace("TOKEN", self.token_path) for x in ls_args]
         with self.assertRaises(SystemExit) as cm:
             await cli.main(
@@ -867,20 +870,23 @@ class TestUploadNotes(AsyncTestCase):
             )
         self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
 
-    async def test_missing_url_errors_without_no_upload(self):
-        """Uploading without a Label Studio URL is an error, not a silent no-op"""
+    @mock.patch("cumulus_etl.cli_utils.is_url_available")
+    async def test_missing_url_errors_before_pinging_it(self, mock_url):
+        """Argument checks run before the server ping, so a missing URL isn't reported as 'None'"""
+        # Note the lack of --skip-init-checks: we want the server ping to be on the table, and to
+        # confirm we bail out with a useful message before ever reaching it.
         with self.assertRaises(SystemExit) as cm:
             await cli.main(
                 [
                     "upload-notes",
                     self.input_path,
                     self.phi_path,
-                    "--skip-init-checks",
                     "--ls-project=21",
                     f"--ls-token={self.token_path}",
                 ]
             )
         self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+        self.assertEqual(mock_url.call_count, 0)
 
     async def test_label_by_anon_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:

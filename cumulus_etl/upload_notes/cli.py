@@ -49,7 +49,7 @@ def check_upload_args(args: argparse.Namespace) -> None:
         )
 
     # Lastly; Do any external service checks necessary at the start?
-    if args.skip_init_checks or args.no_upload:
+    if args.skip_init_checks:
         return
 
     if not cli_utils.is_url_available(args.label_studio_url, retry=False):
