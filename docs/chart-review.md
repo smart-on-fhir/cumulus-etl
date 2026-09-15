@@ -37,25 +37,28 @@ At its core, upload mode is just another ETL (extract, transform, load) operatio
 
 ### Minimal Command Line
 
-Upload mode takes three main arguments:
+Upload mode takes two main arguments:
 1. Input path (local dir of NDJSON)
-2. URL for Label Studio
-3. PHI/build path (the same PHI/build path you normally provide to Cumulus ETL)
+2. PHI/build path (the same PHI/build path you normally provide to Cumulus ETL)
 
-Additionally, there are two required Label Studio parameters:
-1. `--ls-token PATH` (a file holding your Label Studio authentication token)
-2. `--ls-project ID` (the number of the Label Studio project you want to push notes to)
+Additionally, there are three Label Studio parameters:
+1. `--label-studio-url URL` (the address of your Label Studio server)
+2. `--ls-token PATH` (a file holding your Label Studio authentication token)
+3. `--ls-project ID` (the number of the Label Studio project you want to push notes to)
+
+(All three are only needed when actually uploading —
+see [Skipping the Upload](#skipping-the-upload).)
 
 Taken altogether, here is an example minimal `upload-notes` command:
 ```sh
 docker compose run --rm \
  --volume /local/path:/host \
  cumulus-etl upload-notes \
+  --label-studio-url https://my-label-studio-server/ \
   --ls-token /host/label-studio-token.txt \
   --ls-project 3 \
   --s3-region=us-east-2 \
   /host/my-input-folder/ \
-  https://my-label-studio-server/ \
   s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir/
 ```
 
@@ -175,6 +178,72 @@ These all expect a certain format:
   complicated sub-options.
 - Optionally an `origin` column that will name the source of the labels (used to separate
   labels into separate annotation sources in Label Studio)
+
+## Exporting Labels for Chart Review
+
+Once your reviewers have annotated the charts, you'll want to measure how well the NLP agreed
+with them, using [Chart Review](https://docs.smarthealthit.org/cumulus/chart-review/).
+
+Pass `--export-labels-to PATH` and upload mode will write those CSVs for the charts it prepared:
+```sh
+docker compose run --rm \
+ --volume /local/path:/host \
+ cumulus-etl upload-notes \
+  --label-studio-url https://my-label-studio-server/ \
+  --ls-token /host/label-studio-token.txt \
+  --ls-project 3 \
+  --label-by-athena-table my_study__nlp_labels \
+  --export-labels-to /host/chart-review-project/ \
+  /host/my-input-folder/ \
+  s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir/
+```
+
+You'll get one `labels-<origin>.csv` per label origin,
+since Chart Review scores one annotator per file.
+To compare several models, run upload mode once per model,
+then point a single Chart Review config at all the resulting files:
+```yaml
+annotators:
+  me: 1
+  gpt-oss-120b:
+    filename: labels-gpt-oss-120b.csv
+  claude-sonnet45:
+    filename: labels-claude-sonnet45.csv
+```
+
+Pairing this with [`--export-to`](#saving-the-selected-documents) is often handy:
+that writes an `uploaded_notes.csv` manifest listing exactly which notes went up,
+which is the quickest way to confirm the label files cover the charts you expect.
+
+A few things worth knowing about the generated files:
+- Notes that an origin didn't label still get a row, with an empty label.
+  Chart Review reads that as "reviewed, found nothing" — leaving the row out would mean
+  "not reviewed", which would shrink that annotator's denominator.
+- The `note_ref` column holds fully-qualified references, so DocumentReferences and
+  DiagnosticReports sit in the same file. That column can also be fed straight back into
+  `--select-by-csv` to re-run against the same notes.
+- Labels containing a `|` are left out, since Chart Review reserves it as its own
+  label/sublabel delimiter and won't load a file containing one.
+- If one annotator uses a sublabel for a label and another uses it bare, Chart Review discards
+  *all* the bare mentions of that label, from every annotator — human reviewers included.
+  Upload mode warns when it notices this, but it's best to settle on one or the other.
+
+### Skipping the Upload
+
+If you only want the label files — say you're scoring another model against charts you uploaded
+earlier — pass `--no-upload`.
+Upload mode will prepare everything and write the local files without contacting Label Studio,
+so you can leave out the Label Studio URL, `--ls-project`, and `--ls-token` entirely:
+```sh
+docker compose run --rm \
+ --volume /local/path:/host \
+ cumulus-etl upload-notes \
+  --no-upload \
+  --label-by-athena-table my_study__nlp_labels \
+  --export-labels-to /host/chart-review-project/ \
+  /host/my-input-folder/ \
+  s3://my-cumulus-prefix-phi-99999999999-us-east-2/subdir/
+```
 
 ## Philter
 

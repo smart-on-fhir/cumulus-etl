@@ -82,8 +82,8 @@ class TestUploadNotes(AsyncTestCase):
         args = [
             "upload-notes",
             input_path or self.input_path,
-            "https://localhost/labelstudio",
             phi_path or self.phi_path,
+            "--label-studio-url=https://localhost/labelstudio",
             "--ls-project=21",
             f"--ls-token={self.token_path}",
         ]
@@ -662,7 +662,8 @@ class TestUploadNotes(AsyncTestCase):
         )
 
     @mock.patch("cumulus_etl.cli_utils.is_url_available")
-    async def test_init_checks(self, mock_url):
+    async def test_label_studio_url_must_be_reachable(self, mock_url):
+        """An upload run pings the server before doing any work"""
         # Start with error case for our URL check (against label studio)
         mock_url.return_value = False
         with self.assertRaises(SystemExit) as cm:
@@ -761,6 +762,132 @@ class TestUploadNotes(AsyncTestCase):
         )
         self.assertEqual(tasks[1].highlights, [Highlight("number", (146, 151), "you")])
 
+    async def test_export_labels_to(self):
+        """Labels parsed out of an NLP table come back out as Chart Review annotator files"""
+        labels_path = os.path.join(self.export_path, "labels")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="one two"))
+                writer.write(TestUploadNotes.make_docref("D2", enc_id="E2", text="three"))
+            csv_file = f"{tmpdir}/labels.csv"
+            with open(csv_file, "w", newline="", encoding="utf8") as f:
+                f.write("documentreference_id,label,span,origin\n")
+                f.write("D1,number,0:3,test_study__nlp_me\n")
+                f.write("D1,number,4:7,test_study__nlp_you\n")
+                f.write("D2,number,0:5,test_study__nlp_you\n")
+                f.write("D1,single,0:3,test_study__nlp_you\n")
+            await self.run_upload_notes(
+                f"--label-by-csv={csv_file}",
+                f"--export-labels-to={labels_path}",
+                input_path=tmpdir,
+                philter="disable",
+            )
+
+        def read(filename: str) -> list[dict]:
+            with common.read_csv(cfs.FsPath(os.path.join(labels_path, filename))) as reader:
+                return list(reader)
+
+        # Each origin is its own annotator file, and each file covers every uploaded note -
+        # "me" said nothing about D2, which is a blank label rather than a missing row.
+        self.assertEqual(
+            [
+                {"note_ref": "DocumentReference/D1", "label": "number"},
+                {"note_ref": "DocumentReference/D2", "label": ""},
+            ],
+            read("labels-me.csv"),
+        )
+        self.assertEqual(
+            [
+                {"note_ref": "DocumentReference/D1", "label": "number"},
+                {"note_ref": "DocumentReference/D1", "label": "single"},
+                {"note_ref": "DocumentReference/D2", "label": "number"},
+            ],
+            read("labels-you.csv"),
+        )
+
+    async def test_no_upload(self):
+        """--no-upload writes the local files but never touches Label Studio"""
+        labels_path = os.path.join(self.export_path, "labels")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="one two"))
+            csv_file = f"{tmpdir}/labels.csv"
+            with open(csv_file, "w", newline="", encoding="utf8") as f:
+                f.write("documentreference_id,label,span\n")
+                f.write("D1,number,0:3\n")
+            # Note the missing LS_URL positional, and no --ls-token / --ls-project.
+            await cli.main(
+                [
+                    "upload-notes",
+                    tmpdir,
+                    self.phi_path,
+                    "--no-upload",
+                    "--philter=disable",
+                    f"--label-by-csv={csv_file}",
+                    f"--export-labels-to={labels_path}",
+                ]
+            )
+
+        self.assertFalse(self.ls_client.push_tasks.called)
+        self.assertFalse(self.ls_client_mock.called)  # we never even built a client
+        with common.read_csv(cfs.FsPath(f"{labels_path}/labels-cumulus.csv")) as reader:
+            self.assertEqual(
+                [{"note_ref": "DocumentReference/D1", "label": "number"}], list(reader)
+            )
+
+    async def test_no_upload_skips_url_check(self):
+        """A --no-upload run shouldn't ping a Label Studio server that may not exist"""
+        with mock.patch("cumulus_etl.cli_utils.is_url_available") as mock_url:
+            await self.run_upload_notes("--no-upload", skip_init_checks=False)
+        self.assertEqual(mock_url.call_count, 0)
+
+    async def test_no_upload_without_an_output_errors(self):
+        """--no-upload with nowhere to write anything would be a no-op"""
+        with self.assertRaises(SystemExit) as cm:
+            await self.run_upload_notes("--no-upload", export_to=False)
+        self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+
+    @ddt.data(
+        ["--ls-project=21"],  # no token
+        ["--ls-token=TOKEN"],  # no project
+        [],  # neither
+    )
+    async def test_missing_label_studio_args_error(self, ls_args):
+        """Without --no-upload, the Label Studio arguments are still required"""
+        # Note that --skip-init-checks is passed below: that flag turns off the *server* ping,
+        # and must not take the argument checks down with it.
+        ls_args = [x.replace("TOKEN", self.token_path) for x in ls_args]
+        with self.assertRaises(SystemExit) as cm:
+            await cli.main(
+                [
+                    "upload-notes",
+                    self.input_path,
+                    self.phi_path,
+                    "--label-studio-url=https://localhost/labelstudio",
+                    "--skip-init-checks",
+                    *ls_args,
+                ]
+            )
+        self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+
+    @mock.patch("cumulus_etl.cli_utils.is_url_available")
+    async def test_missing_url_errors_before_pinging_it(self, mock_url):
+        """Argument checks run before the server ping, so a missing URL isn't reported as 'None'"""
+        # Note the lack of --skip-init-checks: we want the server ping to be on the table, and to
+        # confirm we bail out with a useful message before ever reaching it.
+        with self.assertRaises(SystemExit) as cm:
+            await cli.main(
+                [
+                    "upload-notes",
+                    self.input_path,
+                    self.phi_path,
+                    "--ls-project=21",
+                    f"--ls-token={self.token_path}",
+                ]
+            )
+        self.assertEqual(errors.ARGS_INVALID, cm.exception.code)
+        self.assertEqual(mock_url.call_count, 0)
+
     async def test_label_by_anon_csv(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/dxreport.ndjson")) as writer:
@@ -791,6 +918,23 @@ class TestUploadNotes(AsyncTestCase):
             ],
         )
         self.assertEqual(tasks[1].highlights, [Highlight("test", (146, 149), "custom")])
+
+    async def test_no_labels_matched_warns(self):
+        """A label source that matches nothing should say so, not just quietly do nothing"""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/docs.ndjson")) as writer:
+                writer.write(TestUploadNotes.make_docref("D1", enc_id="E1", text="one two"))
+            csv_file = f"{tmpdir}/labels.csv"
+            with open(csv_file, "w", newline="", encoding="utf8") as f:
+                f.write("documentreference_id,label,span\n")
+                f.write("NOPE,number,0:3\n")
+            stdout = io.StringIO()
+            with contextlib.redirect_stdout(stdout):
+                await self.run_upload_notes(
+                    f"--label-by-csv={csv_file}", input_path=tmpdir, philter="disable"
+                )
+
+        self.assertIn("no labels matched any of the notes", stdout.getvalue())
 
     async def test_label_by_athena_table(self):
         with tempfile.TemporaryDirectory() as tmpdir:

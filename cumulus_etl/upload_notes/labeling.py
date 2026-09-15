@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Collection
 
 import cumulus_fhir_support as cfs
+import rich
 
 from cumulus_etl import cli_utils, common, deid, errors, nlp
 from cumulus_etl.upload_notes import labelstudio
@@ -37,6 +38,8 @@ async def add_labels(
 
     common.print_header("Labeling notes...")
 
+    labels_before = sum(len(note.highlights) for note in notes)
+
     if has_athena_table:
         _label_by_csv(
             codebook, notes, nlp.query_athena_table(args.label_by_athena_table, args), is_anon=True
@@ -47,6 +50,15 @@ async def add_labels(
         _label_by_csv(codebook, notes, args.label_by_csv, is_anon=False)
     elif has_word:
         _highlight_words(notes, args.highlight_by_word, args.highlight_by_regex)
+
+    if sum(len(note.highlights) for note in notes) == labels_before:
+        # Easy to miss otherwise: the run carries on and simply produces nothing.
+        rich.print(
+            "Warning: no labels matched any of the notes. Some things to check:\n"
+            "- do the note IDs in your labels line up with the notes you selected?\n"
+            "- does every row have a 'span' column like '124:157'? "
+            "Rows without one can't be placed in the note text, so they are skipped."
+        )
 
 
 def _check_matches(
