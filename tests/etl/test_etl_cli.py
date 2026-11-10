@@ -9,6 +9,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 from unittest import mock
 
 import cumulus_fhir_support as cfs
@@ -27,6 +28,13 @@ from tests.utils import FROZEN_TIME_UTC, read_delta_lake
 @ddt.ddt
 class TestEtlJobFlow(BaseEtlSimple):
     """Test case for the sequence of data through the system"""
+
+    def mock_rich_prompt(self, prompt_answer: bool):
+        console = mock.MagicMock()
+        console.is_interactive = True
+        console.get_time = time.monotonic
+        self.enterContext(mock.patch("rich.get_console", return_value=console))
+        return self.enterContext(mock.patch("rich.prompt.Confirm.ask", return_value=prompt_answer))
 
     async def test_batched_output(self):
         await self.run_etl(
@@ -306,6 +314,35 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertEqual(
             "", cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_text()
         )
+
+    async def test_missing_resources_prompt_approved(self):
+        mock_ask = self.mock_rich_prompt(True)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            await self.run_etl(tasks=["patient"], input_path=tmpdir)
+
+        self.assertEqual(mock_ask.call_count, 1)
+        self.assertIn("Patient", mock_ask.call_args[0][0])
+        self.assertEqual(
+            "", cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_text()
+        )
+
+    async def test_missing_resources_prompt_declined(self):
+        mock_ask = self.mock_rich_prompt(False)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with self.assertRaises(SystemExit) as cm:
+                await self.run_etl(tasks=["patient"], input_path=tmpdir)
+
+        self.assertEqual(mock_ask.call_count, 1)
+        self.assertEqual(0, cm.exception.code)
+        self.assertFalse(os.path.exists(f"{self.output_path}/patient"))
+
+    async def test_missing_resources_no_prompt_for_default_tasks(self):
+        mock_ask = self.mock_rich_prompt(False)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
+            await self.run_etl(input_path=tmpdir)
+
+        self.assertEqual(mock_ask.call_count, 0)
 
     async def test_missing_resources_skips_tasks(self):
         with tempfile.TemporaryDirectory() as tmpdir:

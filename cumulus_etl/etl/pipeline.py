@@ -122,6 +122,7 @@ async def check_available_resources(
     selected_tasks: list[type[task_factory.AnyTask]],
     args: argparse.Namespace,
     is_default_tasks: bool,
+    nlp: bool,
     progress: feedback.Progress,
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
@@ -156,10 +157,27 @@ async def check_available_resources(
             if not available_resources:
                 errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
         else:
-            msg = "Required resources not found.\n"
-            if has_allow_missing:
-                msg += "Add --allow-missing-resources to run related tasks anyway with no input."
-            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+            add_resources_msg = (
+                "Add --allow-missing-resources to run related tasks anyway with no input."
+                if has_allow_missing
+                else ""
+            )
+            msg = (
+                f"Required resources not found.\nMissing Resources:\n {sorted(missing_resources)}\n"
+                f"{add_resources_msg}\n"
+            )
+
+            if nlp:
+                errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+
+            response = cli_utils.prompt(f"{msg}Continue?")
+            if response == cli_utils.PromptResponse.APPROVED:
+                rich.print(
+                    f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
+                )
+                return all_possible_resources
+            else:
+                errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
     return available_resources
 
@@ -199,6 +217,7 @@ async def prepare_pipeline(
             config_loader,
             args=args,
             is_default_tasks=is_default_tasks,
+            nlp=nlp,
             selected_tasks=selected_tasks,
             progress=progress,
         )
