@@ -344,15 +344,27 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertEqual(0, cm.exception.code)
         self.assertFalse(os.path.exists(f"{self.output_path}/patient"))
 
-    async def test_missing_resources_no_prompt_for_default_tasks(self):
+    async def test_missing_resources_prompts_for_default_tasks(self):
         mock_ask = self.mock_rich_prompt(False)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
+
+            with self.assertRaises(SystemExit) as cm:
+                await self.run_etl(input_path=tmpdir)
+
+        self.assertEqual(mock_ask.call_count, 1)
+        self.assertEqual(0, cm.exception.code)
+
+    async def test_missing_resources_continues_for_default_tasks(self):
+        mock_ask = self.mock_rich_prompt(True)
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
             await self.run_etl(input_path=tmpdir)
 
-        self.assertEqual(mock_ask.call_count, 0)
+        self.assertEqual(mock_ask.call_count, 1)
 
     async def test_missing_resources_skips_tasks(self):
+        mock_ask = self.mock_rich_prompt(True)
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
             await self.run_etl(input_path=tmpdir)

@@ -153,31 +153,33 @@ async def check_available_resources(
             # Log the same message we would print if in common.py if we ran tasks anyway
             logging.warning("No %s files found in %s", resource, str(loader.root))
 
-        if is_default_tasks:
-            if not available_resources:
-                errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
-        else:
-            add_resources_msg = (
-                "Add --allow-missing-resources to run related tasks anyway with no input."
-                if has_allow_missing
-                else ""
-            )
-            msg = (
-                f"Required resources not found.\nMissing Resources:\n {sorted(missing_resources)}\n"
-                f"{add_resources_msg}\n"
-            )
+        add_resources_msg = (
+            "Add --allow-missing-resources to run related tasks anyway with no input."
+            if has_allow_missing
+            else ""
+        )
+        msg = (
+            f"Required resources not found.\nMissing Resources:\n {sorted(missing_resources)}\n"
+            f"{add_resources_msg}\n"
+        )
 
-            if nlp:
-                errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+        if is_default_tasks and not available_resources:
+            errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
 
-            response = cli_utils.prompt(f"{msg}Continue?")
-            if response == cli_utils.PromptResponse.APPROVED:
-                rich.print(
-                    f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
-                )
+        if nlp:
+            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+
+        progress.stop()
+        response = cli_utils.prompt(f"{msg}Continue?\n")
+        progress.start()
+        if response == cli_utils.PromptResponse.APPROVED:
+            rich.print(
+                f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
+            )
+            if not is_default_tasks:
                 return all_possible_resources
-            else:
-                errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+        else:
+            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
     return available_resources
 
