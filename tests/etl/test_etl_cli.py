@@ -17,7 +17,7 @@ import ddt
 import respx
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import cli_utils, common, errors, feedback, loaders
+from cumulus_etl import common, errors, feedback, loaders
 from cumulus_etl.etl import context
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
@@ -373,11 +373,6 @@ class TestEtlJobFlow(BaseEtlSimple):
         )
 
     async def test_unknown_extensions_get_printed(self):
-        self.enterContext(
-            mock.patch(
-                "cumulus_etl.cli_utils.prompt", return_value=cli_utils.PromptResponse.APPROVED
-            )
-        )
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/unknown-extension.ndjson").write_json(
                 {"id": "A", "resourceType": "Patient", "extension": [{"url": "unknown"}]},
