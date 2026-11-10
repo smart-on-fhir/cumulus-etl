@@ -172,14 +172,12 @@ async def check_available_resources(
         progress.stop()
         response = cli_utils.prompt(f"{msg}Continue?\n")
         progress.start()
-        if not is_default_tasks:
-            if response == cli_utils.PromptResponse.APPROVED:
-                rich.print(
-                    f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
-                )
-                return all_possible_resources
-            else:
-                errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+        if response == cli_utils.PromptResponse.APPROVED:
+            rich.print(
+                f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
+            )
+        else:
+            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
     return available_resources
 

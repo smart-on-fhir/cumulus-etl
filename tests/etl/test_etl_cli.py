@@ -17,7 +17,7 @@ import ddt
 import respx
 from ctakesclient.typesystem import Polarity
 
-from cumulus_etl import common, errors, feedback, loaders
+from cumulus_etl import cli_utils, common, errors, feedback, loaders
 from cumulus_etl.etl import context
 from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
@@ -323,16 +323,14 @@ class TestEtlJobFlow(BaseEtlSimple):
             "", cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_text()
         )
 
-    async def test_missing_resources_prompt_approved(self):
+    async def test_missing_resources_prompt_approved_without_resource_is_empty(self):
         mock_ask = self.mock_rich_prompt(True)
         with tempfile.TemporaryDirectory() as tmpdir:
             await self.run_etl(tasks=["patient"], input_path=tmpdir)
 
         self.assertEqual(mock_ask.call_count, 1)
         self.assertIn("Patient", mock_ask.call_args[0][0])
-        self.assertEqual(
-            "", cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").read_text()
-        )
+        self.assertFalse(cfs.FsPath(f"{self.output_path}/patient/patient.000.ndjson").exists())
 
     async def test_missing_resources_prompt_declined(self):
         mock_ask = self.mock_rich_prompt(False)
@@ -375,6 +373,11 @@ class TestEtlJobFlow(BaseEtlSimple):
         )
 
     async def test_unknown_extensions_get_printed(self):
+        self.enterContext(
+            mock.patch(
+                "cumulus_etl.cli_utils.prompt", return_value=cli_utils.PromptResponse.APPROVED
+            )
+        )
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/unknown-extension.ndjson").write_json(
                 {"id": "A", "resourceType": "Patient", "extension": [{"url": "unknown"}]},
