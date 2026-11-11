@@ -127,9 +127,8 @@ async def check_available_resources(
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
     # available in the input root.
-    # - If the user didn't specify a specific task, we'll scope down the requested resources to
-    #   what is actually present in the input.
-    # - If they did, we'll complain if their required resources are not available.
+    # - If the user didn't specify a specific task, in interactive consoles we will prompt
+    # for continuation when resources are missing, in non-interactive environments we will exit.
     #
     # Reconciling is helpful for performance reasons (don't need to finalize untouched tables),
     # UX reasons (can tell user if they made a CLI mistake), and completion tracking (don't
@@ -153,28 +152,31 @@ async def check_available_resources(
         for resource in sorted_missing_resources:
             # Log the same message we would print if in common.py if we ran tasks anyway
             logging.warning("No %s files found in %s", resource, str(loader.root))
-        excluded_resources_list = ",".join(sorted_missing_resources)
-        add_resources_msg = (
-            "or add --allow-missing-resources to run related tasks anyway with no input."
-            if has_allow_missing
-            else ""
-        )
-        msg = (
-            f"to skip the missing resources, add --exclude-resources={excluded_resources_list}\n"
-            f"{add_resources_msg}\n"
-        )
 
         if is_default_tasks and not available_resources:
             errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
 
         if nlp:
-            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+            errors.fatal(
+                (
+                    f"Clinical data not found in {loader.root}. NLP tasks need one or more of: "
+                    f"{','.join(sorted_missing_resources)}"
+                ),
+                errors.MISSING_REQUESTED_RESOURCES,
+            )
+
+        excluded_resources_list = ",".join(sorted_missing_resources)
+        msg = (
+            f"Missing Resources: {excluded_resources_list}\n"
+            f"To skip the missing resources, add --exclude-resources={excluded_resources_list}\n"
+            "or, add --allow-missing-resources to run related tasks anyway with no input.\n"
+            if has_allow_missing
+            else ""
+        )
 
         progress.stop()
         try:
-            response = cli_utils.prompt(
-                f"At least one expected resource is missing.\n{msg}Continue?\n"
-            )
+            response = cli_utils.prompt(f"{msg}Continue?\n")
         except SystemExit:
             errors.fatal(f"In future runs, {msg}", errors.MISSING_REQUESTED_RESOURCES)
         progress.start()

@@ -100,15 +100,16 @@ Congratulations! You've run your first Cumulus ETL process. The first of many!
 
 #### Troubleshooting Patient Data
 
-You may be in a situation where you would like to run Cumulus ETL with a subset of resources, to ensure that exporting of any FHIR data has worked, without exporting all
+You may be in a situation where you would like to run Cumulus ETL with a subset of resources, to ensure that exporting any FHIR data has worked, without exporting all
 of the data on the first attempt. Cumulus ETL has an interactive mode which
 will report out the list of missing resources, and allow the user to prompt for continuation. You may see a log similar to this in the console:
 
 ```sh
 Initializing…
-No AllergyIntolerance files found in cumulus_etl/{data_directory}                                                                  
+No AllergyIntolerance files found in cumulus_etl/{data_directory}  
+No Condition files found in cumulus_etl/{data_directory}                                                                    
 Scanning input files ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-At least one expected resource is missing.
+Missing Resources: AllergyIntolerance,Condition
 to skip the missing resources, add --exclude-resources=AllergyIntolerance,Condition
 or add --allow-missing-resources to run related tasks anyway with no input.
 Continue?
