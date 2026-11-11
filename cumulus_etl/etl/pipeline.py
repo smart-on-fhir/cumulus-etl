@@ -153,19 +153,20 @@ async def check_available_resources(
             # Log the same message we would print if in common.py if we ran tasks anyway
             logging.warning("No %s files found in %s", resource, str(loader.root))
 
+        excluded_resources_list = ",".join(sorted_missing_resources)
+
         if is_default_tasks and not available_resources:
             errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
 
         if nlp:
             errors.fatal(
                 (
-                    f"Clinical data not found in {loader.root}. NLP tasks need one or more of: "
-                    f"{','.join(sorted_missing_resources)}"
+                    f"Clinical data not found in {loader.root}."
+                    f"NLP tasks need one or more of: {excluded_resources_list}"
                 ),
                 errors.MISSING_REQUESTED_RESOURCES,
             )
 
-        excluded_resources_list = ",".join(sorted_missing_resources)
         msg = (
             f"Missing Resources: {excluded_resources_list}\n"
             f"To skip the missing resources, add --exclude-resources={excluded_resources_list}\n"
