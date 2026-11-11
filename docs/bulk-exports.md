@@ -100,6 +100,26 @@ tool if you are working on export issues.
 that some resources were expected to not be present. Downstream consumers can check which resources
 are not expected and then adjust appropriately based on this context.
 
+If you are in an interactive environment such as a local terminal, Cumulus ETL will
+prompt you when resources are missing. You may see a log similar to the following in
+the console. By responding 'Y', the ETL will not block on files being available. This
+behavior is similar to the `--allow-missing-resources` or `--exclude-resources` flags
+specified above. 
+
+```sh
+Initializing…
+No AllergyIntolerance files found in cumulus_etl/{data_directory}  
+No Condition files found in cumulus_etl/{data_directory}                                                                    
+Scanning input files ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+Missing Resources: AllergyIntolerance,Condition
+to skip the missing resources, add --exclude-resources=AllergyIntolerance,Condition
+or add --allow-missing-resources to run related tasks anyway with no input.
+Continue?
+``` 
+
+Cumulus ETL uses a package called `rich` for enhanced logging and prompting. If you would
+like to disable this and other prompts, you may set the environment variable `TTY_INTERACTIVE` to '0'. This is likely only necessary in runs on a local machine, as most cloud environments such as AWS default to non-interactive.
+
 ## Archiving Exports
 
 Exports can take a long time, and it's often convenient to archive the results.

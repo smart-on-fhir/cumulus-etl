@@ -300,14 +300,6 @@ class TestEtlJobFlow(BaseEtlSimple):
         config = mock_etl_job.call_args[0][0]
         self.assertEqual({"Observation": {"obs1"}}, config.deleted_ids)
 
-    async def test_nlp_missing_resources(self):
-        mock_ask = self.mock_rich_prompt(True)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with self.assertRaises(SystemExit) as cm:
-                await self.run_etl(tasks=["covid_symptom__nlp_results"], input_path=tmpdir)
-        self.assertEqual(errors.MISSING_REQUESTED_RESOURCES, cm.exception.code)
-        self.assertEqual(mock_ask.call_count, 0)
-
     @ddt.data(["patient"], None)
     async def test_missing_resources(self, tasks):
         with tempfile.TemporaryDirectory() as tmpdir:

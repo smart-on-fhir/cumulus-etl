@@ -122,7 +122,6 @@ async def check_available_resources(
     selected_tasks: list[type[task_factory.AnyTask]],
     args: argparse.Namespace,
     is_default_tasks: bool,
-    nlp: bool,
     progress: feedback.Progress,
 ) -> set[str]:
     # Here we try to reconcile which resources the user requested and which resources are actually
@@ -157,15 +156,6 @@ async def check_available_resources(
 
         if is_default_tasks and not available_resources:
             errors.fatal("No supported resources found.", errors.MISSING_REQUESTED_RESOURCES)
-
-        if nlp:
-            errors.fatal(
-                (
-                    f"Clinical data not found in {loader.root}."
-                    f"NLP tasks need one or more of: {excluded_resources_list}"
-                ),
-                errors.MISSING_REQUESTED_RESOURCES,
-            )
 
         msg = (
             f"Missing Resources: {excluded_resources_list}\n"
@@ -224,7 +214,6 @@ async def prepare_pipeline(
             config_loader,
             args=args,
             is_default_tasks=is_default_tasks,
-            nlp=nlp,
             selected_tasks=selected_tasks,
             progress=progress,
         )

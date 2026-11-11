@@ -98,41 +98,6 @@ After running this command, you should be able to see more Delta Lake files in
 
 Congratulations! You've run your first Cumulus ETL process. The first of many!
 
-#### Troubleshooting Patient Data
-
-You may be in a situation where you would like to run Cumulus ETL with a subset of resources, to ensure that exporting any FHIR data has worked, without exporting all
-of the data on the first attempt. Cumulus ETL has an interactive mode which
-will report out the list of missing resources, and allow the user to prompt for continuation. You may see a log similar to this in the console:
-
-```sh
-Initializing…
-No AllergyIntolerance files found in cumulus_etl/{data_directory}  
-No Condition files found in cumulus_etl/{data_directory}                                                                    
-Scanning input files ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-Missing Resources: AllergyIntolerance,Condition
-to skip the missing resources, add --exclude-resources=AllergyIntolerance,Condition
-or add --allow-missing-resources to run related tasks anyway with no input.
-Continue?
-```
-
-Cumulus ETL uses a package called `rich` for enhanced logging and prompting. If you would
-like to disable this and other prompts, you may pass the argument `TTY_INTERACTIVE`, for example:
-
-```sh
-docker compose run --rm \
-  --volume `pwd`:/host \
-  --env TTY_INTERACTIVE=0 \
-  cumulus-etl etl \
-  /host/sample-bulk-fhir-datasets-10-patients \
-  /host/output \
-  /host/phi
-```
-
-This is likely only necessary in runs on a local machine, as most cloud environments such
-as AWS default to non-interactive.
-
-
-
 ## Next Steps
 
 This was just a demonstration of the ETL portion of the process.
