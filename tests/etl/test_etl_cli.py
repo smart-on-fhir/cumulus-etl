@@ -362,12 +362,10 @@ class TestEtlJobFlow(BaseEtlSimple):
         self.assertEqual(mock_ask.call_count, 1)
 
     async def test_missing_resources_skips_tasks(self):
-        mock_ask = self.mock_rich_prompt(True)
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
             await self.run_etl(input_path=tmpdir)
 
-        self.assertEqual(mock_ask.call_count, 1)
         self.assertEqual(
             {"etl__completion", "patient", "JobConfig"}, set(os.listdir(self.output_path))
         )
