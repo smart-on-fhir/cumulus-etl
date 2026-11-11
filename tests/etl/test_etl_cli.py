@@ -335,11 +335,10 @@ class TestEtlJobFlow(BaseEtlSimple):
     async def test_missing_resources_prompt_declined(self):
         mock_ask = self.mock_rich_prompt(False)
         with tempfile.TemporaryDirectory() as tmpdir:
-            with self.assertRaises(SystemExit) as cm:
+            with self.assert_fatal_exit(errors.MISSING_REQUESTED_RESOURCES):
                 await self.run_etl(tasks=["patient"], input_path=tmpdir)
 
         self.assertEqual(mock_ask.call_count, 1)
-        self.assertEqual(0, cm.exception.code)
         self.assertFalse(os.path.exists(f"{self.output_path}/patient"))
 
     async def test_missing_resources_prompts_for_default_tasks(self):
@@ -347,11 +346,10 @@ class TestEtlJobFlow(BaseEtlSimple):
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
 
-            with self.assertRaises(SystemExit) as cm:
+            with self.assert_fatal_exit(errors.MISSING_REQUESTED_RESOURCES):
                 await self.run_etl(input_path=tmpdir)
 
         self.assertEqual(mock_ask.call_count, 1)
-        self.assertEqual(0, cm.exception.code)
 
     async def test_missing_resources_continues_for_default_tasks(self):
         mock_ask = self.mock_rich_prompt(True)

@@ -149,17 +149,18 @@ async def check_available_resources(
             missing_resources |= task.get_resource_types()
 
     if missing_resources:
-        for resource in sorted(missing_resources):
+        sorted_missing_resources = sorted(missing_resources)
+        for resource in sorted_missing_resources:
             # Log the same message we would print if in common.py if we ran tasks anyway
             logging.warning("No %s files found in %s", resource, str(loader.root))
-
+        excluded_resources_list = ",".join(sorted_missing_resources)
         add_resources_msg = (
-            "Add --allow-missing-resources to run related tasks anyway with no input."
+            "or add --allow-missing-resources to run related tasks anyway with no input."
             if has_allow_missing
             else ""
         )
         msg = (
-            f"Required resources not found.\nMissing Resources:\n {sorted(missing_resources)}\n"
+            f"To skip the missing resources, add --exclude-resources={excluded_resources_list}\n"
             f"{add_resources_msg}\n"
         )
 
@@ -170,7 +171,10 @@ async def check_available_resources(
             errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
         progress.stop()
-        response = cli_utils.prompt(f"{msg}Continue?\n")
+        try:
+            response = cli_utils.prompt(f"{msg}Continue?\n")
+        except SystemExit:
+            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
         progress.start()
         if response == cli_utils.PromptResponse.APPROVED:
             rich.print(
