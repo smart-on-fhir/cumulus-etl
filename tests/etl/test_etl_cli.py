@@ -361,14 +361,12 @@ class TestEtlJobFlow(BaseEtlSimple):
 
         self.assertEqual(mock_ask.call_count, 1)
 
-    async def test_missing_resources_skips_tasks(self):
+    async def test_missing_resources_noninteractive_exits_early(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             cfs.FsPath(f"{tmpdir}/p.ndjson").write_json({"id": "A", "resourceType": "Patient"})
-            await self.run_etl(input_path=tmpdir)
 
-        self.assertEqual(
-            {"etl__completion", "patient", "JobConfig"}, set(os.listdir(self.output_path))
-        )
+            with self.assert_fatal_exit(errors.MISSING_REQUESTED_RESOURCES):
+                await self.run_etl(input_path=tmpdir)
 
     async def test_unknown_extensions_get_printed(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -381,7 +379,7 @@ class TestEtlJobFlow(BaseEtlSimple):
 
             stdout = io.StringIO()
             with contextlib.redirect_stdout(stdout):
-                await self.run_etl(input_path=tmpdir)
+                await self.run_etl(tasks=["patient"], input_path=tmpdir)
 
         self.assertIn("Unrecognized extensions dropped from resources:", stdout.getvalue())
         self.assertIn(

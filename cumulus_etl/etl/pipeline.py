@@ -176,7 +176,7 @@ async def check_available_resources(
             rich.print(
                 f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
             )
-        elif not is_default_tasks:
+        else:
             errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
 
     return available_resources
