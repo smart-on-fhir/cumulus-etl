@@ -108,10 +108,9 @@ will report out the list of missing resources, and allow the user to prompt for 
 Initializing…
 No AllergyIntolerance files found in cumulus_etl/{data_directory}                                                                  
 Scanning input files ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-Required resources not found.
-Missing Resources:
- ['AllergyIntolerance']
-Add --allow-missing-resources to run related tasks anyway with no input.
+At least one expected resource is missing.
+to skip the missing resources, add --exclude-resources=AllergyIntolerance,Condition
+or add --allow-missing-resources to run related tasks anyway with no input.
 Continue?
 ```
 

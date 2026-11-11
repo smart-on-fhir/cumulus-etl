@@ -160,7 +160,7 @@ async def check_available_resources(
             else ""
         )
         msg = (
-            f"To skip the missing resources, add --exclude-resources={excluded_resources_list}\n"
+            f"to skip the missing resources, add --exclude-resources={excluded_resources_list}\n"
             f"{add_resources_msg}\n"
         )
 
@@ -172,16 +172,16 @@ async def check_available_resources(
 
         progress.stop()
         try:
-            response = cli_utils.prompt(f"{msg}Continue?\n")
+            response = cli_utils.prompt(
+                f"At least one expected resource is missing.\n{msg}Continue?\n"
+            )
         except SystemExit:
-            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+            errors.fatal(f"In future runs, {msg}", errors.MISSING_REQUESTED_RESOURCES)
         progress.start()
         if response == cli_utils.PromptResponse.APPROVED:
-            rich.print(
-                f"User indicated to run regardless of missing resources. In future runs, {add_resources_msg}"
-            )
+            rich.print("User indicated to run regardless of missing resources.")
         else:
-            errors.fatal(msg, errors.MISSING_REQUESTED_RESOURCES)
+            errors.fatal(f"In future runs, {msg}", errors.MISSING_REQUESTED_RESOURCES)
 
     return available_resources
 
