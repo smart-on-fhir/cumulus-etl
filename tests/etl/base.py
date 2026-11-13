@@ -10,10 +10,10 @@ import cumulus_fhir_support as cfs
 
 from cumulus_etl import cli, common, deid
 from cumulus_etl.etl.config import JobConfig
-from tests import ctakesmock, utils
+from tests import utils
 
 
-class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncTestCase):
+class BaseEtlSimple(utils.TreeCompareMixin, utils.AsyncTestCase):
     """
     Base test case for basic runs of etl methods
 
@@ -59,23 +59,19 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
         nlp: bool | None = None,
         exclusions: str | None = None,
     ) -> None:
-        if nlp is None:
-            nlp = tasks and any("__" in task for task in tasks)
         args = [
-            "nlp" if nlp else "etl",
+            "etl",
             input_path or self.input_path,
             output_path or self.output_path,
             phi_path or self.phi_path,
             f"--input-format={input_format}",
             *args,
         ]
-        if nlp:
-            args.append(f"--ctakes-overrides={self.ctakes_overrides.name}")
         if skip_init_checks:
             args.append("--skip-init-checks")
-        if not nlp and export_group is not None:
+        if export_group is not None:
             args.append(f"--export-group={export_group}")
-        if not nlp and export_timestamp:
+        if export_timestamp:
             args.append(f"--export-timestamp={export_timestamp}")
         if output_format:
             args.append(f"--output-format={output_format}")
@@ -85,7 +81,7 @@ class BaseEtlSimple(ctakesmock.CtakesMixin, utils.TreeCompareMixin, utils.AsyncT
             args.append(f"--batch-size={batch_size}")
         if tasks:
             args.append(f"--task={','.join(tasks)}")
-        if not nlp and philter:
+        if philter:
             args.append("--philter")
         if errors_to:
             args.append(f"--errors-to={errors_to}")

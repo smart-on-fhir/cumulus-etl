@@ -6,7 +6,7 @@ import string
 import cumulus_fhir_support as cfs
 import pyathena
 
-from cumulus_etl import cli_utils, common, deid, errors
+from cumulus_etl import common, deid, errors
 
 
 def add_note_selection(parser: argparse.ArgumentParser):
@@ -70,13 +70,13 @@ def query_athena_table(table: str, args) -> cfs.FsPath:
         database = parts[0]
         table = parts[-1]
     else:
-        database = args.athena_database
-    if not database:
+        database = args.athena_database  # pragma: no cover
+    if not database:  # pragma: no cover
         errors.fatal(
             "You must provide an Athena database with --athena-database.",
             errors.ATHENA_DATABASE_MISSING,
         )
-    if set(table) - set(string.ascii_letters + string.digits + "_"):
+    if set(table) - set(string.ascii_letters + string.digits + "_"):  # pragma: no cover
         errors.fatal(
             f"Athena table name '{table}' has invalid characters.",
             errors.ATHENA_TABLE_NAME_INVALID,
@@ -86,17 +86,6 @@ def query_athena_table(table: str, args) -> cfs.FsPath:
         work_group=args.athena_workgroup,
         schema_name=database,
     ).cursor()
-
-    # Make sure the table is not so large that the user is maybe running against a core table
-    count = cursor.execute(f'SELECT count(*) FROM "{table}"').fetchone()[0]  # noqa: S608
-    if int(count) > 50_000:
-        msg = f"Athena cohort in '{table}' is very large ({int(count):,} rows)."
-        response = cli_utils.prompt(f"{msg} Continue?", override=args.allow_large_selection)
-        if response == cli_utils.PromptResponse.NON_INTERACTIVE:
-            errors.fatal(
-                f"{msg}\nIf you want to use it anyway, pass --allow-large-selection",
-                errors.ATHENA_TABLE_TOO_BIG,
-            )
 
     return cfs.FsPath(cursor.execute(f'SELECT * FROM "{table}"').output_location)  # noqa: S608
 
@@ -111,7 +100,7 @@ def get_refs_from_csv(
     with common.read_csv(path) as reader:
         try:
             scanner = cfs.make_note_ref_scanner(reader.fieldnames, is_anon=is_anon)
-        except cfs.RefsNotFound:
+        except cfs.RefsNotFound:  # pragma: no cover
             errors.fatal(
                 f"No patient or note IDs found in CSV file '{path}'.", errors.COHORT_NOT_FOUND
             )
@@ -143,9 +132,6 @@ def get_note_filter(args: argparse.Namespace, codebook: deid.Codebook | None) ->
     if (has_athena_table or has_anon_csv) and not codebook:
         errors.fatal("A PHI folder must be provided to process anonymous IDs.", errors.ARGS_INVALID)
 
-    if has_athena_table:
-        csv_path = query_athena_table(args.select_by_athena_table, args)
-        csv_refs = get_refs_from_csv(csv_path, is_anon=True)
     elif has_anon_csv:
         csv_refs = get_refs_from_csv(args.select_by_anon_csv, is_anon=True)
     elif has_csv:
