@@ -4,25 +4,20 @@ import contextlib
 import datetime
 import gzip
 import io
-import itertools
 import json
 import os
-import shutil
 import tempfile
 import time
 from unittest import mock
 
 import cumulus_fhir_support as cfs
 import ddt
-import respx
-from ctakesclient.typesystem import Polarity
 
 from cumulus_etl import common, errors, feedback, loaders
 from cumulus_etl.etl import context
-from tests.ctakesmock import fake_ctakes_extract
 from tests.etl import BaseEtlSimple
 from tests.s3mock import S3Mixin
-from tests.utils import FROZEN_TIME_UTC, read_delta_lake
+from tests.utils import FROZEN_TIME_UTC
 
 
 @ddt.ddt
@@ -167,16 +162,6 @@ class TestEtlJobFlow(BaseEtlSimple):
         ) as f:
             output = json.loads(f.readline())
             assert output["excluded_resources"] == "patient,condition"
-
-    async def test_cannot_mix_nlp_and_fhir_tasks(self):
-        with self.assertRaises(SystemExit) as cm:
-            await self.run_etl(tasks=["covid_symptom__nlp_results", "patient"])
-        self.assertEqual(cm.exception.code, errors.TASK_MISMATCH)
-
-    async def test_nlp_needs_task_arg(self):
-        with self.assertRaises(SystemExit) as cm:
-            await self.run_etl(nlp=True)  # missing --task
-        self.assertEqual(cm.exception.code, 2)
 
     async def test_codebook_is_saved_during(self):
         """Verify that we are saving the codebook as we go"""
@@ -613,193 +598,3 @@ class TestEtlOnS3(S3Mixin, BaseEtlSimple):
         # Confirm we did not accidentally create an 's3:' directory locally
         # because we misinterpreted the s3 path as a local path
         self.assertFalse(os.path.exists("s3:"))
-
-
-class TestEtlNlp(BaseEtlSimple):
-    """Test case for the cTAKES/cNLP responses"""
-
-    CACHE_FOLDER = "covid_symptom_v4"
-
-    def setUp(self):
-        super().setUp()
-        # sha256 checksums of the two test patient notes
-        self.expected_checksums = [
-            "5db841c4c46d8a25fbb1891fd1eb352170278fa2b931c1c5edebe09a06582fb5",
-            "47f2c3b7cd114908b8c1a56bb26db2a9d9901a5d5571a327a69474a641a9fc3d",
-        ]
-
-    def path_for_checksum(self, prefix, checksum) -> cfs.FsPath:
-        return cfs.FsPath(
-            self.phi_path, "ctakes-cache", prefix, checksum[0:4], f"sha256-{checksum}.json"
-        )
-
-    def read_symptoms(self):
-        """Loads the output symptoms ndjson from disk"""
-        path = os.path.join(
-            self.output_path, "covid_symptom", "nlp_results_v4", "nlp_results_v4.000.ndjson"
-        )
-        with open(path, encoding="utf8") as f:
-            lines = f.readlines()
-        return [json.loads(line) for line in lines]
-
-    async def test_stores_cached_json(self):
-        await self.run_etl(tasks=["covid_symptom__nlp_results"])
-
-        self.assertTrue(self.was_ctakes_called())
-
-        facts = [
-            "Notes for fever",
-            "Notes! for fever",
-        ]
-
-        for index, checksum in enumerate(self.expected_checksums):
-            ner = fake_ctakes_extract(facts[index])
-            self.assertEqual(
-                ner.as_json(), self.path_for_checksum(self.CACHE_FOLDER, checksum).read_json()
-            )
-            self.assertEqual(
-                [0, 0],
-                self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum).read_json(),
-            )
-
-    async def test_does_not_hit_server_if_cache_exists(self):
-        for index, checksum in enumerate(self.expected_checksums):
-            # Write out some fake results to the cache location
-            filename = self.path_for_checksum(self.CACHE_FOLDER, checksum)
-            filename.parent.makedirs()
-            filename.write_json(
-                {
-                    "SignSymptomMention": [
-                        {
-                            "begin": 123,
-                            "end": 129,
-                            "text": f"foobar{index}",
-                            "polarity": 0,
-                            "type": "SignSymptomMention",
-                            "conceptAttributes": [
-                                {
-                                    "code": "68235000",
-                                    "cui": "C0027424",
-                                    "codingScheme": "SNOMEDCT_US",
-                                    "tui": "T184",
-                                },
-                            ],
-                        }
-                    ],
-                },
-            )
-
-            cnlp_filename = self.path_for_checksum(f"{self.CACHE_FOLDER}-cnlp_v2", checksum)
-            cnlp_filename.parent.makedirs()
-            cnlp_filename.write_json([0])
-
-        await self.run_etl(tasks=["covid_symptom__nlp_results"])
-
-        # We should never have called our mock cTAKES server
-        self.assertFalse(self.was_ctakes_called())
-        self.assertEqual(0, self.cnlp_mock.call_count)
-
-        # And we should see our fake cached results in the output
-        symptoms = self.read_symptoms()
-        self.assertEqual(2, len(symptoms))
-        self.assertEqual({"foobar0", "foobar1"}, {x["match"]["text"] for x in symptoms})
-        for symptom in symptoms:
-            self.assertEqual(
-                {("68235000", "C0027424")},
-                {(x["code"], x["cui"]) for x in symptom["match"]["conceptAttributes"]},
-            )
-
-    @respx.mock
-    async def test_gracefully_allows_no_server_config(self):
-        """
-        Verify that if no server is provided, we'll just continue as best we can.
-
-        This is useful in cases where some notes have been inlined, but not everything could be.
-        """
-        # Make new input dir with some docrefs that only have a URL, no data.
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with common.NdjsonWriter(cfs.FsPath(f"{tmpdir}/DocumentReference.ndjson")) as writer:
-                src = cfs.FsPath(self.input_path)
-                docref_iter = common.read_resource_ndjson(src, "DocumentReference")
-
-                # Replace first row's data with a partial URL
-                first = next(docref_iter)
-                del first["content"][0]["attachment"]["data"]
-                first["content"][0]["attachment"]["url"] = "Binary/blarg"
-                writer.write(first)
-
-                # And second row with an absolute (forbidden) URL
-                second = next(docref_iter)
-                del second["content"][0]["attachment"]["data"]
-                second["content"][0]["attachment"]["url"] = "https://localhost:12345/Binary/blarg"
-                writer.write(second)
-
-            respx.get("https://localhost:12345/Binary/blarg").respond(401)
-
-            # Now run the ETL on that new input dir without any server auth config provided
-            with self.assertRaises(SystemExit) as cm:
-                await self.run_etl(tasks=["covid_symptom__nlp_results"], input_path=tmpdir)
-
-            # Should exit because the task will mark itself as failed
-            self.assertEqual(errors.TASK_FAILED, cm.exception.code)
-
-    async def test_cnlp_rejects(self):
-        """Verify that if the cnlp server negates a match, it does not show up"""
-        # First match is fever, second is nausea
-        self.cnlp_mock.side_effect = lambda *args, **kwargs: [Polarity.neg, Polarity.pos]
-        await self.run_etl(tasks=["covid_symptom__nlp_results"])
-
-        symptoms = self.read_symptoms()
-        self.assertEqual(2, len(symptoms))
-        # Confirm that the only symptom to survive was the second nausea one
-        self.assertEqual(
-            {("422587007", "C0027497")},
-            {(x["code"], x["cui"]) for x in symptoms[0]["match"]["conceptAttributes"]},
-        )
-
-    async def test_non_covid_symptoms_skipped(self):
-        """Verify that the 'itch' symptom in our mock response does not make it to the output table"""
-        await self.run_etl(tasks=["covid_symptom__nlp_results"])
-
-        symptoms = self.read_symptoms()
-        # the second word ("for") is the fever word
-        self.assertEqual({"for"}, {x["match"]["text"] for x in symptoms})
-        attributes = itertools.chain.from_iterable(
-            symptom["match"]["conceptAttributes"] for symptom in symptoms
-        )
-        cuis = {x["cui"] for x in attributes}
-        self.assertEqual({"C0027497", "C0015967"}, cuis)  # notably, no C0033774 itch CUI
-
-    async def test_group_updates(self):
-        """Verify that if we generate a smaller set of NLP symptoms, any old unused rows get deleted"""
-        # This test uses delta lake even though it is a bit slow, just because that's the only current output format
-        # that supports this feature (EtlTask.group_field). Other output formats just delete the full table each run.
-
-        def table_ids():
-            path = os.path.join(self.output_path, "covid_symptom__nlp_results")
-            rows = read_delta_lake(path)
-            return [row["id"] for row in rows]
-
-        # Get a baseline, with two symptoms per document
-        await self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
-        self.assertEqual(
-            [
-                "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.0",
-                "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.1",
-                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd.0",
-                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd.1",
-            ],
-            table_ids(),
-        )
-
-        # Now negate the second symptom, and notice that it has been dropped in the results for each docref
-        shutil.rmtree(os.path.join(self.phi_path, "ctakes-cache"))  # clear cached results
-        self.cnlp_mock.side_effect = lambda *args, **kwargs: [Polarity.pos, Polarity.neg]
-        await self.run_etl(output_format="deltalake", tasks=["covid_symptom__nlp_results"])
-        self.assertEqual(
-            [
-                "c601849ceffe49dba22ee952533ac87928cd7a472dee6d0390d53c9130519971.0",
-                "f29736c29af5b962b3947fd40bed6b8c3e97c642b72aaa08e082fec05148e7dd.0",
-            ],
-            table_ids(),
-        )

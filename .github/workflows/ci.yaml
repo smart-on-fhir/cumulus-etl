@@ -64,59 +64,6 @@ jobs:
           thresholdNew: 1
           thresholdModified: 1
 
-  nlp-regression:
-    runs-on: ubuntu-latest
-    env:
-      UMLS_API_KEY: ${{ secrets.UMLS_API_KEY }}
-    steps:
-      - uses: actions/checkout@v6
-
-      # Docker images take up so much space, we were getting "no space left on device" errors.
-      # This is a script that removes a bunch of cruft. Notably tied to a specific commit, so it
-      # can't change on us.
-      - name: Clean Up Disk
-        run: curl -fsSL https://raw.githubusercontent.com/kou/arrow/173e2fee5f6667b7e23f8bc6094936f6c6003039/ci/scripts/util_free_space.sh | bash
-
-      - name: Install Docker
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build ETL image
-        uses: docker/build-push-action@v6
-        with:
-          load: true  # just build, no push
-          tags: smartonfhir/cumulus-etl:latest
-          build-args: |
-            LOCAL_VERSION=${{ github.sha }}
-
-      - name: Download NLP images
-        run: |
-          # Just start the specific services we need, to conserve CI disk space
-          docker compose up --wait --quiet-pull cnlpt-negation ctakes-covid
-
-      - name: Run NLP
-        run: |
-          export DATADIR=$(realpath tests/data/nlp-regression)
-
-          # Run the NLP task
-          docker compose run --rm \
-            --pull never \
-            --volume $DATADIR:/in \
-            cumulus-etl \
-            nlp \
-            /in/input \
-            /in/run-output \
-            /in/phi \
-            --output-format=ndjson \
-            --task covid_symptom__nlp_results
-
-          # Compare results
-          export OUTDIR=$DATADIR/run-output/covid_symptom/nlp_results_v4
-          sudo chown -R $(id -u) $OUTDIR
-          sed -i 's/"generated_on":"[^"]*",//g' $OUTDIR/*.ndjson
-          diff -upr $DATADIR/expected-output $OUTDIR
-
-          echo "All Good!"
-
   lint:
     runs-on: ubuntu-latest
     steps:

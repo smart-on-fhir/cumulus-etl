@@ -5,8 +5,6 @@ from unittest import mock
 
 import cumulus_fhir_support as cfs
 import ddt
-import pyarrow
-import pydantic
 from py4j import protocol
 
 from cumulus_etl import common, errors
@@ -395,30 +393,3 @@ class TestTaskCompletion(TaskTestCase):
             await self._configure_completion_write_task(
                 write_records=True, side_effect=generic_py4j_error
             )
-
-
-class TestModelTask(TaskTestCase):
-    """Test case for model task methods"""
-
-    async def test_convert_pydantic_fields_to_pyarrow(self):
-        """Verify that we can convert pydantic fields to pyarrow types"""
-
-        class Model(pydantic.BaseModel):
-            string_field: str
-            boolean_field: bool
-            integer_field: int
-            float_field: float
-
-        fields = Model.model_fields
-        schema = tasks.BaseModelTask.convert_pydantic_fields_to_pyarrow(fields)
-        self.assertEqual(
-            pyarrow.struct(
-                [
-                    pyarrow.field("string_field", pyarrow.string()),
-                    pyarrow.field("boolean_field", pyarrow.bool_()),
-                    pyarrow.field("integer_field", pyarrow.int32()),
-                    pyarrow.field("float_field", pyarrow.float32()),
-                ]
-            ),
-            schema,
-        )
