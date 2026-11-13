@@ -85,7 +85,7 @@ def convert_task_table(
     formatter_class: type[formats.Format],
     progress: feedback.Progress,
 ) -> None:
-    """Converts a task's output folder (like output/observation/ or output/covid_symptom__nlp_results/)"""
+    """Converts a task's output folder (like output/observation/)"""
 
     # Start with a formatter
     formatter = formatter_class(

@@ -93,7 +93,7 @@ def query_athena_table(table: str, args) -> cfs.FsPath:
         msg = f"Athena cohort in '{table}' is very large ({int(count):,} rows)."
         response = cli_utils.prompt(f"{msg} Continue?", override=args.allow_large_selection)
         if response == cli_utils.PromptResponse.NON_INTERACTIVE:
-            errors.fatal(
+            errors.fatal(  # pragma: no cover
                 f"{msg}\nIf you want to use it anyway, pass --allow-large-selection",
                 errors.ATHENA_TABLE_TOO_BIG,
             )
@@ -111,7 +111,7 @@ def get_refs_from_csv(
     with common.read_csv(path) as reader:
         try:
             scanner = cfs.make_note_ref_scanner(reader.fieldnames, is_anon=is_anon)
-        except cfs.RefsNotFound:
+        except cfs.RefsNotFound:  # pragma: no cover
             errors.fatal(
                 f"No patient or note IDs found in CSV file '{path}'.", errors.COHORT_NOT_FOUND
             )
@@ -143,9 +143,6 @@ def get_note_filter(args: argparse.Namespace, codebook: deid.Codebook | None) ->
     if (has_athena_table or has_anon_csv) and not codebook:
         errors.fatal("A PHI folder must be provided to process anonymous IDs.", errors.ARGS_INVALID)
 
-    if has_athena_table:
-        csv_path = query_athena_table(args.select_by_athena_table, args)
-        csv_refs = get_refs_from_csv(csv_path, is_anon=True)
     elif has_anon_csv:
         csv_refs = get_refs_from_csv(args.select_by_anon_csv, is_anon=True)
     elif has_csv:

@@ -7,7 +7,6 @@ from unittest import mock
 
 import cumulus_fhir_support as cfs
 import ddt
-from ctakesclient import text2fhir, typesystem
 
 from cumulus_etl import common, deid
 from cumulus_etl.deid import Scrubber
@@ -364,17 +363,6 @@ class TestScrubber(utils.AsyncTestCase):
 
         patient["modifierExtension"] = [{"url": "http://example.org/unknown-extension"}]
         self.assertFalse(scrubber.scrub_resource(patient))
-
-    def test_nlp_extensions_allowed(self):
-        """Confirm we that nlp-generated resources are allowed, with their modifier extensions"""
-        match = typesystem.MatchText(
-            {"begin": 0, "end": 1, "polarity": 0, "text": "f", "type": "SignSymptomMention"}
-        )
-        observation = text2fhir.nlp_observation("1", "2", "3", match).as_json()
-
-        scrubber = Scrubber()
-        self.assertTrue(scrubber.scrub_resource(observation))
-        self.assertGreater(len(observation["modifierExtension"]), 0)
 
     def test_load_and_save(self):
         """Verify that loading from and saving to a file works"""

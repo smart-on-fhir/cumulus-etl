@@ -55,20 +55,6 @@ Cumulus ETL makes a copy or two of the transformed data as it goes through the p
 Let's say you have a folder of NDJSON FHIR files from a bulk export that is altogether 50GB.
 You'd want at least 200GB free.
 
-## Running NLP on a GPU
-
-Most parts of Cumulus ETL are CPU-constrained.
-That is, they are mostly concerned with processing data as fast as possible and a faster CPU would help with that.
-
-But the natural language processing (NLP) that Cumulus ETL does can also be _hugely_ sped up with access to a GPU.
-An order of magnitude faster.
-
-For example, BCH ran NLP on 370k clinical notes with just a CPU in just under 6 weeks.
-But on a GPU, it took three days.
-
-Note that the machine-learning libraries we use depend on the CUDA framework,
-so they will only run on [CUDA enabled NVIDIA cards](https://developer.nvidia.com/cuda-gpus).
-
 ### Driver Setup
 
 You'll need two pieces of driver code set up:
