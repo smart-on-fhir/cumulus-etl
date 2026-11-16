@@ -69,7 +69,6 @@ class BatchedFileFormat(Format):
         # during class initialization.
         # But some output tables (like etl__completion) are written to in many small batches
         # spread over the whole ETL run - so we need to support that workflow.
-        # Plus, the NLP workflow disables the "empty dir" check and wants to append to folder.
         self._index = self._get_next_index()
 
     def _get_next_index(self) -> int:

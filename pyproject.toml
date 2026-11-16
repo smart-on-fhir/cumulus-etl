@@ -9,11 +9,9 @@ dependencies = [
     "jambo >= 0.1.7",
     "label-studio-sdk >= 2",
     "nltk >= 3.9",
-    "openai",
     "philter-lite",
     "pyarrow",
     "pyathena < 3.15",
-    "pydantic",
     "rich",
 ]
 authors = [

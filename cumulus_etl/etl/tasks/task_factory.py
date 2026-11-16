@@ -60,20 +60,18 @@ def get_default_tasks() -> list[type[AnyTask]]:
 
 
 def get_selected_tasks(
-    names: Iterable[str] | None = None, *, nlp: bool = False, exclusions: Iterable[str] = []
+    names: Iterable[str] | None = None, *, exclusions: Iterable[str] = []
 ) -> list[type[AnyTask]]:
     """
     Returns classes for every selected task.
 
     :param names: an exact list of which tasks to select
-    :param nlp: whether we are selecting from NLP or normal tasks
     :param exclusions: a list of resources to explicitly exclude from a task list
     :returns: a list of selected EtlTask subclasses, to instantiate and run
     """
     names = set(cli_utils.expand_comma_list_arg(names, casefold=True))
     exclusions = set(cli_utils.expand_comma_list_arg(exclusions, casefold=True))
 
-    # If we are in NLP mode, we can only select NLP tasks and vice versa.
     all_tasks = get_default_tasks()
 
     if "help" in names:

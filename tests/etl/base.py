@@ -56,7 +56,6 @@ class BaseEtlSimple(utils.TreeCompareMixin, utils.AsyncTestCase):
         export_group: str = "test-group",
         export_timestamp: str = "2020-10-13T12:00:20-05:00",
         skip_init_checks: bool = True,
-        nlp: bool | None = None,
         exclusions: str | None = None,
     ) -> None:
         args = [

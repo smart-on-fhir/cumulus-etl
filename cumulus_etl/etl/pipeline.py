@@ -165,7 +165,7 @@ async def check_available_resources(
 
 
 async def prepare_pipeline(
-    args: argparse.Namespace, job_datetime: datetime.datetime, *, nlp: bool
+    args: argparse.Namespace, job_datetime: datetime.datetime, *extra_args
 ) -> tuple[deid.Scrubber, loaders.LoaderResults, list[type[task_factory.AnyTask]]]:
     # record filesystem options like --s3-region before creating Roots
     common.set_user_fs_options(vars(args))
@@ -173,7 +173,7 @@ async def prepare_pipeline(
     root_input = cli_utils.process_input_dir(args.dir_input)
     args.dir_phi.makedirs()  # create PHI folder, if needed
 
-    selected_tasks = task_factory.get_selected_tasks(args.task, nlp=nlp, exclusions=args.exclusions)
+    selected_tasks = task_factory.get_selected_tasks(args.task, exclusions=args.exclusions)
     is_default_tasks = not args.task
 
     # Print configuration
@@ -183,7 +183,7 @@ async def prepare_pipeline(
         args.errors_to.makedirs()
         cli_utils.confirm_dir_is_empty(args.errors_to)
 
-    # Check that cTAKES is running and any other services or binaries we require
+    # Check that any other services or binaries we require are available
     if not args.skip_init_checks:
         rich.print("Initializing…")
         for task in selected_tasks:
@@ -210,16 +210,12 @@ async def prepare_pipeline(
         loader_results = await config_loader.load_resources(available_resources, progress=progress)
 
         with progress.show_indeterminate_task("Loading codebook"):
-            if nlp:
-                scrub_args = {"mask_notes": False, "keep_stats": False, "cache_ids": False}
-            else:
-                scrub_args = {"use_philter": args.philter}
+            scrub_args = {"use_philter": args.philter}
             scrubber = deid.Scrubber(args.dir_phi, **scrub_args)
 
         if args.dir_output:
             # Make sure the output folder matches the PHI folder.
-            # If we weren't given an output folder, don't bother (which happens in the NLP Athena
-            # upload flow, but that confirms the codebook ID a different way.)
+            # If we weren't given an output folder, don't bother
             validate_etl_output_folder(args.dir_output, scrubber.codebook.get_codebook_id())
 
     return scrubber, loader_results, selected_tasks

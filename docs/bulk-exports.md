@@ -119,7 +119,7 @@ This is what you may expect to archive:
 
 ## Downloading Clinical Notes Ahead of Time
 
-If you are interested in running NLP tasks,
+If you are interested in running NLP with Cumulus Library,
 that will require the clinical note attachments
 found inside DiagnosticReport and DocumentReference resources to be available.
 
