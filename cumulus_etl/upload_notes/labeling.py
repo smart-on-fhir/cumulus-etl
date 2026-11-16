@@ -6,7 +6,7 @@ from collections.abc import Collection
 import cumulus_fhir_support as cfs
 import rich
 
-from cumulus_etl import cli_utils, common, deid, errors, nlp
+from cumulus_etl import cli_utils, common, deid, errors, sample
 from cumulus_etl.upload_notes import labelstudio
 
 DEFAULT_ORIGIN = "Cumulus"
@@ -42,7 +42,10 @@ async def add_labels(
 
     if has_athena_table:
         _label_by_csv(
-            codebook, notes, nlp.query_athena_table(args.label_by_athena_table, args), is_anon=True
+            codebook,
+            notes,
+            sample.query_athena_table(args.label_by_athena_table, args),
+            is_anon=True,
         )
     elif has_anon_csv:
         _label_by_csv(codebook, notes, args.label_by_anon_csv, is_anon=True)
@@ -82,7 +85,7 @@ def _label_by_csv(
     *,
     is_anon: bool,
 ) -> None:
-    refs = nlp.get_refs_from_csv(
+    refs = sample.get_refs_from_csv(
         csv_file,
         is_anon=is_anon,
         extra_fields=[

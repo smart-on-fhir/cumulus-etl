@@ -9,7 +9,7 @@ from collections.abc import Callable, Collection
 import cumulus_fhir_support as cfs
 import rich
 
-from cumulus_etl import cli_utils, common, deid, errors, fhir, nlp
+from cumulus_etl import cli_utils, common, deid, errors, fhir, sample
 from cumulus_etl.upload_notes import labeling, labels, manifest, selector
 from cumulus_etl.upload_notes.labelstudio import LabelStudioClient, LabelStudioNote
 
@@ -67,7 +67,7 @@ def gather_resources(
     """Selects and downloads just the docrefs we need to an export folder."""
     common.print_header("Gathering documents...")
 
-    note_filter = nlp.get_note_filter(args, codebook)
+    note_filter = sample.get_note_filter(args, codebook)
 
     return selector.select_resources_from_files(
         root_input,
@@ -135,7 +135,7 @@ async def read_notes_from_ndjson(
         anon_note_id = codebook.fake_id(resource["resourceType"], resource["id"])
         doc_mappings = {note_ref: f"{resource['resourceType']}/{anon_note_id}"}
         doc_spans = {note_ref: (0, len(text))}
-        date = nlp.get_note_date(resource)
+        date = sample.get_note_date(resource)
 
         # Prepare header
         header = "########################################\n"
@@ -415,7 +415,7 @@ def define_upload_notes_parser(parser: argparse.ArgumentParser) -> None:
         "(one .csv per label origin)",
     )
 
-    group = nlp.add_note_selection(parser)
+    group = sample.add_note_selection(parser)
     # Add some deprecated aliases for some note selection options. Deprecated since Sep 2025.
     group.add_argument(
         "--anon-docrefs", dest="select_by_anon_csv", type=cfs.FsPath, help=argparse.SUPPRESS
