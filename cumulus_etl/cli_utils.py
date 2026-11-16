@@ -4,7 +4,6 @@ import argparse
 import contextlib
 import enum
 import itertools
-import os
 import re
 import socket
 import tempfile

@@ -235,8 +235,8 @@ class ValueFlagNormality(Enum):
     """
     observation_fact.VALUEFLAG_CD
 
-        Used in conjunction with VALTYPE_CD = “B”, “NLP”, “N”, or “T”
-        When VALTYPE_CD = “B” or “NLP” it is used to indicate whether or not
+        Used in conjunction with VALTYPE_CD = “B”, “N”, or “T”
+        When VALTYPE_CD = “B” it is used to indicate whether or not
         the data in the blob column is encrypted.
         X = Encrypted text in the blob column
         When the VALTYPE_CD = “N” or “T” it is used to flag certain outlying
