@@ -44,9 +44,8 @@ class OutputTable:
         return task.resource if self.resource_type == "__same__" else self.resource_type
 
     # *** group_field ***
-    # Set group_field if your task generates a group of interdependent records (like NLP results from a document).
+    # Set group_field if your task generates a group of interdependent records.
     # In that example, you might set group_field to "docref_id", as that identifies a single group.
-    # See CovidSymptomNlpResultsTask for an example, but keep reading for more details.
     #
     # The goal here is to allow Format classes to remove any old records of this group when reprocessing a task.
     # Consider the case where the NLP logic changes and now your task only generates four records, where it used to
@@ -57,7 +56,6 @@ class OutputTable:
     #
     # This has some implications for how your task streams records from read_entries() though.
     # Instead of streaming record-by-record, stream (yield) a list of records at a time (i.e. a group at a time).
-    # See CovidSymptomNlpResultsTask for an example.
     #
     # This will tell the code that creates batches to not break up your group, so that the formatter gets a whole
     # group at one time, and not split across batches.
@@ -254,7 +252,7 @@ class EtlTask:
 
     def _update_completion_table(self) -> None:
         if not self.task_config.export_datetime:
-            return  # likely an NLP task which doesn't need completion tracking
+            return  # pragma: no cover ,TODO: Rework as part of completion overhaul
 
         # Create completion rows
         batch = formats.Batch(
@@ -471,4 +469,4 @@ class EtlTask:
         """Abstracts whether the class's resource field is a str or a set of strings."""
         if isinstance(cls.resource, str):
             return {cls.resource}
-        return set(cls.resource)
+        return set(cls.resource)  # pragma: no cover

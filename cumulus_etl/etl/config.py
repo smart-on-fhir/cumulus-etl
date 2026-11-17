@@ -30,7 +30,6 @@ class JobConfig:
         timestamp: datetime.datetime | None = None,
         comment: str | None = None,
         batch_size: int = 1,  # this default is never really used - overridden by command line args
-        ctakes_overrides: cfs.FsPath | None = None,
         dir_errors: cfs.FsPath | None = None,
         tasks: list[str] | None = None,
         export_group_name: str | None = None,
@@ -53,7 +52,6 @@ class JobConfig:
         self.hostname = gethostname()
         self.comment = comment or ""
         self.batch_size = batch_size
-        self.ctakes_overrides = ctakes_overrides
         self.tasks = tasks or []
         self.export_group_name = export_group_name
         self.export_datetime = export_datetime

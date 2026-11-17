@@ -29,7 +29,7 @@ Cumulus ETL saves this data locally to a temporary folder before beginning its w
 
 ### De-identified Records
 
-Cumulus ETL runs its de-identification routine (see below) & natural language processing (NLP)
+Cumulus ETL runs its de-identification routine (see below)
 and then uploads the resulting de-identified records to an output S3 bucket.
 Note this is all still inside your own IT infrastructure.
 
@@ -64,7 +64,7 @@ Let's explore that.
 There are two main transformations of PHI inside Cumulus ETL:
 1. **Dropping data:** Cumulus ETL holds an allow-list of all FHIR fields that are acceptable.
    Fields with PHI are not allowed and are dropped on the floor (for example: `Patient.name`).
-   If not performing NLP, any attachment or clinical note data is also dropped.
+   Any attachment or clinical note data is also dropped.
 2. **Anonymizing data:** It replaces all resource IDs with anonymized IDs, chops birth dates down
    to just the year, generalizes zip codes, and (optionally) runs `philter` on a few higher-risk
    text fields.
@@ -151,15 +151,6 @@ If that is likely for your institution, you can have Cumulus ETL run
 This replaces any detected PHI like names, phone numbers, MRNs, social security numbers, etc. with asterisks.
 
 But be warned that it will significantly slow down the ETL process.
-
-### NLP on Clinical Notes
-
-If performing NLP, the clinical notes are not stripped during normal de-identification, as they
-need to be passed to the NLP model.
-
-The resulting detected symptoms and other medical codes are then kept in the de-identified results,
-along with "span" pointers back to the text, indicating which text indicated the specific symptom.
-This does not hold actual text, but just numbers pointing to offsets in the text.
 
 ## Conclusion
 

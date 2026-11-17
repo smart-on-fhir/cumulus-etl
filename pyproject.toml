@@ -3,18 +3,15 @@ name = "cumulus-etl"
 requires-python = ">= 3.11"
 dependencies = [
     "boto3 >= 1.34.131",
-    "ctakesclient >= 5.1",
     "cumulus-fhir-support >= 1.12",
     "delta-spark >= 4, < 5",
     "httpx",
     "jambo >= 0.1.7",
     "label-studio-sdk >= 2",
     "nltk >= 3.9",
-    "openai",
     "philter-lite",
     "pyarrow",
     "pyathena < 3.15",
-    "pydantic",
     "rich",
 ]
 authors = [
@@ -30,8 +27,8 @@ classifiers = [
 ]
 dynamic = ["description", "version"]
 
-[project.optional-dependencies]
-tests = [
+[dependency-groups]
+dev = [
     "coverage",
     "ddt",
     "jwcrypto",
@@ -40,8 +37,6 @@ tests = [
     "pytest-cov",
     "respx",
     "time-machine",
-]
-dev = [
     "pre-commit",
     # Ruff is using minor versions for breaking changes until their 1.0 release.
     # See https://docs.astral.sh/ruff/versioning/

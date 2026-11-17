@@ -8,12 +8,10 @@ import types
 from unittest import mock
 
 import ddt
-from ctakesclient.typesystem import Polarity
 from label_studio_sdk.label_interface import LabelInterface
 
 from cumulus_etl import errors
 from cumulus_etl.upload_notes.labelstudio import Highlight, LabelStudioClient, LabelStudioNote
-from tests import ctakesmock
 from tests.utils import AsyncTestCase
 
 
@@ -57,8 +55,10 @@ class TestUploadLabelStudio(AsyncTestCase):
             **kwargs,
         )
         if philter_label:
-            matches = ctakesmock.fake_ctakes_extract(note.text).list_match(polarity=Polarity.pos)
-            note.philter_map = {m.begin: m.end for m in matches}
+            # TODO - this is hard coded to the response previously associated with
+            # the ctakes mock, which has since been removed. We could optionally
+            # have a better mock span generation mechanism.
+            note.philter_map = {7: 11, 12: 16, 0: 6}
         return note
 
     @staticmethod

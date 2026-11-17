@@ -194,8 +194,7 @@ class DeltaLakeFormat(Format):
         this is a custom table ala covid_symptom__nlp_results).
         """
         # See if this update dataframe has a meta.lastUpdated field.
-        # If not (which might be true for custom tables like covid_symptom__nlp_results or unit tests),
-        # unconditionally update matching rows by returning None for the condition.
+        # If not (may be true for unit tests), unconditionally update matching rows by returning None for the condition.
         meta_type = "meta" in schema.fieldNames() and schema["meta"].dataType
         has_last_updated_field = (
             meta_type

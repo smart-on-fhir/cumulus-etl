@@ -4,7 +4,6 @@ import argparse
 import contextlib
 import enum
 import itertools
-import os
 import re
 import socket
 import tempfile
@@ -76,16 +75,6 @@ class RemovedEhrArg(argparse.Action):
         parser.add_argument(flag, action=cls, help=argparse.SUPPRESS)
 
 
-def add_ctakes_override(parser: argparse.ArgumentParser):
-    parser.add_argument(
-        "--ctakes-overrides",
-        metavar="DIR",
-        type=cfs.FsPath,
-        default=cfs.FsPath("/ctakes-overrides"),
-        help="path to cTAKES overrides dir (default is /ctakes-overrides)",
-    )
-
-
 def add_output_format(parser: argparse.ArgumentParser, *, choices: list[str]) -> None:
     parser.add_argument(
         "--output-format",
@@ -152,7 +141,7 @@ def is_url_available(url: str, retry: bool = True) -> bool:
     for i in range(num_tries):
         try:
             socket.create_connection((url_parsed.hostname, url_parsed.port))
-            return True
+            return True  # pragma: no cover
         except socket.gaierror:  # hostname didn't resolve
             return False
         except ConnectionRefusedError:  # service is not ready yet
@@ -202,8 +191,6 @@ def user_term_to_pattern(term: str) -> re.Pattern:
 
 def process_input_dir(root: cfs.FsPath) -> cfs.FsPath:
     if not root.is_http and not root.exists():
-        if str(root) == "%EXAMPLE-NLP%":
-            return cfs.FsPath(os.path.dirname(__file__), "etl/studies/example/ndjson")
         errors.fatal(f"Input folder '{root}' does not exist.", errors.FOLDER_DOES_NOT_EXIST)
     return root
 
@@ -219,7 +206,7 @@ class PromptResponse(enum.Flag):
 
 
 def prompt(msg: str, override: bool = False) -> PromptResponse:
-    if override:
+    if override:  # pragma: no cover
         return PromptResponse.SKIPPED
     elif not rich.get_console().is_interactive:
         return PromptResponse.NON_INTERACTIVE

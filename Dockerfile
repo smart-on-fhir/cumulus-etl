@@ -5,8 +5,9 @@ COPY --from=eclipse-temurin:21-jre /opt/java/openjdk /opt/java/openjdk
 COPY . /app
 RUN pip3 install uv
 RUN uv venv
+WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache \
-  uv install /app/[tests]
+  uv sync
 RUN rm -r /app
 
 ENV JAVA_HOME=/opt/java/openjdk
@@ -29,8 +30,9 @@ RUN [ -z "$ETL_VERSION" ] || sed -i "s/1\!0\.0\.0/$ETL_VERSION/" /app/cumulus_et
 # Print the final version we're using
 RUN grep __version__ /app/cumulus_etl/__init__.py
 
+WORKDIR app
 RUN --mount=type=cache,target=/root/.cache \
-  uv pip install /app
+  uv sync --no-dev
 RUN rm -r /app
 
 ENV JAVA_HOME=/opt/java/openjdk

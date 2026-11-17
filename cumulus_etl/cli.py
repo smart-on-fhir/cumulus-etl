@@ -10,7 +10,7 @@ import tempfile
 import rich.logging
 
 from cumulus_etl import common, errors, etl, sample, upload_notes
-from cumulus_etl.etl import convert, init, nlp
+from cumulus_etl.etl import convert, init
 
 
 class Command(enum.Enum):
@@ -21,7 +21,6 @@ class Command(enum.Enum):
     EXPORT = "export"
     INIT = "init"
     INLINE = "inline"
-    NLP = "nlp"
     SAMPLE = "sample"
     UPLOAD_NOTES = "upload-notes"
 
@@ -90,8 +89,6 @@ async def main(argv: list[str]) -> None:
         run_method = init.run_init
     elif subcommand == Command.INLINE.value:
         run_method = inline_removed
-    elif subcommand == Command.NLP.value:
-        run_method = nlp.run_nlp
     elif subcommand == Command.SAMPLE.value:
         run_method = sample.run_sample
     elif subcommand == Command.UPLOAD_NOTES.value:
@@ -102,7 +99,7 @@ async def main(argv: list[str]) -> None:
             # Add a note about other subcommands we offer, and tell argparse not to wrap our formatting
             parser.formatter_class = argparse.RawDescriptionHelpFormatter
             parser.description += "\n\nother commands available:\n"
-            parser.description += "  convert\n  init\n  nlp\n  sample \n  upload-notes"
+            parser.description += "  convert\n  init\n  sample \n  upload-notes"
         run_method = etl.run_etl
 
     with tempfile.TemporaryDirectory() as tempdir:

@@ -104,9 +104,7 @@ def handle_completion_args(
 
 async def etl_main(args: argparse.Namespace) -> None:
     job_datetime = common.datetime_now()
-    scrubber, loader_results, selected_tasks = await pipeline.prepare_pipeline(
-        args, job_datetime, nlp=False
-    )
+    scrubber, loader_results, selected_tasks = await pipeline.prepare_pipeline(args, job_datetime)
 
     job_context = context.JobContext(args.dir_phi.joinpath("context.json"))
 

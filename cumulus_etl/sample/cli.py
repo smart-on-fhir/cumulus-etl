@@ -10,7 +10,8 @@ from collections.abc import AsyncIterable, Iterable, Iterator
 import cumulus_fhir_support as cfs
 import rich
 
-from cumulus_etl import cli_utils, common, deid, errors, nlp
+from cumulus_etl import cli_utils, common, deid, errors
+from cumulus_etl.sample import selection, utils
 
 
 class MultiResourceWriter:
@@ -72,7 +73,7 @@ def define_sample_parser(parser: argparse.ArgumentParser) -> None:
     )
 
     cli_utils.add_aws(parser, athena=True)
-    nlp.add_note_selection(parser)
+    selection.add_note_selection(parser)
 
     group = parser.add_argument_group("sampling")
     group.add_argument(
@@ -109,9 +110,9 @@ def csv_row(resource: dict, columns: list[str]) -> str:
     if "note" in columns:
         line.append(f"{resource['resourceType']}/{resource['id']}")
     if "subject" in columns:
-        line.append(nlp.get_note_subject_ref(resource) or "")
+        line.append(utils.get_note_subject_ref(resource) or "")
     if "encounter" in columns:
-        line.append(nlp.get_note_encounter_id(resource) or "")
+        line.append(utils.get_note_encounter_id(resource) or "")
     return ",".join(line)
 
 
@@ -146,7 +147,7 @@ async def scan_notes(
 ) -> Iterator[tuple[str, int]]:
     """Returns (path, byte offset) for each file that matches our criteria"""
     details = common.read_resource_ndjson_with_details(root_input, res_types)
-    filter_func = nlp.get_note_filter(args, codebook)
+    filter_func = selection.get_note_filter(args, codebook)
     seen_refs = set()
 
     total_count = 0

@@ -176,52 +176,6 @@ class TestConvert(ConvertTestsBase):
         self.assertEqual("2021-12-12T17:00:20+00:00", comp_enc[1]["export_time"])
 
     @mock.patch("cumulus_etl.formats.Format.write_records")
-    async def test_batch_metadata(self, mock_write):
-        """
-        Verify that we pass along per-batch metadata like groups
-
-        This doesn't really happen anymore (it used to for NLP results, but that's no longer
-        supported as a convert method). But still, we support it for now, until it's clear we can
-        pull out the code.
-        """
-        # Set up input path
-        shutil.copytree(  # First, one table that has no metadata
-            f"{self.datadir}/simple/output/patient",
-            f"{self.original_path}/patient",
-        )
-        shutil.copytree(  # Then, one that will have it once we add
-            f"{self.datadir}/covid/output/covid_symptom/nlp_results_v4",
-            f"{self.original_path}/covid_symptom__nlp_results",
-        )
-        # And make a second batch, that has a meta file
-        cfs.FsPath(
-            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.meta"
-        ).write_json(
-            # Reference a group that doesn't exist to prove we are reading this file and not just
-            # pooling group_fields that we see in the data.
-            {"groups": ["nonexistent"]},
-        )
-        cfs.FsPath(
-            f"{self.original_path}/covid_symptom__nlp_results/nlp_results_v4.001.ndjson"
-        ).write_json(
-            {"id": "D1.0", "docref_id": "D1"},
-        )
-        os.makedirs(f"{self.original_path}/JobConfig")
-
-        # Run conversion
-        await self.run_convert()
-
-        # Test results
-        self.assertEqual(3, mock_write.call_count)
-        self.assertEqual(set(), mock_write.call_args_list[0][0][0].groups)  # patients
-        self.assertEqual(
-            mock_write.call_args_list[1][0][0].groups,  # first (empty) covid batch
-            set(),
-        )
-        # second (faked) covid batch
-        self.assertEqual({"nonexistent"}, mock_write.call_args_list[2][0][0].groups)
-
-    @mock.patch("cumulus_etl.formats.Format.write_records")
     @mock.patch("cumulus_etl.formats.deltalake.DeltaLakeFormat.delete_records")
     async def test_deleted_ids(self, mock_delete, mock_write):
         """Verify that we pass along deleted IDs in the table metadata"""
