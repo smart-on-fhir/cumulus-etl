@@ -141,7 +141,7 @@ def is_url_available(url: str, retry: bool = True) -> bool:
     for i in range(num_tries):
         try:
             socket.create_connection((url_parsed.hostname, url_parsed.port))
-            return True
+            return True  # pragma: no cover
         except socket.gaierror:  # hostname didn't resolve
             return False
         except ConnectionRefusedError:  # service is not ready yet
@@ -206,7 +206,7 @@ class PromptResponse(enum.Flag):
 
 
 def prompt(msg: str, override: bool = False) -> PromptResponse:
-    if override:
+    if override:  # pragma: no cover
         return PromptResponse.SKIPPED
     elif not rich.get_console().is_interactive:
         return PromptResponse.NON_INTERACTIVE

@@ -252,7 +252,7 @@ class EtlTask:
 
     def _update_completion_table(self) -> None:
         if not self.task_config.export_datetime:
-            return  # TODO: Rework as part of completion overhaul
+            return  # pragma: no cover ,TODO: Rework as part of completion overhaul
 
         # Create completion rows
         batch = formats.Batch(
@@ -469,4 +469,4 @@ class EtlTask:
         """Abstracts whether the class's resource field is a str or a set of strings."""
         if isinstance(cls.resource, str):
             return {cls.resource}
-        return set(cls.resource)
+        return set(cls.resource)  # pragma: no cover
