@@ -306,12 +306,12 @@ name = "black"
 version = "26.10.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click" },
-    { name = "mypy-extensions" },
-    { name = "packaging" },
-    { name = "pathspec" },
-    { name = "platformdirs" },
-    { name = "pytokens" },
+    { name = "click", marker = "sys_platform != 'emscripten'" },
+    { name = "mypy-extensions", marker = "sys_platform != 'emscripten'" },
+    { name = "packaging", marker = "sys_platform != 'emscripten'" },
+    { name = "pathspec", marker = "sys_platform != 'emscripten'" },
+    { name = "platformdirs", marker = "sys_platform != 'emscripten'" },
+    { name = "pytokens", marker = "sys_platform != 'emscripten'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f8/65/a9611a6ec0a8c88d86e59385da02d68d9533f7e86a05913d20c67be54029/black-26.10.1.tar.gz", hash = "sha256:5f9f83beae62437e060dafd53d7f1fc327e3d3494f74d72ee5c2b73eb90fc4e7", size = 741979, upload-time = "2026-10-10T04:13:40.776Z" }
 wheels = [
@@ -901,7 +901,6 @@ dependencies = [
     { name = "philter-lite" },
     { name = "pyarrow" },
     { name = "pyathena" },
-    { name = "pytest" },
     { name = "rich" },
 ]
 
@@ -931,7 +930,6 @@ requires-dist = [
     { name = "philter-lite" },
     { name = "pyarrow" },
     { name = "pyathena", specifier = "<3.15" },
-    { name = "pytest", specifier = ">=9.2.0" },
     { name = "rich" },
 ]
 

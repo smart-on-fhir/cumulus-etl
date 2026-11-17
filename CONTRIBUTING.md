@@ -21,7 +21,7 @@ Even better! Thank you!
 
 To use the same dev environment as us, you'll want to run these commands:
 ```sh
-pip install .[dev]
+pip install --group dev
 pre-commit install
 ```
 
@@ -33,7 +33,7 @@ This will install the pre-commit hooks for the repo (which automatically enforce
 
 2. To ensure all test dependencies are installed, run this command:
 ```sh
-pip install .[tests]
+pip install --group dev
 ```
 
 3. Then just run `pytest`.

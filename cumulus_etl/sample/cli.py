@@ -11,7 +11,7 @@ import cumulus_fhir_support as cfs
 import rich
 
 from cumulus_etl import cli_utils, common, deid, errors
-from cumulus_etl.sample import utils, selection
+from cumulus_etl.sample import selection, utils
 
 
 class MultiResourceWriter:

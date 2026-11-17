@@ -42,17 +42,17 @@ jobs:
         run: |
           python -m pip install uv
           uv venv
-          uv pip install .[tests]
+          uv sync
 
       - name: Test with pytest
         run: |
           source .venv/bin/activate
-          python -m pytest --cov=cumulus_etl --cov-report=xml
+          uv run pytest --cov=cumulus_etl --cov-report=xml
 
       - name: Log missing coverage
         run: |
           source .venv/bin/activate
-          coverage report -m --skip-covered
+          uv run coverage report -m --skip-covered
 
       - name: Check coverage report
         if: github.ref != 'refs/heads/main'
@@ -73,12 +73,12 @@ jobs:
         run: |
           python -m pip install --upgrade uv
           uv venv
-          uv pip install .[dev]
+          uv sync
 
       - name: Run ruff
         run: |
           source .venv/bin/activate
-          ruff check --output-format=github .
+          uv run ruff check --output-format=github .
 
   bdf-validation:
     name: BDF validation

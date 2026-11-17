@@ -42,13 +42,8 @@ services:
       - AWS_SESSION_TOKEN
       - AZURE_OPENAI_API_KEY
       - AZURE_OPENAI_ENDPOINT
-      # Internal environment variobles
-      - URL_CTAKES_REST=http://ctakes-covid:8080/ctakes-web-rest/service/analyze
-      - URL_CNLP_NEGATION=http://cnlpt-negation:8000/negation/process
-      - URL_CNLP_TERM_EXISTS=http://cnlpt-term-exists:8000/termexists/process
     volumes:
       - $HOME/.aws/:/root/.aws/:ro
-      - ctakes-overrides:/ctakes-overrides
     networks:
       - cumulus-etl
     profiles:

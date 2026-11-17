@@ -12,7 +12,6 @@ dependencies = [
     "philter-lite",
     "pyarrow",
     "pyathena < 3.15",
-    "pytest>=9.2.0",
     "rich",
 ]
 authors = [
