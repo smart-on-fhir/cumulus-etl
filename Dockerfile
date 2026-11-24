@@ -32,7 +32,8 @@ RUN grep __version__ /app/cumulus_etl/__init__.py
 
 WORKDIR app
 RUN --mount=type=cache,target=/root/.cache \
-  uv sync --no-dev
+# --no-editable forces uv to install in the .venv rather than feeding from src
+  UV_PROJECT_ENVIRONMENT=/.venv uv sync --no-dev --no-editable 
 RUN rm -r /app
 
 ENV JAVA_HOME=/opt/java/openjdk
