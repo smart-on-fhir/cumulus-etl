@@ -17,6 +17,16 @@ permissions:  # restrict by default, add more permissions in jobs that need them
   contents: read
 
 jobs:
+  docker-compose:
+    name: Docker Compose
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build ETL image
+        run: docker compose build cumulus-etl
+      - name: Check ETL version
+        run: docker compose run --rm --pull never cumulus-etl --version
+
   unittest:
     name: unit tests
     runs-on: ubuntu-24.04
